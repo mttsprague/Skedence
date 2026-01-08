@@ -41,7 +41,7 @@ struct SkedenceAdminApp: App {
                 OnboardingLandingView()
                     .environmentObject(auth)
             } else {
-                ContentView()
+                ContentViewWrapper()
                     .environmentObject(auth)
                     .environmentObject(subscriptionStatus)
                     .task {

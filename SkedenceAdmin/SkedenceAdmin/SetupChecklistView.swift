@@ -5,6 +5,7 @@ struct SetupChecklistView: View {
     @StateObject private var viewModel = SetupChecklistViewModel()
     @State private var showTemplateSelector = false
     @State private var showShareSheet = false
+    @Environment(\.dismiss) var dismiss
     
     var body: some View {
         ScrollView {
@@ -170,6 +171,8 @@ struct SetupChecklistView: View {
         .onAppear {
             viewModel.loadProgress()
         }
+        .navigationTitle("Get Started")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

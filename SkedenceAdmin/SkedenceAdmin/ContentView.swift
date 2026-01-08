@@ -96,6 +96,30 @@ struct MoreView: View {
                         }
                         .padding(.horizontal, Spacing.lg)
                         
+                        // Setup Checklist (Admin only)
+                        if auth.isAdmin {
+                            NavigationLink(destination: SetupChecklistView()) {
+                                CardView {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Setup Checklist")
+                                                .font(.headingSmall)
+                                                .foregroundStyle(AppTheme.textPrimary)
+                                            Text("Complete your onboarding")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "checkmark.circle")
+                                            .foregroundStyle(AppTheme.primary)
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, Spacing.lg)
+                        }
+                        
                         // Billing Management (Admin only)
                         if auth.isAdmin {
                             NavigationLink(destination: ManageSubscriptionView().environmentObject(auth)) {

@@ -78,11 +78,29 @@ service cloud.firestore {
       // Members can read their own organization
       allow read: if isMemberOfOrg(orgId);
       
-      // Only owners can update organization settings
-      allow update: if isOrgOwner(orgId);
+      // Only owners can update organization settings (including onboarding progress)
+      allow update: if isOrgOwner(orgId) || isOrgAdmin(orgId);
       
       // No creation or deletion via client (managed by backend)
       allow create, delete: if false;
+      
+      // Packages subcollection
+      match /packages/{packageId} {
+        allow read: if isMemberOfOrg(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
+      
+      // Trainers subcollection
+      match /trainers/{trainerId} {
+        allow read: if isMemberOfOrg(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
+      
+      // Availability subcollection
+      match /availability/{availabilityId} {
+        allow read: if isMemberOfOrg(orgId);
+        allow write: if isOrgTrainer(orgId);
+      }
     }
 
     // =========================================================================

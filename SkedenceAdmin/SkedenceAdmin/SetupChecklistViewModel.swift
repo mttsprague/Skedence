@@ -138,19 +138,23 @@ class SetupChecklistViewModel: ObservableObject {
     }
     
     func navigateToStripeSetup() {
-        // Navigate to Stripe setup - implement based on your app navigation
+        // Post notification to navigate to billing
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToBilling"), object: nil)
     }
     
     func navigateToPackages() {
-        // Navigate to packages view - implement based on your app navigation
+        // Post notification to navigate to packages
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToPackages"), object: nil)
     }
     
     func navigateToProfile() {
-        // Navigate to profile view - implement based on your app navigation
+        // Post notification to navigate to profile
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToProfile"), object: nil)
     }
     
     func navigateToAvailability() {
-        // Navigate to availability view - implement based on your app navigation
+        // Post notification to navigate to schedule/availability
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToSchedule"), object: nil)
     }
     
     func dismissChecklist() {
