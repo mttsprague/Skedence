@@ -543,6 +543,13 @@ struct BookView: View {
             let packageId = selectedPackage?.id ?? ""
             _ = try await bookingManager.bookLesson(trainerId: trainerId, slotId: slotId, lessonPackageId: packageId)
             
+            // Track booking creation event
+            AnalyticsService.shared.logBookingCreated(
+                bookingId: "\(trainerId)_\(slotId)",
+                trainerId: trainerId,
+                clientId: auth.currentUserUID ?? ""
+            )
+            
             // Create success message with trainer name
             let trainerName = selectedTrainer?.name ?? "your trainer"
             bookingAlert = .init(
@@ -927,6 +934,12 @@ private struct ClassRegistrationSheet: View {
             try await classesService.registerForClassWithPass(
                 classId: classId,
                 classPassPackageId: passId
+            )
+            
+            // Track class registration event
+            AnalyticsService.shared.logClassRegistered(
+                classId: classId,
+                className: classItem.title
             )
             
             // Success! Reload packages and show success state

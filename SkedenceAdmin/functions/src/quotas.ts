@@ -1,6 +1,12 @@
 import * as admin from "firebase-admin";
 
-const db = admin.firestore();
+/**
+ * Get Firestore database instance
+ * @return {admin.firestore.Firestore} Firestore instance
+ */
+function getDb(): admin.firestore.Firestore {
+  return admin.firestore();
+}
 
 export interface QuotaLimits {
   maxBookingsPerDay: number;
@@ -11,7 +17,7 @@ export interface QuotaLimits {
   maxStorageGB: number;
 }
 
-export const PLAN_QUOTAS: Record<string, QuotaLimits> = {
+export const PLAN_QUOTAS = {
   free: {
     maxBookingsPerDay: 10,
     maxClassesPerDay: 5,
@@ -44,55 +50,66 @@ export const PLAN_QUOTAS: Record<string, QuotaLimits> = {
     maxFileSizeMB: 100,
     maxStorageGB: 500,
   },
-};
+} as const satisfies Record<string, QuotaLimits>;
 
 /**
  * Get quota limits for an organization based on their subscription plan
+ * @param {string} organizationId - The organization ID
+ * @return {Promise<QuotaLimits>} The quota limits
  */
 export async function getOrgQuotas(organizationId: string): Promise<QuotaLimits> {
-  const orgDoc = await db.collection("organizations").doc(organizationId).get();
+  const orgDoc = await getDb().collection("organizations").doc(organizationId).get();
   const orgData = orgDoc.data();
-  
+
   const plan = orgData?.subscriptionPlan || "free";
-  return PLAN_QUOTAS[plan] || PLAN_QUOTAS.free;
+
+  // Type guard to ensure we return a valid QuotaLimits
+  if (plan in PLAN_QUOTAS) {
+    return PLAN_QUOTAS[plan as keyof typeof PLAN_QUOTAS];
+  }
+
+  return PLAN_QUOTAS.free;
 }
 
 /**
  * Check if an organization has exceeded their quota for a specific action
+ * @param {string} organizationId - The organization ID
+ * @param {string} quotaType - Type of quota to check
+ * @return {Promise<Object>} Quota check result
  */
 export async function checkQuota(
   organizationId: string,
   quotaType: "bookings" | "classes" | "messages" | "fileUploads"
 ): Promise<{ allowed: boolean; current: number; limit: number }> {
   const quotas = await getOrgQuotas(organizationId);
-  
+
   let limit: number;
   switch (quotaType) {
-    case "bookings":
-      limit = quotas.maxBookingsPerDay;
-      break;
-    case "classes":
-      limit = quotas.maxClassesPerDay;
-      break;
-    case "messages":
-      limit = quotas.maxMessagesPerDay;
-      break;
-    case "fileUploads":
-      limit = quotas.maxFileUploadsPerDay;
-      break;
+  case "bookings":
+    limit = quotas.maxBookingsPerDay;
+    break;
+  case "classes":
+    limit = quotas.maxClassesPerDay;
+    break;
+  case "messages":
+    limit = quotas.maxMessagesPerDay;
+    break;
+  case "fileUploads":
+    limit = quotas.maxFileUploadsPerDay;
+    break;
   }
 
   // If limit is -1, it's unlimited
   if (limit === -1) {
-    return { allowed: true, current: 0, limit: -1 };
+    return {allowed: true, current: 0, limit: -1};
   }
 
   // Get today's usage
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = today.toISOString().split("T")[0] as string;
 
-  const usageDoc = await db
+  const usageDoc = await getDb()
     .collection("organizations")
     .doc(organizationId)
     .collection("usage")
@@ -102,11 +119,14 @@ export async function checkQuota(
   const current = usageDoc.data()?.[quotaType] || 0;
   const allowed = current < limit;
 
-  return { allowed, current, limit };
+  return {allowed, current, limit};
 }
 
 /**
  * Increment usage counter for an organization
+ * @param {string} organizationId - The organization ID
+ * @param {string} quotaType - Type of usage to increment
+ * @return {Promise<void>}
  */
 export async function incrementUsage(
   organizationId: string,
@@ -114,9 +134,9 @@ export async function incrementUsage(
 ): Promise<void> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = today.toISOString().split("T")[0] as string;
 
-  const usageRef = db
+  const usageRef = getDb()
     .collection("organizations")
     .doc(organizationId)
     .collection("usage")
@@ -128,13 +148,17 @@ export async function incrementUsage(
       date: todayStr,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
-    { merge: true }
+    {merge: true}
   );
 }
 
 /**
  * Rate limiting using Firestore
  * Returns true if action is allowed, false if rate limited
+ * @param {string} key - Rate limit key
+ * @param {number} maxRequests - Maximum requests allowed
+ * @param {number} windowSeconds - Time window in seconds
+ * @return {Promise<Object>} Rate limit result
  */
 export async function checkRateLimit(
   key: string,
@@ -144,15 +168,15 @@ export async function checkRateLimit(
   const now = Date.now();
   const windowStart = now - windowSeconds * 1000;
 
-  const rateLimitRef = db.collection("rateLimits").doc(key);
-  
+  const rateLimitRef = getDb().collection("rateLimits").doc(key);
+
   try {
-    const result = await db.runTransaction(async (transaction) => {
+    const result = await getDb().runTransaction(async (transaction) => {
       const doc = await transaction.get(rateLimitRef);
       const data = doc.data();
 
       let requests: number[] = data?.requests || [];
-      
+
       // Filter out old requests outside the window
       requests = requests.filter((timestamp) => timestamp > windowStart);
 
@@ -176,7 +200,7 @@ export async function checkRateLimit(
           requests,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
-        { merge: true }
+        {merge: true}
       );
 
       return {
@@ -203,14 +227,14 @@ export async function checkRateLimit(
  */
 export async function cleanupRateLimits(): Promise<void> {
   const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-  
-  const snapshot = await db
+
+  const snapshot = await getDb()
     .collection("rateLimits")
     .where("updatedAt", "<", new Date(oneDayAgo))
     .limit(500)
     .get();
 
-  const batch = db.batch();
+  const batch = getDb().batch();
   snapshot.docs.forEach((doc) => {
     batch.delete(doc.ref);
   });
@@ -221,28 +245,30 @@ export async function cleanupRateLimits(): Promise<void> {
 
 /**
  * Check if organization is disabled or subscription expired
+ * @param {string} organizationId - The organization ID
+ * @return {Promise<Object>} Organization access status
  */
 export async function checkOrgAccess(organizationId: string): Promise<{
   allowed: boolean;
   reason?: string;
   isReadOnly: boolean;
 }> {
-  const orgDoc = await db.collection("organizations").doc(organizationId).get();
-  
+  const orgDoc = await getDb().collection("organizations").doc(organizationId).get();
+
   if (!orgDoc.exists) {
-    return { allowed: false, reason: "Organization not found", isReadOnly: false };
+    return {allowed: false, reason: "Organization not found", isReadOnly: false};
   }
 
   const orgData = orgDoc.data();
 
   // Check if org is disabled
   if (orgData?.disabled === true) {
-    return { allowed: false, reason: "Organization is disabled", isReadOnly: false };
+    return {allowed: false, reason: "Organization is disabled", isReadOnly: false};
   }
 
   // Check subscription status
   const subscriptionStatus = orgData?.subscriptionStatus;
-  
+
   if (!subscriptionStatus || subscriptionStatus === "canceled" || subscriptionStatus === "incomplete") {
     return {
       allowed: true,
@@ -259,5 +285,5 @@ export async function checkOrgAccess(organizationId: string): Promise<{
     };
   }
 
-  return { allowed: true, isReadOnly: false };
+  return {allowed: true, isReadOnly: false};
 }

@@ -138,9 +138,9 @@ export const bookLesson = functions.https.onCall(
 
         // STEP 10: Check trainer's organization billing status and quota
         const trainerDataForBilling = trainerDoc.data();
-        
+
         if (trainerDataForBilling && trainerDataForBilling.orgId) {
-          orgId = trainerDataForBilling.orgId;
+          orgId = trainerDataForBilling.orgId as string;
           const orgDoc = await transaction.get(
             db.collection("organizations").doc(orgId)
           );

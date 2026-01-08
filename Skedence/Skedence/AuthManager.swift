@@ -27,6 +27,13 @@ final class AuthManager: ObservableObject {
             // Force refresh the ID token to ensure we have the latest auth state
             _ = try await result.user.getIDTokenResult(forcingRefresh: true)
             
+            // Track login event
+            AnalyticsService.shared.logUserLogin(userId: result.user.uid, method: "email")
+            AnalyticsService.shared.setUserId(result.user.uid)
+            
+            // Set Crashlytics user ID
+            CrashlyticsService.shared.setUserId(result.user.uid)
+            
             // Load orgId and branding from organization
             await loadOrgId(for: result.user.uid)
             
@@ -35,6 +42,7 @@ final class AuthManager: ObservableObject {
             return true
         } catch {
             print("AuthManager: Sign-in error: \(error.localizedDescription)")
+            CrashlyticsService.shared.logAuthError(error, method: "email")
             authError = error.localizedDescription
             return false
         }
@@ -97,6 +105,13 @@ final class AuthManager: ObservableObject {
             print("AuthManager.register → Payload: \(payload)")
 
             try await db.collection("users").document(uid).setData(payload)
+            
+            // Track sign up event
+            AnalyticsService.shared.logUserSignUp(userId: uid, method: "email")
+            AnalyticsService.shared.setUserId(uid)
+            
+            // Set Crashlytics user ID
+            CrashlyticsService.shared.setUserId(uid)
             
             // Load orgId from orgMembers collection
             await loadOrgId(for: uid)

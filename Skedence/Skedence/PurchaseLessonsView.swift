@@ -344,10 +344,19 @@ struct PurchaseLessonsView: View {
                     // Call backend to confirm payment and create package
                     try await stripeService.confirmPayment(paymentIntentId: paymentIntentId)
                     
+                    // Track package purchase event
+                    let packageTypeStr = selected.rawValue.replacingOccurrences(of: "_", with: " ")
+                    AnalyticsService.shared.logPackagePurchased(
+                        packageId: paymentIntentId,
+                        price: Double(selected.price) / 100.0,
+                        method: "stripe"
+                    )
+                    
                     // Reload packages to show the new one
                     await packagesService.loadMyPackages()
                 } catch {
                     alert = .init(title: "Error", message: "Payment succeeded but package creation failed. Please contact support. \(error.localizedDescription)")
+                    CrashlyticsService.shared.logPaymentError(error, amount: Double(selected.price) / 100.0, method: "stripe")
                     return
                 }
                 
