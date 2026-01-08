@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var auth: AuthManager
+    @StateObject private var enforcement = SubscriptionEnforcementService()
     @State private var selectedTab = 0
     
     var body: some View {
@@ -31,6 +33,21 @@ struct ContentView: View {
                 .tag(2)
         }
         .tint(AppTheme.primary)
+        .overlay {
+            if let billing = enforcement.billing {
+                CoachPaywallView(
+                    billing: billing,
+                    isOwner: auth.isAdmin,
+                    ownerName: "Business Owner",
+                    ownerEmail: auth.userEmail ?? ""
+                )
+            }
+        }
+        .onAppear {
+            if let orgId = auth.currentOrgId {
+                enforcement.startMonitoring(orgId: orgId)
+            }
+        }
     }
 }
 

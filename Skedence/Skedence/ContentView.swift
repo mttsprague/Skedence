@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseFirestore
 
 // App Root With Tabs
 struct AppRootView: View {
@@ -21,6 +22,7 @@ struct AppRootView: View {
     
     @State private var selectedTab = 0
     @State private var bookViewMode = 0
+    @State private var organizationIsActive = true
 
     var body: some View {
         Group {
@@ -93,6 +95,15 @@ struct AppRootView: View {
                     .environmentObject(classesService)
                     .environmentObject(adminService)
                     .environmentObject(subscriptionStatus)
+                    .overlay {
+                        if !organizationIsActive {
+                            ClientBookingBlockedView(
+                                businessName: adminService.organizationName ?? "This business",
+                                contactEmail: auth.userEmail ?? "",
+                                contactPhone: nil
+                            )
+                        }
+                    }
                 }
             } else {
                 VStack(spacing: Spacing.lg) {
@@ -111,6 +122,17 @@ struct AppRootView: View {
             // Start monitoring subscription status
             if let orgId = auth.currentOrgId {
                 subscriptionStatus.monitorOrgStatus(organizationId: orgId)
+                
+                // Monitor organization billing status
+                Firestore.firestore().collection("organizations").document(orgId)
+                    .addSnapshotListener { snapshot, error in
+                        guard let data = snapshot?.data(),
+                              let billing = data["billing"] as? [String: Any] else {
+                            organizationIsActive = true
+                            return
+                        }
+                        organizationIsActive = billing["isActive"] as? Bool ?? true
+                    }
             }
         }
     }
