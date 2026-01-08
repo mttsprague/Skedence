@@ -43,6 +43,9 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, Spacing.md)
+                    .onAppear {
+                        AnalyticsService.shared.logScreenView(screenName: "Home", screenClass: "HomeView")
+                    }
 
                     // Location Card
                     CardView(padding: Spacing.md) {

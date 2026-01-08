@@ -12,6 +12,7 @@ import FirebaseAuth
 
 struct BookView: View {
     @EnvironmentObject var auth: AuthManager
+    @EnvironmentObject var subscriptionStatus: SubscriptionStatusService
     @ObservedObject var trainersService: TrainersService
     @ObservedObject var scheduleService: ScheduleService
     @ObservedObject var packagesService: PackagesService
@@ -102,6 +103,23 @@ struct BookView: View {
     private var contentView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
+                // Show paywall banner if subscription is expired/past_due
+                if subscriptionStatus.isReadOnly {
+                    PaywallBanner(
+                        message: subscriptionStatus.statusMessage ?? "Your subscription needs attention",
+                        actionLabel: "Update Billing",
+                        action: {
+                            // TODO: Navigate to billing/subscription view
+                            bookingAlert = BookingAlert(
+                                title: "Subscription Required",
+                                message: "Please update your subscription to continue booking sessions."
+                            )
+                        },
+                        showDismiss: false
+                    )
+                    .padding(.horizontal, Spacing.lg)
+                }
+                
                 modePicker
                 
                 // Show lessons or classes based on mode
@@ -112,6 +130,9 @@ struct BookView: View {
                 }
             }
             .padding(.vertical, Spacing.lg)
+        }
+        .onAppear {
+            AnalyticsService.shared.logScreenView(screenName: "Book", screenClass: "BookView")
         }
     }
     

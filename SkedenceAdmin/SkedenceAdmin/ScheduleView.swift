@@ -10,6 +10,7 @@ import FirebaseFirestore
 
 struct ScheduleView: View {
     @EnvironmentObject private var auth: AuthManager
+    @EnvironmentObject private var subscriptionStatus: SubscriptionStatusService
     @StateObject private var viewModel = ScheduleViewModel()
 
     // Editor presentation state driven by an Identifiable item
@@ -59,6 +60,20 @@ struct ScheduleView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Show paywall banner if subscription expired/past_due
+                if subscriptionStatus.isReadOnly {
+                    PaywallBanner(
+                        message: subscriptionStatus.statusMessage ?? "Subscription expired",
+                        actionLabel: "Update Billing",
+                        action: {
+                            // TODO: Navigate to subscription management
+                        },
+                        showDismiss: false
+                    )
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                }
+                
                 header
                 
                 // Admin trainer selector
@@ -116,7 +131,10 @@ struct ScheduleView: View {
                                                         horizontalPadding: 2,
                                                         isToday: isToday,
                                                         onEmptyTap: {
-                                                            editorContext = EditorContext(day: day, hour: hour)
+                                                            // Check subscription status before allowing slot creation
+                                                            if subscriptionStatus.canPerformAction(.createAvailability) {
+                                                                editorContext = EditorContext(day: day, hour: hour)
+                                                            }
                                                         },
                                                         onSlotTap: { slot in
                                                             handleSlotTap(slot, defaultDay: day, defaultHour: hour)
@@ -165,6 +183,9 @@ struct ScheduleView: View {
                 }
             }
             .navigationBarHidden(true)
+            .onAppear {
+                AnalyticsService.shared.logScreenView(screenName: "Schedule", screenClass: "ScheduleView")
+            }
             .task {
                 viewModel.setTrainerId(auth.userId ?? "trainer_demo")
                 viewModel.setOrgId(auth.currentOrgId)

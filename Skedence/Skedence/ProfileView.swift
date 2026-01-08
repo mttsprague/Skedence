@@ -109,6 +109,9 @@ private struct SignedInProfileScreen: View {
         .background(Color.platformGroupedBackground)
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            AnalyticsService.shared.logScreenView(screenName: "Profile", screenClass: "ProfileView")
+        }
         .task {
             guard let orgId = auth.currentOrgId else { return }
             if trainersService.trainers.isEmpty {

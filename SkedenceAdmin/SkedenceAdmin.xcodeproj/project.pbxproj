@@ -16,6 +16,7 @@
 		C320429E2E9D66A7003EF857 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = C320429D2E9D66A7003EF857 /* FirebaseCore */; };
 		C32042E22E9E7AAB003EF857 /* ClientsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32042E12E9E7AAB003EF857 /* ClientsViewModel.swift */; };
 		C32042E42E9E7AAD003EF857 /* ClientDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32042E32E9E7AAD003EF857 /* ClientDetailView.swift */; };
+		C394B5FF2F10083100BC0002 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = C394B5FE2F10083100BC0002 /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,6 +86,7 @@
 				C320428E2E9D654E003EF857 /* FirebaseFunctions in Frameworks */,
 				C32042862E9D654E003EF857 /* FirebaseAnalytics in Frameworks */,
 				C320429E2E9D66A7003EF857 /* FirebaseCore in Frameworks */,
+				C394B5FF2F10083100BC0002 /* FirebaseCrashlytics in Frameworks */,
 				C32042882E9D654E003EF857 /* FirebaseAuth in Frameworks */,
 				C32042902E9D654E003EF857 /* FirebaseStorage in Frameworks */,
 			);
@@ -157,6 +159,7 @@
 				C320428D2E9D654E003EF857 /* FirebaseFunctions */,
 				C320428F2E9D654E003EF857 /* FirebaseStorage */,
 				C320429D2E9D66A7003EF857 /* FirebaseCore */,
+				C394B5FE2F10083100BC0002 /* FirebaseCrashlytics */,
 			);
 			productName = SkedenceAdmin;
 			productReference = C32042152E9C9C95003EF857 /* SkedenceAdmin.app */;
@@ -715,6 +718,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C32042842E9D654E003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCore;
+		};
+		C394B5FE2F10083100BC0002 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32042842E9D654E003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

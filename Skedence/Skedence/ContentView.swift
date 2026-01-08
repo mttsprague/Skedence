@@ -17,6 +17,7 @@ struct AppRootView: View {
     @StateObject private var bookingsService = BookingsService()
     @StateObject private var classesService = ClassesService()
     @StateObject private var adminService = AdminService()
+    @StateObject private var subscriptionStatus = SubscriptionStatusService.shared
     
     @State private var selectedTab = 0
     @State private var bookViewMode = 0
@@ -91,6 +92,7 @@ struct AppRootView: View {
                     .environmentObject(bookingsService)
                     .environmentObject(classesService)
                     .environmentObject(adminService)
+                    .environmentObject(subscriptionStatus)
                 }
             } else {
                 VStack(spacing: Spacing.lg) {
@@ -106,6 +108,10 @@ struct AppRootView: View {
             await auth.ensureSignedIn() // Temporary anonymous; replace with Email/Password flow
             // Check admin status after authentication
             await adminService.checkAdminStatus()
+            // Start monitoring subscription status
+            if let orgId = auth.currentOrgId {
+                subscriptionStatus.monitorOrgStatus(organizationId: orgId)
+            }
         }
     }
 }

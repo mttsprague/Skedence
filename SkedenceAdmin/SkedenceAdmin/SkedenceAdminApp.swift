@@ -15,6 +15,7 @@ import FirebaseCore
 @main
 struct SkedenceAdminApp: App {
     @StateObject private var auth = AuthManager()
+    @StateObject private var subscriptionStatus = SubscriptionStatusService.shared
 
     init() {
         configureFirebaseIfAvailable()
@@ -42,6 +43,13 @@ struct SkedenceAdminApp: App {
             } else {
                 ContentView()
                     .environmentObject(auth)
+                    .environmentObject(subscriptionStatus)
+                    .task {
+                        // Monitor subscription status after auth
+                        if let orgId = auth.currentOrgId {
+                            subscriptionStatus.monitorOrgStatus(organizationId: orgId)
+                        }
+                    }
             }
         }
         .modelContainer(sharedModelContainer)

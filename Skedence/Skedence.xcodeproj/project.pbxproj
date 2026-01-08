@@ -25,6 +25,7 @@
 		C34AB6342F05B4920039C772 /* StripePayments in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB6332F05B4920039C772 /* StripePayments */; };
 		C34AB6362F05B4920039C772 /* StripePaymentsUI in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB6352F05B4920039C772 /* StripePaymentsUI */; };
 		C381D0122EA13C5E00173F89 /* BookingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C381D0112EA13C5E00173F89 /* BookingManager.swift */; };
+		C394B5AF2F1007D500BC0002 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = C394B5AE2F1007D500BC0002 /* FirebaseCrashlytics */; };
 		C3BCEE222EA15912004619EF /* MyUpcomingLessonsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BCEE212EA15911004619EF /* MyUpcomingLessonsView.swift */; };
 /* End PBXBuildFile section */
 
@@ -104,6 +105,7 @@
 				C34AB62E2F05B4920039C772 /* StripeIdentity in Frameworks */,
 				C34AB5DA2F05A4BA0039C772 /* Stripe in Frameworks */,
 				C320430D2E9ECE09003EF857 /* FirebaseFirestore in Frameworks */,
+				C394B5AF2F1007D500BC0002 /* FirebaseCrashlytics in Frameworks */,
 				C34AB5DE2F05A4BA0039C772 /* StripeCardScan in Frameworks */,
 				C32043072E9ECE09003EF857 /* FirebaseAuth in Frameworks */,
 			);
@@ -185,6 +187,7 @@
 				C34AB6312F05B4920039C772 /* StripePaymentSheet */,
 				C34AB6332F05B4920039C772 /* StripePayments */,
 				C34AB6352F05B4920039C772 /* StripePaymentsUI */,
+				C394B5AE2F1007D500BC0002 /* FirebaseCrashlytics */,
 			);
 			productName = Skedence;
 			productReference = C320424A2E9C9D52003EF857 /* Skedence.app */;
@@ -779,6 +782,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
 			productName = StripePaymentsUI;
+		};
+		C394B5AE2F1007D500BC0002 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
