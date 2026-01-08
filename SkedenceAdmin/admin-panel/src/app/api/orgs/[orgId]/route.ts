@@ -4,7 +4,7 @@ import { isAdminEmail } from '@/lib/auth';
 
 export async function GET(
   request: Request,
-  { params }: { params: { orgId: string } }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
     const adminEmail = request.headers.get('x-admin-email');
@@ -16,8 +16,9 @@ export async function GET(
       );
     }
 
+    const { orgId } = await params;
     const db = getFirestoreAdmin();
-    const orgDoc = await db.collection('organizations').doc(params.orgId).get();
+    const orgDoc = await db.collection('organizations').doc(orgId).get();
 
     if (!orgDoc.exists) {
       return NextResponse.json(
@@ -31,7 +32,7 @@ export async function GET(
     // Fetch members
     const membersSnapshot = await db
       .collection('organizations')
-      .doc(params.orgId)
+      .doc(orgId)
       .collection('members')
       .get();
 
@@ -43,7 +44,7 @@ export async function GET(
     // Fetch recent activity/events (if you have an events collection)
     const eventsSnapshot = await db
       .collection('organizations')
-      .doc(params.orgId)
+      .doc(orgId)
       .collection('events')
       .orderBy('timestamp', 'desc')
       .limit(20)
@@ -73,7 +74,7 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { orgId: string } }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
   try {
     const adminEmail = request.headers.get('x-admin-email');
@@ -85,10 +86,11 @@ export async function PATCH(
       );
     }
 
+    const { orgId } = await params;
     const body = await request.json();
     const db = getFirestoreAdmin();
 
-    await db.collection('organizations').doc(params.orgId).update({
+    await db.collection('organizations').doc(orgId).update({
       ...body,
       updatedAt: new Date(),
     });
