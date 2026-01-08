@@ -48,6 +48,12 @@ service cloud.firestore {
     function isOrgTrainer(orgId) {
       return hasOrgRole(orgId, 'trainer') || isOrgAdmin(orgId);
     }
+    
+    // Check if organization has active billing
+    function hasActiveBilling(orgId) {
+      let org = get(/databases/$(database)/documents/organizations/$(orgId));
+      return org.data.billing.isActive == true;
+    }
 
     // Check if document belongs to user's organization
     function belongsToUserOrg() {
@@ -87,19 +93,19 @@ service cloud.firestore {
       // Packages subcollection
       match /packages/{packageId} {
         allow read: if isMemberOfOrg(orgId);
-        allow write: if isOrgAdmin(orgId);
+        allow write: if isOrgAdmin(orgId) && hasActiveBilling(orgId);
       }
       
       // Trainers subcollection
       match /trainers/{trainerId} {
         allow read: if isMemberOfOrg(orgId);
-        allow write: if isOrgAdmin(orgId);
+        allow write: if isOrgAdmin(orgId) && hasActiveBilling(orgId);
       }
       
       // Availability subcollection
       match /availability/{availabilityId} {
         allow read: if isMemberOfOrg(orgId);
-        allow write: if isOrgTrainer(orgId);
+        allow write: if isOrgTrainer(orgId) && hasActiveBilling(orgId);
       }
     }
 
@@ -220,17 +226,20 @@ service cloud.firestore {
         || isOrgTrainer(resource.data.orgId)
       );
 
-      // Trainers/admins can create bookings
+      // Trainers/admins can create bookings (requires active billing)
       allow create: if newDocBelongsToUserOrg() 
-        && isOrgTrainer(request.resource.data.orgId);
+        && isOrgTrainer(request.resource.data.orgId)
+        && hasActiveBilling(request.resource.data.orgId);
 
-      // Trainers/admins can update bookings
+      // Trainers/admins can update bookings (requires active billing)
       allow update: if belongsToUserOrg() 
-        && isOrgTrainer(resource.data.orgId);
+        && isOrgTrainer(resource.data.orgId)
+        && hasActiveBilling(resource.data.orgId);
 
-      // Trainers/admins can delete bookings
+      // Trainers/admins can delete bookings (requires active billing)
       allow delete: if belongsToUserOrg() 
-        && isOrgTrainer(resource.data.orgId);
+        && isOrgTrainer(resource.data.orgId)
+        && hasActiveBilling(resource.data.orgId);
     }
 
     // =========================================================================
@@ -240,12 +249,14 @@ service cloud.firestore {
       // Anyone in the same org can read classes
       allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
       
-      // Only admins can create, update, or delete classes
+      // Only admins can create, update, or delete classes (requires active billing)
       allow create: if newDocBelongsToUserOrg() 
-        && isOrgAdmin(request.resource.data.orgId);
+        && isOrgAdmin(request.resource.data.orgId)
+        && hasActiveBilling(request.resource.data.orgId);
       
       allow update, delete: if belongsToUserOrg() 
-        && isOrgAdmin(resource.data.orgId);
+        && isOrgAdmin(resource.data.orgId)
+        && hasActiveBilling(resource.data.orgId);
       
       // Participants subcollection
       match /participants/{participantId} {
