@@ -39,3 +39,4 @@ serviceAccountKey.json
 # OS
 .DS_Store
 Thumbs.db
+*.json
