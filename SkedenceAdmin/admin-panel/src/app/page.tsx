@@ -11,6 +11,17 @@ interface Organization {
   createdAt: any;
   disabled?: boolean;
   memberCount?: number;
+  isDemoMode?: boolean;
+  template?: string;
+  onboardingProgress?: {
+    hasConnectedStripe?: boolean;
+    hasCreatedPackages?: boolean;
+    hasAddedTrainer?: boolean;
+    hasSetAvailability?: boolean;
+    hasInvitedClient?: boolean;
+    selectedTemplate?: string;
+    completedAt?: any;
+  };
 }
 
 interface Stats {
@@ -275,12 +286,40 @@ export default function HomePage() {
             filteredOrgs.map((org) => (
               <div key={org.id} className="org-item">
                 <div className="org-info">
-                  <h3>{org.name}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3>{org.name}</h3>
+                    {org.isDemoMode && (
+                      <span className="status-badge" style={{ backgroundColor: '#f59e0b', color: 'white', fontSize: '11px' }}>
+                        DEMO
+                      </span>
+                    )}
+                    {org.template && (
+                      <span style={{ fontSize: '20px', marginLeft: '4px' }}>
+                        {org.template === 'volleyball' && '🏐'}
+                        {org.template === 'basketball' && '🏀'}
+                        {org.template === 'tennis' && '🎾'}
+                        {org.template === 'golf' && '⛳️'}
+                      </span>
+                    )}
+                  </div>
                   <p className="org-id">ID: {org.id}</p>
                   <div className="org-meta">
                     <span>Members: {org.memberCount || 0}</span>
                     {org.subscriptionPlan && (
                       <span>Plan: {org.subscriptionPlan}</span>
+                    )}
+                    {org.onboardingProgress && (
+                      <span>
+                        Setup: {Math.round(
+                          (Object.values({
+                            stripe: org.onboardingProgress.hasConnectedStripe || false,
+                            packages: org.onboardingProgress.hasCreatedPackages || false,
+                            trainer: org.onboardingProgress.hasAddedTrainer || false,
+                            availability: org.onboardingProgress.hasSetAvailability || false,
+                            client: org.onboardingProgress.hasInvitedClient || false,
+                          }).filter(Boolean).length / 5) * 100
+                        )}%
+                      </span>
                     )}
                   </div>
                 </div>

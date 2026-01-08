@@ -39,6 +39,9 @@ export async function GET(request: Request) {
           createdAt: orgData.createdAt,
           disabled: orgData.disabled || false,
           memberCount: membersSnapshot.size,
+          isDemoMode: orgData.isDemoMode || false,
+          template: orgData.template,
+          onboardingProgress: orgData.onboardingProgress,
         };
       })
     );
