@@ -36,7 +36,6 @@ export default function HomePage() {
   });
 
   useEffect(() => {
-    // Check for stored email
     const storedEmail = localStorage.getItem('adminEmail');
     if (storedEmail) {
       setAdminEmail(storedEmail);
@@ -90,12 +89,12 @@ export default function HomePage() {
   }
 
   async function handleDisableOrg(orgId: string, currentlyDisabled: boolean) {
-    if (!confirm(`Are you sure you want to ${currentlyDisabled ? 'enable' : 'disable'} this organization?`)) {
+    if (!confirm(\`Are you sure you want to \${currentlyDisabled ? 'enable' : 'disable'} this organization?\`)) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/orgs/${orgId}`, {
+      const response = await fetch(\`/api/orgs/\${orgId}\`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -133,7 +132,25 @@ export default function HomePage() {
   }
 
   function getStatusBadge(org: Organization) {
-    if!isAuthenticated) {
+    if (org.disabled) {
+      return <span className="status-badge status-inactive">Disabled</span>;
+    }
+    
+    switch (org.subscriptionStatus) {
+      case 'active':
+        return <span className="status-badge status-active">Active</span>;
+      case 'trialing':
+        return <span className="status-badge status-trial">Trial</span>;
+      case 'past_due':
+        return <span className="status-badge status-inactive">Past Due</span>;
+      case 'canceled':
+        return <span className="status-badge status-inactive">Canceled</span>;
+      default:
+        return <span className="status-badge status-inactive">No Sub</span>;
+    }
+  }
+
+  if (!isAuthenticated) {
     return (
       <div className="container">
         <div className="card" style={{ maxWidth: '400px', margin: '100px auto' }}>
@@ -162,23 +179,8 @@ export default function HomePage() {
                 padding: '12px',
                 backgroundColor: '#0070f3',
                 color: 'white',
-         div>
-          <h1>Skedence Admin Panel</h1>
-          <p>Manage organizations, subscriptions, and system health</p>
-        </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#f5f5f5',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-          }}
-        >
-          Logout ({adminEmail})
-        </button
+                border: 'none',
+                borderRadius: '4px',
                 fontSize: '14px',
                 cursor: 'pointer',
               }}
@@ -197,24 +199,6 @@ export default function HomePage() {
     );
   }
 
-  if ( (org.disabled) {
-      return <span className="status-badge status-inactive">Disabled</span>;
-    }
-    
-    switch (org.subscriptionStatus) {
-      case 'active':
-        return <span className="status-badge status-active">Active</span>;
-      case 'trialing':
-        return <span className="status-badge status-trial">Trial</span>;
-      case 'past_due':
-        return <span className="status-badge status-inactive">Past Due</span>;
-      case 'canceled':
-        return <span className="status-badge status-inactive">Canceled</span>;
-      default:
-        return <span className="status-badge status-inactive">No Sub</span>;
-    }
-  }
-
   if (loading) {
     return (
       <div className="container">
@@ -226,8 +210,23 @@ export default function HomePage() {
   return (
     <div className="container">
       <div className="header">
-        <h1>Skedence Admin Panel</h1>
-        <p>Manage organizations, subscriptions, and system health</p>
+        <div>
+          <h1>Skedence Admin Panel</h1>
+          <p>Manage organizations, subscriptions, and system health</p>
+        </div>
+        <button
+          onClick={handleLogout}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#f5f5f5',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '14px',
+          }}
+        >
+          Logout ({adminEmail})
+        </button>
       </div>
 
       {error && (
@@ -236,7 +235,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Stats Dashboard */}
       <div className="stats-grid">
         <div className="stat-card">
           <h4>Total Organizations</h4>
@@ -256,56 +254,49 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Organizations List */}
       <div className="card">
         <h2 style={{ marginBottom: '16px' }}>Organizations</h2>
         
-        <input
-          type="text"
-          className="search-box"
-          placeholder="Search by organization name or ID..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Search organizations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
 
-        {filteredOrgs.length === 0 ? (
-          <div className="empty-state">
-            <h3>No organizations found</h3>
-            <p>Try adjusting your search query</p>
-          </div>
-        ) : (
-          <ul className="org-list">
-            {filteredOrgs.map((org) => (
-              <li key={org.id} className="org-item">
+        <div className="orgs-list">
+          {filteredOrgs.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+              {searchQuery ? 'No organizations match your search' : 'No organizations found'}
+            </div>
+          ) : (
+            filteredOrgs.map((org) => (
+              <div key={org.id} className="org-item">
                 <div className="org-info">
-                  <h3>
-                    {org.name}
-                    {getStatusBadge(org)}
-                  </h3>
-                  <p>
-                    ID: {org.id} • 
-                    {org.subscriptionPlan && ` Plan: ${org.subscriptionPlan} • `}
-                    Members: {org.memberCount || 0}
-                  </p>
+                  <h3>{org.name}</h3>
+                  <p className="org-id">ID: {org.id}</p>
+                  <div className="org-meta">
+                    <span>Members: {org.memberCount || 0}</span>
+                    {org.subscriptionPlan && (
+                      <span>Plan: {org.subscriptionPlan}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="button-group">
+                <div className="org-actions">
+                  {getStatusBadge(org)}
                   <button
-                    className="button button-secondary"
-                    onClick={() => window.location.href = `/org/${org.id}`}
-                  >
-                    View Details
-                  </button>
-                  <button
-                    className={`button ${org.disabled ? 'button-primary' : 'button-danger'}`}
                     onClick={() => handleDisableOrg(org.id, org.disabled || false)}
+                    className={org.disabled ? 'btn-secondary' : 'btn-danger'}
                   >
                     {org.disabled ? 'Enable' : 'Disable'}
                   </button>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
