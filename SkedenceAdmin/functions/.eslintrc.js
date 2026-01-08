@@ -47,6 +47,12 @@ module.exports = {
     // Consider tightening this rule later if type safety becomes a higher priority.
     "@typescript-eslint/no-explicit-any": "off",
 
+    // Disable JSDoc requirement
+    "require-jsdoc": "off",
+
+    // Allow non-null assertions
+    "@typescript-eslint/no-non-null-assertion": "warn",
+
     // Allow console.log for debugging purposes in development.
     // For production, consider using functions.logger.info/warn/error and eventually
     // disabling 'no-console' for cleaner logs.

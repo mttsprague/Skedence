@@ -27,7 +27,7 @@ struct PricingPlan: Identifiable, Codable {
             "Client invite links"
         ],
         isPopular: false,
-        stripePriceId: "price_1SnO1V2XPese4Q6CGv0X0Td1"
+        stripePriceId: nil // Set in production
     )
     
     static let studio = PricingPlan(
@@ -47,7 +47,7 @@ struct PricingPlan: Identifiable, Codable {
             "Branded booking link"
         ],
         isPopular: true,
-        stripePriceId: "price_1SnO4O2XPese4Q6Cxsz7EIsw"
+        stripePriceId: nil // Set in production
     )
     
     static let academy = PricingPlan(
@@ -67,7 +67,7 @@ struct PricingPlan: Identifiable, Codable {
             "Priority onboarding support"
         ],
         isPopular: false,
-        stripePriceId: "price_1SnO5p2XPese4Q6C76TJaivf"
+        stripePriceId: nil // Set in production
     )
     
     static let enterprise = PricingPlan(
@@ -87,7 +87,7 @@ struct PricingPlan: Identifiable, Codable {
             "SLA guarantees"
         ],
         isPopular: false,
-        stripePriceId: "price_1SnO712XPese4Q6CZLdPS2VU"
+        stripePriceId: nil // Contact sales
     )
     
     static let allPlans = [starter, studio, academy, enterprise]
@@ -105,7 +105,7 @@ struct PricingAddOn: Identifiable {
         name: "Additional Trainer",
         price: 10,
         description: "Per trainer, per month",
-        stripePriceId: "price_1SnO8C2XPese4Q6CgkCJm5dM"
+        stripePriceId: nil
     )
     
     static let additionalLocation = PricingAddOn(
@@ -113,7 +113,7 @@ struct PricingAddOn: Identifiable {
         name: "Additional Location",
         price: 25,
         description: "Per location, per month (Academy+ only)",
-        stripePriceId: "price_1SnO8z2XPese4Q6CB8ab3l89"
+        stripePriceId: nil
     )
     
     static let customDomain = PricingAddOn(
@@ -121,7 +121,7 @@ struct PricingAddOn: Identifiable {
         name: "Custom Booking Domain",
         price: 15,
         description: "book.yourclub.com",
-        stripePriceId: "price_1SnO9k2XPese4Q6Ca9FrwOHt"
+        stripePriceId: nil
     )
     
     static let allAddOns = [additionalTrainer, additionalLocation, customDomain]
