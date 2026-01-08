@@ -46,7 +46,7 @@ ls -la
    - Click on "Skedence" target → Rename to "Skedence"
 6. Update **Bundle Identifier**:
    - Target → General → Bundle Identifier
-   - Change from `com.matthewsprague.Skedence` to `com.coachflow.Skedence`
+   - Change from `com.matthewsprague.Skedence` to `com.skedence.Skedence`
 7. Update **Display Name**:
    - Target → Info → Bundle display name: "Skedence"
 8. Update **Product Name**:
@@ -62,7 +62,7 @@ ls -la
    - **Project Name**: Skedence Admin → SkedenceAdmin
    - **Target Name**: Skedence Admin → SkedenceAdmin
 5. Update **Bundle Identifier**:
-   - Change to `com.coachflow.SkedenceAdmin`
+   - Change to `com.skedence.SkedenceAdmin`
 6. Update **Display Name**:
    - Target → Info → Bundle display name: "Skedence Admin"
 7. Update **Product Name**:
@@ -129,10 +129,10 @@ No changes needed - the plist files can stay as-is.
 ### Option B: Create New Firebase Project "Skedence"
 1. Go to [Firebase Console](https://console.firebase.google.com)
 2. Create new project "Skedence"
-3. Add iOS app with bundle ID: `com.coachflow.Skedence`
+3. Add iOS app with bundle ID: `com.skedence.Skedence`
 4. Download new `GoogleService-Info.plist`
 5. Replace in `Skedence/Skedence/` folder
-6. Repeat for admin app with bundle ID: `com.coachflow.SkedenceAdmin`
+6. Repeat for admin app with bundle ID: `com.skedence.SkedenceAdmin`
 
 **Recommendation**: Keep existing Firebase project for now, can migrate later.
 
@@ -221,8 +221,8 @@ git remote set-url origin https://github.com/yourusername/Skedence.git
 ### Option B: Create New Repository
 ```bash
 cd ..
-git clone current-repo coachflow
-cd coachflow
+git clone current-repo skedence
+cd skedence
 git remote remove origin
 git remote add origin https://github.com/yourusername/Skedence.git
 ```
@@ -299,7 +299,7 @@ echo "Done! Now complete manual steps in Xcode."
 ## Recommendation
 
 **Start with a test branch**:
-1. Create branch: `git checkout -b rebrand-coachflow`
+1. Create branch: `git checkout -b rebrand-skedence`
 2. Follow steps 1-10
 3. Test thoroughly
 4. If successful, merge to main
