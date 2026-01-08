@@ -145,10 +145,10 @@ trainers/{userId}
 
 ## 📱 Where to Add in App
 
-### PolyCal ContentView.swift:
+### CoachFlow Admin ContentView.swift:
 ```swift
 @main
-struct PolyCalApp: App {
+struct CoachFlow AdminApp: App {
     @StateObject private var auth = AuthManager()
     
     var body: some Scene {

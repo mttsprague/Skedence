@@ -3,7 +3,7 @@
 ## ✅ What We Accomplished
 
 ### 1. Removed Hardcoded Stripe Keys
-**File: PolyFace/PolyFace/StripeConfig.swift**
+**File: CoachFlow/CoachFlow/StripeConfig.swift**
 - Removed hardcoded `pk_live_...` publishable key
 - Added deprecation comment explaining multi-tenant architecture
 - Keys now loaded dynamically from organization documents
@@ -147,11 +147,11 @@ Now that infrastructure is ready, we can build:
 
 ```bash
 # Run Step 8 migration
-cd PolyCal/migrations
+cd CoachFlow Admin/migrations
 npm run step8
 
 # Compile Cloud Functions
-cd PolyCal/functions
+cd CoachFlow Admin/functions
 npm run build
 
 # Deploy functions (when ready)

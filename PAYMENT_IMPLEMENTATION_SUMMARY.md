@@ -1,7 +1,7 @@
 # Payment System Implementation Summary
 
 ## Overview
-Complete Stripe payment integration has been implemented across PolyFace with multi-athlete lessons, class registration payments, and comprehensive profile tracking.
+Complete Stripe payment integration has been implemented across CoachFlow with multi-athlete lessons, class registration payments, and comprehensive profile tracking.
 
 ## Features Implemented
 
@@ -25,8 +25,8 @@ Complete Stripe payment integration has been implemented across PolyFace with mu
 - Packages created with correct lesson counts in Firestore
 
 **Files Modified:**
-- `PolyFace/PurchaseLessonsView.swift` - Added `twoAthlete` and `threeAthlete` cases to PackageOption enum
-- `PolyCal/functions/src/stripe.ts` - Added validation for two_athlete (14000¢) and three_athlete (18000¢)
+- `CoachFlow/PurchaseLessonsView.swift` - Added `twoAthlete` and `threeAthlete` cases to PackageOption enum
+- `CoachFlow Admin/functions/src/stripe.ts` - Added validation for two_athlete (14000¢) and three_athlete (18000¢)
 
 ### 2. Class Registration Payment
 **Status:** ✅ Complete
@@ -44,7 +44,7 @@ Complete Stripe payment integration has been implemented across PolyFace with mu
 5. If payment fails or is canceled, registration does not proceed
 
 **Files Modified:**
-- `PolyFace/BookView.swift` - Added StripeService, PaymentSheet state, payment flow
+- `CoachFlow/BookView.swift` - Added StripeService, PaymentSheet state, payment flow
 - Added price display ($45.00) to class details card
 - Changed button text to "Pay $45 & Register"
 
@@ -65,7 +65,7 @@ Complete Stripe payment integration has been implemented across PolyFace with mu
 - Clean, card-based UI with brand colors
 
 **Files Modified:**
-- `PolyFace/ProfileView.swift` - Replaced single passes count with `passTypeCard()` function
+- `CoachFlow/ProfileView.swift` - Replaced single passes count with `passTypeCard()` function
 - Added computed properties: `privatePassesRemaining`, `twoAthletePassesRemaining`, `threeAthletePassesRemaining`
 
 ### 4. Classes in Profile Schedule
@@ -85,7 +85,7 @@ Complete Stripe payment integration has been implemented across PolyFace with mu
 - Lessons displayed with standard person icon
 
 **Files Modified:**
-- `PolyFace/ProfileView.swift` - Added ClassesService integration
+- `CoachFlow/ProfileView.swift` - Added ClassesService integration
 - Created `UpcomingEvent` enum to represent both lesson and class types
 - Added `nextUpcomingEvent()` and `allUpcomingEvents()` helper functions
 - Updated scheduleTab UI to handle both event types
@@ -187,7 +187,7 @@ const lessonCounts: { [key: string]: number } = {
 
 ## Files Changed Summary
 
-**iOS App (PolyFace):**
+**iOS App (CoachFlow):**
 - `PurchaseLessonsView.swift` - Added multi-athlete options
 - `BookView.swift` - Integrated payment into class registration
 - `ProfileView.swift` - Added pass categories and class schedule display
