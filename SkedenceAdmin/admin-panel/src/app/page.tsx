@@ -89,12 +89,12 @@ export default function HomePage() {
   }
 
   async function handleDisableOrg(orgId: string, currentlyDisabled: boolean) {
-    if (!confirm(\`Are you sure you want to \${currentlyDisabled ? 'enable' : 'disable'} this organization?\`)) {
+    if (!confirm(`Are you sure you want to ${currentlyDisabled ? 'enable' : 'disable'} this organization?`)) {
       return;
     }
 
     try {
-      const response = await fetch(\`/api/orgs/\${orgId}\`, {
+      const response = await fetch(`/api/orgs/${orgId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
