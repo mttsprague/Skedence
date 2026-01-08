@@ -1,6 +1,12 @@
 /* eslint-disable quotes */
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import {
+  checkQuota,
+  incrementUsage,
+  checkRateLimit,
+  checkOrgAccess,
+} from "./quotas";
 
 // Initialize Firebase Admin SDK once when the function container starts
 admin.initializeApp();
@@ -13,6 +19,9 @@ export * from "./stripe-connect";
 
 // Export billing/subscription functions
 export * from "./billing";
+
+// Export quota and rate limiting functions
+export * from "./quotas";
 
 const db = admin.firestore();
 
@@ -93,6 +102,16 @@ export const bookLesson = functions.https.onCall(
       );
     }
 
+    // Rate limiting: prevent abuse (10 booking attempts per minute per user)
+    const rateLimitKey = `booking:${userId}`;
+    const rateCheck = await checkRateLimit(rateLimitKey, 10, 60);
+    if (!rateCheck.allowed) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        `Too many booking attempts. Please try again at ${rateCheck.resetAt.toISOString()}`
+      );
+    }
+
     const userRef = db.collection("users").doc(userId);
     const lessonPackageRef = userRef
       .collection("lessonPackages")
@@ -100,6 +119,8 @@ export const bookLesson = functions.https.onCall(
     const trainerRef = db.collection("trainers").doc(trainerId);
     // IMPORTANT: slotId is deterministic ("YYYY-MM-DDTHH")
     const trainerSlotRef = trainerRef.collection("schedules").doc(slotId);
+
+    let orgId: string | undefined;
 
     try {
       await db.runTransaction(async (transaction) => {
@@ -115,14 +136,40 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
-        // STEP 10: Check trainer's organization billing status
+        // STEP 10: Check trainer's organization billing status and quota
         const trainerDataForBilling = trainerDoc.data();
+        
         if (trainerDataForBilling && trainerDataForBilling.orgId) {
+          orgId = trainerDataForBilling.orgId;
           const orgDoc = await transaction.get(
-            db.collection("organizations").doc(trainerDataForBilling.orgId)
+            db.collection("organizations").doc(orgId)
           );
 
           if (orgDoc.exists) {
+            // Check if org is disabled or in read-only mode
+            const orgAccess = await checkOrgAccess(orgId);
+            if (!orgAccess.allowed) {
+              throw new functions.https.HttpsError(
+                "failed-precondition",
+                `Booking unavailable: ${orgAccess.reason}`
+              );
+            }
+            if (orgAccess.isReadOnly) {
+              throw new functions.https.HttpsError(
+                "failed-precondition",
+                "Bookings are temporarily disabled. Please update your subscription."
+              );
+            }
+
+            // Check quota limits
+            const quotaCheck = await checkQuota(orgId, "bookings");
+            if (!quotaCheck.allowed) {
+              throw new functions.https.HttpsError(
+                "resource-exhausted",
+                `Daily booking limit reached (${quotaCheck.current}/${quotaCheck.limit}). Upgrade your plan for more capacity.`
+              );
+            }
+
             const orgData = orgDoc.data();
             const billing = orgData?.billing;
 
@@ -241,6 +288,11 @@ export const bookLesson = functions.https.onCall(
           scheduleSlotId: slotId,
         });
       });
+
+      // Increment booking usage counter after successful transaction
+      if (orgId) {
+        await incrementUsage(orgId, "bookings");
+      }
 
       functions.logger.info(
         `Lesson booked successfully for user ${userId} with trainer ${trainerId}, slot ${slotId}.`
