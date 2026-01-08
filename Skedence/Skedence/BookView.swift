@@ -32,6 +32,7 @@ struct BookView: View {
     @State private var selectedClass: GroupClass?
     @State private var showingClassRegistration = false
     @State private var selectedPackage: LessonPackage?
+    @State private var showSubscriptionSheet = false
 
     enum Mode: String, CaseIterable { case lessons = "Lessons", classes = "Classes" }
 
@@ -97,6 +98,9 @@ struct BookView: View {
                 .sheet(item: $selectedClass) { classItem in
                     classRegistrationSheet(for: classItem)
                 }
+                .sheet(isPresented: $showSubscriptionSheet) {
+                    SubscriptionRequiredView()
+                }
         }
     }
     
@@ -109,11 +113,7 @@ struct BookView: View {
                         message: subscriptionStatus.statusMessage ?? "Your subscription needs attention",
                         actionLabel: "Update Billing",
                         action: {
-                            // TODO: Navigate to billing/subscription view
-                            bookingAlert = BookingAlert(
-                                title: "Subscription Required",
-                                message: "Please update your subscription to continue booking sessions."
-                            )
+                            showSubscriptionSheet = true
                         },
                         showDismiss: false
                     )

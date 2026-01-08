@@ -46,6 +46,7 @@ struct ScheduleView: View {
     }
     @State private var clientCardContext: ClientCardContext?
 
+    @State private var showSubscriptionSheet = false
 
     // Layout constants
     private let rowHeight: CGFloat = 56
@@ -66,7 +67,7 @@ struct ScheduleView: View {
                         message: subscriptionStatus.statusMessage ?? "Subscription expired",
                         actionLabel: "Update Billing",
                         action: {
-                            // TODO: Navigate to subscription management
+                            showSubscriptionSheet = true
                         },
                         showDismiss: false
                     )
@@ -326,6 +327,12 @@ struct ScheduleView: View {
             }
             .sheet(item: $clientCardContext) { context in
                 ClientCardView(client: context.client, selectedBooking: context.booking)
+            }
+            .sheet(isPresented: $showSubscriptionSheet) {
+                if let orgId = auth.currentOrgId {
+                    ManageSubscriptionView(orgId: orgId)
+                        .environmentObject(auth)
+                }
             }
             .sheet(item: $classSheetContext) { context in
                 ClassParticipantsView(
