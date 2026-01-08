@@ -14,8 +14,8 @@
 **Completed:** Pre-saas-migration branches created, Firestore backup exported
 
 **What We Did:**
-- Created `pre-saas-migration` branch in CoachFlow repo
-- Created `pre-saas-migration` branch in CoachFlow Admin repo
+- Created `pre-saas-migration` branch in Skedence repo
+- Created `pre-saas-migration` branch in Skedence Admin repo
 - Exported complete Firestore backup to Cloud Storage
 - Location: `gs://polyface-ae6d3.firebasestorage.app/firestore-backups/20260107-184431-pre-saas-migration`
 
@@ -81,7 +81,7 @@
 ### STEP 5: App Query Updates ✅
 **Completed:** Updated both apps to filter by orgId
 
-#### CoachFlow (Client App):
+#### Skedence (Client App):
 - AuthManager: Added `currentOrgId` property, `loadOrgId()` function
 - TrainersService: `loadAll(orgId:)`
 - AdminService: All functions accept `orgId` parameter
@@ -91,7 +91,7 @@
 - PackagesService: Queries scoped by `orgId`
 - All views: Inject AuthManager, pass `auth.currentOrgId` to services
 
-#### CoachFlow Admin (Trainer App):
+#### Skedence Admin (Trainer App):
 - AuthManager: Added `currentOrgId` and `currentOrgRole` properties
 - FirestoreService: All collection queries filter by `orgId`
 - ClientsView & ClientsViewModel: Pass `orgId` to viewModel
@@ -274,15 +274,15 @@ Opens App → Landing Page → Create Account → Stripe Setup (5 min) → Main 
 
 ### Before (Single-Tenant):
 ```
-CoachFlow App ──→ Firestore (global collections)
-CoachFlow Admin App ──→ Firebase Auth
+Skedence App ──→ Firestore (global collections)
+Skedence Admin App ──→ Firebase Auth
                 └─→ Hardcoded Stripe account
 ```
 
 ### After (Multi-Tenant):
 ```
-CoachFlow App ──→ AuthManager.currentOrgId
-CoachFlow Admin App ──→   ├─→ Firestore (org-scoped queries)
+Skedence App ──→ AuthManager.currentOrgId
+Skedence Admin App ──→   ├─→ Firestore (org-scoped queries)
                   ├─→ orgMembers (role-based access)
                   ├─→ Dynamic branding (colors/logo)
                   └─→ Stripe Connect (per-org payments)
@@ -435,8 +435,8 @@ func loadClasses(orgId: String) async throws -> [Class] {
 - ⏳ Subscription webhook handlers (Step 10)
 
 ### iOS Apps:
-- ✅ CoachFlow: All queries scoped by orgId
-- ✅ CoachFlow Admin: All queries scoped by orgId
+- ✅ Skedence: All queries scoped by orgId
+- ✅ Skedence Admin: All queries scoped by orgId
 - ✅ AuthManager: Dynamic branding support
 - ✅ Onboarding: CreateBusinessView, StripeOnboardingView
 - ⏳ Billing: Subscription management UI (Step 10)
@@ -513,22 +513,22 @@ func loadClasses(orgId: String) async throws -> [Class] {
 ## 📝 Key Files
 
 ### Migration Scripts:
-- `CoachFlow Admin/migrations/step2-create-org-layer.js`
-- `CoachFlow Admin/migrations/step3-create-org-membership.js`
-- `CoachFlow Admin/migrations/step4-add-orgid-to-collections.js`
-- `CoachFlow Admin/migrations/step8-add-stripe-connect.js`
-- `CoachFlow Admin/migrations/validate-multitenant.js`
+- `Skedence Admin/migrations/step2-create-org-layer.js`
+- `Skedence Admin/migrations/step3-create-org-membership.js`
+- `Skedence Admin/migrations/step4-add-orgid-to-collections.js`
+- `Skedence Admin/migrations/step8-add-stripe-connect.js`
+- `Skedence Admin/migrations/validate-multitenant.js`
 
 ### Cloud Functions:
-- `CoachFlow Admin/functions/src/stripe.ts` (legacy)
-- `CoachFlow Admin/functions/src/stripe-connect.ts` (new)
+- `Skedence Admin/functions/src/stripe.ts` (legacy)
+- `Skedence Admin/functions/src/stripe-connect.ts` (new)
 
 ### iOS Files:
-- `CoachFlow/CoachFlow/AuthManager.swift`
-- `CoachFlow Admin/CoachFlow Admin/AuthManager.swift`
-- `CoachFlow Admin/CoachFlow Admin/CreateBusinessView.swift`
-- `CoachFlow Admin/CoachFlow Admin/StripeOnboardingView.swift`
-- `CoachFlow Admin/CoachFlow Admin/OnboardingLandingView.swift`
+- `Skedence/Skedence/AuthManager.swift`
+- `Skedence Admin/Skedence Admin/AuthManager.swift`
+- `Skedence Admin/Skedence Admin/CreateBusinessView.swift`
+- `Skedence Admin/Skedence Admin/StripeOnboardingView.swift`
+- `Skedence Admin/Skedence Admin/OnboardingLandingView.swift`
 
 ### Documentation:
 - `STEP8_COMPLETE.md`

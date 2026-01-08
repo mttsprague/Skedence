@@ -3,7 +3,7 @@
 ## ✅ What We Accomplished
 
 ### 1. Removed Hardcoded Stripe Keys
-**File: CoachFlow/CoachFlow/StripeConfig.swift**
+**File: Skedence/Skedence/StripeConfig.swift**
 - Removed hardcoded `pk_live_...` publishable key
 - Added deprecation comment explaining multi-tenant architecture
 - Keys now loaded dynamically from organization documents
@@ -147,11 +147,11 @@ Now that infrastructure is ready, we can build:
 
 ```bash
 # Run Step 8 migration
-cd CoachFlow Admin/migrations
+cd Skedence Admin/migrations
 npm run step8
 
 # Compile Cloud Functions
-cd CoachFlow Admin/functions
+cd Skedence Admin/functions
 npm run build
 
 # Deploy functions (when ready)

@@ -145,10 +145,10 @@ trainers/{userId}
 
 ## 📱 Where to Add in App
 
-### CoachFlow Admin ContentView.swift:
+### Skedence Admin ContentView.swift:
 ```swift
 @main
-struct CoachFlow AdminApp: App {
+struct Skedence AdminApp: App {
     @StateObject private var auth = AuthManager()
     
     var body: some Scene {

@@ -1,4 +1,4 @@
-# ✅ CoachFlow Rebrand - COMPLETE
+# ✅ Skedence Rebrand - COMPLETE
 
 **Date**: January 7, 2026  
 **Branch**: `rebrand-coachflow`  
@@ -9,37 +9,37 @@
 ### 🎯 Application Names
 | Old Name | New Name | Type |
 |----------|----------|------|
-| PolyFace | **CoachFlow** | Client iOS app (athletes/clients) |
-| PolyCal | **CoachFlowAdmin** | Trainer/admin iOS app |
+| PolyFace | **Skedence** | Client iOS app (athletes/clients) |
+| PolyCal | **SkedenceAdmin** | Trainer/admin iOS app |
 
 ### 📱 Bundle Identifiers
 | App | Old Bundle ID | New Bundle ID |
 |-----|---------------|---------------|
-| CoachFlow | `com.matthewsprague.PolyFace` | `com.coachflow.CoachFlow` |
-| CoachFlowAdmin | `com.matthewsprague.PolyCal` | `com.coachflow.CoachFlowAdmin` |
+| Skedence | `com.matthewsprague.PolyFace` | `com.coachflow.Skedence` |
+| SkedenceAdmin | `com.matthewsprague.PolyCal` | `com.coachflow.SkedenceAdmin` |
 
 ### 📁 Directory Structure
 ```
 Polyface Volleyball Academy/
-├── CoachFlow/                    (was: PolyFace/)
-│   ├── CoachFlow/                (was: PolyFace/)
-│   ├── CoachFlow.xcodeproj       (was: PolyFace.xcodeproj)
-│   ├── CoachFlowTests/           (was: PolyFaceTests/)
-│   └── CoachFlowUITests/         (was: PolyFaceUITests/)
+├── Skedence/                    (was: PolyFace/)
+│   ├── Skedence/                (was: PolyFace/)
+│   ├── Skedence.xcodeproj       (was: PolyFace.xcodeproj)
+│   ├── SkedenceTests/           (was: PolyFaceTests/)
+│   └── SkedenceUITests/         (was: PolyFaceUITests/)
 │
-├── CoachFlowAdmin/               (was: PolyCal/)
-│   ├── CoachFlowAdmin/           (was: PolyCal/)
-│   ├── CoachFlowAdmin.xcodeproj  (was: PolyCal.xcodeproj)
-│   ├── CoachFlowAdminTests/      (was: PolyCalTests/)
-│   └── CoachFlowAdminUITests/    (was: PolyCalUITests/)
+├── SkedenceAdmin/               (was: PolyCal/)
+│   ├── SkedenceAdmin/           (was: PolyCal/)
+│   ├── SkedenceAdmin.xcodeproj  (was: PolyCal.xcodeproj)
+│   ├── SkedenceAdminTests/      (was: PolyCalTests/)
+│   └── SkedenceAdminUITests/    (was: PolyCalUITests/)
 │
 ├── AppLogos/
-│   ├── CoachFlowIcons/           (was: PFAppIcons/)
-│   └── CoachFlowAdminIcons/      (was: PCAppIcons/)
+│   ├── SkedenceIcons/           (was: PFAppIcons/)
+│   └── SkedenceAdminIcons/      (was: PCAppIcons/)
 │
 └── Screenshots/
-    ├── CoachFlow/                (was: PolyFace/)
-    └── CoachFlowAdmin/           (was: PolyCal/)
+    ├── Skedence/                (was: PolyFace/)
+    └── SkedenceAdmin/           (was: PolyCal/)
 ```
 
 ## Files Updated
@@ -48,14 +48,14 @@ Polyface Volleyball Academy/
 - ✅ All class names and comments updated
 - ✅ Import statements changed
 - ✅ Test file names and classes updated
-- ✅ User-facing strings updated to "CoachFlow"
+- ✅ User-facing strings updated to "Skedence"
 
 ### Xcode Projects
 - ✅ Project names updated
 - ✅ Target names updated  
 - ✅ Bundle identifiers changed to `com.coachflow.*`
 - ✅ Product names updated
-- ✅ Display names set to "CoachFlow" and "CoachFlow Admin"
+- ✅ Display names set to "Skedence" and "Skedence Admin"
 
 ### Documentation
 - ✅ All .md files updated
@@ -73,40 +73,40 @@ Polyface Volleyball Academy/
 ## Git Status
 
 **Commit**: `35830f2`  
-**Message**: "Complete rebrand to CoachFlow"  
+**Message**: "Complete rebrand to Skedence"  
 **Changes**: 76 files changed, 97 insertions(+), 97 deletions(-)
 
 ## Next Steps
 
 ### 1. Test Build in Xcode
 
-#### CoachFlow (Client App)
+#### Skedence (Client App)
 ```bash
-cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/CoachFlow"
-open CoachFlow.xcodeproj
+cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/Skedence"
+open Skedence.xcodeproj
 ```
 
 In Xcode:
-- Select "CoachFlow" scheme
+- Select "Skedence" scheme
 - Choose iOS Simulator
 - Press Cmd+B to build
 - Press Cmd+R to run
 
-**Expected**: App builds and runs, shows "CoachFlow" as name
+**Expected**: App builds and runs, shows "Skedence" as name
 
-#### CoachFlowAdmin (Trainer App)
+#### SkedenceAdmin (Trainer App)
 ```bash
-cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/CoachFlowAdmin"
-open CoachFlowAdmin.xcodeproj
+cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/SkedenceAdmin"
+open SkedenceAdmin.xcodeproj
 ```
 
 In Xcode:
-- Select "CoachFlowAdmin" scheme
+- Select "SkedenceAdmin" scheme
 - Choose iOS Simulator
 - Press Cmd+B to build
 - Press Cmd+R to run
 
-**Expected**: App builds and runs, shows "CoachFlow" as name in onboarding
+**Expected**: App builds and runs, shows "Skedence" as name in onboarding
 
 ### 2. Verify Functionality
 
@@ -122,10 +122,10 @@ Test critical features in both apps:
 
 If you want to create a clean Firebase project:
 
-1. Create new project "CoachFlow" in Firebase Console
+1. Create new project "Skedence" in Firebase Console
 2. Add iOS apps with new bundle IDs:
-   - `com.coachflow.CoachFlow`
-   - `com.coachflow.CoachFlowAdmin`
+   - `com.coachflow.Skedence`
+   - `com.coachflow.SkedenceAdmin`
 3. Download new `GoogleService-Info.plist` files
 4. Replace in both projects
 5. Migrate Firestore data (or start fresh)
@@ -135,7 +135,7 @@ If you want to create a clean Firebase project:
 ### 4. Update App Store Connect (When Ready)
 
 When preparing for production:
-- [ ] Create new app listings for "CoachFlow" and "CoachFlow Admin"
+- [ ] Create new app listings for "Skedence" and "Skedence Admin"
 - [ ] Upload new app icons
 - [ ] Update app descriptions
 - [ ] Submit for review with new bundle IDs
@@ -166,7 +166,7 @@ rm -rf ~/Library/Developer/Xcode/DerivedData/*
 **Solution**: Verify bundle IDs match in Firebase Console under Project Settings → Your Apps
 
 ### Issue: Schemes Not Found
-**Symptom**: Can't select "CoachFlow" scheme in Xcode  
+**Symptom**: Can't select "Skedence" scheme in Xcode  
 **Solution**: 
 1. Product → Scheme → Manage Schemes
 2. Delete old schemes
@@ -225,7 +225,7 @@ git merge rebrand-coachflow
 
 ## Summary
 
-The rebrand from PolyFace/PolyCal to CoachFlow is **100% complete** in code. The apps are now properly named as "CoachFlow" (client) and "CoachFlow Admin" (trainer), with all internal references updated.
+The rebrand from PolyFace/PolyCal to Skedence is **100% complete** in code. The apps are now properly named as "Skedence" (client) and "Skedence Admin" (trainer), with all internal references updated.
 
 **Time Taken**: ~15 minutes (automated script + code updates)  
 **Files Changed**: 76 files  

@@ -3,7 +3,7 @@
 ## ✅ Completed Implementation
 
 ### 1. AuthManager Billing Status
-**File**: [CoachFlow Admin/CoachFlow Admin/AuthManager.swift](CoachFlow Admin/CoachFlow Admin/AuthManager.swift)
+**File**: [Skedence Admin/Skedence Admin/AuthManager.swift](Skedence Admin/Skedence Admin/AuthManager.swift)
 
 Added billing status tracking:
 ```swift
@@ -16,7 +16,7 @@ Added billing status tracking:
 The `loadOrgBranding()` method now loads billing data from the organization document and sets `isBillingBlocked` to true when status is `past_due`, `canceled`, or `unpaid`.
 
 ### 2. Cloud Function Billing Checks
-**File**: [CoachFlow Admin/functions/src/index.ts](CoachFlow Admin/functions/src/index.ts)
+**File**: [Skedence Admin/functions/src/index.ts](Skedence Admin/functions/src/index.ts)
 
 The `bookLesson` function now checks organization billing status before allowing bookings:
 ```typescript
@@ -47,7 +47,7 @@ if (trainerDataForBilling && trainerDataForBilling.orgId) {
 ```
 
 ### 3. ScheduleView Paywall Check
-**File**: [CoachFlow Admin/CoachFlow Admin/ScheduleView.swift](CoachFlow Admin/CoachFlow Admin/ScheduleView.swift)
+**File**: [Skedence Admin/Skedence Admin/ScheduleView.swift](Skedence Admin/Skedence Admin/ScheduleView.swift)
 
 Added client-side billing check before creating bookings:
 ```swift
@@ -70,7 +70,7 @@ Task {
 ```
 
 ### 4. Manage Subscription UI
-**File**: [CoachFlow Admin/CoachFlow Admin/ContentView.swift](CoachFlow Admin/CoachFlow Admin/ContentView.swift)
+**File**: [Skedence Admin/Skedence Admin/ContentView.swift](Skedence Admin/Skedence Admin/ContentView.swift)
 
 Added navigation link in MoreView (Account tab) for admins to manage subscriptions:
 ```swift
@@ -101,12 +101,12 @@ if auth.isAdmin {
 
 ### Step 1: Add Swift Files to Xcode
 
-The following files need to be added to the CoachFlow Admin Xcode project:
+The following files need to be added to the Skedence Admin Xcode project:
 
-1. Open `CoachFlow Admin.xcodeproj` in Xcode
-2. Right-click on the `CoachFlow Admin` folder in the project navigator
-3. Select **"Add Files to CoachFlow Admin..."**
-4. Navigate to the CoachFlow Admin folder and select:
+1. Open `Skedence Admin.xcodeproj` in Xcode
+2. Right-click on the `Skedence Admin` folder in the project navigator
+3. Select **"Add Files to Skedence Admin..."**
+4. Navigate to the Skedence Admin folder and select:
    - ✅ `ManageSubscriptionView.swift` (already created)
    - ✅ `BillingPaywallView.swift` (already created)
 5. Ensure **"Copy items if needed"** is **UNCHECKED** (files are already in correct location)
@@ -118,7 +118,7 @@ The following files need to be added to the CoachFlow Admin Xcode project:
 The Cloud Functions deployment was in progress. Complete it:
 
 ```bash
-cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/CoachFlow Admin/functions"
+cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/Skedence Admin/functions"
 firebase deploy --only functions --project polyface-ae6d3
 ```
 
@@ -142,7 +142,7 @@ In your Stripe Dashboard (https://dashboard.stripe.com):
 #### Starter Plan Product
 1. Go to **Products** → **Add product**
 2. Fill in:
-   - **Name**: CoachFlow Admin Starter
+   - **Name**: Skedence Admin Starter
    - **Description**: Up to 200 bookings per month
    - **Pricing model**: Standard pricing
    - **Price**: $29.00 USD
@@ -154,7 +154,7 @@ In your Stripe Dashboard (https://dashboard.stripe.com):
 #### Professional Plan Product
 1. Go to **Products** → **Add product**
 2. Fill in:
-   - **Name**: CoachFlow Admin Professional
+   - **Name**: Skedence Admin Professional
    - **Description**: Unlimited bookings
    - **Pricing model**: Standard pricing
    - **Price**: $79.00 USD
@@ -169,7 +169,7 @@ In your Stripe Dashboard (https://dashboard.stripe.com):
 2. Click **"Add endpoint"**
 3. Fill in:
    - **Endpoint URL**: `https://us-central1-polyface-ae6d3.cloudfunctions.net/stripeWebhook`
-   - **Description**: CoachFlow Admin Platform Billing
+   - **Description**: Skedence Admin Platform Billing
    - **Events to send**: Select these events:
      - `customer.subscription.updated`
      - `customer.subscription.deleted`
@@ -183,7 +183,7 @@ In your Stripe Dashboard (https://dashboard.stripe.com):
 Run these commands with your actual Stripe IDs:
 
 ```bash
-cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/CoachFlow Admin/functions"
+cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/Skedence Admin/functions"
 
 # Set Stripe price IDs (replace with your actual price IDs)
 firebase functions:config:set \
@@ -206,7 +206,7 @@ firebase deploy --only functions --project polyface-ae6d3
 ### Step 6: Test the Integration
 
 #### Test Billing Status Loading
-1. Open CoachFlow Admin app
+1. Open Skedence Admin app
 2. Sign in as an admin user
 3. Navigate to **Account** tab
 4. Verify "Manage Subscription" card appears with "Free Plan"
@@ -221,7 +221,7 @@ firebase deploy --only functions --project polyface-ae6d3
 1. In Firebase Console, go to Firestore
 2. Find your organization document
 3. Update `billing.status` to `"past_due"`
-4. Restart CoachFlow Admin app
+4. Restart Skedence Admin app
 5. Try to create a booking
 6. Verify booking is blocked with error message
 

@@ -1,0 +1,272 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // MULTI-TENANT SECURITY RULES
+    // All data is scoped by orgId. Access is controlled via orgMembers collection.
+    // =========================================================================
+
+    // =========================================================================
+    // GLOBAL HELPER FUNCTIONS
+    // =========================================================================
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Check if user has an active membership in the organization
+    function isMemberOfOrg(orgId) {
+      return isSignedIn() 
+        && existsAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId))
+        && getAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.isActive == true
+        && getAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.orgId == orgId;
+    }
+
+    // Get user's role in an organization
+    function getUserOrgRole(orgId) {
+      let memberDoc = getAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
+      return memberDoc.data.role;
+    }
+
+    // Check if user has a specific role in an organization
+    function hasOrgRole(orgId, role) {
+      return isMemberOfOrg(orgId) && getUserOrgRole(orgId) == role;
+    }
+
+    // Check if user is owner of the organization
+    function isOrgOwner(orgId) {
+      return hasOrgRole(orgId, 'owner');
+    }
+
+    // Check if user is admin or owner in the organization
+    function isOrgAdmin(orgId) {
+      return hasOrgRole(orgId, 'owner') || hasOrgRole(orgId, 'admin');
+    }
+
+    // Check if user is a trainer in the organization
+    function isOrgTrainer(orgId) {
+      return hasOrgRole(orgId, 'trainer') || isOrgAdmin(orgId);
+    }
+
+    // Check if document belongs to user's organization
+    function belongsToUserOrg() {
+      return isSignedIn() && 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+    }
+
+    // Check if new document belongs to user's organization
+    function newDocBelongsToUserOrg() {
+      return isSignedIn() && 'orgId' in request.resource.data && isMemberOfOrg(request.resource.data.orgId);
+    }
+
+    // =========================================================================
+    // ORGANIZATION MEMBERSHIP COLLECTION (Source of Truth)
+    // =========================================================================
+    match /orgMembers/{membershipId} {
+      // Users can read their own membership records
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid && resource.data.isActive == true;
+      
+      // Only org owners/admins can create/update/delete memberships
+      // For now, managed by backend only
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // ORGANIZATIONS COLLECTION
+    // =========================================================================
+    match /organizations/{orgId} {
+      // Members can read their own organization
+      allow read: if isMemberOfOrg(orgId);
+      
+      // Only owners can update organization settings
+      allow update: if isOrgOwner(orgId);
+      
+      // No creation or deletion via client (managed by backend)
+      allow create, delete: if false;
+    }
+
+    // =========================================================================
+    // USERS COLLECTION (Client Profiles)
+    // =========================================================================
+    match /users/{userId} {
+      // User can read their own profile, or any trainer/admin in their org can read it
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId 
+        || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
+      );
+      
+      // User can create their own profile (must include orgId from their membership)
+      allow create: if isSignedIn() 
+        && request.auth.uid == userId
+        && newDocBelongsToUserOrg()
+        && isValidUserCreate();
+
+      // User can update their own profile, or trainers/admins in their org
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && belongsToUserOrg())
+        || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
+      ) && isValidUserUpdate();
+
+      // Only admins can delete user profiles
+      allow delete: if 'orgId' in resource.data && isOrgAdmin(resource.data.orgId);
+
+      function isValidUserCreate() {
+        return 'orgId' in request.resource.data
+          && 'createdAt' in request.resource.data
+          && 'updatedAt' in request.resource.data;
+      }
+
+      function isValidUserUpdate() {
+        let sameOrgId = !('orgId' in request.resource.data) 
+          || request.resource.data.orgId == resource.data.orgId;
+        let sameCreatedAt = !('createdAt' in request.resource.data)
+          || request.resource.data.createdAt == resource.data.createdAt;
+        return sameOrgId && sameCreatedAt && ('updatedAt' in request.resource.data);
+      }
+
+      // Lesson Packages subcollection
+      match /lessonPackages/{packageId} {
+        // Owner, or trainers/admins in the same org can read packages
+        allow read: if isSignedIn() && (
+          request.auth.uid == userId 
+          || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
+        );
+
+        // Owner or admins can create packages
+        allow create: if isSignedIn() && (
+          request.auth.uid == userId 
+          || ('orgId' in request.resource.data && isOrgAdmin(request.resource.data.orgId))
+        ) && newDocBelongsToUserOrg();
+
+        // Trainers/admins can update packages (for booking decrements)
+        allow update: if 'orgId' in request.resource.data 
+          && isOrgTrainer(request.resource.data.orgId);
+        
+        // Only admins can delete
+        allow delete: if 'orgId' in resource.data && isOrgAdmin(resource.data.orgId);
+      }
+
+      // Documents subcollection
+      match /documents/{documentId} {
+        // Owner, or trainers in same org can read documents
+        allow read: if isSignedIn() && (
+          request.auth.uid == userId 
+          || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
+        );
+        
+        allow create: if isSignedIn() && request.auth.uid == userId;
+        
+        allow update, delete: if isSignedIn() && (
+          request.auth.uid == userId
+          || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
+        );
+      }
+    }
+
+    // =========================================================================
+    // TRAINERS COLLECTION
+    // =========================================================================
+    match /trainers/{trainerId} {
+      // Anyone in the same org can read trainer profiles
+      allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+
+      // Trainer can update their own profile, or admins in their org
+      allow update: if isSignedIn() && (
+        (request.auth.uid == trainerId && belongsToUserOrg())
+        || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
+      );
+
+      // No client-side creation/deletion (managed by backend)
+      allow create, delete: if false;
+
+      // Schedules subcollection
+      match /schedules/{slotId} {
+        // Anyone in the same org can read schedules
+        allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+
+        // Trainer owner or other trainers/admins in org can create/update/delete
+        allow create, update, delete: if isSignedIn() && (
+          (request.auth.uid == trainerId && newDocBelongsToUserOrg())
+          || ('orgId' in request.resource.data && isOrgTrainer(request.resource.data.orgId))
+        );
+      }
+    }
+
+    // =========================================================================
+    // BOOKINGS COLLECTION
+    // =========================================================================
+    match /bookings/{bookingId} {
+      // Client can read their own bookings, trainers in same org can read all bookings
+      allow read: if isSignedIn() && 'orgId' in resource.data && (
+        request.auth.uid == resource.data.clientUID
+        || isOrgTrainer(resource.data.orgId)
+      );
+
+      // Trainers/admins can create bookings
+      allow create: if newDocBelongsToUserOrg() 
+        && isOrgTrainer(request.resource.data.orgId);
+
+      // Trainers/admins can update bookings
+      allow update: if belongsToUserOrg() 
+        && isOrgTrainer(resource.data.orgId);
+
+      // Trainers/admins can delete bookings
+      allow delete: if belongsToUserOrg() 
+        && isOrgTrainer(resource.data.orgId);
+    }
+
+    // =========================================================================
+    // CLASSES COLLECTION
+    // =========================================================================
+    match /classes/{classId} {
+      // Anyone in the same org can read classes
+      allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      
+      // Only admins can create, update, or delete classes
+      allow create: if newDocBelongsToUserOrg() 
+        && isOrgAdmin(request.resource.data.orgId);
+      
+      allow update, delete: if belongsToUserOrg() 
+        && isOrgAdmin(resource.data.orgId);
+      
+      // Participants subcollection
+      match /participants/{participantId} {
+        // Anyone in same org can read participants
+        allow read: if existsAfter(/databases/$(database)/documents/classes/$(classId))
+          && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
+          && isMemberOfOrg(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId);
+        
+        // Users in org can register themselves
+        allow create: if isSignedIn() 
+          && request.auth.uid == participantId
+          && request.resource.data.userId == request.auth.uid
+          && existsAfter(/databases/$(database)/documents/classes/$(classId))
+          && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
+          && isMemberOfOrg(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId);
+        
+        // Users can unregister themselves, admins can remove anyone
+        allow delete: if isSignedIn() && (
+          request.auth.uid == participantId 
+          || (existsAfter(/databases/$(database)/documents/classes/$(classId))
+            && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
+            && isOrgAdmin(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId))
+        );
+      }
+    }
+
+    // =========================================================================
+    // COLLECTION GROUP RULE FOR SCHEDULES
+    // Allows queries across all trainer schedules within same org
+    // =========================================================================
+    match /{path=**}/schedules/{slotId} {
+      allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+    }
+
+    // =========================================================================
+    // DENY ALL OTHER ACCESS
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

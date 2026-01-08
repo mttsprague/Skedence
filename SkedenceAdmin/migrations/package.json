@@ -1,0 +1,19 @@
+{
+  "name": "polyface-saas-migrations",
+  "version": "1.0.0",
+  "description": "Migration scripts for SaaS conversion",
+  "private": true,
+  "scripts": {
+    "step2": "node step2-create-org-layer.js",
+    "step3": "node step3-create-org-membership.js",
+    "step4": "node step4-add-orgid-to-collections.js",
+    "step5": "node step5-migrate-existing-data.js",
+    "step8": "node step8-add-stripe-connect.js",
+    "step10": "node step10-add-billing-fields.js",
+    "validate": "node validate-multitenant.js",
+    "create-test-org": "node create-test-org.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

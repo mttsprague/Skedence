@@ -8,14 +8,14 @@
    - Go to Products → Add product
 
 2. **Create Starter Plan**
-   - Name: "CoachFlow Admin Starter"
+   - Name: "Skedence Admin Starter"
    - Description: "Up to 200 bookings per month"
    - Pricing: $29.00 USD
    - Billing period: Monthly
    - Click "Add pricing" → Copy the Price ID (starts with `price_`)
 
 3. **Create Professional Plan**
-   - Name: "CoachFlow Admin Professional"
+   - Name: "Skedence Admin Professional"
    - Description: "Unlimited bookings"
    - Pricing: $79.00 USD
    - Billing period: Monthly
@@ -38,7 +38,7 @@
 Run these commands in your terminal:
 
 ```bash
-cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/CoachFlow Admin/functions"
+cd "/Users/matthewsprague/Documents/GitHub/Polyface Volleyball Academy/Skedence Admin/functions"
 
 # Set Stripe price IDs
 firebase functions:config:set \
@@ -69,12 +69,12 @@ firebase functions:config:get --project polyface-ae6d3
 
 ## 4. Add Swift Files to Xcode
 
-The following files need to be added to the CoachFlow Admin Xcode project:
+The following files need to be added to the Skedence Admin Xcode project:
 
-1. Open `CoachFlow Admin.xcodeproj` in Xcode
-2. Right-click on the CoachFlow Admin folder
-3. Select "Add Files to CoachFlow Admin..."
-4. Navigate to the CoachFlow Admin folder and select:
+1. Open `Skedence Admin.xcodeproj` in Xcode
+2. Right-click on the Skedence Admin folder
+3. Select "Add Files to Skedence Admin..."
+4. Navigate to the Skedence Admin folder and select:
    - `ManageSubscriptionView.swift`
    - `BillingPaywallView.swift`
 5. Ensure "Copy items if needed" is unchecked (they're already in the right place)
