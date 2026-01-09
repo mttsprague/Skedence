@@ -5,6 +5,7 @@ struct SetupChecklistView: View {
     @StateObject private var viewModel = SetupChecklistViewModel()
     @State private var showTemplateSelector = false
     @State private var showShareSheet = false
+    @State private var showStripeKeysSetup = false
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -163,6 +164,9 @@ struct SetupChecklistView: View {
                 viewModel.applyTemplate(template)
             }
         }
+        .sheet(isPresented: $showStripeKeysSetup) {
+            StripeKeysSetupView()
+        }
         .sheet(isPresented: $showShareSheet) {
             if let url = URL(string: viewModel.bookingLink) {
                 ShareSheet(items: [url])
@@ -170,6 +174,9 @@ struct SetupChecklistView: View {
         }
         .onAppear {
             viewModel.loadProgress()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowStripeKeysSetup"))) { _ in
+            showStripeKeysSetup = true
         }
         .navigationTitle("Get Started")
         .navigationBarTitleDisplayMode(.inline)

@@ -269,6 +269,69 @@ final class AdminService: ObservableObject {
             .collection("lessonPackages")
             .addDocument(data: passData)
     }
+    
+    // Remove pass from client (admin only)
+    func removePassFromClient(clientId: String, passType: String, lessonsToRemove: Int) async throws {
+        guard isAdmin else {
+            throw NSError(domain: "AdminService", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Unauthorized"])
+        }
+        
+        // Get all packages for this client and pass type
+        let packagesSnapshot = try await db.collection("users")
+            .document(clientId)
+            .collection("lessonPackages")
+            .whereField("packageType", isEqualTo: passType)
+            .getDocuments()
+        
+        guard !packagesSnapshot.documents.isEmpty else {
+            throw NSError(domain: "AdminService", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "No passes of this type found for client"])
+        }
+        
+        var remainingToRemove = lessonsToRemove
+        
+        // Remove from packages starting with those closest to expiration
+        let sortedPackages = packagesSnapshot.documents.sorted { doc1, doc2 in
+            let exp1 = (doc1.data()["expirationDate"] as? Timestamp)?.dateValue() ?? Date.distantFuture
+            let exp2 = (doc2.data()["expirationDate"] as? Timestamp)?.dateValue() ?? Date.distantFuture
+            return exp1 < exp2
+        }
+        
+        for packageDoc in sortedPackages {
+            guard remainingToRemove > 0 else { break }
+            
+            let data = packageDoc.data()
+            let totalLessons = data["totalLessons"] as? Int ?? 0
+            let lessonsUsed = data["lessonsUsed"] as? Int ?? 0
+            let availableLessons = totalLessons - lessonsUsed
+            
+            if availableLessons <= 0 {
+                continue // Skip packages with no available lessons
+            }
+            
+            let lessonsToRemoveFromThisPackage = min(remainingToRemove, availableLessons)
+            let newTotalLessons = totalLessons - lessonsToRemoveFromThisPackage
+            
+            // Update or delete the package
+            if newTotalLessons <= lessonsUsed {
+                // If removing would make total <= used, delete the package
+                try await packageDoc.reference.delete()
+            } else {
+                // Update the package with reduced total
+                try await packageDoc.reference.updateData([
+                    "totalLessons": newTotalLessons
+                ])
+            }
+            
+            remainingToRemove -= lessonsToRemoveFromThisPackage
+        }
+        
+        if remainingToRemove > 0 {
+            throw NSError(domain: "AdminService", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Client only has \(lessonsToRemove - remainingToRemove) available passes of this type"])
+        }
+    }
 }
 
 // Simple user model for admin dropdown

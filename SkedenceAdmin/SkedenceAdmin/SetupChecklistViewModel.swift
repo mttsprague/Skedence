@@ -138,8 +138,8 @@ class SetupChecklistViewModel: ObservableObject {
     }
     
     func navigateToStripeSetup() {
-        // Post notification to navigate to billing
-        NotificationCenter.default.post(name: NSNotification.Name("NavigateToBilling"), object: nil)
+        // Post notification to show Stripe keys setup view
+        NotificationCenter.default.post(name: NSNotification.Name("ShowStripeKeysSetup"), object: nil)
     }
     
     func navigateToPackages() {

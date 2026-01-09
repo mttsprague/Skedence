@@ -75,11 +75,12 @@ service cloud.firestore {
     // ORGANIZATIONS COLLECTION
     // =========================================================================
     match /organizations/{orgId} {
-      // Members can read their own organization
+      // Members can read their own organization (including pricing structure)
       allow read: if isMemberOfOrg(orgId);
       
-      // Only owners can update organization settings
-      allow update: if isOrgOwner(orgId);
+      // Admins can update organization settings (including pricing structure)
+      // Owners have full control
+      allow update: if isOrgAdmin(orgId);
       
       // No creation or deletion via client (managed by backend)
       allow create, delete: if false;
@@ -160,6 +161,19 @@ service cloud.firestore {
           request.auth.uid == userId
           || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
         );
+      }
+      
+      // Payment Methods subcollection
+      match /paymentMethods/{methodId} {
+        // Owner or admins in same org can read payment methods
+        allow read: if isSignedIn() && (
+          request.auth.uid == userId
+          || get(/databases/$(database)/documents/users/$(userId)).data.orgId != null
+            && isOrgAdmin(get(/databases/$(database)/documents/users/$(userId)).data.orgId)
+        );
+        
+        // Only backend can write payment methods
+        allow write: if false;
       }
     }
 
@@ -252,6 +266,20 @@ service cloud.firestore {
             && isOrgAdmin(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId))
         );
       }
+    }
+
+    // =========================================================================
+    // TRANSACTIONS COLLECTION
+    // =========================================================================
+    match /transactions/{transactionId} {
+      // Clients can read their own transactions
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid
+        || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
+      );
+      
+      // Only backend/cloud functions can write transactions
+      allow write: if false;
     }
 
     // =========================================================================

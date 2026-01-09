@@ -13,6 +13,7 @@ struct AdminPanelView: View {
     @StateObject private var classesService = ClassesService()
     @StateObject private var trainersService = TrainersService()
     @StateObject private var packagesService = PackagesService()
+    @StateObject private var pricingService = PricingStructureService()
     @State private var showingCreateClass = false
     @State private var showingEditClass = false
     @State private var classToEdit: GroupClass?
@@ -21,13 +22,25 @@ struct AdminPanelView: View {
     
     // Pass management states
     @State private var selectedClient: SimpleUser?
-    @State private var selectedPassType: String = "private"
+    @State private var selectedPassType: String = ""
     @State private var passQuantity: Int = 1
+    @State private var passAction: PassAction = .add
     @State private var isAddingPass = false
+    
+    // Pricing structure states
+    @State private var editingTiers: [PricingTier] = []
+    @State private var isSavingPricing = false
     
     enum AdminTab: String, CaseIterable {
         case passes = "Passes"
         case classes = "Classes"
+        case wallet = "Wallet"
+        case pricingStructure = "Pricing Structure"
+    }
+    
+    enum PassAction: String, CaseIterable {
+        case add = "Add"
+        case remove = "Remove"
     }
     
     var body: some View {
@@ -96,6 +109,12 @@ struct AdminPanelView: View {
                 await classesService.loadAllClasses(orgId: orgId)
                 await trainersService.loadAll(orgId: orgId)
                 await adminService.loadAllUsers(orgId: orgId)
+                await pricingService.loadPricingStructure(for: orgId)
+                
+                // Set default pass type to first package if none selected
+                if selectedPassType.isEmpty, let firstPackage = pricingService.allPackageOptions.first {
+                    selectedPassType = firstPackage.title
+                }
             }
         }
     }
@@ -107,6 +126,8 @@ struct AdminPanelView: View {
                 Picker("Tab", selection: $tabSelection) {
                     Text("Passes").tag(AdminTab.passes)
                     Text("Classes").tag(AdminTab.classes)
+                    Text("Wallet").tag(AdminTab.wallet)
+                    Text("Pricing").tag(AdminTab.pricingStructure)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, Spacing.lg)
@@ -115,6 +136,10 @@ struct AdminPanelView: View {
                 // Content based on tab
                 if tabSelection == .passes {
                     passesContent
+                } else if tabSelection == .wallet {
+                    walletContent
+                } else if tabSelection == .pricingStructure {
+                    pricingStructureContent
                 } else {
                     classesContent
                 }
@@ -141,7 +166,7 @@ struct AdminPanelView: View {
                     .font(.headingLarge)
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                Text("Add lesson passes to client accounts")
+                Text(passAction == .add ? "Add lesson passes to client accounts" : "Remove lesson passes from client accounts")
                     .font(.bodyMedium)
                     .foregroundStyle(AppTheme.textSecondary)
             }
@@ -189,49 +214,65 @@ struct AdminPanelView: View {
                     
                     Divider()
                     
-                    // Pass type selection
+                    // Pass type selection (dynamic from pricing structure)
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text("Pass Type")
                             .font(.labelMedium)
                             .foregroundStyle(AppTheme.textSecondary)
                         
-                        Menu {
-                            Button {
-                                selectedPassType = "private"
+                        if pricingService.isLoading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(Spacing.sm)
+                        } else {
+                            Menu {
+                                ForEach(pricingService.allPackageOptions) { package in
+                                    Button {
+                                        selectedPassType = package.title
+                                    } label: {
+                                        HStack {
+                                            Text(package.title)
+                                            Text(package.formattedPrice)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
                             } label: {
-                                Text("Private Lesson Pass (1 athlete)")
-                            }
-                            Button {
-                                selectedPassType = "2_athlete"
-                            } label: {
-                                Text("2-Athlete Pass")
-                            }
-                            Button {
-                                selectedPassType = "3_athlete"
-                            } label: {
-                                Text("3-Athlete Pass")
-                            }
-                            Button {
-                                selectedPassType = "class_pass"
-                            } label: {
-                                Text("Class Pass")
-                            }
-                        } label: {
-                            HStack {
-                                Text(passTypeName(selectedPassType))
-                                    .font(.bodyMedium)
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                Spacer()
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(AppTheme.textTertiary)
-                            }
-                            .padding(Spacing.sm)
-                            .background(
-                                RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                HStack {
+                                    Text(selectedPassType.isEmpty ? "Select a pass type" : selectedPassType)
+                                        .font(.bodyMedium)
+                                        .foregroundStyle(selectedPassType.isEmpty ? AppTheme.textTertiary : AppTheme.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(AppTheme.textTertiary)
+                                }
+                                .padding(Spacing.sm)
+                                .background(
+                                    RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
                                     .fill(Color.platformGroupedBackground)
                             )
                         }
+                    }
+                    
+                    Divider()
+                    
+                    // Add or Remove selection
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Action")
+                            .font(.labelMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        Picker("Action", selection: $passAction) {
+                            Text("Add Passes").tag(PassAction.add)
+                            Text("Remove Passes").tag(PassAction.remove)
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(Spacing.xxs)
+                        .background(
+                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                .fill(Color.platformGroupedBackground)
+                        )
                     }
                     
                     Divider()
@@ -259,16 +300,22 @@ struct AdminPanelView: View {
                     
                     // Submit button
                     Button {
-                        Task { await addPassToClient() }
+                        Task { 
+                            if passAction == .add {
+                                await addPassToClient()
+                            } else {
+                                await removePassFromClient()
+                            }
+                        }
                     } label: {
                         HStack {
                             if isAddingPass {
                                 ProgressView()
                                     .tint(.white)
                             } else {
-                                Image(systemName: "plus.circle.fill")
+                                Image(systemName: passAction == .add ? "plus.circle.fill" : "minus.circle.fill")
                             }
-                            Text(isAddingPass ? "Adding Pass..." : "Add Pass to Client")
+                            Text(isAddingPass ? (passAction == .add ? "Adding Pass..." : "Removing Pass...") : (passAction == .add ? "Add Pass to Client" : "Remove Pass from Client"))
                         }
                     }
                     .buttonStyle(PrimaryButtonStyle())
@@ -362,20 +409,7 @@ struct AdminPanelView: View {
     
     // MARK: - Helper Functions
     
-    private func passTypeName(_ type: String) -> String {
-        switch type {
-        case "private":
-            return "Private Lesson Pass (1 athlete)"
-        case "2_athlete":
-            return "2-Athlete Pass"
-        case "3_athlete":
-            return "3-Athlete Pass"
-        case "class_pass":
-            return "Class Pass"
-        default:
-            return "Unknown"
-        }
-    }
+    // passTypeName function removed - now using dynamic titles directly
     
     private func addPassToClient() async {
         guard let client = selectedClient else { return }
@@ -414,6 +448,120 @@ struct AdminPanelView: View {
         }
         
         isAddingPass = false
+    }
+    
+    private func removePassFromClient() async {
+        guard let client = selectedClient else { return }
+        
+        isAddingPass = true
+        
+        do {
+            try await adminService.removePassFromClient(
+                clientId: client.id,
+                passType: selectedPassType,
+                lessonsToRemove: passQuantity
+            )
+            
+            // Show success alert
+            alertItem = AlertItem(
+                title: "Pass Removed",
+                message: "Successfully removed \(passQuantity) pass\(passQuantity == 1 ? "" : "es") from \(client.firstName) \(client.lastName)'s account."
+            )
+            
+            // Reset selections
+            selectedClient = nil
+            selectedPassType = "private"
+            passQuantity = 1
+            passAction = .add
+            
+            // Refresh data
+            if let orgId = auth.currentOrgId {
+                await adminService.loadAllUsers(orgId: orgId)
+            }
+            await packagesService.loadMyPackages()
+            
+        } catch {
+            alertItem = AlertItem(
+                title: "Error",
+                message: "Failed to remove pass: \(error.localizedDescription)"
+            )
+        }
+        
+        isAddingPass = false
+    }
+    
+    // MARK: - Wallet Content
+    
+    private var walletContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("Client Wallet")
+                    .font(.headingLarge)
+                    .foregroundStyle(AppTheme.textPrimary)
+                
+                Text("Process payments and manage payment methods")
+                    .font(.bodyMedium)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+            .padding(.horizontal, Spacing.lg)
+            
+            CardView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // Client selection
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Select Client")
+                            .font(.labelMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        Menu {
+                            ForEach(adminService.allUsers) { user in
+                                Button {
+                                    selectedClient = user
+                                } label: {
+                                    VStack(alignment: .leading) {
+                                        Text("\(user.firstName) \(user.lastName)")
+                                        if !user.athleteName.isEmpty {
+                                            Text("Athlete: \(user.athleteName)")
+                                                .font(.caption)
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(selectedClient != nil ? "\(selectedClient!.firstName) \(selectedClient!.lastName)" : "Choose a client")
+                                    .font(.bodyMedium)
+                                    .foregroundStyle(selectedClient != nil ? AppTheme.textPrimary : AppTheme.textSecondary)
+                                Spacer()
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.textTertiary)
+                            }
+                            .padding(Spacing.sm)
+                            .background(
+                                RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                    .fill(Color.platformGroupedBackground)
+                            )
+                        }
+                    }
+                    
+                    if selectedClient != nil {
+                        Divider()
+                        
+                        Text("Payment processing will be available in the next update.")
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .padding(Spacing.md)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .background(
+                                RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                    .fill(AppTheme.warning.opacity(0.1))
+                            )
+                    }
+                }
+            }
+            .padding(.horizontal, Spacing.lg)
+        }
     }
 }
 
@@ -817,6 +965,233 @@ struct EditClassView: View {
         }
         
         isUpdating = false
+    }
+}
+
+// MARK: - Pricing Structure Extension
+extension AdminPanelView {
+    private var pricingStructureContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("Pricing Structure")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(AppTheme.text)
+                
+                Text("Set up pricing tiers and package options")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryText)
+            }
+            .padding(.horizontal, Spacing.lg)
+            
+            if pricingService.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                tiersEditor
+                
+                // Save button
+                Button {
+                    savePricingStructure()
+                } label: {
+                    HStack {
+                        if isSavingPricing {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("Save Pricing Structure")
+                                .font(.headline)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(AppTheme.primary)
+                    .foregroundStyle(.white)
+                    .cornerRadius(CornerRadius.md)
+                }
+                .disabled(isSavingPricing || editingTiers.isEmpty)
+                .padding(.horizontal, Spacing.lg)
+            }
+        }
+        .task {
+            guard let orgId = auth.currentOrgId else { return }
+            await pricingService.loadPricingStructure(for: orgId)
+            // Initialize editing state
+            if let structure = pricingService.pricingStructure {
+                editingTiers = structure.tiers
+            } else {
+                // Start with one empty tier
+                editingTiers = [PricingTier(tierName: "", packages: [])]
+            }
+        }
+    }
+    
+    private var tiersEditor: some View {
+        VStack(spacing: Spacing.lg) {
+            ForEach(editingTiers.indices, id: \.self) { tierIndex in
+                tierCard(tierIndex: tierIndex)
+            }
+            
+            // Add Tier button
+            Button {
+                addTier()
+            } label: {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Add Tier")
+                }
+                .font(.headline)
+                .foregroundStyle(AppTheme.primary)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.platformSecondaryGroupedBackground)
+                .cornerRadius(CornerRadius.md)
+            }
+            .padding(.horizontal, Spacing.lg)
+        }
+    }
+    
+    private func tierCard(tierIndex: Int) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // Tier header with delete button
+            HStack {
+                TextField("Tier Name (e.g., Master, Elite, Pro)", text: $editingTiers[tierIndex].tierName)
+                    .font(.headline)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .background(Color.platformSecondaryGroupedBackground)
+                    .cornerRadius(CornerRadius.sm)
+                
+                if editingTiers.count > 1 {
+                    Button {
+                        deleteTier(at: tierIndex)
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            
+            // Packages in this tier
+            ForEach(editingTiers[tierIndex].packages.indices, id: \.self) { packageIndex in
+                packageRow(tierIndex: tierIndex, packageIndex: packageIndex)
+            }
+            
+            // Add Package button
+            Button {
+                addPackage(to: tierIndex)
+            } label: {
+                HStack {
+                    Image(systemName: "plus.circle")
+                    Text("Add Package")
+                }
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.sm)
+                .background(Color.platformSecondaryGroupedBackground)
+                .cornerRadius(CornerRadius.sm)
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.platformBackground)
+        .cornerRadius(CornerRadius.md)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+        .padding(.horizontal, Spacing.lg)
+    }
+    
+    private func packageRow(tierIndex: Int, packageIndex: Int) -> some View {
+        HStack(spacing: Spacing.md) {
+            // Package title
+            TextField("Package Title (e.g., 1 Athlete)", text: $editingTiers[tierIndex].packages[packageIndex].title)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.xs)
+                .background(Color.platformSecondaryGroupedBackground)
+                .cornerRadius(CornerRadius.sm)
+            
+            // Price input
+            HStack(spacing: 4) {
+                Text("$")
+                    .foregroundStyle(AppTheme.secondaryText)
+                TextField("0.00", value: $editingTiers[tierIndex].packages[packageIndex].priceInDollars, format: .number.precision(.fractionLength(2)))
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.plain)
+                    .frame(width: 80)
+                    .multilineTextAlignment(.trailing)
+            }
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
+            .background(Color.platformSecondaryGroupedBackground)
+            .cornerRadius(CornerRadius.sm)
+            
+            // Delete button
+            Button {
+                deletePackage(at: packageIndex, from: tierIndex)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+    
+    // MARK: - Pricing Actions
+    
+    private func addTier() {
+        editingTiers.append(PricingTier(tierName: "", packages: []))
+    }
+    
+    private func deleteTier(at index: Int) {
+        editingTiers.remove(at: index)
+    }
+    
+    private func addPackage(to tierIndex: Int) {
+        editingTiers[tierIndex].packages.append(PackageOption(title: "", priceInCents: 0))
+    }
+    
+    private func deletePackage(at packageIndex: Int, from tierIndex: Int) {
+        editingTiers[tierIndex].packages.remove(at: packageIndex)
+    }
+    
+    private func savePricingStructure() {
+        guard let orgId = auth.currentOrgId else {
+            alertItem = AlertItem(title: "Error", message: "Organization ID not found")
+            return
+        }
+        
+        // Validate
+        for tier in editingTiers {
+            if tier.tierName.isEmpty {
+                alertItem = AlertItem(title: "Validation Error", message: "All tiers must have a name")
+                return
+            }
+            for package in tier.packages {
+                if package.title.isEmpty {
+                    alertItem = AlertItem(title: "Validation Error", message: "All packages must have a title")
+                    return
+                }
+                if package.priceInCents <= 0 {
+                    alertItem = AlertItem(title: "Validation Error", message: "All packages must have a price greater than $0")
+                    return
+                }
+            }
+        }
+        
+        isSavingPricing = true
+        
+        Task {
+            do {
+                let structure = PricingStructure(tiers: editingTiers, lastUpdated: Date())
+                try await pricingService.savePricingStructure(structure, for: orgId)
+                
+                alertItem = AlertItem(title: "Success", message: "Pricing structure saved successfully")
+            } catch {
+                alertItem = AlertItem(title: "Error", message: error.localizedDescription)
+            }
+            
+            isSavingPricing = false
+        }
     }
 }
 

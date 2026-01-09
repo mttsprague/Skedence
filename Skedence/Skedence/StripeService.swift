@@ -16,22 +16,41 @@ final class StripeService: ObservableObject {
     @Published var lastPaymentIntentId: String?
     
     // Create a payment intent for a lesson package
+    // Routes payment to trainer's organization Stripe Connect account
     func createPaymentIntent(
         packageType: String,
         amount: Int, // Amount in cents (e.g., 5000 = $50.00)
-        trainerId: String
+        trainerId: String,
+        orgId: String? = nil // Organization receiving payment
     ) async throws -> String {
         guard let userId = Auth.auth().currentUser?.uid else {
             throw StripeError.notAuthenticated
         }
         
-        let callable = functions.httpsCallable("createPaymentIntent")
-        let data: [String: Any] = [
-            "packageType": packageType,
-            "amount": amount,
-            "trainerId": trainerId,
-            "userId": userId
-        ]
+        // Determine which Cloud Function to call based on whether orgId is provided
+        let callable: Callable
+        var data: [String: Any]
+        
+        if let orgId = orgId {
+            // Use Stripe Connect function - routes payment to trainer's account
+            callable = functions.httpsCallable("createPaymentIntentConnect")
+            data = [
+                "orgId": orgId,
+                "packageType": packageType,
+                "amount": amount,
+                "trainerId": trainerId,
+                "userId": userId
+            ]
+        } else {
+            // Fallback to legacy function (should not be used for client purchases)
+            callable = functions.httpsCallable("createPaymentIntent")
+            data = [
+                "packageType": packageType,
+                "amount": amount,
+                "trainerId": trainerId,
+                "userId": userId
+            ]
+        }
         
         do {
             let result = try await callable.call(data)

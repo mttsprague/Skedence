@@ -9,6 +9,7 @@ struct PurchaseLessonsView: View {
     @ObservedObject var packagesService: PackagesService
     @StateObject private var stripeService = StripeService()
     @StateObject private var customerService = StripeCustomerService()
+    @StateObject private var pricingService = PricingStructureService()
 
     // Trainers dropdown
     @StateObject private var trainersService = TrainersService()
@@ -21,8 +22,8 @@ struct PurchaseLessonsView: View {
     // Default expiration policy
     private let expirationMonths = 12
 
-    // Selected package option
-    @State private var selected: PackageOption = .single
+    // Selected package option (now dynamic)
+    @State private var selectedPackageIndex: Int = 0
 
     // Jeff-first ordering
     private var trainersOrdered: [Trainer] {
@@ -92,14 +93,27 @@ struct PurchaseLessonsView: View {
                     .foregroundStyle(Brand.primary)
                     .padding(.horizontal)
 
-                // Package options
-                VStack(spacing: 14) {
-                    packageCard(option: .single)
-                    packageCard(option: .twoAthlete)
-                    packageCard(option: .threeAthlete)
-                    packageCard(option: .classPass)
+                // Package options (dynamically loaded)
+                if pricingService.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                } else {
+                    let packages = pricingService.allPackageOptions
+                    if packages.isEmpty {
+                        Text("No packages available. Admin needs to set up pricing.")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                    } else {
+                        VStack(spacing: 14) {
+                            ForEach(packages.indices, id: \.self) { index in
+                                packageCard(package: packages[index], isSelected: selectedPackageIndex == index, index: index)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
                 }
-                .padding(.horizontal)
 
                 // Bottom Purchase button
                 Button {
@@ -140,6 +154,11 @@ struct PurchaseLessonsView: View {
                     selectedTrainer = trainersService.trainers.first
                 }
             }
+            
+            // Load pricing structure
+            if let orgId = auth.currentOrgId {
+                await pricingService.loadPricingStructure(for: orgId)
+            }
         }
         .alert(item: $alert) { a in
             Alert(title: Text(a.title), message: Text(a.message), dismissButton: .default(Text("OK")))
@@ -150,9 +169,70 @@ struct PurchaseLessonsView: View {
         ), paymentSheet: $paymentSheet, onCompletion: handlePaymentCompletion)
     }
 
-    // MARK: - Package Options
+    // MARK: - Package Card (Dynamic)
 
-    private enum PackageOption: CaseIterable, Equatable {
+    private func packageCard(package: PackageOption, isSelected: Bool, index: Int) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) { selectedPackageIndex = index }
+        } label: {
+            HStack(spacing: 12) {
+                // Leading icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Brand.primary.opacity(0.15))
+                    Image(systemName: "briefcase.fill")
+                        .foregroundStyle(Brand.primary)
+                        .font(.system(size: 18, weight: .semibold))
+                }
+                .frame(width: 48, height: 48)
+
+                // Title
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(package.title)
+                        .foregroundStyle(.primary)
+                        .font(.headline)
+                }
+
+                Spacer()
+
+                // Price
+                Text(package.formattedPrice)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .stroke(Brand.primary, lineWidth: 2)
+                        .frame(width: 26, height: 26)
+                    if isSelected {
+                        Circle()
+                            .fill(Brand.primary)
+                            .frame(width: 22, height: 22)
+                            .overlay(Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white))
+                    }
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.platformBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color.secondary.opacity(0.08))
+                    )
+                    .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Old Package Enum (Deprecated - kept for backward compatibility)
+    
+    private enum PackageOption_OLD: CaseIterable, Equatable {
         case single, twoAthlete, threeAthlete, classPass
 
         var title: String {
@@ -213,70 +293,6 @@ struct PurchaseLessonsView: View {
         }
     }
 
-    private func packageCard(option: PackageOption) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.15)) { selected = option }
-        } label: {
-            HStack(spacing: 12) {
-                // Leading icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Brand.primary.opacity(0.15))
-                    Image(systemName: "briefcase.fill")
-                        .foregroundStyle(Brand.primary)
-                        .font(.system(size: 18, weight: .semibold))
-                }
-                .frame(width: 48, height: 48)
-
-                // Title + savings
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(option.title)
-                        .foregroundStyle(.primary)
-                        .font(.headline)
-                    if let sub = option.subtitle {
-                        Text(sub)
-                            .foregroundStyle(.secondary)
-                            .font(.subheadline)
-                    }
-                }
-
-                Spacer()
-
-                // Price
-                Text(option.displayPrice)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                // Selection indicator
-                ZStack {
-                    Circle()
-                        .stroke(Brand.primary, lineWidth: 2)
-                        .frame(width: 26, height: 26)
-                    if selected == option {
-                        Circle()
-                            .fill(Brand.primary)
-                            .frame(width: 22, height: 22)
-                            .overlay(Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(.white))
-                    }
-                }
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.platformBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color.secondary.opacity(0.08))
-                    )
-                    .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Helpers
 
     private func isJeff(_ trainer: Trainer) -> Bool {
@@ -296,6 +312,19 @@ struct PurchaseLessonsView: View {
             alert = .init(title: "Error", message: "Please select a trainer.")
             return
         }
+        
+        guard let orgId = auth.currentOrgId else {
+            alert = .init(title: "Error", message: "Organization not found.")
+            return
+        }
+        
+        // Get selected package
+        let packages = pricingService.allPackageOptions
+        guard packages.indices.contains(selectedPackageIndex) else {
+            alert = .init(title: "Error", message: "Please select a package.")
+            return
+        }
+        let selectedPackage = packages[selectedPackageIndex]
 
         isPurchasing = true
         defer { isPurchasing = false }
@@ -304,11 +333,12 @@ struct PurchaseLessonsView: View {
             // Ensure user has a Stripe customer (enables saving cards)
             _ = try await customerService.getOrCreateCustomer()
             
-            // Create payment intent
+            // Create payment intent - routes to trainer's Stripe Connect account
             let clientSecret = try await stripeService.createPaymentIntent(
-                packageType: selected.packageType,
-                amount: selected.amountInCents,
-                trainerId: trainerId
+                packageType: selectedPackage.title.lowercased().replacingOccurrences(of: " ", with: "_"),
+                amount: selectedPackage.priceInCents,
+                trainerId: trainerId,
+                orgId: orgId // Payment goes to trainer's organization
             )
             
             // Configure payment sheet with option to save card
@@ -340,15 +370,22 @@ struct PurchaseLessonsView: View {
                     return
                 }
                 
+                // Get selected package
+                let packages = pricingService.allPackageOptions
+                guard packages.indices.contains(selectedPackageIndex) else {
+                    alert = .init(title: "Error", message: "Package information not found.")
+                    return
+                }
+                let selectedPackage = packages[selectedPackageIndex]
+                
                 do {
                     // Call backend to confirm payment and create package
                     try await stripeService.confirmPayment(paymentIntentId: paymentIntentId)
                     
                     // Track package purchase event
-                    let packageTypeStr = selected.rawValue.replacingOccurrences(of: "_", with: " ")
                     AnalyticsService.shared.logPackagePurchased(
                         packageId: paymentIntentId,
-                        price: Double(selected.price) / 100.0,
+                        price: Double(selectedPackage.priceInCents) / 100.0,
                         method: "stripe"
                     )
                     
@@ -356,22 +393,12 @@ struct PurchaseLessonsView: View {
                     await packagesService.loadMyPackages()
                 } catch {
                     alert = .init(title: "Error", message: "Payment succeeded but package creation failed. Please contact support. \(error.localizedDescription)")
-                    CrashlyticsService.shared.logPaymentError(error, amount: Double(selected.price) / 100.0, method: "stripe")
+                    CrashlyticsService.shared.logPaymentError(error, amount: Double(selectedPackage.priceInCents) / 100.0, method: "stripe")
                     return
                 }
                 
-                // Create user-friendly success message based on package type
-                let successMessage: String
-                switch selected {
-                case .single:
-                    successMessage = "Your 1-athlete lesson has been added to your account. You can now book a session!"
-                case .twoAthlete:
-                    successMessage = "Your 2-athlete lesson has been added to your account. Ready to train with a partner!"
-                case .threeAthlete:
-                    successMessage = "Your 3-athlete lesson has been added to your account. Ready to train with your group!"
-                case .classPass:
-                    successMessage = "Your class pass has been added to your account. You can now register for group classes!"
-                }
+                // Success message
+                let successMessage = "Your \(selectedPackage.title) has been added to your account. You can now book sessions!"
                 
                 alert = .init(title: "Purchase Successful! 🎉", message: successMessage)
             }

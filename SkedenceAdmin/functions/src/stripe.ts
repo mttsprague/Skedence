@@ -310,3 +310,232 @@ export const detachPaymentMethod = functions.https.onCall(
     }
   }
 );
+
+// ============================================================================
+// ADMIN PAYMENT PROCESSING
+// ============================================================================
+
+interface AdminChargeData {
+  clientId: string;
+  amount: number; // in cents
+  description?: string;
+  saveCard?: boolean;
+}
+
+/**
+ * Admin function to charge a client's card
+ * Requires admin permissions
+ */
+export const adminChargeClient = functions.https.onCall(
+  async (request: functions.https.CallableRequest<AdminChargeData>) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {clientId, amount, description, saveCard} = request.data;
+
+    if (!clientId || !amount || amount < 50) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields or amount too small (minimum $0.50)"
+      );
+    }
+
+    try {
+      // Check if requesting user is admin
+      const adminDoc = await db.collection("users").doc(request.auth.uid).get();
+      const adminData = adminDoc.data();
+
+      if (!adminData?.isAdmin) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Admin access required"
+        );
+      }
+
+      // Get client information
+      const clientDoc = await db.collection("users").doc(clientId).get();
+      if (!clientDoc.exists) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Client not found"
+        );
+      }
+
+      const clientData = clientDoc.data();
+      if (!clientData) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Client data not found"
+        );
+      }
+
+      // Create or get Stripe customer
+      let customerId = clientData.stripeCustomerId;
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: clientData.emailAddress || "",
+          name: `${clientData.firstName || ""} ${clientData.lastName || ""}`,
+          metadata: {
+            userId: clientId,
+            orgId: clientData.orgId || "",
+          },
+        });
+
+        customerId = customer.id;
+
+        // Save customer ID to Firestore
+        await db.collection("users").doc(clientId).update({
+          stripeCustomerId: customerId,
+        });
+      }
+
+      // Create payment intent
+      const paymentIntentData: Stripe.PaymentIntentCreateParams = {
+        amount,
+        currency: "usd",
+        customer: customerId,
+        metadata: {
+          clientId,
+          adminId: request.auth.uid,
+          adminCharge: "true",
+          description: description || "Admin charge",
+        },
+        description: description || "Admin payment",
+      };
+
+      if (saveCard) {
+        paymentIntentData.setup_future_usage = "off_session";
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create(
+        paymentIntentData
+      );
+
+      return {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        customerId,
+      };
+    } catch (error: unknown) {
+      console.error("Error creating admin charge:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new functions.https.HttpsError("internal", message);
+    }
+  }
+);
+
+interface AdminConfirmChargeData {
+  paymentIntentId: string;
+  clientId: string;
+  amount: number;
+  description?: string;
+}
+
+/**
+ * Confirm payment and create transaction record
+ */
+export const adminConfirmCharge = functions.https.onCall(
+  async (
+    request: functions.https.CallableRequest<AdminConfirmChargeData>
+  ) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {paymentIntentId, clientId, amount, description} = request.data;
+
+    if (!paymentIntentId || !clientId || !amount) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields"
+      );
+    }
+
+    try {
+      // Check if requesting user is admin
+      const adminDoc = await db.collection("users").doc(request.auth.uid).get();
+      const adminData = adminDoc.data();
+
+      if (!adminData?.isAdmin) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Admin access required"
+        );
+      }
+
+      // Retrieve payment intent to verify success
+      const paymentIntent = await stripe.paymentIntents.retrieve(
+        paymentIntentId
+      );
+
+      if (paymentIntent.status !== "succeeded") {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Payment has not succeeded"
+        );
+      }
+
+      // Get client data for orgId
+      const clientDoc = await db.collection("users").doc(clientId).get();
+      const clientData = clientDoc.data();
+
+      // Create transaction record
+      const transactionData = {
+        clientId,
+        adminId: request.auth.uid,
+        amount,
+        currency: "usd",
+        description: description || "Admin payment",
+        stripePaymentIntentId: paymentIntentId,
+        status: "succeeded",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        orgId: clientData?.orgId || "",
+        type: "admin_charge",
+      };
+
+      const transactionRef = await db
+        .collection("transactions")
+        .add(transactionData);
+
+      // If payment method was attached, save it to client's payment methods
+      if (paymentIntent.payment_method) {
+        const paymentMethod = await stripe.paymentMethods.retrieve(
+          paymentIntent.payment_method as string
+        );
+
+        if (paymentMethod.card) {
+          await db
+            .collection("users")
+            .doc(clientId)
+            .collection("paymentMethods")
+            .doc(paymentMethod.id)
+            .set({
+              stripePaymentMethodId: paymentMethod.id,
+              last4: paymentMethod.card.last4,
+              brand: paymentMethod.card.brand,
+              expiryMonth: paymentMethod.card.exp_month,
+              expiryYear: paymentMethod.card.exp_year,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+      }
+
+      return {
+        success: true,
+        transactionId: transactionRef.id,
+      };
+    } catch (error: unknown) {
+      console.error("Error confirming admin charge:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new functions.https.HttpsError("internal", message);
+    }
+  }
+);
