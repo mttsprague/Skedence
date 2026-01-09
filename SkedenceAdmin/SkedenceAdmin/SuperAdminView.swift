@@ -87,9 +87,14 @@ struct SuperAdminView: View {
                                 showingCreateOrganization = true
                             }
                         } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(selectedTab == .trainers && !canAddTrainer ? .gray : AppTheme.primary)
+                            if selectedTab == .trainers {
+                                Text("Add Trainer")
+                                    .foregroundStyle(canAddTrainer ? AppTheme.primary : .gray)
+                            } else {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(AppTheme.primary)
+                            }
                         }
                     }
                 }
@@ -102,7 +107,10 @@ struct SuperAdminView: View {
                 }
             }
             .sheet(isPresented: $showingAddTrainer) {
-                AddTrainerView { trainerId in
+                AddTrainerView(
+                    orgId: auth.currentOrgId ?? "",
+                    orgName: viewModel.organizations.first?.name ?? "Your Organization"
+                ) { trainerId in
                     Task {
                         await viewModel.loadTrainers()
                     }
@@ -474,9 +482,10 @@ struct CreateOrganizationView: View {
 struct AddTrainerView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = AddTrainerViewModel()
+    let orgId: String
+    let orgName: String
     let onAdded: (String) -> Void
     
-    @State private var selectedOrgId = ""
     @State private var trainerEmail = ""
     @State private var trainerName = ""
     @State private var trainerRole = "trainer"
@@ -488,16 +497,12 @@ struct AddTrainerView: View {
         NavigationView {
             Form {
                 Section("Organization") {
-                    if viewModel.organizations.isEmpty {
-                        Text("No organizations available")
+                    HStack {
+                        Text("Organization")
                             .foregroundStyle(AppTheme.textSecondary)
-                    } else {
-                        Picker("Select Organization", selection: $selectedOrgId) {
-                            Text("Select...").tag("")
-                            ForEach(viewModel.organizations) { org in
-                                Text(org.name).tag(org.id ?? "")
-                            }
-                        }
+                        Spacer()
+                        Text(orgName)
+                            .foregroundStyle(AppTheme.textPrimary)
                     }
                 }
                 
@@ -553,11 +558,8 @@ struct AddTrainerView: View {
                             await addTrainer()
                         }
                     }
-                    .disabled(isAdding || selectedOrgId.isEmpty || trainerEmail.isEmpty || trainerName.isEmpty)
+                    .disabled(isAdding || orgId.isEmpty || trainerEmail.isEmpty || trainerName.isEmpty)
                 }
-            }
-            .task {
-                await viewModel.loadOrganizations()
             }
         }
     }
@@ -566,7 +568,7 @@ struct AddTrainerView: View {
         isAdding = true
         
         if let trainerId = await viewModel.addTrainer(
-            orgId: selectedOrgId,
+            orgId: orgId,
             email: trainerEmail,
             name: trainerName,
             role: trainerRole
