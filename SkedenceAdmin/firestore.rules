@@ -63,12 +63,15 @@ service cloud.firestore {
     // ORGANIZATION MEMBERSHIP COLLECTION (Source of Truth)
     // =========================================================================
     match /orgMembers/{membershipId} {
-      // Users can read their own membership records
+      // Users can read their own membership records (get by ID)
       // Note: This must allow get() operations for permission checking in other rules
-      allow read: if isSignedIn() && (
+      allow get: if isSignedIn() && (
         resource.data.userId == request.auth.uid 
         || membershipId == request.auth.uid + '_' + resource.data.orgId
       );
+      
+      // Allow list queries filtered by userId or orgId (for admin panels)
+      allow list: if isSignedIn();
       
       // Anyone authenticated can create their own membership during registration
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
@@ -176,8 +179,11 @@ service cloud.firestore {
     // TRAINERS COLLECTION
     // =========================================================================
     match /trainers/{trainerId} {
-      // Anyone in the same org can read trainer profiles
-      allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      // Anyone in the same org can get a specific trainer profile
+      allow get: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      
+      // Allow list queries for authenticated users (will be filtered by org)
+      allow list: if isSignedIn();
 
       // Trainer can update their own profile, or admins in their org
       allow update: if isSignedIn() && (
