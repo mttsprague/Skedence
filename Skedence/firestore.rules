@@ -64,7 +64,11 @@ service cloud.firestore {
     // =========================================================================
     match /orgMembers/{membershipId} {
       // Users can read their own membership records
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid && resource.data.isActive == true;
+      // Note: This must allow get() operations for permission checking in other rules
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid 
+        || membershipId == request.auth.uid + '_' + resource.data.orgId
+      );
       
       // Only org owners/admins can create/update/delete memberships
       // For now, managed by backend only
