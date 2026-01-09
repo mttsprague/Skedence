@@ -180,6 +180,79 @@ struct CreateBusinessView: View {
         
         Task {
             do {
+                // 0. Check if user was pre-created by an admin (trainer invitation flow)
+                let db = Firestore.firestore()
+                let existingUserQuery = db.collection("users")
+                    .whereField("email", isEqualTo: ownerEmail.lowercased())
+                    .limit(to: 1)
+                
+                let existingUsers = try await existingUserQuery.getDocuments()
+                
+                if let existingUserDoc = existingUsers.documents.first {
+                    // Trainer invitation flow: Link existing user to new auth account
+                    let existingUserData = existingUserDoc.data()
+                    let existingUserId = existingUserDoc.documentID
+                    
+                    // Verify this is a pending trainer account
+                    guard existingUserData["needsPasswordSetup"] as? Bool == true else {
+                        errorMessage = "An account with this email already exists. Please sign in instead."
+                        isCreating = false
+                        return
+                    }
+                    
+                    // Create Firebase Auth account
+                    let authResult = try await Auth.auth().createUser(
+                        withEmail: ownerEmail,
+                        password: ownerPassword
+                    )
+                    let newAuthId = authResult.user.uid
+                    
+                    // Update existing user document with auth ID and clear needsPasswordSetup
+                    try await db.collection("users").document(existingUserId).updateData([
+                        "authId": newAuthId,
+                        "needsPasswordSetup": false,
+                        "name": "\(ownerFirstName) \(ownerLastName)",
+                        "registeredAt": Timestamp(date: Date())
+                    ])
+                    
+                    // Update trainer document if it exists
+                    if let trainerId = existingUserData["trainerId"] as? String {
+                        try await db.collection("trainers").document(trainerId).updateData([
+                            "name": "\(ownerFirstName) \(ownerLastName)"
+                        ])
+                    }
+                    
+                    // Update orgMembers to use new auth ID
+                    if let orgId = existingUserData["orgId"] as? String {
+                        let oldMembershipId = "\(existingUserId)_\(orgId)"
+                        let newMembershipId = "\(newAuthId)_\(orgId)"
+                        
+                        // Get existing membership data
+                        let oldMemberDoc = try await db.collection("orgMembers").document(oldMembershipId).getDocument()
+                        if let memberData = oldMemberDoc.data() {
+                            var updatedMemberData = memberData
+                            updatedMemberData["userId"] = newAuthId
+                            
+                            // Create new membership with auth ID
+                            try await db.collection("orgMembers").document(newMembershipId).setData(updatedMemberData)
+                            
+                            // Delete old membership
+                            try await db.collection("orgMembers").document(oldMembershipId).delete()
+                        }
+                        
+                        // Load org data and complete sign-in
+                        await auth.loadOrgId(for: newAuthId)
+                        dismiss()
+                        return
+                    } else {
+                        errorMessage = "Account setup incomplete. Please contact your organization admin."
+                        isCreating = false
+                        return
+                    }
+                }
+                
+                // Standard flow: Create new business owner account
+                
                 // 1. Create Firebase Auth account
                 let authResult = try await Auth.auth().createUser(
                     withEmail: ownerEmail,
@@ -188,7 +261,6 @@ struct CreateBusinessView: View {
                 let userId = authResult.user.uid
                 
                 // 2. Create organization document
-                let db = Firestore.firestore()
                 let orgRef = db.collection("organizations").document()
                 
                 let orgData: [String: Any] = [
@@ -226,7 +298,22 @@ struct CreateBusinessView: View {
                 try await orgRef.setData(orgData)
                 let orgId = orgRef.documentID
                 
-                // 3. Create orgMember (owner)
+                // 3. Create user document
+                let userData: [String: Any] = [
+                    "email": ownerEmail.lowercased(),
+                    "name": "\(ownerFirstName) \(ownerLastName)",
+                    "orgId": orgId,
+                    "needsPasswordSetup": false,
+                    "authId": userId,
+                    "createdAt": Timestamp(date: Date()),
+                    "registeredAt": Timestamp(date: Date())
+                ]
+                
+                try await db.collection("users")
+                    .document(userId)
+                    .setData(userData)
+                
+                // 4. Create orgMember (owner)
                 let memberData: [String: Any] = [
                     "orgId": orgId,
                     "userId": userId,
@@ -239,7 +326,7 @@ struct CreateBusinessView: View {
                     .document("\(userId)_\(orgId)")
                     .setData(memberData)
                 
-                // 4. Create trainer profile
+                // 5. Create trainer profile
                 let trainerData: [String: Any] = [
                     "orgId": orgId,
                     "name": "\(ownerFirstName) \(ownerLastName)",
@@ -253,10 +340,10 @@ struct CreateBusinessView: View {
                     .document(userId)
                     .setData(trainerData)
                 
-                // 5. Load org data into AuthManager
+                // 6. Load org data into AuthManager
                 await auth.loadOrgId(for: userId)
                 
-                // 6. Show Stripe onboarding
+                // 7. Show Stripe onboarding
                 createdOrgId = orgId
                 showingStripeOnboarding = true
                 
