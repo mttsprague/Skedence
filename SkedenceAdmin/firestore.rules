@@ -73,8 +73,12 @@ service cloud.firestore {
       // Allow list queries filtered by userId or orgId (for admin panels)
       allow list: if isSignedIn();
       
-      // Anyone authenticated can create their own membership during registration
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Users can create their own membership during registration
+      // OR owners/admins can create memberships for new trainers in their org
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid
+        || isOrgAdmin(request.resource.data.orgId)
+      );
       
       // Only org owners/admins can update/delete memberships
       allow update, delete: if false;
@@ -111,8 +115,12 @@ service cloud.firestore {
         || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
       );
       
-      // Anyone authenticated can create a user document for registration
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Users can create their own user document during registration
+      // OR owners/admins can create user documents for new trainers in their org
+      allow create: if isSignedIn() && (
+        request.auth.uid == userId
+        || ('orgId' in request.resource.data && isOrgAdmin(request.resource.data.orgId))
+      );
 
       // User can update their own profile, or trainers/admins in their org
       allow update: if isSignedIn() && (
@@ -191,8 +199,12 @@ service cloud.firestore {
         || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
       );
 
-      // Anyone authenticated can create their own trainer profile during registration
-      allow create: if isSignedIn() && request.auth.uid == trainerId;
+      // Users can create their own trainer profile during registration
+      // OR owners/admins can create trainer profiles for new trainers in their org
+      allow create: if isSignedIn() && (
+        request.auth.uid == trainerId
+        || ('orgId' in request.resource.data && isOrgAdmin(request.resource.data.orgId))
+      );
       
       // Only admins can delete
       allow delete: if 'orgId' in resource.data && isOrgAdmin(resource.data.orgId);
