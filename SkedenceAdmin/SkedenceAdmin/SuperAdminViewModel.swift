@@ -21,25 +21,49 @@ class SuperAdminViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     private let db = Firestore.firestore()
+    private var currentOrgId: String?
     
     func loadOrganizations() async {
         isLoading = true
         errorMessage = nil
         
         do {
-            let snapshot = try await db.collection("organizations").getDocuments()
-            organizations = snapshot.documents.compactMap { doc in
-                let data = doc.data()
-                return Organization(
-                    id: doc.documentID,
+            // Get current user's org ID
+            guard let userId = Auth.auth().currentUser?.uid else {
+                errorMessage = "Not authenticated"
+                isLoading = false
+                return
+            }
+            
+            // Query orgMembers to find user's organization
+            let memberSnapshot = try await db.collection("orgMembers")
+                .whereField("userId", isEqualTo: userId)
+                .limit(to: 1)
+                .getDocuments()
+            
+            guard let memberDoc = memberSnapshot.documents.first,
+                  let orgId = memberDoc.data()["orgId"] as? String else {
+                errorMessage = "No organization found"
+                isLoading = false
+                return
+            }
+            
+            currentOrgId = orgId
+            
+            // Load the organization
+            let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
+            if let data = orgDoc.data() {
+                organizations = [Organization(
+                    id: orgDoc.documentID,
                     name: data["name"] as? String ?? "Unknown",
                     subscriptionPlan: data["subscriptionPlan"] as? String,
                     subscriptionStatus: data["subscriptionStatus"] as? String,
                     stripeAccountId: data["stripeAccountId"] as? String,
                     stripeCustomerId: data["stripeCustomerId"] as? String
-                )
+                )]
             }
-            print("✅ Loaded \(organizations.count) organizations")
+            
+            print("✅ Loaded organization: \(orgId)")
         } catch {
             errorMessage = "Failed to load organizations: \(error.localizedDescription)"
             print("❌ Error loading organizations: \(error)")
@@ -80,34 +104,45 @@ class SuperAdminViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let snapshot = try await db.collection("users").getDocuments()
-            allUsers = snapshot.documents.compactMap { doc in
-                let data = doc.data()
-                return AdminUser(
-                    id: doc.documentID,
-                    firstName: data["firstName"] as? String ?? "",
-                    lastName: data["lastName"] as? String ?? "",
-                    emailAddress: data["emailAddress"] as? String,
-                    orgId: data["orgId"] as? String ?? "",
-                    organizationName: nil, // Will be populated separately if needed
-                    role: nil // Will be loaded from orgMembers
-                )
+            // Get current user's org to filter users
+            guard let userId = Auth.auth().currentUser?.uid else {
+                errorMessage = "Not authenticated"
+                isLoading = false
+                return
             }
             
-            // Load roles from orgMembers
-            for i in 0..<allUsers.count {
-                let user = allUsers[i]
-                if !user.orgId.isEmpty {
-                    let memberDoc = try? await db.collection("orgMembers")
-                        .document("\(user.id)_\(user.orgId)")
-                        .getDocument()
+            // Query orgMembers to find users in the same org
+            let orgId = currentOrgId ?? ""
+            let membersSnapshot = try await db.collection("orgMembers")
+                .whereField("orgId", isEqualTo: orgId)
+                .getDocuments()
+            
+            var users: [AdminUser] = []
+            
+            for memberDoc in membersSnapshot.documents {
+                let memberData = memberDoc.data()
+                guard let memberId = memberData["userId"] as? String else { continue }
+                
+                // Load user document
+                if let userDoc = try? await db.collection("users").document(memberId).getDocument(),
+                   let userData = userDoc.data() {
                     
-                    if let memberData = memberDoc?.data() {
-                        allUsers[i].role = memberData["role"] as? String
-                    }
+                    let name = userData["name"] as? String ?? ""
+                    let nameParts = name.split(separator: " ")
+                    
+                    users.append(AdminUser(
+                        id: userDoc.documentID,
+                        firstName: nameParts.first.map(String.init) ?? "",
+                        lastName: nameParts.dropFirst().joined(separator: " "),
+                        emailAddress: userData["email"] as? String,
+                        orgId: userData["orgId"] as? String ?? orgId,
+                        organizationName: nil,
+                        role: memberData["role"] as? String
+                    ))
                 }
             }
             
+            allUsers = users
             print("✅ Loaded \(allUsers.count) users")
         } catch {
             errorMessage = "Failed to load users: \(error.localizedDescription)"

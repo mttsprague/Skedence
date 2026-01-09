@@ -237,15 +237,12 @@ struct CreateBusinessView: View {
                             
                             // Load org data and complete sign-in
                             await auth.loadOrgId(for: userId)
+                            isCreating = false
                             dismiss()
                             return
                         }
                     }
                     // If email exists but not a pending invitation, continue with normal flow
-                }
-                
-                // Standard flow: Create new business owner account
-                    }
                 }
                 
                 // Standard flow: Create new business owner account
@@ -336,6 +333,7 @@ struct CreateBusinessView: View {
                 // 7. Show Stripe onboarding
                 createdOrgId = orgId
                 showingStripeOnboarding = true
+                isCreating = false
                 
             } catch {
                 errorMessage = "Failed to create account: \(error.localizedDescription)"
