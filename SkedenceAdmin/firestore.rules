@@ -72,9 +72,13 @@ service cloud.firestore {
       // Users can read their own membership records
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid && resource.data.isActive == true;
       
-      // Only org owners/admins can create/update/delete memberships
-      // For now, managed by backend only
-      allow write: if false;
+      // Allow users to create their own membership during registration
+      allow create: if isSignedIn() 
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.isActive == true;
+      
+      // Only org owners/admins can update/delete memberships after creation
+      allow update, delete: if false;
     }
 
     // =========================================================================
@@ -87,8 +91,12 @@ service cloud.firestore {
       // Only owners can update organization settings (including onboarding progress)
       allow update: if isOrgOwner(orgId);
       
-      // No creation or deletion via client (managed by backend)
-      allow create, delete: if false;
+      // Allow authenticated users to create organizations (for business registration)
+      allow create: if isSignedIn() 
+        && request.resource.data.ownerUserId == request.auth.uid;
+      
+      // Only owners can delete organizations
+      allow delete: if isOrgOwner(orgId);
       
       // Packages subcollection
       match /packages/{packageId} {
@@ -119,10 +127,10 @@ service cloud.firestore {
         || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
       );
       
-      // User can create their own profile (must include orgId from their membership)
+      // User can create their own profile during registration or invitation acceptance
       allow create: if isSignedIn() 
         && request.auth.uid == userId
-        && newDocBelongsToUserOrg()
+        && 'orgId' in request.resource.data
         && isValidUserCreate();
 
       // User can update their own profile, or trainers/admins in their org
@@ -190,6 +198,8 @@ service cloud.firestore {
     // =========================================================================
     // TRAINERS COLLECTION
     // =========================================================================
+    // TRAINERS COLLECTION
+    // =========================================================================
     match /trainers/{trainerId} {
       // Anyone in the same org can read trainer profiles
       allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
@@ -200,8 +210,13 @@ service cloud.firestore {
         || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
       );
 
-      // No client-side creation/deletion (managed by backend)
-      allow create, delete: if false;
+      // Allow authenticated users to create their own trainer profile during registration
+      allow create: if isSignedIn() 
+        && request.auth.uid == trainerId
+        && 'orgId' in request.resource.data;
+      
+      // Only admins can delete trainer profiles
+      allow delete: if 'orgId' in resource.data && isOrgAdmin(resource.data.orgId);
 
       // Schedules subcollection
       match /schedules/{slotId} {

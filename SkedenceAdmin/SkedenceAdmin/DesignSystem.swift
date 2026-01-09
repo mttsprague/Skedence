@@ -6,6 +6,9 @@
 //
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 // MARK: - Brand Colors
 enum AppTheme {
@@ -235,5 +238,18 @@ struct EmptyStateView: View {
             }
         }
         .padding(Spacing.xxxl)
+    }
+}
+
+// MARK: - Platform Colors
+extension Color {
+    static var platformBackground: Color {
+        #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+        return Color(UIColor.systemBackground)
+        #elseif os(macOS)
+        return Color(NSColor.windowBackgroundColor)
+        #else
+        return Color.white
+        #endif
     }
 }

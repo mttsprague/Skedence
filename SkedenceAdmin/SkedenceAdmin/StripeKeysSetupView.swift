@@ -51,7 +51,7 @@ struct StripeKeysSetupView: View {
                             Text("Live Mode").tag(false)
                         }
                         .pickerStyle(.segmented)
-                        .onChange(of: isTestMode) { _ in
+                        .onChange(of: isTestMode) { _, _ in
                             // Clear keys when switching modes
                             publishableKey = ""
                             secretKey = ""
