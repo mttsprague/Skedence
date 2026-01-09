@@ -201,7 +201,8 @@ class SuperAdminViewModel: ObservableObject {
                let success = data["success"] as? Bool,
                success {
                 print("✅ Successfully deleted trainer: \(trainerId)")
-                await loadTrainers() // Refresh list
+                await loadTrainers() // Refresh trainers list
+                await loadAllUsers() // Refresh users list as well
             } else {
                 let message = (result.data as? [String: Any])?["message"] as? String ?? "Unknown error"
                 errorMessage = "Failed to delete trainer: \(message)"

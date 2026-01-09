@@ -36,6 +36,11 @@ export const sendTrainerInvitation = onDocumentCreated(
         return;
       }
 
+      // Construct full name from firstName and lastName
+      const firstName = userData.firstName || "";
+      const lastName = userData.lastName || "";
+      const fullName = `${firstName} ${lastName}`.trim() || "there";
+
       // Fetch organization details
       const orgDoc = await admin.firestore()
         .collection("organizations")
@@ -64,7 +69,7 @@ export const sendTrainerInvitation = onDocumentCreated(
         template: {
           name: "trainer-invitation",
           data: {
-            trainerName: userData.name || "there",
+            trainerName: fullName,
             orgName: orgData.name || "the organization",
             role: role.charAt(0).toUpperCase() + role.slice(1),
             email: emailAddress,
@@ -74,7 +79,7 @@ export const sendTrainerInvitation = onDocumentCreated(
         },
         subject: `You've been invited to join ${orgData.name || "Skedence"}`,
         html: generateInvitationHTML(
-          userData.name || "there",
+          fullName,
           orgData.name || "the organization",
           role,
           emailAddress
@@ -87,7 +92,7 @@ export const sendTrainerInvitation = onDocumentCreated(
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log(`✅ Invitation email queued for ${emailAddress} (${userData.name}) to join ${orgData.name}`);
+      console.log(`✅ Invitation email queued for ${emailAddress} (${fullName}) to join ${orgData.name}`);
 
       return;
     } catch (error) {
