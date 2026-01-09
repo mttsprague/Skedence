@@ -53,13 +53,17 @@ class SuperAdminViewModel: ObservableObject {
             // Load the organization
             let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
             if let data = orgDoc.data() {
+                // Extract nested billing fields
+                let billing = data["billing"] as? [String: Any] ?? [:]
+                let stripe = data["stripe"] as? [String: Any] ?? [:]
+                
                 organizations = [Organization(
                     id: orgDoc.documentID,
                     name: data["name"] as? String ?? "Unknown",
-                    subscriptionPlan: data["subscriptionPlan"] as? String,
-                    subscriptionStatus: data["subscriptionStatus"] as? String,
-                    stripeAccountId: data["stripeAccountId"] as? String,
-                    stripeCustomerId: data["stripeCustomerId"] as? String
+                    subscriptionPlan: billing["plan"] as? String,
+                    subscriptionStatus: billing["status"] as? String,
+                    stripeAccountId: stripe["connectAccountId"] as? String,
+                    stripeCustomerId: billing["customerId"] as? String
                 )]
             }
             
@@ -111,8 +115,25 @@ class SuperAdminViewModel: ObservableObject {
                 return
             }
             
+            // Query orgMembers to find user's org if not already loaded
+            if currentOrgId == nil {
+                let memberSnapshot = try await db.collection("orgMembers")
+                    .whereField("userId", isEqualTo: userId)
+                    .limit(to: 1)
+                    .getDocuments()
+                
+                if let memberDoc = memberSnapshot.documents.first {
+                    currentOrgId = memberDoc.data()["orgId"] as? String
+                }
+            }
+            
+            guard let orgId = currentOrgId else {
+                errorMessage = "No organization found"
+                isLoading = false
+                return
+            }
+            
             // Query orgMembers to find users in the same org
-            let orgId = currentOrgId ?? ""
             let membersSnapshot = try await db.collection("orgMembers")
                 .whereField("orgId", isEqualTo: orgId)
                 .getDocuments()
