@@ -48,12 +48,6 @@ service cloud.firestore {
     function isOrgTrainer(orgId) {
       return hasOrgRole(orgId, 'trainer') || isOrgAdmin(orgId);
     }
-    
-    // Check if organization has active billing
-    function hasActiveBilling(orgId) {
-      let org = get(/databases/$(database)/documents/organizations/$(orgId));
-      return org.data.billing.isActive == true;
-    }
 
     // Check if document belongs to user's organization
     function belongsToUserOrg() {
@@ -70,91 +64,59 @@ service cloud.firestore {
     // =========================================================================
     match /orgMembers/{membershipId} {
       // Users can read their own membership records
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid && resource.data.isActive == true;
+      // Note: This must allow get() operations for permission checking in other rules
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid 
+        || membershipId == request.auth.uid + '_' + resource.data.orgId
+      );
       
-      // Allow users to create their own membership during registration
-      allow create: if isSignedIn() 
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.isActive == true;
-      
-      // Only org owners/admins can update/delete memberships after creation
-      allow update, delete: if false;
+      // Only org owners/admins can create/update/delete memberships
+      // For now, managed by backend only
+      allow write: if false;
     }
 
     // =========================================================================
     // ORGANIZATIONS COLLECTION
     // =========================================================================
     match /organizations/{orgId} {
-      // Members can read their organization
+      // Members can read their own organization (including pricing structure)
       allow read: if isMemberOfOrg(orgId);
       
-      // Only owners can update organization settings (including onboarding progress)
-      allow update: if isOrgOwner(orgId);
+      // Admins can update organization settings (including pricing structure)
+      // Owners have full control
+      allow update: if isOrgAdmin(orgId);
       
-      // Allow authenticated users to create organizations (for business registration)
-      allow create: if isSignedIn() 
-        && request.resource.data.ownerUserId == request.auth.uid;
+      // Allow authenticated users to create organizations during registration
+      allow create: if isSignedIn() && request.resource.data.ownerUserId == request.auth.uid;
       
-      // Only owners can delete organizations
+      // Only owners can delete
       allow delete: if isOrgOwner(orgId);
-      
-      // Packages subcollection
-      match /packages/{packageId} {
-        allow read: if isMemberOfOrg(orgId);
-        allow write: if isOrgAdmin(orgId) && hasActiveBilling(orgId);
-      }
-      
-      // Trainers subcollection
-      match /trainers/{trainerId} {
-        allow read: if isMemberOfOrg(orgId);
-        allow write: if isOrgAdmin(orgId) && hasActiveBilling(orgId);
-      }
-      
-      // Availability subcollection
-      match /availability/{availabilityId} {
-        allow read: if isMemberOfOrg(orgId);
-        allow write: if isOrgTrainer(orgId) && hasActiveBilling(orgId);
-      }
     }
 
     // =========================================================================
     // USERS COLLECTION (Client Profiles)
     // =========================================================================
     match /users/{userId} {
+      // Anyone authenticated can list/query users (for checking invited accounts)
+      allow list: if isSignedIn();
+      
       // User can read their own profile, or any trainer/admin in their org can read it
-      allow read: if isSignedIn() && (
+      allow get: if isSignedIn() && (
         request.auth.uid == userId 
         || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
       );
       
-      // User can create their own profile during registration or invitation acceptance
-      allow create: if isSignedIn() 
-        && request.auth.uid == userId
-        && 'orgId' in request.resource.data
-        && isValidUserCreate();
+      // Anyone authenticated can create a user document for registration
+      allow create: if isSignedIn() && request.auth.uid == userId;
 
       // User can update their own profile, or trainers/admins in their org
       allow update: if isSignedIn() && (
-        (request.auth.uid == userId && belongsToUserOrg())
+        request.auth.uid == userId
         || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
-      ) && isValidUserUpdate();
+      );
 
       // Only admins can delete user profiles
       allow delete: if 'orgId' in resource.data && isOrgAdmin(resource.data.orgId);
-
-      function isValidUserCreate() {
-        return 'orgId' in request.resource.data
-          && 'createdAt' in request.resource.data
-          && 'updatedAt' in request.resource.data;
-      }
-
-      function isValidUserUpdate() {
-        let sameOrgId = !('orgId' in request.resource.data) 
-          || request.resource.data.orgId == resource.data.orgId;
-        let sameCreatedAt = !('createdAt' in request.resource.data)
-          || request.resource.data.createdAt == resource.data.createdAt;
-        return sameOrgId && sameCreatedAt && ('updatedAt' in request.resource.data);
-      }
 
       // Lesson Packages subcollection
       match /lessonPackages/{packageId} {
@@ -193,10 +155,21 @@ service cloud.firestore {
           || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
         );
       }
+      
+      // Payment Methods subcollection
+      match /paymentMethods/{methodId} {
+        // Owner or admins in same org can read payment methods
+        allow read: if isSignedIn() && (
+          request.auth.uid == userId
+          || get(/databases/$(database)/documents/users/$(userId)).data.orgId != null
+            && isOrgAdmin(get(/databases/$(database)/documents/users/$(userId)).data.orgId)
+        );
+        
+        // Only backend can write payment methods
+        allow write: if false;
+      }
     }
 
-    // =========================================================================
-    // TRAINERS COLLECTION
     // =========================================================================
     // TRAINERS COLLECTION
     // =========================================================================
@@ -206,16 +179,14 @@ service cloud.firestore {
 
       // Trainer can update their own profile, or admins in their org
       allow update: if isSignedIn() && (
-        (request.auth.uid == trainerId && belongsToUserOrg())
+        request.auth.uid == trainerId
         || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
       );
 
-      // Allow authenticated users to create their own trainer profile during registration
-      allow create: if isSignedIn() 
-        && request.auth.uid == trainerId
-        && 'orgId' in request.resource.data;
+      // Anyone authenticated can create their own trainer profile during registration
+      allow create: if isSignedIn() && request.auth.uid == trainerId;
       
-      // Only admins can delete trainer profiles
+      // Only admins can delete
       allow delete: if 'orgId' in resource.data && isOrgAdmin(resource.data.orgId);
 
       // Schedules subcollection
@@ -241,20 +212,17 @@ service cloud.firestore {
         || isOrgTrainer(resource.data.orgId)
       );
 
-      // Trainers/admins can create bookings (requires active billing)
+      // Trainers/admins can create bookings
       allow create: if newDocBelongsToUserOrg() 
-        && isOrgTrainer(request.resource.data.orgId)
-        && hasActiveBilling(request.resource.data.orgId);
+        && isOrgTrainer(request.resource.data.orgId);
 
-      // Trainers/admins can update bookings (requires active billing)
+      // Trainers/admins can update bookings
       allow update: if belongsToUserOrg() 
-        && isOrgTrainer(resource.data.orgId)
-        && hasActiveBilling(resource.data.orgId);
+        && isOrgTrainer(resource.data.orgId);
 
-      // Trainers/admins can delete bookings (requires active billing)
+      // Trainers/admins can delete bookings
       allow delete: if belongsToUserOrg() 
-        && isOrgTrainer(resource.data.orgId)
-        && hasActiveBilling(resource.data.orgId);
+        && isOrgTrainer(resource.data.orgId);
     }
 
     // =========================================================================
@@ -264,14 +232,12 @@ service cloud.firestore {
       // Anyone in the same org can read classes
       allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
       
-      // Only admins can create, update, or delete classes (requires active billing)
+      // Only admins can create, update, or delete classes
       allow create: if newDocBelongsToUserOrg() 
-        && isOrgAdmin(request.resource.data.orgId)
-        && hasActiveBilling(request.resource.data.orgId);
+        && isOrgAdmin(request.resource.data.orgId);
       
       allow update, delete: if belongsToUserOrg() 
-        && isOrgAdmin(resource.data.orgId)
-        && hasActiveBilling(resource.data.orgId);
+        && isOrgAdmin(resource.data.orgId);
       
       // Participants subcollection
       match /participants/{participantId} {
@@ -296,6 +262,20 @@ service cloud.firestore {
             && isOrgAdmin(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId))
         );
       }
+    }
+
+    // =========================================================================
+    // TRANSACTIONS COLLECTION
+    // =========================================================================
+    match /transactions/{transactionId} {
+      // Clients can read their own transactions
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid
+        || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
+      );
+      
+      // Only backend/cloud functions can write transactions
+      allow write: if false;
     }
 
     // =========================================================================
