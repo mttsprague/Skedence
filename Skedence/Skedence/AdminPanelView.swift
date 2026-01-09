@@ -250,8 +250,9 @@ struct AdminPanelView: View {
                                 .padding(Spacing.sm)
                                 .background(
                                     RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
-                                    .fill(Color.platformGroupedBackground)
-                            )
+                                        .fill(Color.platformGroupedBackground)
+                                )
+                            }
                         }
                     }
                     
@@ -300,7 +301,7 @@ struct AdminPanelView: View {
                     
                     // Submit button
                     Button {
-                        Task { 
+                        Task {
                             if passAction == .add {
                                 await addPassToClient()
                             } else {
@@ -361,51 +362,51 @@ struct AdminPanelView: View {
                 .padding(.horizontal, Spacing.lg)
             } else {
                 VStack(spacing: Spacing.sm) {
-                        ForEach(classesService.classes) { classItem in
-                            AdminClassCard(
-                                classItem: classItem,
-                                onTap: {
-                                    classToEdit = classItem
-                                },
-                                onToggleRegistration: { isOpen in
-                                    Task {
-                                        do {
-                                            try await adminService.toggleClassRegistration(
-                                                classId: classItem.id ?? "",
-                                                isOpen: isOpen
-                                            )
-                                            if let orgId = auth.currentOrgId {
-                                                await classesService.loadAllClasses(orgId: orgId)
-                                            }
-                                        } catch {
-                                            alertItem = AlertItem(
-                                                title: "Error",
-                                                message: error.localizedDescription
-                                            )
-                                        }
-                                    }
-                                },
-                                onDelete: {
-                                    Task {
-                                        do {
-                                            guard let orgId = auth.currentOrgId else { return }
-                                            try await adminService.deleteClass(classId: classItem.id ?? "", orgId: orgId)
+                    ForEach(classesService.classes) { classItem in
+                        AdminClassCard(
+                            classItem: classItem,
+                            onTap: {
+                                classToEdit = classItem
+                            },
+                            onToggleRegistration: { isOpen in
+                                Task {
+                                    do {
+                                        try await adminService.toggleClassRegistration(
+                                            classId: classItem.id ?? "",
+                                            isOpen: isOpen
+                                        )
+                                        if let orgId = auth.currentOrgId {
                                             await classesService.loadAllClasses(orgId: orgId)
-                                        } catch {
-                                            alertItem = AlertItem(
-                                                title: "Error",
-                                                message: error.localizedDescription
-                                            )
                                         }
+                                    } catch {
+                                        alertItem = AlertItem(
+                                            title: "Error",
+                                            message: error.localizedDescription
+                                        )
                                     }
                                 }
-                            )
-                        }
+                            },
+                            onDelete: {
+                                Task {
+                                    do {
+                                        guard let orgId = auth.currentOrgId else { return }
+                                        try await adminService.deleteClass(classId: classItem.id ?? "", orgId: orgId)
+                                        await classesService.loadAllClasses(orgId: orgId)
+                                    } catch {
+                                        alertItem = AlertItem(
+                                            title: "Error",
+                                            message: error.localizedDescription
+                                        )
+                                    }
+                                }
+                            }
+                        )
                     }
-                    .padding(.horizontal, Spacing.lg)
                 }
+                .padding(.horizontal, Spacing.lg)
             }
         }
+    }
     
     // MARK: - Helper Functions
     
@@ -426,12 +427,12 @@ struct AdminPanelView: View {
             // Show success alert
             alertItem = AlertItem(
                 title: "Pass Added",
-                message: "Successfully added \(passQuantity) \(passTypeName(selectedPassType))\(passQuantity == 1 ? "" : "s") to \(client.firstName) \(client.lastName)'s account."
+                message: "Successfully added \(passQuantity) \(selectedPassType)\(passQuantity == 1 ? "" : "s") to \(client.firstName) \(client.lastName)'s account."
             )
             
             // Reset selections
             selectedClient = nil
-            selectedPassType = "private"
+            selectedPassType = ""
             passQuantity = 1
             
             // Refresh data
@@ -470,7 +471,7 @@ struct AdminPanelView: View {
             
             // Reset selections
             selectedClient = nil
-            selectedPassType = "private"
+            selectedPassType = ""
             passQuantity = 1
             passAction = .add
             
@@ -975,11 +976,11 @@ extension AdminPanelView {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("Pricing Structure")
                     .font(.title2.weight(.bold))
-                    .foregroundStyle(AppTheme.text)
+                    .foregroundStyle(AppTheme.textPrimary)
                 
                 Text("Set up pricing tiers and package options")
                     .font(.subheadline)
-                    .foregroundStyle(AppTheme.secondaryText)
+                    .foregroundStyle(AppTheme.textSecondary)
             }
             .padding(.horizontal, Spacing.lg)
             
@@ -1044,7 +1045,7 @@ extension AdminPanelView {
                 .foregroundStyle(AppTheme.primary)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color.platformSecondaryGroupedBackground)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(CornerRadius.md)
             }
             .padding(.horizontal, Spacing.lg)
@@ -1060,7 +1061,7 @@ extension AdminPanelView {
                     .textFieldStyle(.plain)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
-                    .background(Color.platformSecondaryGroupedBackground)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
                     .cornerRadius(CornerRadius.sm)
                 
                 if editingTiers.count > 1 {
@@ -1090,7 +1091,7 @@ extension AdminPanelView {
                 .foregroundStyle(AppTheme.primary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.sm)
-                .background(Color.platformSecondaryGroupedBackground)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(CornerRadius.sm)
             }
         }
@@ -1108,13 +1109,13 @@ extension AdminPanelView {
                 .textFieldStyle(.plain)
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, Spacing.xs)
-                .background(Color.platformSecondaryGroupedBackground)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(CornerRadius.sm)
             
             // Price input
             HStack(spacing: 4) {
                 Text("$")
-                    .foregroundStyle(AppTheme.secondaryText)
+                    .foregroundStyle(AppTheme.textSecondary)
                 TextField("0.00", value: $editingTiers[tierIndex].packages[packageIndex].priceInDollars, format: .number.precision(.fractionLength(2)))
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.plain)
@@ -1123,7 +1124,7 @@ extension AdminPanelView {
             }
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xs)
-            .background(Color.platformSecondaryGroupedBackground)
+            .background(Color(uiColor: .secondarySystemGroupedBackground))
             .cornerRadius(CornerRadius.sm)
             
             // Delete button

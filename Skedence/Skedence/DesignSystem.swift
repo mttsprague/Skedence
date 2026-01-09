@@ -23,7 +23,7 @@ enum AppTheme {
     
     // Neutrals
     static let textPrimary = Color.primary
-    static let textSecondary = Color.secondary
+    static let textSecondary = Color(white: 0.5) // Changed from Color.secondary to avoid type inference issues
     static let textTertiary = Color(white: 0.6)
     
     // Status colors

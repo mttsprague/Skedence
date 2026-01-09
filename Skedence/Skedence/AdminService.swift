@@ -30,15 +30,21 @@ final class AdminService: ObservableObject {
         isLoading = true
         
         do {
-            let doc = try await db.collection("users").document(uid).getDocument()
-            if !doc.exists {
-                print("❌ User document does not exist for UID: \(uid)")
-                isAdmin = false
+            // Check orgMembers collection for admin/owner role
+            let snapshot = try await db.collection("orgMembers")
+                .whereField("userId", isEqualTo: uid)
+                .whereField("isActive", isEqualTo: true)
+                .limit(to: 1)
+                .getDocuments()
+            
+            if let doc = snapshot.documents.first {
+                let data = doc.data()
+                let role = data["role"] as? String ?? ""
+                isAdmin = (role == "admin" || role == "owner")
+                print("✅ User role: \(role), isAdmin = \(isAdmin)")
             } else {
-                let data = doc.data() ?? [:]
-                print("📄 User document data: \(data)")
-                isAdmin = data["isAdmin"] as? Bool ?? false
-                print("✅ isAdmin = \(isAdmin)")
+                print("❌ No active orgMember found for UID: \(uid)")
+                isAdmin = false
             }
         } catch {
             print("❌ Error checking admin status: \(error)")

@@ -50,7 +50,6 @@ struct WaiverPDFGenerator {
                 .font: UIFont.boldSystemFont(ofSize: 14),
                 .foregroundColor: UIColor.black
             ]
-            let subtitle = "Release of Liability, Assumption of Risk, and Indemnification Agreement"
             
             // Split subtitle into two lines if needed
             let subtitleLine1 = "Release of Liability, Assumption of Risk,"

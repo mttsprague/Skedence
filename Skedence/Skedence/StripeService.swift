@@ -28,7 +28,7 @@ final class StripeService: ObservableObject {
         }
         
         // Determine which Cloud Function to call based on whether orgId is provided
-        let callable: Callable
+        let callable: HTTPSCallable
         var data: [String: Any]
         
         if let orgId = orgId {

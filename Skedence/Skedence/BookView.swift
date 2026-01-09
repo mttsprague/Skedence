@@ -111,11 +111,11 @@ struct BookView: View {
                 if subscriptionStatus.isReadOnly {
                     PaywallBanner(
                         message: subscriptionStatus.statusMessage ?? "Your subscription needs attention",
-                        actionLabel: "Update Billing",
+                        ctaTitle: "Update Billing",
+                        isDismissible: false,
                         action: {
                             showSubscriptionSheet = true
-                        },
-                        showDismiss: false
+                        }
                     )
                     .padding(.horizontal, Spacing.lg)
                 }
@@ -568,7 +568,7 @@ struct BookView: View {
             AnalyticsService.shared.logBookingCreated(
                 bookingId: "\(trainerId)_\(slotId)",
                 trainerId: trainerId,
-                clientId: auth.currentUserUID ?? ""
+                clientId: Auth.auth().currentUser?.uid ?? ""
             )
             
             // Create success message with trainer name

@@ -18,7 +18,7 @@ struct AppRootView: View {
     @StateObject private var bookingsService = BookingsService()
     @StateObject private var classesService = ClassesService()
     @StateObject private var adminService = AdminService()
-    @StateObject private var subscriptionStatus = SubscriptionStatusService.shared
+    @ObservedObject private var subscriptionStatus = SubscriptionStatusService.shared
     
     @State private var selectedTab = 0
     @State private var bookViewMode = 0
@@ -30,18 +30,18 @@ struct AppRootView: View {
                 if adminService.isLoading {
                     VStack(spacing: Spacing.lg) {
                         ProgressView()
-                            .tint(AppTheme.primary)
+                            .tint(AppTheme.primary as Color)
                         Text("Loading…")
                             .font(.bodyLarge)
-                            .foregroundStyle(AppTheme.textSecondary)
+                            .foregroundStyle(AppTheme.textSecondary as Color)
                     }
                 } else {
                     TabView(selection: $selectedTab) {
-                        HomeView(usersService: usersService, 
-                                scheduleService: scheduleService,
-                                classesService: classesService,
-                                selectedTab: $selectedTab,
-                                bookViewMode: $bookViewMode)
+                        HomeView(usersService: usersService,
+                                 scheduleService: scheduleService,
+                                 classesService: classesService,
+                                 selectedTab: $selectedTab,
+                                 bookViewMode: $bookViewMode)
                             .tabItem {
                                 Label("Home", systemImage: "house.fill")
                             }
@@ -76,7 +76,8 @@ struct AppRootView: View {
                             .tag(3)
                             .environmentObject(auth)
                         
-                        if adminService.isAdmin {
+                        // Show Admin tab only for logged-in admins
+                        if auth.isAuthenticated && adminService.isAdmin {
                             AdminPanelView()
                                 .tabItem {
                                     Label("Admin", systemImage: "star.fill")
@@ -85,7 +86,7 @@ struct AppRootView: View {
                                 .environmentObject(auth)
                         }
                     }
-                    .tint(AppTheme.primary)
+                    .tint(AppTheme.primary as Color)
                     .environmentObject(auth)
                     .environmentObject(usersService)
                     .environmentObject(scheduleService)
@@ -98,9 +99,11 @@ struct AppRootView: View {
                     .overlay {
                         if !organizationIsActive {
                             ClientBookingBlockedView(
-                                businessName: adminService.organizationName ?? "This business",
-                                contactEmail: auth.userEmail ?? "",
-                                contactPhone: nil
+                                organizationName: "This business",
+                                trainerName: "Trainer",
+                                trainerEmail: nil,
+                                trainerPhone: nil,
+                                onDismiss: { organizationIsActive = true }
                             )
                         }
                     }
@@ -108,14 +111,14 @@ struct AppRootView: View {
             } else {
                 VStack(spacing: Spacing.lg) {
                     ProgressView()
-                        .tint(AppTheme.primary)
+                        .tint(AppTheme.primary as Color)
                     Text("Starting…")
                         .font(.bodyLarge)
-                        .foregroundStyle(AppTheme.textSecondary)
+                        .foregroundStyle(AppTheme.textSecondary as Color)
                 }
             }
         }
-        .task {
+        .task { @MainActor in
             await auth.ensureSignedIn() // Temporary anonymous; replace with Email/Password flow
             // Check admin status after authentication
             await adminService.checkAdminStatus()
@@ -125,13 +128,19 @@ struct AppRootView: View {
                 
                 // Monitor organization billing status
                 Firestore.firestore().collection("organizations").document(orgId)
-                    .addSnapshotListener { snapshot, error in
-                        guard let data = snapshot?.data(),
-                              let billing = data["billing"] as? [String: Any] else {
-                            organizationIsActive = true
-                            return
+                    .addSnapshotListener { snapshot, _ in
+                        let isActive: Bool = {
+                            guard let data = snapshot?.data(),
+                                  let billing = data["billing"] as? [String: Any] else {
+                                return true
+                            }
+                            return billing["isActive"] as? Bool ?? true
+                        }()
+                        
+                        // Ensure state update happens on the main actor.
+                        Task { @MainActor in
+                            organizationIsActive = isActive
                         }
-                        organizationIsActive = billing["isActive"] as? Bool ?? true
                     }
             }
         }

@@ -13,6 +13,11 @@ final class AuthManager: ObservableObject {
     @Published var primaryColor: Color = Color(red: 0.20, green: 0.70, blue: 0.68) // Default teal
     @Published var logoUrl: String?
     @Published var stripePublishableKey: String?
+    
+    // Check if user is authenticated
+    var isAuthenticated: Bool {
+        return Auth.auth().currentUser != nil
+    }
 
     // Option B: No anonymous sign-in. Just mark the app ready to present UI.
     func ensureSignedIn() async {

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct SubscriptionRequiredView: View {
     @Environment(\.dismiss) var dismiss
