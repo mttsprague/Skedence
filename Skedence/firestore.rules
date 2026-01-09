@@ -70,9 +70,11 @@ service cloud.firestore {
         || membershipId == request.auth.uid + '_' + resource.data.orgId
       );
       
-      // Only org owners/admins can create/update/delete memberships
-      // For now, managed by backend only
-      allow write: if false;
+      // Anyone authenticated can create their own membership during registration
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      
+      // Only org owners/admins can update/delete memberships
+      allow update, delete: if false;
     }
 
     // =========================================================================

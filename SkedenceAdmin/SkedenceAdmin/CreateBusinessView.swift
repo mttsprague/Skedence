@@ -180,7 +180,14 @@ struct CreateBusinessView: View {
         
         Task {
             do {
-                // 0. Check if user was pre-created by an admin (trainer invitation flow)
+                // 0. Create Firebase Auth account first (required to query Firestore)
+                let authResult = try await Auth.auth().createUser(
+                    withEmail: ownerEmail,
+                    password: ownerPassword
+                )
+                let userId = authResult.user.uid
+                
+                // 1. Check if user was pre-created by an admin (trainer invitation flow)
                 let db = Firestore.firestore()
                 let existingUserQuery = db.collection("users")
                     .whereField("email", isEqualTo: ownerEmail.lowercased())
@@ -194,71 +201,54 @@ struct CreateBusinessView: View {
                     let existingUserId = existingUserDoc.documentID
                     
                     // Verify this is a pending trainer account
-                    guard existingUserData["needsPasswordSetup"] as? Bool == true else {
-                        errorMessage = "An account with this email already exists. Please sign in instead."
-                        isCreating = false
-                        return
-                    }
-                    
-                    // Create Firebase Auth account
-                    let authResult = try await Auth.auth().createUser(
-                        withEmail: ownerEmail,
-                        password: ownerPassword
-                    )
-                    let newAuthId = authResult.user.uid
-                    
-                    // Update existing user document with auth ID and clear needsPasswordSetup
-                    try await db.collection("users").document(existingUserId).updateData([
-                        "authId": newAuthId,
-                        "needsPasswordSetup": false,
-                        "name": "\(ownerFirstName) \(ownerLastName)",
-                        "registeredAt": Timestamp(date: Date())
-                    ])
-                    
-                    // Update trainer document if it exists
-                    if let trainerId = existingUserData["trainerId"] as? String {
-                        try await db.collection("trainers").document(trainerId).updateData([
-                            "name": "\(ownerFirstName) \(ownerLastName)"
+                    if existingUserData["needsPasswordSetup"] as? Bool == true {
+                        // Update existing user document with auth ID and clear needsPasswordSetup
+                        try await db.collection("users").document(existingUserId).updateData([
+                            "authId": userId,
+                            "needsPasswordSetup": false,
+                            "name": "\(ownerFirstName) \(ownerLastName)",
+                            "registeredAt": Timestamp(date: Date())
                         ])
-                    }
-                    
-                    // Update orgMembers to use new auth ID
-                    if let orgId = existingUserData["orgId"] as? String {
-                        let oldMembershipId = "\(existingUserId)_\(orgId)"
-                        let newMembershipId = "\(newAuthId)_\(orgId)"
                         
-                        // Get existing membership data
-                        let oldMemberDoc = try await db.collection("orgMembers").document(oldMembershipId).getDocument()
-                        if let memberData = oldMemberDoc.data() {
-                            var updatedMemberData = memberData
-                            updatedMemberData["userId"] = newAuthId
-                            
-                            // Create new membership with auth ID
-                            try await db.collection("orgMembers").document(newMembershipId).setData(updatedMemberData)
-                            
-                            // Delete old membership
-                            try await db.collection("orgMembers").document(oldMembershipId).delete()
+                        // Update trainer document if it exists
+                        if let trainerId = existingUserData["trainerId"] as? String {
+                            try await db.collection("trainers").document(trainerId).updateData([
+                                "name": "\(ownerFirstName) \(ownerLastName)"
+                            ])
                         }
                         
-                        // Load org data and complete sign-in
-                        await auth.loadOrgId(for: newAuthId)
-                        dismiss()
-                        return
-                    } else {
-                        errorMessage = "Account setup incomplete. Please contact your organization admin."
-                        isCreating = false
-                        return
+                        // Update orgMembers to use new auth ID
+                        if let orgId = existingUserData["orgId"] as? String {
+                            let oldMembershipId = "\(existingUserId)_\(orgId)"
+                            let newMembershipId = "\(userId)_\(orgId)"
+                            
+                            // Get existing membership data
+                            let oldMemberDoc = try await db.collection("orgMembers").document(oldMembershipId).getDocument()
+                            if let memberData = oldMemberDoc.data() {
+                                var updatedMemberData = memberData
+                                updatedMemberData["userId"] = userId
+                                
+                                // Create new membership with auth ID
+                                try await db.collection("orgMembers").document(newMembershipId).setData(updatedMemberData)
+                                
+                                // Delete old membership
+                                try await db.collection("orgMembers").document(oldMembershipId).delete()
+                            }
+                            
+                            // Load org data and complete sign-in
+                            await auth.loadOrgId(for: userId)
+                            dismiss()
+                            return
+                        }
+                    }
+                    // If email exists but not a pending invitation, continue with normal flow
+                }
+                
+                // Standard flow: Create new business owner account
                     }
                 }
                 
                 // Standard flow: Create new business owner account
-                
-                // 1. Create Firebase Auth account
-                let authResult = try await Auth.auth().createUser(
-                    withEmail: ownerEmail,
-                    password: ownerPassword
-                )
-                let userId = authResult.user.uid
                 
                 // 2. Create organization document
                 let orgRef = db.collection("organizations").document()
