@@ -23,6 +23,9 @@ export * from "./billing";
 // Export quota and rate limiting functions
 export * from "./quotas";
 
+// Export trainer invitation functions
+export * from "./trainerInvitations";
+
 const db = admin.firestore();
 
 /**

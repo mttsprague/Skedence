@@ -449,6 +449,24 @@ struct AddTrainerView: View {
                     }
                 }
                 
+                Section {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Label("How Login Works", systemImage: "info.circle")
+                            .font(.labelLarge)
+                            .foregroundStyle(AppTheme.primary)
+                        
+                        Text("The trainer will need to download the SkedenceAdmin app and register with the email address you entered above. Their account will be automatically linked to your organization.")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        Text("Make sure to tell them to use the exact email: \(trainerEmail)")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .padding(.top, 4)
+                    }
+                    .padding(.vertical, Spacing.xs)
+                }
+                
                 if let error = viewModel.errorMessage {
                     Section {
                         Text(error)
