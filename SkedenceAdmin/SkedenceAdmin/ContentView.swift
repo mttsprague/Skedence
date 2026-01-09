@@ -28,12 +28,15 @@ struct ContentView: View {
                 }
                 .tag(1)
 
-            SuperAdminView()
-                .tabItem {
-                    Label("Admin", systemImage: selectedTab == 2 ? "star.fill" : "star")
-                }
-                .tag(2)
-                .environmentObject(auth)
+            // Only show Admin tab for owners and admins
+            if auth.currentOrgRole == "owner" || auth.currentOrgRole == "admin" {
+                SuperAdminView()
+                    .tabItem {
+                        Label("Admin", systemImage: selectedTab == 2 ? "star.fill" : "star")
+                    }
+                    .tag(2)
+                    .environmentObject(auth)
+            }
 
             MoreView()
                 .tabItem {
