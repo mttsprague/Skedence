@@ -29,6 +29,9 @@ export * from "./trainerInvitations";
 // Export trainer limit enforcement functions
 export * from "./trainerLimits";
 
+// Export trainer deletion functions
+export * from "./deleteTrainer";
+
 const db = admin.firestore();
 
 /**

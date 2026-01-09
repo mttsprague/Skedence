@@ -187,6 +187,30 @@ class SuperAdminViewModel: ObservableObject {
             print("❌ Error updating role: \(error)")
         }
     }
+    
+    func deleteTrainer(trainerId: String) async {
+        do {
+            // Call Cloud Function to delete trainer and all associated data
+            let functions = Functions.functions()
+            let callable = functions.httpsCallable("deleteTrainer")
+            
+            let result = try await callable.call(["trainerId": trainerId])
+            
+            if let data = result.data as? [String: Any],
+               let success = data["success"] as? Bool,
+               success {
+                print("✅ Successfully deleted trainer: \(trainerId)")
+                await loadTrainers() // Refresh list
+            } else {
+                let message = (result.data as? [String: Any])?["message"] as? String ?? "Unknown error"
+                errorMessage = "Failed to delete trainer: \(message)"
+                print("❌ Error deleting trainer: \(message)")
+            }
+        } catch {
+            errorMessage = "Failed to delete trainer: \(error.localizedDescription)"
+            print("❌ Error deleting trainer: \(error)")
+        }
+    }
 }
 
 // MARK: - Create Organization ViewModel

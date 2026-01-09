@@ -273,7 +273,7 @@ struct SuperAdminView: View {
                 )
             } else {
                 ForEach(viewModel.trainers) { trainer in
-                    TrainerCard(trainer: trainer)
+                    TrainerCard(trainer: trainer, viewModel: viewModel)
                 }
             }
         }
@@ -355,6 +355,8 @@ struct OrganizationCard: View {
 
 struct TrainerCard: View {
     let trainer: AdminTrainer
+    let viewModel: SuperAdminViewModel
+    @State private var showingDeleteConfirmation = false
     
     var body: some View {
         HStack {
@@ -382,11 +384,30 @@ struct TrainerCard: View {
                 text: trainer.role ?? "trainer",
                 isActive: trainer.active == true
             )
+            
+            Button {
+                showingDeleteConfirmation = true
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+                    .font(.body)
+            }
+            .buttonStyle(.plain)
         }
         .padding(Spacing.md)
         .background(Color.platformBackground)
         .cornerRadius(CornerRadius.md)
         .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+        .alert("Delete Trainer?", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel.deleteTrainer(trainerId: trainer.id ?? "")
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this trainer? Doing so will remove all of their information from your organization.")
+        }
     }
 }
 
