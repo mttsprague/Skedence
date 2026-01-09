@@ -39,7 +39,7 @@ export const sendTrainerInvitation = onDocumentCreated(
       }
 
       // Get the trainer's role from orgMembers
-      const membershipId = `${userData.orgId}_${userId}`;
+      const membershipId = `${userId}_${userData.orgId}`;
       const orgMemberDoc = await admin.firestore()
         .collection("orgMembers")
         .doc(membershipId)
@@ -50,14 +50,14 @@ export const sendTrainerInvitation = onDocumentCreated(
 
       // Prepare email content
       const emailData = {
-        to: userData.email,
+        to: userData.emailAddress || userData.email,
         template: {
           name: "trainer-invitation",
           data: {
             trainerName: userData.name || "there",
             orgName: orgData.name || "the organization",
             role: role.charAt(0).toUpperCase() + role.slice(1),
-            email: userData.email,
+            email: userData.emailAddress || userData.email,
             appStoreLink: "https://apps.apple.com/app/skedence-admin", // TODO: Update with actual App Store link
             playStoreLink: "https://play.google.com/store/apps/details?id=com.skedence.admin", // TODO: Update with actual Play Store link
           },
@@ -67,7 +67,7 @@ export const sendTrainerInvitation = onDocumentCreated(
           userData.name || "there",
           orgData.name || "the organization",
           role,
-          userData.email
+          userData.emailAddress || userData.email
         ),
       };
 
@@ -77,11 +77,11 @@ export const sendTrainerInvitation = onDocumentCreated(
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log(`Invitation email sent to ${userData.email} for organization ${orgData.name}`);
+      console.log(`Invitation email sent to ${userData.emailAddress || userData.email} for organization ${orgData.name}`);
 
       return;
     } catch (error) {
-      console.error(`Error sending invitation to ${userData.email}:`, error);
+      console.error(`Error sending invitation to ${userId}:`, error);
       return;
     }
   });
