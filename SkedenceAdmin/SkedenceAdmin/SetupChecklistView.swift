@@ -71,13 +71,6 @@ struct SetupChecklistView: View {
                 // Checklist Items
                 VStack(spacing: 12) {
                     ChecklistItem(
-                        title: "Choose Your Sport Template",
-                        description: "Get pre-configured packages and settings",
-                        isComplete: viewModel.progress.selectedTemplate != nil,
-                        action: { showTemplateSelector = true }
-                    )
-                    
-                    ChecklistItem(
                         title: "Connect Stripe",
                         description: "Required to accept payments",
                         isComplete: viewModel.progress.hasConnectedStripe,
@@ -89,20 +82,6 @@ struct SetupChecklistView: View {
                         description: "Add your services and pricing",
                         isComplete: viewModel.progress.hasCreatedPackages,
                         action: { viewModel.navigateToPackages() }
-                    )
-                    
-                    ChecklistItem(
-                        title: "Add Trainer Profile",
-                        description: "Set up your coaching profile",
-                        isComplete: viewModel.progress.hasAddedTrainer,
-                        action: { viewModel.navigateToProfile() }
-                    )
-                    
-                    ChecklistItem(
-                        title: "Set Your Availability",
-                        description: "Define when clients can book",
-                        isComplete: viewModel.progress.hasSetAvailability,
-                        action: { viewModel.navigateToAvailability() }
                     )
                     
                     ChecklistItem(

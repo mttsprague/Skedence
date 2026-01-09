@@ -166,7 +166,12 @@ struct MoreView: View {
                                     .foregroundStyle(AppTheme.textSecondary)
                             }
                             
-                            if auth.isTrainer {
+                            // Show role badge with priority: owner > admin > trainer
+                            if auth.currentOrgRole == "owner" {
+                                BadgeView(text: "Owner", color: .purple)
+                            } else if auth.currentOrgRole == "admin" {
+                                BadgeView(text: "Admin", color: .blue)
+                            } else if auth.isTrainer {
                                 BadgeView(text: "Trainer", color: AppTheme.success)
                             }
                         }
@@ -180,61 +185,24 @@ struct MoreView: View {
                                     .foregroundStyle(AppTheme.textPrimary)
                                 
                                 VStack(spacing: Spacing.sm) {
+                                    InfoRow(label: "Name", value: trainerName)
+                                    Divider()
                                     InfoRow(label: "Email", value: auth.userEmail ?? "Unknown")
                                     Divider()
-                                    InfoRow(label: "User ID", value: auth.userId ?? "—", copyable: true)
-                                    Divider()
-                                    InfoRow(label: "Role", value: auth.isTrainer ? "Trainer" : "User")
+                                    InfoRow(label: "Role", value: {
+                                        if auth.currentOrgRole == "owner" {
+                                            return "Owner"
+                                        } else if auth.currentOrgRole == "admin" {
+                                            return "Admin"
+                                        } else if auth.isTrainer {
+                                            return "Trainer"
+                                        }
+                                        return "User"
+                                    }())
                                 }
                             }
                         }
                         .padding(.horizontal, Spacing.lg)
-                        
-                        // Setup Checklist (Admin only)
-                        if auth.isAdmin {
-                            NavigationLink(destination: SetupChecklistView()) {
-                                CardView {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Setup Checklist")
-                                                .font(.headingSmall)
-                                                .foregroundStyle(AppTheme.textPrimary)
-                                            Text("Complete your onboarding")
-                                                .font(.bodyMedium)
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "checkmark.circle")
-                                            .foregroundStyle(AppTheme.primary)
-                                        Image(systemName: "chevron.right")
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, Spacing.lg)
-                        }
-                        
-                        // Billing Management (Admin only)
-                        if auth.isAdmin {
-                            NavigationLink(destination: ManageSubscriptionView(orgId: auth.currentOrgId ?? "").environmentObject(auth)) {
-                                CardView {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Manage Subscription")
-                                                .font(.headingSmall)
-                                                .foregroundStyle(AppTheme.textPrimary)
-                                            Text("\(auth.billingPlan.capitalized) Plan")
-                                                .font(.bodyMedium)
-                                                .foregroundStyle(auth.isBillingBlocked ? .red : AppTheme.textSecondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, Spacing.lg)
-                        }
                         
                         // Sign Out Button
                         Button {

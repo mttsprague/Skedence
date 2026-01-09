@@ -179,6 +179,54 @@ struct SuperAdminView: View {
                         // View/Edit organization
                     }
                 }
+                
+                // Admin Management Cards
+                Divider()
+                    .padding(.vertical, Spacing.md)
+                
+                // Setup Checklist
+                NavigationLink(destination: SetupChecklistView()) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Setup Checklist")
+                                .font(.headingSmall)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("Complete your onboarding")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "checkmark.circle")
+                            .foregroundStyle(AppTheme.primary)
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(CornerRadius.md)
+                    .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+                }
+                
+                // Manage Subscription
+                NavigationLink(destination: ManageSubscriptionView(orgId: auth.currentOrgId ?? "").environmentObject(auth)) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Manage Subscription")
+                                .font(.headingSmall)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("\(auth.billingPlan.capitalized) Plan")
+                                .font(.bodyMedium)
+                                .foregroundStyle(auth.isBillingBlocked ? .red : AppTheme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(CornerRadius.md)
+                    .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+                }
             }
         }
         .padding()
