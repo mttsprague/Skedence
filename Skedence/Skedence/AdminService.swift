@@ -30,7 +30,7 @@ final class AdminService: ObservableObject {
         isLoading = true
         
         do {
-            // Check orgMembers collection for admin/owner role
+            // First, check orgMembers collection for admin/owner role (preferred method)
             let snapshot = try await db.collection("orgMembers")
                 .whereField("userId", isEqualTo: uid)
                 .whereField("isActive", isEqualTo: true)
@@ -41,9 +41,21 @@ final class AdminService: ObservableObject {
                 let data = doc.data()
                 let role = data["role"] as? String ?? ""
                 isAdmin = (role == "admin" || role == "owner")
-                print("✅ User role: \(role), isAdmin = \(isAdmin)")
+                print("✅ User role from orgMembers: \(role), isAdmin = \(isAdmin)")
+                isLoading = false
+                return
+            }
+            
+            // Fallback: Check isAdmin field in user document
+            print("⚠️ No active orgMember found, checking user document...")
+            let userDoc = try await db.collection("users").document(uid).getDocument()
+            
+            if userDoc.exists {
+                let data = userDoc.data() ?? [:]
+                isAdmin = data["isAdmin"] as? Bool ?? false
+                print("✅ isAdmin from user document: \(isAdmin)")
             } else {
-                print("❌ No active orgMember found for UID: \(uid)")
+                print("❌ User document does not exist for UID: \(uid)")
                 isAdmin = false
             }
         } catch {

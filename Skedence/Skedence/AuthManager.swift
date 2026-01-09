@@ -159,6 +159,8 @@ final class AuthManager: ObservableObject {
     private func loadOrgId(for userId: String) async {
         do {
             let db = Firestore.firestore()
+            
+            // First, try to load from orgMembers collection (preferred method)
             let snapshot = try await db.collection("orgMembers")
                 .whereField("userId", isEqualTo: userId)
                 .whereField("isActive", isEqualTo: true)
@@ -168,12 +170,26 @@ final class AuthManager: ObservableObject {
             if let doc = snapshot.documents.first,
                let orgId = doc.data()["orgId"] as? String {
                 currentOrgId = orgId
-                print("AuthManager: Loaded orgId: \(orgId) for user: \(userId)")
+                print("AuthManager: Loaded orgId from orgMembers: \(orgId) for user: \(userId)")
+                
+                // Load organization branding
+                await loadOrgBranding(orgId: orgId)
+                return
+            }
+            
+            // Fallback: Try to load from user document
+            print("AuthManager: ⚠️ No active orgMember found, checking user document...")
+            let userDoc = try await db.collection("users").document(userId).getDocument()
+            
+            if let data = userDoc.data(),
+               let orgId = data["orgId"] as? String {
+                currentOrgId = orgId
+                print("AuthManager: Loaded orgId from user document: \(orgId) for user: \(userId)")
                 
                 // Load organization branding
                 await loadOrgBranding(orgId: orgId)
             } else {
-                print("AuthManager: ⚠️ No active orgMember found for user: \(userId)")
+                print("AuthManager: ⚠️ No orgId found in user document either")
                 currentOrgId = nil
             }
         } catch {
