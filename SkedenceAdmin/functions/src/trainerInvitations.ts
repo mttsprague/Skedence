@@ -19,6 +19,9 @@ export const sendTrainerInvitation = onDocumentCreated(
     const userData = snap.data();
     const userId = event.params.userId;
 
+    console.log(`Processing user ${userId}, needsPasswordSetup: ${userData.needsPasswordSetup}`);
+    console.log(`User data fields:`, Object.keys(userData));
+
     // Only send invitation if this is a new trainer account that needs setup
     if (!userData.needsPasswordSetup) {
       console.log(`User ${userId} doesn't need password setup, skipping invitation`);
@@ -26,6 +29,13 @@ export const sendTrainerInvitation = onDocumentCreated(
     }
 
     try {
+      // Get email address
+      const emailAddress = userData.emailAddress || userData.email;
+      if (!emailAddress) {
+        console.error(`No email address found for user ${userId}. Available fields:`, Object.keys(userData));
+        return;
+      }
+
       // Fetch organization details
       const orgDoc = await admin.firestore()
         .collection("organizations")
@@ -50,14 +60,14 @@ export const sendTrainerInvitation = onDocumentCreated(
 
       // Prepare email content
       const emailData = {
-        to: userData.emailAddress || userData.email,
+        to: emailAddress,
         template: {
           name: "trainer-invitation",
           data: {
             trainerName: userData.name || "there",
             orgName: orgData.name || "the organization",
             role: role.charAt(0).toUpperCase() + role.slice(1),
-            email: userData.emailAddress || userData.email,
+            email: emailAddress,
             appStoreLink: "https://apps.apple.com/app/skedence-admin", // TODO: Update with actual App Store link
             playStoreLink: "https://play.google.com/store/apps/details?id=com.skedence.admin", // TODO: Update with actual Play Store link
           },
@@ -67,7 +77,7 @@ export const sendTrainerInvitation = onDocumentCreated(
           userData.name || "there",
           orgData.name || "the organization",
           role,
-          userData.emailAddress || userData.email
+          emailAddress
         ),
       };
 
@@ -77,11 +87,11 @@ export const sendTrainerInvitation = onDocumentCreated(
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log(`Invitation email sent to ${userData.emailAddress || userData.email} for organization ${orgData.name}`);
+      console.log(`✅ Invitation email queued for ${emailAddress} (${userData.name}) to join ${orgData.name}`);
 
       return;
     } catch (error) {
-      console.error(`Error sending invitation to ${userId}:`, error);
+      console.error(`❌ Error sending invitation for user ${userId}:`, error);
       return;
     }
   });

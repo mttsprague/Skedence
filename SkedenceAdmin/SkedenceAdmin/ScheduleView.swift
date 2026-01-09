@@ -439,25 +439,27 @@ struct ScheduleView: View {
 
     @ViewBuilder
     private func scheduleGrid(calculatedDayWidth: CGFloat) -> some View {
-        ZStack(alignment: .topLeading) {
-            ScrollArea(calculatedDayWidth: calculatedDayWidth)
-                .background(Color(UIColor.systemGray6))
-
-            TimelineOverlay()
-        }
+        ScrollArea(calculatedDayWidth: calculatedDayWidth)
+            .background(Color(UIColor.systemGray6))
     }
 
     @ViewBuilder
     private func ScrollArea(calculatedDayWidth: CGFloat) -> some View {
         ScrollViewReader { verticalScrollProxy in
             ScrollView(.vertical, showsIndicators: true) {
-                HStack(spacing: 0) {
-                    timeColumn
-                        .frame(width: timeColWidth)
-                        .background(Color(UIColor.systemGray6))
+                ZStack(alignment: .topLeading) {
+                    HStack(spacing: 0) {
+                        timeColumn
+                            .frame(width: timeColWidth)
+                            .background(Color(UIColor.systemGray6))
 
-                    dayColumns(calculatedDayWidth: calculatedDayWidth)
-                        .padding(.bottom, 8)
+                        dayColumns(calculatedDayWidth: calculatedDayWidth)
+                            .padding(.bottom, 8)
+                    }
+                    
+                    // Red line indicator for current time - positioned within scrollable content
+                    TimelineOverlay()
+                        .padding(.leading, timeColWidth)
                 }
             }
             .onAppear {

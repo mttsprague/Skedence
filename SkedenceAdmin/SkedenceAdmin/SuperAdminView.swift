@@ -402,7 +402,7 @@ struct TrainerCard: View {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
                 Task {
-                    await viewModel.deleteTrainer(trainerId: trainer.id ?? "")
+                    await viewModel.deleteTrainer(trainerId: trainer.id)
                 }
             }
         } message: {
