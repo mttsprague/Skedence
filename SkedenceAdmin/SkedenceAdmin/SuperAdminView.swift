@@ -12,11 +12,13 @@ import FirebaseAuth
 struct SuperAdminView: View {
     @EnvironmentObject var auth: AuthManager
     @StateObject private var viewModel = SuperAdminViewModel()
+    @StateObject private var enforcement = SubscriptionEnforcementService()
     @State private var selectedTab: AdminTab = .organizations
     @State private var showingCreateOrganization = false
     @State private var showingAddTrainer = false
-    @State private var showingUpgradeAlert = false
+    @State private var showingPricing = false
     @State private var alertItem: AlertItem?
+    @Environment(\.openURL) private var openURL
     
     enum AdminTab: String, CaseIterable {
         case organizations = "Organizations"
@@ -119,18 +121,34 @@ struct SuperAdminView: View {
             .alert(item: $alertItem) { item in
                 Alert(title: Text(item.title), message: Text(item.message))
             }
-            .alert("Upgrade Your Plan", isPresented: $showingUpgradeAlert) {
-                Button("Contact Sales") {
-                    // TODO: Open email or contact form
-                    if let url = URL(string: "mailto:support@skedence.com?subject=Upgrade%20Request") {
-                        #if os(iOS)
-                        UIApplication.shared.open(url)
-                        #endif
-                    }
+            .sheet(isPresented: $showingPricing) {
+                NavigationStack {
+                    PricingView(onPlanSelected: { selectedPlan in
+                        Task { [enforcement] in
+                            guard let orgId = auth.currentOrgId else { return }
+                            guard let priceId = selectedPlan.stripePriceId else {
+                                print("❌ Missing stripePriceId for plan: \(selectedPlan.id)")
+                                return
+                            }
+                            
+                            // Create Stripe Checkout session
+                            if let checkoutUrl = await enforcement.createCheckoutSession(
+                                organizationId: orgId,
+                                priceId: priceId
+                            ) {
+                                await MainActor.run {
+                                    showingPricing = false
+                                    openURL(checkoutUrl)
+                                }
+                            }
+                        }
+                    })
+                    .navigationBarItems(
+                        trailing: Button("Cancel") {
+                            showingPricing = false
+                        }
+                    )
                 }
-                Button("Not Now", role: .cancel) {}
-            } message: {
-                Text("Upgrade to a higher plan to add more trainers and unlock additional features.")
             }
         }
         .navigationViewStyle(.stack)
@@ -184,8 +202,7 @@ struct SuperAdminView: View {
                     }
                     Spacer()
                     Button("Upgrade") {
-                        // TODO: Open upgrade/billing view
-                        showingUpgradeAlert = true
+                        showingPricing = true
                     }
                     .buttonStyle(.borderedProminent)
                 }
