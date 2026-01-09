@@ -99,6 +99,7 @@ struct ClientCardView: View {
     
     @StateObject private var viewModel = ClientCardViewModel()
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var auth: AuthManager
     @State private var selectedTab: ClientCardTab = .profile
     
     var body: some View {
@@ -137,7 +138,11 @@ struct ClientCardView: View {
         }
         .navigationViewStyle(.stack)
         .task {
-            await viewModel.loadClientData(clientId: client.id, selectedBooking: selectedBooking)
+            await viewModel.loadClientData(
+                clientId: client.id,
+                selectedBooking: selectedBooking,
+                orgId: auth.currentOrgId
+            )
         }
     }
     
@@ -793,16 +798,25 @@ class ClientCardViewModel: ObservableObject {
     @Published var isLoadingDocuments = false
     @Published var isLoadingPaymentMethod = false
     
-    func loadClientData(clientId: String, selectedBooking: ClientBooking?) async {
+    func loadClientData(clientId: String, selectedBooking: ClientBooking?, orgId: String?) async {
         // Check admin status
         #if canImport(FirebaseFirestore)
         await checkAdminStatus()
         #endif
         
-        // Load all data in parallel
+        // Load data in parallel (packages, documents always; bookings only if orgId available)
         async let packagesTask: () = loadPackages(clientId: clientId)
-        async let bookingsTask: () = loadBookings(clientId: clientId)
         async let documentsTask: () = loadDocuments(clientId: clientId)
+        async let bookingsTask: () = {
+            if let orgId = orgId {
+                await loadBookings(clientId: clientId, orgId: orgId)
+            } else {
+                await MainActor.run {
+                    self.upcomingBookings = []
+                    self.pastBookings = []
+                }
+            }
+        }()
         
         await packagesTask
         await bookingsTask
@@ -867,13 +881,13 @@ class ClientCardViewModel: ObservableObject {
         .sorted { $0.packageDisplayName < $1.packageDisplayName }
     }
     
-    private func loadBookings(clientId: String) async {
+    private func loadBookings(clientId: String, orgId: String) async {
         isLoadingBookings = true
         defer { isLoadingBookings = false }
         
         do {
-            async let upcomingTask = FirestoreService.shared.fetchClientBookings(clientId: clientId, upcoming: true)
-            async let pastTask = FirestoreService.shared.fetchClientBookings(clientId: clientId, upcoming: false)
+            async let upcomingTask = FirestoreService.shared.fetchClientBookings(clientId: clientId, upcoming: true, orgId: orgId)
+            async let pastTask = FirestoreService.shared.fetchClientBookings(clientId: clientId, upcoming: false, orgId: orgId)
             
             upcomingBookings = try await upcomingTask
             pastBookings = try await pastTask

@@ -354,7 +354,7 @@ final class FirestoreService {
     func fetchTrainerClients(trainerId: String, orgId: String) async throws -> [Client] {
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
-        var query: Query = db.collection("users")
+        let query: Query = db.collection("users")
             .whereField("orgId", isEqualTo: orgId)
 
         // NOTE: If your user docs may not have `active`, this filter will exclude them.

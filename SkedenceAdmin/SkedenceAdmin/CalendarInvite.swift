@@ -102,17 +102,30 @@ struct CalendarInvite {
     }
 }
 
-extension Booking {
-    func generateCalendarInvite(trainerName: String, trainerEmail: String) -> CalendarInvite {
-        let endDate = startTime.addingTimeInterval(TimeInterval(durationMinutes * 60))
+extension ClientBooking {
+    /// Build a CalendarInvite for this client booking
+    /// - Parameters:
+    ///   - trainerName: Organizer display name
+    ///   - trainerEmail: Organizer email
+    ///   - location: Optional location string for the event
+    func generateCalendarInvite(trainerName: String, trainerEmail: String, location: String? = nil) -> CalendarInvite {
+        let endDate = endTime
         
         var notes = "Training session with \(trainerName)"
-        if let packageName = lessonPackage {
-            notes += "\nPackage: \(packageName)"
+        // Include package info when available and not a class booking
+        if isClassBooking != true {
+            notes += "\nPackage: \(packageTypeName)"
+        }
+        
+        let titleBase: String
+        if isClassBooking == true {
+            titleBase = "Class"
+        } else {
+            titleBase = "Training Session: \(packageTypeName)"
         }
         
         return CalendarInvite(
-            title: "Training Session: \(lessonPackage ?? "Lesson")",
+            title: titleBase,
             startDate: startTime,
             endDate: endDate,
             location: location,

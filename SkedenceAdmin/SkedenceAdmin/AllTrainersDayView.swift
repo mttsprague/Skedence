@@ -401,7 +401,9 @@ struct AllTrainersDayView: View {
     }
     
     private func refreshSchedule() async {
-        await viewModel.reload(for: scheduleViewModel.selectedDate)
+        if let orgId = auth.currentOrgId {
+            await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
+        }
     }
     
     private func scrollToCurrentTime(verticalScrollProxy: ScrollViewProxy) {

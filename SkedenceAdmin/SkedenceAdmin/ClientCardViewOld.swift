@@ -14,6 +14,7 @@ struct ClientCardViewOld: View {
     
     @StateObject private var viewModel = ClientCardViewModelOld()
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var auth: AuthManager
     
     var body: some View {
         NavigationView {
@@ -51,7 +52,7 @@ struct ClientCardViewOld: View {
             }
         }
         .task {
-            await viewModel.loadClientData(clientId: client.id, selectedBooking: selectedBooking)
+            await viewModel.loadClientData(clientId: client.id, selectedBooking: selectedBooking, orgId: auth.currentOrgId)
         }
     }
     
@@ -447,10 +448,19 @@ class ClientCardViewModelOld: ObservableObject {
     @Published var isLoadingBookings = false
     @Published var isLoadingDocuments = false
     
-    func loadClientData(clientId: String, selectedBooking: ClientBooking?) async {
+    func loadClientData(clientId: String, selectedBooking: ClientBooking?, orgId: String?) async {
         // Load all data in parallel
         async let packagesTask: () = loadPackages(clientId: clientId)
-        async let bookingsTask: () = loadBookings(clientId: clientId)
+        async let bookingsTask: () = {
+            if let orgId {
+                await loadBookings(clientId: clientId, orgId: orgId)
+            } else {
+                await MainActor.run {
+                    self.upcomingBookings = []
+                    self.pastBookings = []
+                }
+            }
+        }()
         async let documentsTask: () = loadDocuments(clientId: clientId)
         
         await packagesTask
@@ -476,13 +486,13 @@ class ClientCardViewModelOld: ObservableObject {
         }
     }
     
-    private func loadBookings(clientId: String) async {
+    private func loadBookings(clientId: String, orgId: String) async {
         isLoadingBookings = true
         defer { isLoadingBookings = false }
         
         do {
-            async let upcomingTask = FirestoreService.shared.fetchClientBookings(clientId: clientId, upcoming: true)
-            async let pastTask = FirestoreService.shared.fetchClientBookings(clientId: clientId, upcoming: false)
+            async let upcomingTask = FirestoreService.shared.fetchClientBookings(clientId: clientId, upcoming: true, orgId: orgId)
+            async let pastTask = FirestoreService.shared.fetchClientBookings(clientId: clientId, upcoming: false, orgId: orgId)
             
             upcomingBookings = try await upcomingTask
             pastBookings = try await pastTask
@@ -502,4 +512,3 @@ class ClientCardViewModelOld: ObservableObject {
         }
     }
 }
-

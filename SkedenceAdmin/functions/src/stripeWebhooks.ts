@@ -86,24 +86,28 @@ export const stripeWebhook = functions.https.onRequest(async (req, res) => {
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const orgId = session.metadata?.organizationId;
   if (!orgId) {
-    console.error("No organizationId in checkout session metadata");
+    console.error("❌ No organizationId in checkout session metadata");
     return;
   }
 
   const subscriptionId = session.subscription as string;
   const customerId = session.customer as string;
 
+  console.log(`📦 Processing checkout for org ${orgId}`);
+  console.log(`   Customer: ${customerId}`);
+  console.log(`   Subscription: ${subscriptionId}`);
+
   // Update organization with Stripe IDs
   await admin.firestore().collection("organizations").doc(orgId).update({
     "billing.stripeCustomerId": customerId,
     "billing.stripeSubscriptionId": subscriptionId,
-    "billing.status": "active",
+    "billing.status": "trialing",
     "billing.isActive": true,
     "billing.isInGrace": false,
     "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  console.log(`Checkout completed for org ${orgId}`);
+  console.log(`✅ Checkout completed for org ${orgId}`);
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {

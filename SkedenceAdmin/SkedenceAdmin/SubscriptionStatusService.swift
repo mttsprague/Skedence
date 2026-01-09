@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseFirestore
+import Combine
 
 /// Service to check organization subscription status and enforce access controls
 class SubscriptionStatusService: ObservableObject {

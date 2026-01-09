@@ -484,3 +484,107 @@ export const getBillingStatus = functions.https.onCall(
     }
   }
 );
+
+interface CreateCheckoutData {
+  organizationId: string;
+  userId: string;
+  priceId: string;
+}
+
+/**
+ * Create a Stripe Checkout session for subscription signup
+ */
+export const createStripeCheckout = functions.https.onRequest(
+  async (req, res) => {
+    // Set CORS headers
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    if (req.method !== "POST") {
+      res.status(405).json({error: "Method not allowed"});
+      return;
+    }
+
+    try {
+      const {organizationId, userId, priceId} = req.body as CreateCheckoutData;
+
+      if (!organizationId || !userId || !priceId) {
+        res.status(400).json({error: "Missing required fields"});
+        return;
+      }
+
+      // Get organization data
+      const orgDoc = await db.collection("organizations").doc(organizationId).get();
+      const orgData = orgDoc.data();
+
+      if (!orgData) {
+        res.status(404).json({error: "Organization not found"});
+        return;
+      }
+
+      // Get or create Stripe customer
+      let customerId = orgData.billing?.stripeCustomerId;
+
+      if (!customerId) {
+        // Get user email
+        const userDoc = await db.collection("users").doc(userId).get();
+        const userData = userDoc.data();
+
+        const customer = await stripe.customers.create({
+          email: userData?.email,
+          metadata: {
+            organizationId,
+            userId,
+          },
+        });
+        customerId = customer.id;
+
+        // Save customer ID to organization
+        await db.collection("organizations").doc(organizationId).update({
+          "billing.stripeCustomerId": customerId,
+          "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Create Checkout session
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        success_url: "https://skedence.com/checkout-success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://skedence.com/checkout-cancel",
+        metadata: {
+          organizationId,
+          userId,
+        },
+        subscription_data: {
+          trial_period_days: 14,
+          metadata: {
+            organizationId,
+            userId,
+          },
+        },
+      });
+
+      console.log(`✅ Created checkout session ${session.id} for org ${organizationId}`);
+
+      res.json({url: session.url});
+    } catch (error: unknown) {
+      console.error("Error creating checkout session:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      res.status(500).json({error: message});
+    }
+  }
+);

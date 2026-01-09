@@ -90,7 +90,7 @@ struct StripeOnboardingView: View {
     }
     
     func createStripeAccount() {
-        guard let userId = auth.userId, let email = auth.userEmail else {
+        guard let _ = auth.userId, let email = auth.userEmail else {
             errorMessage = "User not authenticated"
             return
         }

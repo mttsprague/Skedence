@@ -14,7 +14,7 @@ struct ScheduleView: View {
     @StateObject private var viewModel = ScheduleViewModel()
 
     // Editor presentation state driven by an Identifiable item
-    private struct EditorContext: Identifiable, Equatable {
+    fileprivate struct EditorContext: Identifiable, Equatable {
         let id = UUID()
         let day: Date
         let hour: Int
@@ -22,7 +22,7 @@ struct ScheduleView: View {
     @State private var editorContext: EditorContext?
     
     // Class sheet presentation with identifiable item
-    private struct ClassSheetContext: Identifiable {
+    fileprivate struct ClassSheetContext: Identifiable {
         let id = UUID()
         let classId: String
         let className: String
@@ -39,7 +39,7 @@ struct ScheduleView: View {
     @State private var selectedTrainerForNav: String?
 
     // Client card sheet context
-    private struct ClientCardContext: Identifiable {
+    fileprivate struct ClientCardContext: Identifiable {
         let id = UUID()
         let client: Client
         let booking: ClientBooking?
@@ -60,287 +60,11 @@ struct ScheduleView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Show paywall banner if subscription expired/past_due
-                if subscriptionStatus.isReadOnly {
-                    PaywallBanner(
-                        message: subscriptionStatus.statusMessage ?? "Subscription expired",
-                        actionLabel: "Update Billing",
-                        action: {
-                            showSubscriptionSheet = true
-                        },
-                        showDismiss: false
-                    )
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+            mainContent
+                .navigationBarHidden(true)
+                .onAppear {
+                    AnalyticsService.shared.logScreenView(screenName: "Schedule", screenClass: "ScheduleView")
                 }
-                
-                header
-                
-                // Admin trainer selector
-                if auth.isAdmin {
-                    trainerSelectorView
-                }
-
-                WeekStrip(
-                    title: viewModel.weekTitle,
-                    weekDays: viewModel.weekDays,
-                    selectedDate: $viewModel.selectedDate,
-                    onPrevWeek: { shiftWeek(by: -1) },
-                    onNextWeek: { shiftWeek(by: 1) }
-                )
-                .padding(.top, 2)
-                .padding(.bottom, 4)
-
-                GeometryReader { geometry in
-                    let horizontalPaddingPerCell: CGFloat = 2
-                    let totalHorizontalPadding = horizontalPaddingPerCell * 2 * 7 // 2px on each side of 7 cells
-                    let availableWidth = geometry.size.width - timeColWidth - totalHorizontalPadding
-                    let calculatedDayWidth = max(10, availableWidth / 7) // Ensure minimum width to prevent negative values
-                    
-                    ZStack(alignment: .topLeading) {
-                        ScrollViewReader { verticalScrollProxy in
-                            ScrollView(.vertical, showsIndicators: true) {
-                                HStack(spacing: 0) {
-                                    VStack(spacing: 0) {
-                                        ForEach(viewModel.visibleHours, id: \.self) { hour in
-                                            Text(hourLabel(hour))
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
-                                                .frame(maxWidth: .infinity, alignment: .trailing)
-                                                .padding(.trailing, 6)
-                                                .frame(height: rowHeight)
-                                                .background(Color(UIColor.systemGray6))
-                                                .padding(.vertical, rowVerticalPadding)
-                                                .id("hour-\(hour)")
-                                        }
-                                    }
-                                    .frame(width: timeColWidth)
-                                    .background(Color(UIColor.systemGray6))
-
-                                    HStack(spacing: columnSpacing) {
-                                        ForEach(viewModel.weekDays, id: \.self) { day in
-                                            let isToday = Calendar.current.isDateInToday(day)
-                                            VStack(spacing: 0) {
-                                                ForEach(viewModel.visibleHours, id: \.self) { hour in
-                                                    HourDayCell(
-                                                        day: day,
-                                                        hour: hour,
-                                                        slotsForDay: viewModel.slotsByDay[DateOnly(day)] ?? [],
-                                                        dayColumnWidth: calculatedDayWidth,
-                                                        rowHeight: rowHeight,
-                                                        horizontalPadding: 2,
-                                                        isToday: isToday,
-                                                        onEmptyTap: {
-                                                            // Check subscription status before allowing slot creation
-                                                            if subscriptionStatus.canPerformAction(.createAvailability) {
-                                                                editorContext = EditorContext(day: day, hour: hour)
-                                                            }
-                                                        },
-                                                        onSlotTap: { slot in
-                                                            handleSlotTap(slot, defaultDay: day, defaultHour: hour)
-                                                        },
-                                                        onSetStatus: { status in
-                                                            Task { await viewModel.setSlotStatus(on: day, hour: hour, status: status) }
-                                                        },
-                                                        onClear: {
-                                                            Task { await viewModel.clearSlot(on: day, hour: hour) }
-                                                        }
-                                                    )
-                                                    .padding(.vertical, rowVerticalPadding)
-                                                }
-                                            }
-                                            .background(isToday ? Color.blue.opacity(0.08) : Color.clear)
-                                        }
-                                    }
-                                    .padding(.bottom, 8)
-                                }
-                            }
-                            .background(Color(UIColor.systemGray6))
-                            .onAppear {
-                                scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
-                            }
-                            .onChange(of: hasScrolledToCurrentTime) { _, newValue in
-                                if !newValue {
-                                    scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
-                                }
-                            }
-                        }
-
-                        TimelineView(.everyMinute) { context in
-                            if let y = currentTimeYOffset(for: context.date,
-                                                          firstHour: viewModel.visibleHours.first,
-                                                          rowHeight: rowHeight,
-                                                          rowVerticalPadding: rowVerticalPadding) {
-                                Rectangle()
-                                    .fill(Color.red)
-                                    .frame(height: 2)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .offset(x: 0, y: y)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationBarHidden(true)
-            .onAppear {
-                AnalyticsService.shared.logScreenView(screenName: "Schedule", screenClass: "ScheduleView")
-            }
-            .task {
-                viewModel.setTrainerId(auth.userId ?? "trainer_demo")
-                viewModel.setOrgId(auth.currentOrgId)
-                await viewModel.loadWeek()
-                
-                // Load all trainers if admin
-                if auth.isAdmin {
-                    await viewModel.loadAllTrainers()
-                }
-            }
-            .onChange(of: auth.userId) { _, newValue in
-                viewModel.setTrainerId(newValue ?? "trainer_demo")
-            }
-            .onChange(of: auth.currentOrgId) { _, newOrgId in
-                viewModel.setOrgId(newOrgId)
-            }
-            .onChange(of: auth.isTrainer) { _, _ in
-                Task {
-                    await auth.refreshTrainerProfileIfNeeded()
-                    await viewModel.loadWeek()
-                }
-            }
-            .onChange(of: auth.isAdmin) { _, isAdmin in
-                if isAdmin {
-                    Task {
-                        await viewModel.loadAllTrainers()
-                    }
-                }
-            }
-            .onChange(of: viewModel.selectedDate) { oldValue, newValue in
-                Task { await viewModel.loadWeek() }
-                // Reset scroll flag when date changes
-                if !Calendar.current.isDate(oldValue, equalTo: newValue, toGranularity: .weekOfYear) {
-                    hasScrolledToCurrentTime = false
-                }
-            }
-            .sheet(item: $editorContext, onDismiss: {
-                editorContext = nil
-            }) { ctx in
-                AvailabilityEditorSheet(
-                    defaultDay: ctx.day,
-                    defaultHour: ctx.hour,
-                    isAdmin: auth.isAdmin,
-                    editingTrainerId: viewModel.editingTrainerId,
-                    onSaveSingle: { day, start, end, status, applyToAllTrainers in
-                        Task {
-                            if applyToAllTrainers {
-                                await viewModel.setCustomSlotForAllTrainers(on: day, startTime: start, endTime: end, status: status)
-                            } else {
-                                await viewModel.setCustomSlot(on: day, startTime: start, endTime: end, status: status)
-                            }
-                            editorContext = nil
-                        }
-                    },
-                    onSaveOngoing: { startDate, endDate, dailyStartHour, dailyEndHour, durationMinutes, daysOfWeek, status, applyToAllTrainers in
-                        Task {
-                            if applyToAllTrainers {
-                                await viewModel.openAvailabilityForAllTrainers(
-                                    start: startDate,
-                                    end: endDate,
-                                    dailyStartHour: dailyStartHour,
-                                    dailyEndHour: dailyEndHour,
-                                    slotDurationMinutes: durationMinutes,
-                                    selectedDaysOfWeek: daysOfWeek,
-                                    status: status
-                                )
-                            } else {
-                                await viewModel.openAvailability(
-                                    start: startDate,
-                                    end: endDate,
-                                    dailyStartHour: dailyStartHour,
-                                    dailyEndHour: dailyEndHour,
-                                    slotDurationMinutes: durationMinutes,
-                                    selectedDaysOfWeek: daysOfWeek,
-                                    status: status
-                                )
-                            }
-                            editorContext = nil
-                        }
-                    },
-                    onBookLesson: { clientId, startInterval, endInterval, packageId in
-                        print("📋 ScheduleView: Received booking request")
-                        // Store parameters and trigger async booking in a Task
-                        Task {
-                            // Check billing status before booking
-                            if auth.isBillingBlocked {
-                                // Show billing paywall
-                                print("❌ Billing blocked, cannot book")
-                                // In a real app, you'd show BillingPaywallView here
-                                return
-                            }
-                            
-                            let startTime = Date(timeIntervalSinceReferenceDate: startInterval)
-                            let endTime = Date(timeIntervalSinceReferenceDate: endInterval)
-                            let _ = await viewModel.bookLessonForClient(
-                                clientId: clientId,
-                                startTime: startTime,
-                                endTime: endTime,
-                                packageId: packageId
-                            )
-                        }
-                    }
-                )
-                .presentationDetents([.medium, .large])
-            }
-            .sheet(isPresented: $showOptions) {
-                ScheduleOptionsView(
-                    onMyWeek: {
-                        viewModel.setMode(.myWeek)
-                    },
-                    onMyDay: {
-                        viewModel.setMode(.myDay)
-                        navigateToMyDay = true
-                    },
-                    onAllTrainersDay: {
-                        viewModel.setMode(.allTrainersDay)
-                        navigateToAllTrainersDay = true
-                    },
-                    onSelectTrainer: { id in
-                        viewModel.setMode(.trainerDay(id))
-                        selectedTrainerForNav = id
-                    }
-                )
-                .environmentObject(auth)
-                .presentationDetents([.medium, .large])
-            }
-            .navigationDestination(isPresented: $navigateToMyDay) {
-                DayScheduleView(viewModel: viewModel)
-                    .environmentObject(auth)
-            }
-            .navigationDestination(isPresented: $navigateToAllTrainersDay) {
-                AllTrainersDayView(scheduleViewModel: viewModel)
-                    .environmentObject(auth)
-            }
-            .navigationDestination(item: $selectedTrainerForNav) { trainerId in
-                TrainerWeekView(trainerId: trainerId, viewModel: viewModel)
-                    .environmentObject(auth)
-            }
-            .sheet(item: $clientCardContext) { context in
-                ClientCardView(client: context.client, selectedBooking: context.booking)
-            }
-            .sheet(isPresented: $showSubscriptionSheet) {
-                if let orgId = auth.currentOrgId {
-                    ManageSubscriptionView(orgId: orgId)
-                        .environmentObject(auth)
-                }
-            }
-            .sheet(item: $classSheetContext) { context in
-                ClassParticipantsView(
-                    classId: context.classId,
-                    classTitle: context.className,
-                    preloadedParticipants: context.participants
-                )
-            }
         }
     }
 
@@ -387,6 +111,62 @@ struct ScheduleView: View {
         print("🔄 Refreshing schedule...")
         await viewModel.loadWeek()
         print("✅ Schedule refreshed")
+    }
+    
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            // Show paywall banner if subscription expired/past_due
+            if subscriptionStatus.isReadOnly {
+                PaywallBanner(
+                    message: subscriptionStatus.statusMessage ?? "Subscription expired",
+                    ctaTitle: "Update Billing",
+                    isDismissible: false
+                ) {
+                    showSubscriptionSheet = true
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            }
+            
+            header
+            
+            // Admin trainer selector
+            if auth.isAdmin {
+                trainerSelectorView
+            }
+
+            WeekStrip(
+                title: viewModel.weekTitle,
+                weekDays: viewModel.weekDays,
+                selectedDate: $viewModel.selectedDate,
+                onPrevWeek: { shiftWeek(by: -1) },
+                onNextWeek: { shiftWeek(by: 1) }
+            )
+            .padding(.top, 2)
+            .padding(.bottom, 4)
+
+            GeometryReader { geometry in
+                let horizontalPaddingPerCell: CGFloat = 2
+                let totalHorizontalPadding = horizontalPaddingPerCell * 2 * 7
+                let availableWidth = geometry.size.width - timeColWidth - totalHorizontalPadding
+                let calculatedDayWidth = max(10, availableWidth / 7)
+                
+                scheduleGrid(calculatedDayWidth: calculatedDayWidth)
+            }
+        }
+        .modifier(ViewLifecycleModifiers(auth: auth, viewModel: viewModel))
+        .modifier(SheetModifiers(
+            editorContext: $editorContext,
+            showOptions: $showOptions,
+            navigateToMyDay: $navigateToMyDay,
+            navigateToAllTrainersDay: $navigateToAllTrainersDay,
+            selectedTrainerForNav: $selectedTrainerForNav,
+            clientCardContext: $clientCardContext,
+            showSubscriptionSheet: $showSubscriptionSheet,
+            classSheetContext: $classSheetContext,
+            auth: auth,
+            viewModel: viewModel
+        ))
     }
 
     private var header: some View {
@@ -655,6 +435,112 @@ struct ScheduleView: View {
         }
     }
 
+    // MARK: - Extracted schedule grid pieces
+
+    @ViewBuilder
+    private func scheduleGrid(calculatedDayWidth: CGFloat) -> some View {
+        ZStack(alignment: .topLeading) {
+            ScrollArea(calculatedDayWidth: calculatedDayWidth)
+                .background(Color(UIColor.systemGray6))
+
+            TimelineOverlay()
+        }
+    }
+
+    @ViewBuilder
+    private func ScrollArea(calculatedDayWidth: CGFloat) -> some View {
+        ScrollViewReader { verticalScrollProxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                HStack(spacing: 0) {
+                    timeColumn
+                        .frame(width: timeColWidth)
+                        .background(Color(UIColor.systemGray6))
+
+                    dayColumns(calculatedDayWidth: calculatedDayWidth)
+                        .padding(.bottom, 8)
+                }
+            }
+            .onAppear {
+                scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
+            }
+            .onChange(of: hasScrolledToCurrentTime) { _, newValue in
+                if !newValue {
+                    scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
+                }
+            }
+        }
+    }
+
+    private var timeColumn: some View {
+        VStack(spacing: 0) {
+            ForEach(viewModel.visibleHours, id: \.self) { hour in
+                Text(hourLabel(hour))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 6)
+                    .frame(height: rowHeight)
+                    .background(Color(UIColor.systemGray6))
+                    .padding(.vertical, rowVerticalPadding)
+                    .id("hour-\(hour)")
+            }
+        }
+    }
+
+    private func dayColumns(calculatedDayWidth: CGFloat) -> some View {
+        HStack(spacing: columnSpacing) {
+            ForEach(viewModel.weekDays, id: \.self) { day in
+                let isToday = Calendar.current.isDateInToday(day)
+                VStack(spacing: 0) {
+                    ForEach(viewModel.visibleHours, id: \.self) { hour in
+                        HourDayCell(
+                            day: day,
+                            hour: hour,
+                            slotsForDay: viewModel.slotsByDay[DateOnly(day)] ?? [],
+                            dayColumnWidth: calculatedDayWidth,
+                            rowHeight: rowHeight,
+                            horizontalPadding: 2,
+                            isToday: isToday,
+                            onEmptyTap: {
+                                // Check subscription status before allowing slot creation
+                                if subscriptionStatus.canPerformAction(.createAvailability) {
+                                    editorContext = EditorContext(day: day, hour: hour)
+                                }
+                            },
+                            onSlotTap: { slot in
+                                handleSlotTap(slot, defaultDay: day, defaultHour: hour)
+                            },
+                            onSetStatus: { status in
+                                Task { await viewModel.setSlotStatus(on: day, hour: hour, status: status) }
+                            },
+                            onClear: {
+                                Task { await viewModel.clearSlot(on: day, hour: hour) }
+                            }
+                        )
+                        .padding(.vertical, rowVerticalPadding)
+                    }
+                }
+                .background(isToday ? Color.blue.opacity(0.08) : Color.clear)
+            }
+        }
+    }
+
+    private func TimelineOverlay() -> some View {
+        TimelineView(.everyMinute) { context in
+            if let y = currentTimeYOffset(for: context.date,
+                                          firstHour: viewModel.visibleHours.first,
+                                          rowHeight: rowHeight,
+                                          rowVerticalPadding: rowVerticalPadding) {
+                Rectangle()
+                    .fill(Color.red)
+                    .frame(height: 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .offset(x: 0, y: y)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
     // MARK: - Helper Views (nested)
 
     private struct HourDayCell: View {
@@ -815,3 +701,177 @@ struct ScheduleView: View {
         }
     }
 }
+
+// MARK: - View Modifiers to reduce body complexity
+
+private struct ViewLifecycleModifiers: ViewModifier {
+    let auth: AuthManager
+    let viewModel: ScheduleViewModel
+    
+    func body(content: Content) -> some View {
+        content
+            .task {
+                viewModel.setTrainerId(auth.userId ?? "trainer_demo")
+                viewModel.setOrgId(auth.currentOrgId)
+                await viewModel.loadWeek()
+                
+                if auth.isAdmin {
+                    await viewModel.loadAllTrainers()
+                }
+            }
+            .onChange(of: auth.userId) { _, newValue in
+                viewModel.setTrainerId(newValue ?? "trainer_demo")
+            }
+            .onChange(of: auth.currentOrgId) { _, newOrgId in
+                viewModel.setOrgId(newOrgId)
+            }
+            .onChange(of: auth.isTrainer) { _, _ in
+                Task {
+                    await auth.refreshTrainerProfileIfNeeded()
+                    await viewModel.loadWeek()
+                }
+            }
+            .onChange(of: auth.isAdmin) { _, isAdmin in
+                if isAdmin {
+                    Task {
+                        await viewModel.loadAllTrainers()
+                    }
+                }
+            }
+            .onChange(of: viewModel.selectedDate) { oldValue, newValue in
+                Task { await viewModel.loadWeek() }
+            }
+    }
+}
+
+private struct SheetModifiers: ViewModifier {
+    @Binding var editorContext: ScheduleView.EditorContext?
+    @Binding var showOptions: Bool
+    @Binding var navigateToMyDay: Bool
+    @Binding var navigateToAllTrainersDay: Bool
+    @Binding var selectedTrainerForNav: String?
+    @Binding var clientCardContext: ScheduleView.ClientCardContext?
+    @Binding var showSubscriptionSheet: Bool
+    @Binding var classSheetContext: ScheduleView.ClassSheetContext?
+    
+    let auth: AuthManager
+    let viewModel: ScheduleViewModel
+    
+    func body(content: Content) -> some View {
+        content
+            .sheet(item: $editorContext, onDismiss: {
+                editorContext = nil
+            }) { ctx in
+                AvailabilityEditorSheet(
+                    defaultDay: ctx.day,
+                    defaultHour: ctx.hour,
+                    isAdmin: auth.isAdmin,
+                    editingTrainerId: viewModel.editingTrainerId,
+                    onSaveSingle: { day, start, end, status, applyToAllTrainers in
+                        Task {
+                            if applyToAllTrainers {
+                                await viewModel.setCustomSlotForAllTrainers(on: day, startTime: start, endTime: end, status: status)
+                            } else {
+                                await viewModel.setCustomSlot(on: day, startTime: start, endTime: end, status: status)
+                            }
+                            editorContext = nil
+                        }
+                    },
+                    onSaveOngoing: { startDate, endDate, dailyStartHour, dailyEndHour, durationMinutes, daysOfWeek, status, applyToAllTrainers in
+                        Task {
+                            if applyToAllTrainers {
+                                await viewModel.openAvailabilityForAllTrainers(
+                                    start: startDate,
+                                    end: endDate,
+                                    dailyStartHour: dailyStartHour,
+                                    dailyEndHour: dailyEndHour,
+                                    slotDurationMinutes: durationMinutes,
+                                    selectedDaysOfWeek: daysOfWeek,
+                                    status: status
+                                )
+                            } else {
+                                await viewModel.openAvailability(
+                                    start: startDate,
+                                    end: endDate,
+                                    dailyStartHour: dailyStartHour,
+                                    dailyEndHour: dailyEndHour,
+                                    slotDurationMinutes: durationMinutes,
+                                    selectedDaysOfWeek: daysOfWeek,
+                                    status: status
+                                )
+                            }
+                            editorContext = nil
+                        }
+                    },
+                    onBookLesson: { clientId, startInterval, endInterval, packageId in
+                        Task {
+                            if auth.isBillingBlocked {
+                                print("❌ Billing blocked, cannot book")
+                                return
+                            }
+                            
+                            let startTime = Date(timeIntervalSinceReferenceDate: startInterval)
+                            let endTime = Date(timeIntervalSinceReferenceDate: endInterval)
+                            let _ = await viewModel.bookLessonForClient(
+                                clientId: clientId,
+                                startTime: startTime,
+                                endTime: endTime,
+                                packageId: packageId
+                            )
+                        }
+                    }
+                )
+                .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showOptions) {
+                ScheduleOptionsView(
+                    onMyWeek: {
+                        viewModel.setMode(.myWeek)
+                    },
+                    onMyDay: {
+                        viewModel.setMode(.myDay)
+                        navigateToMyDay = true
+                    },
+                    onAllTrainersDay: {
+                        viewModel.setMode(.allTrainersDay)
+                        navigateToAllTrainersDay = true
+                    },
+                    onSelectTrainer: { id in
+                        viewModel.setMode(.trainerDay(id))
+                        selectedTrainerForNav = id
+                    }
+                )
+                .environmentObject(auth)
+                .presentationDetents([.medium, .large])
+            }
+            .navigationDestination(isPresented: $navigateToMyDay) {
+                DayScheduleView(viewModel: viewModel)
+                    .environmentObject(auth)
+            }
+            .navigationDestination(isPresented: $navigateToAllTrainersDay) {
+                AllTrainersDayView(scheduleViewModel: viewModel)
+                    .environmentObject(auth)
+            }
+            .navigationDestination(item: $selectedTrainerForNav) { trainerId in
+                TrainerWeekView(trainerId: trainerId, viewModel: viewModel)
+                    .environmentObject(auth)
+            }
+            .sheet(item: $clientCardContext) { context in
+                ClientCardView(client: context.client, selectedBooking: context.booking)
+            }
+            .sheet(isPresented: $showSubscriptionSheet) {
+                if let orgId = auth.currentOrgId {
+                    ManageSubscriptionView(orgId: orgId)
+                        .environmentObject(auth)
+                }
+            }
+            .sheet(item: $classSheetContext) { context in
+                ClassParticipantsView(
+                    classId: context.classId,
+                    classTitle: context.className,
+                    preloadedParticipants: context.participants
+                )
+            }
+    }
+}
+

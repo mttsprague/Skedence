@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseFirestore
+import Combine
 
 @MainActor
 class ActivationService: ObservableObject {

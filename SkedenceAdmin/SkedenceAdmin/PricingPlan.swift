@@ -4,12 +4,72 @@ struct PricingPlan: Identifiable, Codable {
     let id: String
     let name: String
     let price: Double
-    let billingPeriod: String = "month"
+    let billingPeriod: String
     let trainerLimit: Int
     let locationLimit: Int
     let features: [String]
     let isPopular: Bool
     let stripePriceId: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case price
+        case billingPeriod
+        case trainerLimit
+        case locationLimit
+        case features
+        case isPopular
+        case stripePriceId
+    }
+    
+    init(
+        id: String,
+        name: String,
+        price: Double,
+        billingPeriod: String = "month",
+        trainerLimit: Int,
+        locationLimit: Int,
+        features: [String],
+        isPopular: Bool,
+        stripePriceId: String?
+    ) {
+        self.id = id
+        self.name = name
+        self.price = price
+        self.billingPeriod = billingPeriod
+        self.trainerLimit = trainerLimit
+        self.locationLimit = locationLimit
+        self.features = features
+        self.isPopular = isPopular
+        self.stripePriceId = stripePriceId
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        price = try container.decode(Double.self, forKey: .price)
+        billingPeriod = try container.decodeIfPresent(String.self, forKey: .billingPeriod) ?? "month"
+        trainerLimit = try container.decode(Int.self, forKey: .trainerLimit)
+        locationLimit = try container.decode(Int.self, forKey: .locationLimit)
+        features = try container.decode([String].self, forKey: .features)
+        isPopular = try container.decode(Bool.self, forKey: .isPopular)
+        stripePriceId = try container.decodeIfPresent(String.self, forKey: .stripePriceId)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(price, forKey: .price)
+        try container.encode(billingPeriod, forKey: .billingPeriod)
+        try container.encode(trainerLimit, forKey: .trainerLimit)
+        try container.encode(locationLimit, forKey: .locationLimit)
+        try container.encode(features, forKey: .features)
+        try container.encode(isPopular, forKey: .isPopular)
+        try container.encodeIfPresent(stripePriceId, forKey: .stripePriceId)
+    }
     
     static let starter = PricingPlan(
         id: "starter",

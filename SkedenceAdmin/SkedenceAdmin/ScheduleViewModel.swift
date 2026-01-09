@@ -371,9 +371,13 @@ final class ScheduleViewModel: ObservableObject {
     // Admin-only: Set custom slot for all trainers
     func setCustomSlotForAllTrainers(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status) async {
         guard status == .unavailable else { return }
+        guard let orgId = orgId else {
+            print("⚠️ No orgId available for setCustomSlotForAllTrainers")
+            return
+        }
         
         do {
-            let allTrainers = try await FirestoreService.shared.fetchAllTrainers()
+            let allTrainers = try await FirestoreService.shared.fetchAllTrainers(orgId: orgId)
             
             for trainer in allTrainers {
                 guard trainer.active else { continue }
@@ -417,6 +421,10 @@ final class ScheduleViewModel: ObservableObject {
         status: TrainerScheduleSlot.Status = .unavailable
     ) async {
         guard status == .unavailable else { return }
+        guard let orgId = orgId else {
+            print("⚠️ No orgId available for openAvailabilityForAllTrainers")
+            return
+        }
         
         let fmt = DateFormatter()
         fmt.calendar = Calendar(identifier: .gregorian)
@@ -427,7 +435,7 @@ final class ScheduleViewModel: ObservableObject {
         let endStr = end.map { fmt.string(from: $0) }
         
         do {
-            let allTrainers = try await FirestoreService.shared.fetchAllTrainers()
+            let allTrainers = try await FirestoreService.shared.fetchAllTrainers(orgId: orgId)
             
             for trainer in allTrainers {
                 guard trainer.active else { continue }

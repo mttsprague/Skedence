@@ -266,7 +266,9 @@ struct TrainerWeekView: View {
     }
     
     private func refreshSchedule() async {
-        await trainerViewModel.loadWeek(weekDays: viewModel.weekDays, trainerId: trainerId)
+        if let orgId = auth.currentOrgId {
+            await trainerViewModel.loadWeek(weekDays: viewModel.weekDays, trainerId: trainerId, orgId: orgId)
+        }
     }
     
     private func scrollToCurrentTime(verticalScrollProxy: ScrollViewProxy) {

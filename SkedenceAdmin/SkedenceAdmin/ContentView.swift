@@ -11,6 +11,8 @@ struct ContentView: View {
     @EnvironmentObject private var auth: AuthManager
     @StateObject private var enforcement = SubscriptionEnforcementService()
     @State private var selectedTab = 0
+    @State private var showingPricing = false
+    @Environment(\.openURL) private var openURL
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -37,15 +39,80 @@ struct ContentView: View {
             if let billing = enforcement.billing {
                 CoachPaywallView(
                     billing: billing,
-                    isOwner: auth.isAdmin,
-                    ownerName: "Business Owner",
-                    ownerEmail: auth.userEmail ?? ""
+                    isOwner: enforcement.isOwner,
+                    estimatedLostRevenue: enforcement.estimatedLostRevenue,
+                    onUpgrade: {
+                        showingPricing = true
+                    },
+                    onManageBilling: {
+                        Task {
+                            guard let orgId = auth.currentOrgId,
+                                  let url = await enforcement.openBillingPortal(organizationId: orgId)
+                            else { return }
+                            openURL(url)
+                        }
+                    },
+                    onContactSupport: {
+                        if let url = URL(string: "mailto:support@skedence.com?subject=Billing%20Help") {
+                            openURL(url)
+                        }
+                    },
+                    onDismiss: {
+                        // Dismiss the paywall overlay (e.g., to view schedule read-only)
+                        enforcement.billing = nil
+                    }
                 )
             }
         }
+        .sheet(isPresented: $showingPricing) {
+            NavigationStack {
+                PricingView(onPlanSelected: { selectedPlan in
+                    Task { [enforcement] in
+                        guard let orgId = auth.currentOrgId else { return }
+                        guard let priceId = selectedPlan.stripePriceId else {
+                            print("❌ Missing stripePriceId for plan: \(selectedPlan.id)")
+                            return
+                        }
+                        
+                        // Create Stripe Checkout session
+                        if let checkoutUrl = await enforcement.createCheckoutSession(
+                            organizationId: orgId,
+                            priceId: priceId
+                        ) {
+                            await MainActor.run {
+                                showingPricing = false
+                                openURL(checkoutUrl)
+                            }
+                        }
+                    }
+                })
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") {
+                            showingPricing = false
+                        }
+                    }
+                }
+            }
+        }
         .onAppear {
+            print("🔍 DEBUG: auth.currentOrgId = \(auth.currentOrgId ?? "nil")")
+            print("🔍 DEBUG: auth.isAuthenticated = \(auth.isAuthenticated)")
+            print("🔍 DEBUG: auth.isAdmin = \(auth.isAdmin)")
+            print("🔍 DEBUG: auth.userId = \(auth.userId ?? "nil")")
+            
             if let orgId = auth.currentOrgId {
-                enforcement.startMonitoring(orgId: orgId)
+                print("✅ Starting subscription monitoring for org: \(orgId)")
+                enforcement.startMonitoring(organizationId: orgId)
+            } else {
+                print("❌ No organization ID found - cannot monitor subscription")
+            }
+        }
+        .onChange(of: auth.currentOrgId) { _, newOrgId in
+            print("🔄 Organization ID changed to: \(newOrgId ?? "nil")")
+            if let orgId = newOrgId {
+                print("✅ Starting subscription monitoring for org: \(orgId)")
+                enforcement.startMonitoring(organizationId: orgId)
             }
         }
     }
@@ -139,14 +206,14 @@ struct MoreView: View {
                         
                         // Billing Management (Admin only)
                         if auth.isAdmin {
-                            NavigationLink(destination: ManageSubscriptionView().environmentObject(auth)) {
+                            NavigationLink(destination: ManageSubscriptionView(orgId: auth.currentOrgId ?? "").environmentObject(auth)) {
                                 CardView {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("Manage Subscription")
                                                 .font(.headingSmall)
                                                 .foregroundStyle(AppTheme.textPrimary)
-                                            Text("\\(auth.billingPlan.capitalized) Plan")
+                                            Text("\(auth.billingPlan.capitalized) Plan")
                                                 .font(.bodyMedium)
                                                 .foregroundStyle(auth.isBillingBlocked ? .red : AppTheme.textSecondary)
                                         }

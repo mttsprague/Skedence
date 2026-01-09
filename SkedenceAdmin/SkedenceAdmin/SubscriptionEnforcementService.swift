@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import FirebaseFirestore
 import FirebaseAuth
 
@@ -16,15 +17,34 @@ class SubscriptionEnforcementService: ObservableObject {
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self = self, let data = snapshot?.data() else { return }
                 
+                print("🔍 SubscriptionEnforcement: Received org data")
+                
                 // Parse billing data
                 if let billingData = data["billing"] as? [String: Any] {
+                    // Check if legacy data (missing isActive field)
+                    let needsMigration = billingData["isActive"] == nil && billingData["status"] as? String == "active"
+                    
                     self.billing = self.parseBilling(from: billingData)
+                    print("🔍 SubscriptionEnforcement: billing = \(String(describing: self.billing))")
+                    
+                    // Migrate legacy billing data
+                    if needsMigration {
+                        print("📝 Migrating legacy billing data for org: \(organizationId)")
+                        Task {
+                            await self.migrateLegacyBilling(organizationId: organizationId)
+                        }
+                    }
                 }
                 
-                // Check if current user is owner
-                if let adminIds = data["adminIds"] as? [String],
-                   let userId = Auth.auth().currentUser?.uid {
-                    self.isOwner = adminIds.first == userId
+                // Check if current user is owner - query orgMembers collection
+                if let userId = Auth.auth().currentUser?.uid {
+                    print("🔍 SubscriptionEnforcement: userId = \(userId)")
+                    Task {
+                        await self.checkOwnerStatus(organizationId: organizationId, userId: userId)
+                    }
+                } else {
+                    print("⚠️ SubscriptionEnforcement: No authenticated user")
+                    self.isOwner = false
                 }
                 
                 // Calculate lost revenue if expired
@@ -36,6 +56,50 @@ class SubscriptionEnforcementService: ObservableObject {
             }
     }
     
+    private func checkOwnerStatus(organizationId: String, userId: String) async {
+        do {
+            let snapshot = try await db.collection("orgMembers")
+                .whereField("userId", isEqualTo: userId)
+                .whereField("orgId", isEqualTo: organizationId)
+                .whereField("isActive", isEqualTo: true)
+                .limit(to: 1)
+                .getDocuments()
+            
+            if let doc = snapshot.documents.first,
+               let role = doc.data()["role"] as? String {
+                await MainActor.run {
+                    self.isOwner = (role == "owner")
+                    print("🔍 SubscriptionEnforcement: isOwner = \(self.isOwner) (role: \(role))")
+                }
+            } else {
+                await MainActor.run {
+                    self.isOwner = false
+                    print("⚠️ SubscriptionEnforcement: No orgMember found for user")
+                }
+            }
+        } catch {
+            print("❌ SubscriptionEnforcement: Error checking owner status: \(error)")
+            await MainActor.run {
+                self.isOwner = false
+            }
+        }
+    }
+    
+    private func migrateLegacyBilling(organizationId: String) async {
+        do {
+            let trialEndsAt = Calendar.current.date(byAdding: .day, value: 14, to: Date())!
+            try await db.collection("organizations").document(organizationId).updateData([
+                "billing.isActive": true,
+                "billing.status": "trialing",
+                "billing.trialEndsAt": Timestamp(date: trialEndsAt),
+                "billing.isInGrace": false
+            ])
+            print("✅ Migrated legacy billing to trial period ending \(trialEndsAt)")
+        } catch {
+            print("❌ Failed to migrate legacy billing: \(error)")
+        }
+    }
+    
     func stopMonitoring() {
         listener?.remove()
     }
@@ -43,12 +107,27 @@ class SubscriptionEnforcementService: ObservableObject {
     private func parseBilling(from data: [String: Any]) -> OrganizationBilling {
         let status = data["status"] as? String ?? "incomplete"
         let plan = data["plan"] as? String ?? "starter"
-        let isActive = data["isActive"] as? Bool ?? false
+        
+        // Handle legacy data: if isActive is missing but status is "active", treat as trial
+        let isActive: Bool
+        if let explicitActive = data["isActive"] as? Bool {
+            isActive = explicitActive
+        } else if status == "active" {
+            // Legacy data - assume trial period
+            isActive = true
+        } else {
+            isActive = false
+        }
+        
         let isInGrace = data["isInGrace"] as? Bool ?? false
         
         var trialEndsAt: Date?
         if let timestamp = data["trialEndsAt"] as? Timestamp {
             trialEndsAt = timestamp.dateValue()
+        } else if status == "active" && data["isActive"] == nil {
+            // Legacy data - set trial to 14 days from now
+            trialEndsAt = Calendar.current.date(byAdding: .day, value: 14, to: Date())
+            print("⚠️ Legacy billing data detected - initializing 14-day trial")
         }
         
         var currentPeriodEnd: Date?
@@ -118,6 +197,48 @@ class SubscriptionEnforcementService: ObservableObject {
             
         } catch {
             print("Error calculating lost revenue: \(error)")
+        }
+    }
+    
+    nonisolated func createCheckoutSession(organizationId: String, priceId: String) async -> URL? {
+        // Call Cloud Function to create Stripe Checkout session
+        do {
+            guard let userId = Auth.auth().currentUser?.uid else {
+                print("❌ No authenticated user")
+                return nil
+            }
+            
+            let endpoint = "https://us-central1-polyface-ae6d3.cloudfunctions.net/createStripeCheckout"
+            
+            guard let url = URL(string: endpoint) else { return nil }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let body: [String: Any] = [
+                "organizationId": organizationId,
+                "userId": userId,
+                "priceId": priceId
+            ]
+            
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            
+            guard let urlString = json?["url"] as? String,
+                  let checkoutUrl = URL(string: urlString) else {
+                print("❌ Failed to parse checkout URL from response")
+                return nil
+            }
+            
+            print("✅ Created Stripe Checkout session")
+            return checkoutUrl
+            
+        } catch {
+            print("❌ Error creating checkout session: \(error)")
+            return nil
         }
     }
     

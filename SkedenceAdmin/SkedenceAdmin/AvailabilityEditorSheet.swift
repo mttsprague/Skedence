@@ -12,6 +12,7 @@ struct AvailabilityEditorSheet: View {
     let defaultHour: Int
     let isAdmin: Bool
     let editingTrainerId: String?
+    let orgId: String?
     let onSaveSingle: (Date, Date, Date, TrainerScheduleSlot.Status, Bool) -> Void
     let onSaveOngoing: (Date?, Date?, Int?, Int?, Int?, [Int]?, TrainerScheduleSlot.Status, Bool) -> Void
     let onBookLesson: (String, TimeInterval, TimeInterval, String) -> Void // clientId, startTime, endTime, packageId
@@ -63,6 +64,7 @@ struct AvailabilityEditorSheet: View {
         defaultHour: Int,
         isAdmin: Bool = false,
         editingTrainerId: String? = nil,
+        orgId: String? = nil,
         onSaveSingle: @escaping (Date, Date, Date, TrainerScheduleSlot.Status, Bool) -> Void,
         onSaveOngoing: @escaping (Date?, Date?, Int?, Int?, Int?, [Int]?, TrainerScheduleSlot.Status, Bool) -> Void,
         onBookLesson: @escaping (String, TimeInterval, TimeInterval, String) -> Void = { _, _, _, _ in }
@@ -71,6 +73,7 @@ struct AvailabilityEditorSheet: View {
         self.defaultHour = defaultHour
         self.isAdmin = isAdmin
         self.editingTrainerId = editingTrainerId
+        self.orgId = orgId
         self.onSaveSingle = onSaveSingle
         self.onSaveOngoing = onSaveOngoing
         self.onBookLesson = onBookLesson
@@ -216,7 +219,7 @@ struct AvailabilityEditorSheet: View {
             
             Section {
                 // Package selector with grouped display
-                if let clientId = selectedClientId {
+                if selectedClientId != nil {
                     if isLoadingPackages {
                         HStack {
                             ProgressView()
@@ -448,12 +451,15 @@ struct AvailabilityEditorSheet: View {
     // MARK: - Admin Booking Functions
     
     private func loadClients() {
-        guard let trainerId = editingTrainerId else { return }
+        guard let trainerId = editingTrainerId,
+              let orgId = orgId else {
+            return
+        }
         
         isLoadingClients = true
         Task {
             do {
-                let clients = try await ClientsRepository().fetchClients(trainerId: trainerId)
+                let clients = try await ClientsRepository().fetchClients(trainerId: trainerId, orgId: orgId)
                 await MainActor.run {
                     self.allClients = clients
                     self.isLoadingClients = false

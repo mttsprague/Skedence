@@ -235,12 +235,19 @@ private struct SignInView: View {
         errorMessage = nil
         
         Task {
-            do {
-                _ = try await auth.signIn(email: email, password: password)
-                dismiss()
-            } catch {
-                errorMessage = error.localizedDescription
+            // Populate AuthManager's inputs and use its signIn() API
+            auth.emailInput = email
+            auth.passwordInput = password
+            
+            await auth.signIn()
+            
+            if let authError = auth.errorMessage, !authError.isEmpty {
+                // Surface error from AuthManager
+                errorMessage = authError
                 isSigningIn = false
+            } else {
+                // Success
+                dismiss()
             }
         }
     }

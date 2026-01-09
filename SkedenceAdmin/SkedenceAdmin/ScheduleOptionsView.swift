@@ -138,10 +138,17 @@ struct ScheduleOptionsView: View {
     }
 
     private func loadTrainers() async {
+        // Ensure we have an orgId to query trainers for
+        guard let orgId = auth.currentOrgId, !orgId.isEmpty else {
+            self.trainers = []
+            self.errorMessage = "No organization found for your account."
+            return
+        }
+
         isLoading = true
         defer { isLoading = false }
         do {
-            let list = try await FirestoreService.shared.fetchAllTrainers()
+            let list = try await FirestoreService.shared.fetchAllTrainers(orgId: orgId)
             // Optionally sort alphabetically
             self.trainers = list.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
             self.errorMessage = nil
@@ -203,3 +210,4 @@ struct ScheduleOptionsView: View {
         .padding(.vertical, 4)
     }
 }
+

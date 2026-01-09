@@ -18,14 +18,14 @@ service cloud.firestore {
     // Check if user has an active membership in the organization
     function isMemberOfOrg(orgId) {
       return isSignedIn() 
-        && existsAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId))
-        && getAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.isActive == true
-        && getAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.orgId == orgId;
+        && exists(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId))
+        && get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.isActive == true
+        && get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.orgId == orgId;
     }
 
     // Get user's role in an organization
     function getUserOrgRole(orgId) {
-      let memberDoc = getAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
+      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
       return memberDoc.data.role;
     }
 
@@ -81,11 +81,11 @@ service cloud.firestore {
     // ORGANIZATIONS COLLECTION
     // =========================================================================
     match /organizations/{orgId} {
-      // Members can read their own organization
+      // Members can read their organization
       allow read: if isMemberOfOrg(orgId);
       
       // Only owners can update organization settings (including onboarding progress)
-      allow update: if isOrgOwner(orgId) || isOrgAdmin(orgId);
+      allow update: if isOrgOwner(orgId);
       
       // No creation or deletion via client (managed by backend)
       allow create, delete: if false;
