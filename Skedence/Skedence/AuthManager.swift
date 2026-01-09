@@ -19,8 +19,15 @@ final class AuthManager: ObservableObject {
         return Auth.auth().currentUser != nil
     }
 
-    // Option B: No anonymous sign-in. Just mark the app ready to present UI.
+    // Check if user is already signed in and load their orgId
     func ensureSignedIn() async {
+        // If user is already authenticated, load their orgId
+        if let currentUser = Auth.auth().currentUser {
+            print("AuthManager: User already signed in: \(currentUser.uid)")
+            await loadOrgId(for: currentUser.uid)
+        } else {
+            print("AuthManager: No user signed in")
+        }
         isReady = true
     }
 
