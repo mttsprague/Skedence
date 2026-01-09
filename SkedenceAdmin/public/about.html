@@ -9,10 +9,22 @@
     <link rel="stylesheet" href="style.css">
     <style>
         .about-hero {
-            background: linear-gradient(135deg, #00bcd4 0%, #00acc1 100%);
+            background: var(--primary-color);
             color: var(--white);
             padding: 100px 0 80px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .about-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(13, 71, 161, 0.1) 0%, rgba(21, 101, 192, 0.1) 100%);
+            pointer-events: none;
         }
         .about-hero h1 {
             color: var(--white);

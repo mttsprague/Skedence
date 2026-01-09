@@ -6,16 +6,20 @@
 }
 
 :root {
-    --primary-color: #00bcd4;
-    --primary-dark: #0097a7;
-    --secondary-color: #00acc1;
+    --primary-color: #1565C0;
+    --primary-dark: #0D47A1;
+    --primary-light: #1976D2;
+    --accent-color: #FF6F00;
+    --accent-light: #FF9800;
     --text-dark: #1a202c;
     --text-light: #4a5568;
     --border-color: #e2e8f0;
-    --bg-light: #f7fafc;
+    --bg-light: #f8fafc;
     --white: #ffffff;
     --success: #48bb78;
-    --warning: #ed8936;
+    --shadow-sm: 0 2px 8px rgba(13, 71, 161, 0.1);
+    --shadow-md: 0 4px 16px rgba(13, 71, 161, 0.15);
+    --shadow-lg: 0 8px 32px rgba(13, 71, 161, 0.2);
     
     --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
     --max-width: 1200px;
@@ -72,20 +76,44 @@ p {
     font-weight: 600;
     text-decoration: none;
     border-radius: 8px;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     border: 2px solid transparent;
     text-align: center;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: var(--primary-color);
     color: var(--white);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
+    background: var(--primary-dark);
     transform: translateY(-2px);
-    box-shadow: var(--box-shadow-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* White buttons for blue backgrounds */
+.btn-white {
+    background: var(--white);
+    color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-white:hover {
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    color: var(--primary-dark);
+}
+
+.btn-white:active {
+    transform: translateY(0);
 }
 
 .btn-secondary {
@@ -97,6 +125,19 @@ p {
 .btn-secondary:hover {
     background: var(--primary-color);
     color: var(--white);
+    box-shadow: var(--shadow-sm);
+}
+
+/* White outline buttons for blue backgrounds */
+.btn-outline-white {
+    background: transparent;
+    color: var(--white);
+    border: 2px solid var(--white);
+}
+
+.btn-outline-white:hover {
+    background: var(--white);
+    color: var(--primary-color);
 }
 
 .btn-outline {
@@ -108,6 +149,7 @@ p {
 .btn-outline:hover {
     border-color: var(--primary-color);
     color: var(--primary-color);
+    background: rgba(21, 101, 192, 0.05);
 }
 
 .btn-large {
@@ -188,10 +230,23 @@ p {
 
 /* Hero Section */
 .hero {
-    background: linear-gradient(135deg, #00bcd4 0%, #00acc1 100%);
+    background: var(--primary-color);
     color: var(--white);
     padding: 120px 0;
     text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(13, 71, 161, 0.1) 0%, rgba(21, 101, 192, 0.1) 100%);
+    pointer-events: none;
 }
 
 .hero h1 {
@@ -244,14 +299,16 @@ p {
 
 .feature-card {
     padding: 2rem;
-    background: var(--bg-light);
-    border-radius: var(--border-radius);
-    transition: transform 0.3s, box-shadow 0.3s;
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .feature-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--box-shadow-lg);
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-color);
 }
 
 .feature-icon {
@@ -288,9 +345,17 @@ p {
 .step-number {
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, #00bcd4, #00acc1);
+    background: var(--accent-color);
     color: var(--white);
     border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 auto 1.5rem;
+    box-shadow: var(--shadow-md);
+}
     display: flex;
     align-items: center;
     justify-content: center;
@@ -313,9 +378,17 @@ p {
 
 .testimonial-card {
     padding: 2.5rem;
-    background: var(--bg-light);
-    border-radius: var(--border-radius);
-    border-left: 4px solid var(--primary-color);
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent-color);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.testimonial-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-4px);
 }
 
 .stars {
@@ -357,19 +430,26 @@ p {
 .pricing-card {
     background: var(--white);
     padding: 2.5rem;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    transition: transform 0.3s, box-shadow 0.3s;
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
 }
 
 .pricing-card:hover {
     transform: translateY(-8px);
-    box-shadow: var(--box-shadow-lg);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-light);
 }
 
 .pricing-card.featured {
     border: 3px solid var(--primary-color);
+    box-shadow: var(--shadow-md);
+}
+
+.pricing-card.featured:hover {
+    box-shadow: var(--shadow-lg);
 }
 
 .badge {
@@ -377,12 +457,13 @@ p {
     top: -12px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--primary-color);
+    background: var(--accent-color);
     color: var(--white);
     padding: 6px 20px;
     border-radius: 20px;
     font-size: 0.875rem;
     font-weight: 600;
+    box-shadow: var(--shadow-sm);
 }
 
 .pricing-card h3 {
@@ -487,8 +568,15 @@ p {
 
 .faq-item {
     padding: 2rem;
-    background: var(--bg-light);
-    border-radius: var(--border-radius);
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.faq-item:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--primary-light);
 }
 
 .faq-item h3 {
@@ -504,9 +592,22 @@ p {
 /* CTA Section */
 .cta {
     padding: 100px 0;
-    background: linear-gradient(135deg, #00bcd4, #00acc1);
+    background: var(--primary-color);
     color: var(--white);
     text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.cta::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(13, 71, 161, 0.1) 0%, rgba(21, 101, 192, 0.1) 100%);
+    pointer-events: none;
 }
 
 .cta h2 {
