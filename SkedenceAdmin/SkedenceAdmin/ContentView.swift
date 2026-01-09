@@ -33,6 +33,7 @@ struct ContentView: View {
                     Label("Admin", systemImage: selectedTab == 2 ? "star.fill" : "star")
                 }
                 .tag(2)
+                .environmentObject(auth)
 
             MoreView()
                 .tabItem {

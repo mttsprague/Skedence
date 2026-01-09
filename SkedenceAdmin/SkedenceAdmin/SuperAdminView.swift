@@ -47,7 +47,7 @@ struct SuperAdminView: View {
                     }
                 }
             }
-            .navigationTitle("Super Admin")
+            .navigationTitle("Admin")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
