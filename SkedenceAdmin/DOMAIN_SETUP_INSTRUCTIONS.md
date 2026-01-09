@@ -1,9 +1,10 @@
 # Skedence.com Domain Setup Instructions
 
-## Status: In Progress ⏳
+## Status: ✅ COMPLETED
 
-**Domain Purchased:** Squarespace
-**Target:** Connect to Firebase Hosting (polyface-ae6d3.web.app)
+**Domain:** skedence.com (Squarespace)
+**Connected to:** Firebase Hosting (polyface-ae6d3.web.app)
+**SSL:** Active and provisioned
 
 ---
 
@@ -114,16 +115,16 @@ Firebase automatically provisions a free SSL certificate from Let's Encrypt.
 
 Once domain is live, update these URLs in your Stripe webhook settings:
 
-### Current URLs (Firebase):
-```
-Success: https://polyface-ae6d3.web.app/checkout-success
-Cancel: https://polyface-ae6d3.web.app/checkout-cancel
-```
-
-### New URLs (Custom Domain):
+### ✅ Live URLs (Custom Domain):
 ```
 Success: https://skedence.com/checkout-success
 Cancel: https://skedence.com/checkout-cancel
+```
+
+### Backup URLs (Firebase):
+```
+Success: https://polyface-ae6d3.web.app/checkout-success
+Cancel: https://polyface-ae6d3.web.app/checkout-cancel
 ```
 
 **Update In:**
@@ -260,11 +261,11 @@ After domain is live:
 ## Quick Reference
 
 **Firebase Project:** polyface-ae6d3
-**Current URL:** https://polyface-ae6d3.web.app
-**Custom Domain:** https://skedence.com (in setup)
+**Live Domain:** https://skedence.com ✅
+**Firebase URL:** https://polyface-ae6d3.web.app (backup)
 **DNS Provider:** Squarespace
 **Hosting:** Firebase Hosting
-**SSL:** Auto-provisioned by Firebase (Let's Encrypt)
+**SSL:** Active (Let's Encrypt)
 
 ---
 

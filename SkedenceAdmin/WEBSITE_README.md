@@ -4,8 +4,8 @@ Complete marketing website for Skedence coaching management platform, deployed o
 
 ## 🌐 Live Website
 
-- **Hosting URL:** https://polyface-ae6d3.web.app
-- **Custom Domain:** (To be configured) https://skedence.com
+- **Primary URL:** https://skedence.com ✅
+- **Firebase URL:** https://polyface-ae6d3.web.app (backup)
 
 ## 📄 Pages
 
@@ -301,6 +301,6 @@ Before going live with custom domain:
 
 ---
 
-**Last Updated:** January 2024
-**Deployed URL:** https://polyface-ae6d3.web.app
-**Status:** ✅ Live and functional
+**Last Updated:** January 2026
+**Live URL:** https://skedence.com
+**Status:** ✅ Live with custom domain
