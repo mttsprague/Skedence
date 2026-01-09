@@ -87,7 +87,8 @@ class SuperAdminViewModel: ObservableObject {
                 let data = doc.data()
                 return AdminTrainer(
                     id: doc.documentID,
-                    name: data["name"] as? String ?? "Unknown",
+                    firstName: data["firstName"] as? String ?? "",
+                    lastName: data["lastName"] as? String ?? "",
                     email: data["email"] as? String,
                     orgId: data["orgId"] as? String,
                     organizationName: nil, // Will be populated separately if needed
@@ -149,14 +150,11 @@ class SuperAdminViewModel: ObservableObject {
                 if let userDoc = try? await db.collection("users").document(memberId).getDocument(),
                    let userData = userDoc.data() {
                     
-                    let name = userData["name"] as? String ?? ""
-                    let nameParts = name.split(separator: " ")
-                    
                     users.append(AdminUser(
                         id: userDoc.documentID,
-                        firstName: nameParts.first.map(String.init) ?? "",
-                        lastName: nameParts.dropFirst().joined(separator: " "),
-                        emailAddress: userData["email"] as? String,
+                        firstName: userData["firstName"] as? String ?? "",
+                        lastName: userData["lastName"] as? String ?? "",
+                        emailAddress: userData["emailAddress"] as? String ?? userData["email"] as? String,
                         orgId: userData["orgId"] as? String ?? orgId,
                         organizationName: nil,
                         role: memberData["role"] as? String
@@ -380,8 +378,13 @@ class AddTrainerViewModel: ObservableObject {
             let trainerRef = db.collection("trainers").document()
             let trainerId = trainerRef.documentID
             
+            let nameParts = name.split(separator: " ")
+            let firstName = nameParts.first.map(String.init) ?? name
+            let lastName = nameParts.dropFirst().joined(separator: " ")
+            
             let trainerData: [String: Any] = [
-                "name": name,
+                "firstName": firstName,
+                "lastName": lastName.isEmpty ? "" : lastName,
                 "email": email,
                 "orgId": orgId,
                 "userId": userId,
@@ -436,12 +439,17 @@ struct Organization: Identifiable {
 
 struct AdminTrainer: Identifiable {
     let id: String
-    let name: String
+    let firstName: String
+    let lastName: String
     let email: String?
     let orgId: String?
     var organizationName: String?
     let role: String?
     let active: Bool?
+    
+    var displayName: String {
+        "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+    }
 }
 
 struct AdminUser: Identifiable {

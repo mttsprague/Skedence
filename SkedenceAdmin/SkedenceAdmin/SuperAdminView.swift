@@ -361,7 +361,7 @@ struct TrainerCard: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(trainer.name)
+                Text(trainer.displayName)
                     .font(.headingSmall)
                     .foregroundStyle(AppTheme.textPrimary)
                 

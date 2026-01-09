@@ -283,6 +283,10 @@ export const bookLesson = functions.https.onCall(
         });
 
         const newBookingRef = db.collection("bookings").doc();
+        const trainerFirstName = trainerData.firstName || "";
+        const trainerLastName = trainerData.lastName || "";
+        const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
+        
         transaction.set(newBookingRef, {
           clientUID: userId,
           trainerId: trainerId,
@@ -292,7 +296,7 @@ export const bookLesson = functions.https.onCall(
           packageId: lessonPackageId,
           bookedAt: admin.firestore.FieldValue.serverTimestamp(),
           status: "confirmed",
-          trainerName: trainerData.name || "Unknown Trainer",
+          trainerName: trainerFullName,
           clientName: clientFullName,
           scheduleSlotId: slotId,
         });
@@ -861,6 +865,10 @@ export const processTrainerAvailability = functions.https.onCall(
           const existingSlotDoc = await slotRef.get();
 
           if (!existingSlotDoc.exists) {
+            const trainerFirstName = trainerData.firstName || "";
+            const trainerLastName = trainerData.lastName || "";
+            const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
+            
             batch.set(slotRef, {
               status: status,
               startTime: slotStartTime,
@@ -868,7 +876,7 @@ export const processTrainerAvailability = functions.https.onCall(
               clientId: null,
               clientName: null,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              trainerName: trainerData.name || "Unknown Trainer",
+              trainerName: trainerFullName,
             });
             slotsAddedCount++;
           } else {

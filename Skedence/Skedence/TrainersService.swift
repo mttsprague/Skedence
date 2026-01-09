@@ -29,7 +29,8 @@ final class TrainersService: ObservableObject {
                 let data = doc.data()
                 return Trainer(
                     id: doc.documentID,
-                    name: data["name"] as? String,
+                    firstName: data["firstName"] as? String,
+                    lastName: data["lastName"] as? String,
                     email: data["email"] as? String,
                     avatarUrl: data["avatarUrl"] as? String,
                     photoURL: data["photoURL"] as? String,
