@@ -26,6 +26,9 @@ export * from "./quotas";
 // Export trainer invitation functions
 export * from "./trainerInvitations";
 
+// Export trainer limit enforcement functions
+export * from "./trainerLimits";
+
 const db = admin.firestore();
 
 /**

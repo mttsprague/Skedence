@@ -15,12 +15,33 @@ struct SuperAdminView: View {
     @State private var selectedTab: AdminTab = .organizations
     @State private var showingCreateOrganization = false
     @State private var showingAddTrainer = false
+    @State private var showingUpgradeAlert = false
     @State private var alertItem: AlertItem?
     
     enum AdminTab: String, CaseIterable {
         case organizations = "Organizations"
         case trainers = "Trainers"
         case users = "Users"
+    }
+    
+    // Trainer limits based on plan
+    var trainerLimit: Int {
+        switch auth.billingPlan.lowercased() {
+        case "free": return 2 // Owner + 1 trainer during trial
+        case "starter": return 1
+        case "studio": return 5
+        case "academy": return 15
+        case "enterprise": return 999
+        default: return 2
+        }
+    }
+    
+    var canAddTrainer: Bool {
+        return viewModel.trainers.count < trainerLimit
+    }
+    
+    var trainerLimitMessage: String {
+        "You have \(viewModel.trainers.count) of \(trainerLimit) trainers. Upgrade to add more."
     }
     
     var body: some View {
@@ -51,19 +72,25 @@ struct SuperAdminView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        switch selectedTab {
-                        case .organizations:
-                            showingCreateOrganization = true
-                        case .trainers:
-                            showingAddTrainer = true
-                        case .users:
-                            break
+                    if selectedTab == .trainers || selectedTab == .organizations {
+                        Button {
+                            if selectedTab == .trainers {
+                                if canAddTrainer {
+                                    showingAddTrainer = true
+                                } else {
+                                    alertItem = AlertItem(
+                                        title: "Trainer Limit Reached",
+                                        message: trainerLimitMessage
+                                    )
+                                }
+                            } else if selectedTab == .organizations {
+                                showingCreateOrganization = true
+                            }
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(selectedTab == .trainers && !canAddTrainer ? .gray : AppTheme.primary)
                         }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(AppTheme.primary)
                     }
                 }
             }
@@ -83,6 +110,19 @@ struct SuperAdminView: View {
             }
             .alert(item: $alertItem) { item in
                 Alert(title: Text(item.title), message: Text(item.message))
+            }
+            .alert("Upgrade Your Plan", isPresented: $showingUpgradeAlert) {
+                Button("Contact Sales") {
+                    // TODO: Open email or contact form
+                    if let url = URL(string: "mailto:support@skedence.com?subject=Upgrade%20Request") {
+                        #if os(iOS)
+                        UIApplication.shared.open(url)
+                        #endif
+                    }
+                }
+                Button("Not Now", role: .cancel) {}
+            } message: {
+                Text("Upgrade to a higher plan to add more trainers and unlock additional features.")
             }
         }
         .navigationViewStyle(.stack)
@@ -122,6 +162,30 @@ struct SuperAdminView: View {
     
     private var trainersContent: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
+            // Trainer limit banner
+            if !canAddTrainer {
+                HStack {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(.orange)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Trainer Limit Reached")
+                            .font(.headline)
+                        Text("You have \(viewModel.trainers.count) of \(trainerLimit) trainers. Upgrade your plan to add more trainers.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button("Upgrade") {
+                        // TODO: Open upgrade/billing view
+                        showingUpgradeAlert = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(CornerRadius.md)
+            }
+            
             if viewModel.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
