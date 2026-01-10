@@ -204,11 +204,6 @@ struct MoreView: View {
                                         }
                                         return "User"
                                     }())
-                                    
-                                    if let orgId = auth.currentOrgId {
-                                        Divider()
-                                        InfoRow(label: "Organization ID", value: orgId, copyable: true)
-                                    }
                                 }
                             }
                         }

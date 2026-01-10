@@ -89,7 +89,11 @@ service cloud.firestore {
     // =========================================================================
     match /organizations/{orgId} {
       // Members can read their own organization (including pricing structure)
-      allow read: if isMemberOfOrg(orgId);
+      // Also allow reading for invite code validation during registration
+      allow get: if isMemberOfOrg(orgId);
+      
+      // Allow querying by inviteCode for registration validation
+      allow list: if isSignedIn();
       
       // Admins can update organization settings (including pricing structure)
       // Owners have full control
@@ -212,15 +216,9 @@ service cloud.firestore {
       // Schedules subcollection
       match /schedules/{slotId} {
         // Trainers/admins in the org can read all schedules
-        // Allow get for individual documents
-        allow get: if 'orgId' in resource.data && isOrgTrainer(resource.data.orgId);
-        
-        // Allow list queries for trainers in same org as parent trainer
-        allow list: if isSignedIn() && exists(/databases/$(database)/documents/trainers/$(trainerId)) 
-          && 'orgId' in get(/databases/$(database)/documents/trainers/$(trainerId)).data
-          && isOrgTrainer(get(/databases/$(database)/documents/trainers/$(trainerId)).data.orgId);
+        allow read: if 'orgId' in resource.data && isOrgTrainer(resource.data.orgId);
 
-        // Trainer owner or other trainers/admins in org can create/update/delete
+        // Trainers can manage their own schedules, admins/owners can manage any trainer's schedules in their org
         allow create, update, delete: if isSignedIn() && (
           (request.auth.uid == trainerId && newDocBelongsToUserOrg())
           || ('orgId' in request.resource.data && isOrgTrainer(request.resource.data.orgId))
@@ -258,12 +256,12 @@ service cloud.firestore {
       // Anyone in the same org can read classes
       allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
       
-      // Only admins can create, update, or delete classes
+      // Trainers, admins, and owners can create, update, or delete classes
       allow create: if newDocBelongsToUserOrg() 
-        && isOrgAdmin(request.resource.data.orgId);
+        && isOrgTrainer(request.resource.data.orgId);
       
       allow update, delete: if belongsToUserOrg() 
-        && isOrgAdmin(resource.data.orgId);
+        && isOrgTrainer(resource.data.orgId);
       
       // Participants subcollection
       match /participants/{participantId} {
