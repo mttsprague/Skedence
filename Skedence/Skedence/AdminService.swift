@@ -270,6 +270,13 @@ final class AdminService: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Unauthorized"])
         }
         
+        // Get the user's orgId
+        let userDoc = try await db.collection("users").document(clientId).getDocument()
+        guard let orgId = userDoc.data()?["orgId"] as? String else {
+            throw NSError(domain: "AdminService", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "User organization not found"])
+        }
+        
         let now = Date()
         let expirationDate = Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now.addingTimeInterval(365 * 24 * 60 * 60)
         
@@ -279,7 +286,8 @@ final class AdminService: ObservableObject {
             "lessonsUsed": 0,
             "purchaseDate": Timestamp(date: now),
             "expirationDate": Timestamp(date: expirationDate),
-            "transactionId": "ADMIN_ADDED_\(UUID().uuidString)"
+            "transactionId": "ADMIN_ADDED_\(UUID().uuidString)",
+            "orgId": orgId
         ]
         
         try await db.collection("users")
