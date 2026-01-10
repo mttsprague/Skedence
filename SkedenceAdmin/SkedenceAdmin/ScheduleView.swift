@@ -130,11 +130,6 @@ struct ScheduleView: View {
             
             header
             
-            // Admin trainer selector
-            if auth.isAdmin {
-                trainerSelectorView
-            }
-
             WeekStrip(
                 title: viewModel.weekTitle,
                 weekDays: viewModel.weekDays,
@@ -171,29 +166,69 @@ struct ScheduleView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Button {
-                showOptions = true
-            } label: {
-                HStack(spacing: 12) {
-                    avatarView
-                        .frame(width: 36, height: 36)
+            // Trainer selector (menu for admins, button for trainers)
+            if auth.isAdmin {
+                Menu {
+                    ForEach(viewModel.allTrainers) { trainer in
+                        Button {
+                            viewModel.editingTrainerId = trainer.id
+                            Task { await viewModel.loadWeek() }
+                        } label: {
+                            HStack {
+                                Text(trainer.displayName)
+                                if viewModel.editingTrainerId == trainer.id || (viewModel.editingTrainerId == nil && trainer.id == auth.userId) {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        avatarView
+                            .frame(width: 36, height: 36)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(auth.trainerDisplayName ?? "My Schedule")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(viewModel.allTrainers.first(where: { $0.id == (viewModel.editingTrainerId ?? auth.userId) })?.displayName ?? "Select Trainer")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
 
-                        if auth.isAuthenticated {
-                            Text(auth.isAdmin ? "Admin" : "You")
+                            HStack(spacing: 4) {
+                                Text("Admin")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button {
+                    showOptions = true
+                } label: {
+                    HStack(spacing: 12) {
+                        avatarView
+                            .frame(width: 36, height: 36)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(auth.trainerDisplayName ?? "My Schedule")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+
+                            Text("You")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             
             Spacer()
             
@@ -224,34 +259,6 @@ struct ScheduleView: View {
         .padding(.horizontal)
         .padding(.vertical, 8)
         .padding(.top, 8)
-    }
-    
-    private var trainerSelectorView: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text("Editing Schedule For:")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            
-            Picker("Trainer", selection: Binding(
-                get: { viewModel.editingTrainerId ?? auth.userId ?? "" },
-                set: { newValue in
-                    viewModel.editingTrainerId = newValue
-                    Task { await viewModel.loadWeek() }
-                }
-            )) {
-                ForEach(viewModel.allTrainers) { trainer in
-                    Text(trainer.displayName).tag(trainer.id)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(Color(UIColor.systemGray6))
     }
 
     @ViewBuilder

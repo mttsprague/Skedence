@@ -14,6 +14,7 @@ struct AdminPanelView: View {
     @StateObject private var trainersService = TrainersService()
     @StateObject private var packagesService = PackagesService()
     @StateObject private var pricingService = PricingStructureService()
+    @StateObject private var locationsService = LocationsService()
     @State private var showingCreateClass = false
     @State private var showingEditClass = false
     @State private var classToEdit: GroupClass?
@@ -34,6 +35,7 @@ struct AdminPanelView: View {
     enum AdminTab: String, CaseIterable {
         case passes = "Passes"
         case classes = "Classes"
+        case locations = "Locations"
         case wallet = "Wallet"
         case pricingStructure = "Pricing Structure"
     }
@@ -110,6 +112,7 @@ struct AdminPanelView: View {
                 await trainersService.loadAll(orgId: orgId)
                 await adminService.loadAllUsers(orgId: orgId)
                 await pricingService.loadPricingStructure(for: orgId)
+                locationsService.loadLocations(orgId: orgId)
                 
                 // Set default pass type to first package if none selected
                 if selectedPassType.isEmpty, let firstPackage = pricingService.allPackageOptions.first {
@@ -126,6 +129,7 @@ struct AdminPanelView: View {
                 Picker("Tab", selection: $tabSelection) {
                     Text("Passes").tag(AdminTab.passes)
                     Text("Classes").tag(AdminTab.classes)
+                    Text("Locations").tag(AdminTab.locations)
                     Text("Wallet").tag(AdminTab.wallet)
                     Text("Pricing").tag(AdminTab.pricingStructure)
                 }
@@ -136,6 +140,8 @@ struct AdminPanelView: View {
                 // Content based on tab
                 if tabSelection == .passes {
                     passesContent
+                } else if tabSelection == .locations {
+                    locationsContent
                 } else if tabSelection == .wallet {
                     walletContent
                 } else if tabSelection == .pricingStructure {
@@ -1192,6 +1198,149 @@ extension AdminPanelView {
             }
             
             isSavingPricing = false
+        }
+    }
+    
+    // MARK: - Locations Content
+    
+    private var locationsContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            // Locations list
+            ForEach(Array(locationsService.locations.enumerated()), id: \.element.id) { index, location in
+                LocationCard(
+                    location: location,
+                    onEdit: {
+                        // TODO: Add edit functionality
+                    },
+                    onDelete: {
+                        Task {
+                            do {
+                                try await locationsService.deleteLocation(location)
+                            } catch {
+                                alertItem = AlertItem(title: "Error", message: "Failed to delete location: \(error.localizedDescription)")
+                            }
+                        }
+                    }
+                )
+                .padding(.horizontal, Spacing.lg)
+            }
+            
+            // Add Location button or upgrade prompt
+            if canAddMoreLocations {
+                Button {
+                    // TODO: Show add location sheet
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                        Text("Add Location")
+                            .font(.bodyMedium.weight(.semibold))
+                    }
+                    .foregroundStyle(AppTheme.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(AppTheme.primaryLight.opacity(0.1))
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal, Spacing.lg)
+            } else {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("Location Limit Reached")
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    
+                    Text("Upgrade your subscription to add more locations")
+                        .font(.bodyMedium)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    
+                    Button {
+                        // TODO: Navigate to pricing/upgrade
+                    } label: {
+                        Text("Upgrade Subscription")
+                            .font(.bodyMedium.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Spacing.md)
+                            .background(AppTheme.primary)
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(Spacing.lg)
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal, Spacing.lg)
+            }
+        }
+        .padding(.top, Spacing.md)
+    }
+    
+    private var canAddMoreLocations: Bool {
+        // Free trial and Starter: 1 location
+        // Studio: 2 locations
+        // Academy: 5 locations  
+        // Enterprise: unlimited
+        let maxLocations: Int
+        
+        // TODO: Get actual subscription tier from auth/organization
+        // For now, default to 1 (free/starter)
+        maxLocations = 1
+        
+        return locationsService.locations.count < maxLocations
+    }
+}
+
+// MARK: - Location Card Component
+
+struct LocationCard: View {
+    let location: Location
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    
+    var body: some View {
+        CardView(padding: Spacing.md) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(location.name)
+                            .font(.headingSmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        Text(location.addressLine1)
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        if let line2 = location.addressLine2, !line2.isEmpty {
+                            Text(line2)
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        
+                        Text(location.cityStateZip)
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Menu {
+                        Button {
+                            onEdit()
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        
+                        Button(role: .destructive) {
+                            onDelete()
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                }
+            }
         }
     }
 }

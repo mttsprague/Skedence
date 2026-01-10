@@ -14,17 +14,18 @@ struct HomeView: View {
     @ObservedObject var usersService: UsersService
     @ObservedObject var scheduleService: ScheduleService
     @ObservedObject var classesService: ClassesService
+    @StateObject private var locationsService = LocationsService()
     @Environment(\.openURL) private var openURL
     
     @Binding var selectedTab: Int
     @Binding var bookViewMode: Int
 
-    private let venueName = "Oakwood Community Church"
-    private let venueAddressLine = "3927 Webb Rd"
-    private let venueCityStateZip = "Chattanooga, TN 37416"
-
     private var isAuthenticated: Bool {
         Auth.auth().currentUser != nil
+    }
+    
+    private var primaryLocation: Location? {
+        locationsService.locations.first
     }
 
     var body: some View {
@@ -45,52 +46,58 @@ struct HomeView: View {
                     .padding(.top, Spacing.md)
                     .onAppear {
                         AnalyticsService.shared.logScreenView(screenName: "Home", screenClass: "HomeView")
+                        
+                        // Load locations
+                        if let orgId = auth.currentOrgId {
+                            locationsService.loadLocations(orgId: orgId)
+                        }
                     }
 
                     // Location Card
-                    CardView(padding: Spacing.md) {
-                        Button {
-                            openInMaps(address: "\(venueAddressLine), \(venueCityStateZip)")
-                        } label: {
-                            HStack(spacing: Spacing.md) {
-                                ZStack {
-                                    Circle()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [AppTheme.primary, AppTheme.primaryLight],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
+                    if let location = primaryLocation {
+                        CardView(padding: Spacing.md) {
+                            Button {
+                                openInMaps(address: location.fullAddress)
+                            } label: {
+                                HStack(spacing: Spacing.md) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [AppTheme.primary, AppTheme.primaryLight],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing)
                                             )
-                                        )
-                                        .frame(width: 56, height: 56)
-                                    
-                                    Image(systemName: "mappin.circle.fill")
-                                        .font(.system(size: 26))
-                                        .foregroundStyle(.white)
+                                            .frame(width: 56, height: 56)
+                                        
+                                        Image(systemName: "mappin.circle.fill")
+                                            .font(.system(size: 26))
+                                            .foregroundStyle(.white)
+                                    }
+
+                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                        Text(location.name)
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        
+                                        Text(location.addressLine1)
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                        
+                                        Text(location.cityStateZip)
+                                            .font(.bodySmall)
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundStyle(AppTheme.primary.opacity(0.3))
                                 }
-
-                                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    Text("Skedence Volleyball Academy")
-                                        .font(.headingSmall)
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                    
-                                    Text(venueName)
-                                        .font(.bodyMedium)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                    
-                                    Text(venueAddressLine)
-                                        .font(.bodySmall)
-                                        .foregroundStyle(AppTheme.textTertiary)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right.circle.fill")
-                                    .font(.system(size: 24))
-                                    .foregroundStyle(AppTheme.primary.opacity(0.3))
                             }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     // Coming Up Section
