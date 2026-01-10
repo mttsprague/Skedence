@@ -203,9 +203,9 @@ struct ScheduleView: View {
                             }
                         }
                     }
+                    .padding(4)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
             } else {
                 Button {
                     showOptions = true
