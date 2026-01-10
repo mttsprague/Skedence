@@ -218,10 +218,17 @@ service cloud.firestore {
         // Anyone in the same org can read schedules
         allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
 
-        // Trainer owner or other trainers/admins in org can create/update/delete
+        // Trainers can manage their own schedules if they belong to the org
+        // Admins/owners can manage any trainer's schedules in their org
         allow create, update, delete: if isSignedIn() && (
-          (request.auth.uid == trainerId && newDocBelongsToUserOrg())
-          || ('orgId' in request.resource.data && isOrgTrainer(request.resource.data.orgId))
+          // Trainer managing their own schedule
+          (request.auth.uid == trainerId 
+            && 'orgId' in request.resource.data 
+            && isMemberOfOrg(request.resource.data.orgId))
+          // OR admin/owner managing any trainer's schedule in their org
+          || (exists(/databases/$(database)/documents/trainers/$(trainerId))
+            && 'orgId' in get(/databases/$(database)/documents/trainers/$(trainerId)).data
+            && isOrgTrainer(get(/databases/$(database)/documents/trainers/$(trainerId)).data.orgId))
         );
       }
     }
