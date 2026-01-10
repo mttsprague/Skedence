@@ -135,39 +135,184 @@ struct MorePlaceholderView: View {
                         }
                     }
                     
-                    // Legal Section
+                    // Support & Help Section
                     VStack(alignment: .leading, spacing: Spacing.md) {
-                        SectionHeaderView(title: "Legal")
+                        SectionHeaderView(title: "Support")
                         
                         CardView {
-                            Link(destination: URL(string: "https://www.skedence.com/privacy")!) {
+                            VStack(spacing: Spacing.md) {
+                                // Help Center
+                                Link(destination: URL(string: "https://www.skedence.com/help")!) {
+                                    HStack(spacing: Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(AppTheme.secondary.opacity(0.15))
+                                                .frame(width: 48, height: 48)
+                                            
+                                            Image(systemName: "questionmark.circle.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(AppTheme.secondary)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Help Center")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.primary)
+                                            
+                                            Text("FAQs and guides")
+                                                .font(.labelMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "arrow.up.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                    }
+                                }
+                                
+                                Divider()
+                                
+                                // Contact Organization
                                 HStack(spacing: Spacing.md) {
                                     ZStack {
                                         RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
-                                            .fill(AppTheme.accent.opacity(0.15))
+                                            .fill(AppTheme.primary.opacity(0.15))
                                             .frame(width: 48, height: 48)
                                         
-                                        Image(systemName: "hand.raised.fill")
+                                        Image(systemName: "building.2.fill")
                                             .font(.system(size: 20))
-                                            .foregroundStyle(AppTheme.accent)
+                                            .foregroundStyle(AppTheme.primary)
                                     }
                                     
                                     VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                        Text("Privacy Policy")
+                                        Text("Organization Support")
                                             .font(.bodyMedium)
                                             .foregroundStyle(AppTheme.primary)
                                         
-                                        Text("View our privacy policy")
+                                        Text("Contact your administrator")
                                             .font(.labelMedium)
                                             .foregroundStyle(AppTheme.textSecondary)
                                     }
                                     
                                     Spacer()
                                     
-                                    Image(systemName: "arrow.up.right")
+                                    Image(systemName: "chevron.right")
                                         .font(.system(size: 14, weight: .semibold))
                                         .foregroundStyle(AppTheme.textTertiary)
                                 }
+                            }
+                        }
+                    }
+                    
+                    // Legal Section
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        SectionHeaderView(title: "Legal")
+                        
+                        CardView {
+                            VStack(spacing: Spacing.md) {
+                                // Privacy Policy
+                                Link(destination: URL(string: "https://www.skedence.com/privacy")!) {
+                                    HStack(spacing: Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(AppTheme.accent.opacity(0.15))
+                                                .frame(width: 48, height: 48)
+                                            
+                                            Image(systemName: "hand.raised.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(AppTheme.accent)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Privacy Policy")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.primary)
+                                            
+                                            Text("How we protect your data")
+                                                .font(.labelMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "arrow.up.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                    }
+                                }
+                                
+                                Divider()
+                                
+                                // Terms of Service
+                                Link(destination: URL(string: "https://www.skedence.com/terms")!) {
+                                    HStack(spacing: Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(AppTheme.primary.opacity(0.15))
+                                                .frame(width: 48, height: 48)
+                                            
+                                            Image(systemName: "doc.text.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(AppTheme.primary)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Terms of Service")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.primary)
+                                            
+                                            Text("Platform usage agreement")
+                                                .font(.labelMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "arrow.up.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // About Skedence
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        SectionHeaderView(title: "About")
+                        
+                        CardView {
+                            VStack(alignment: .leading, spacing: Spacing.md) {
+                                HStack(spacing: Spacing.md) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                            .fill(AppTheme.primary.opacity(0.15))
+                                            .frame(width: 48, height: 48)
+                                        
+                                        Image(systemName: "calendar.badge.clock")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(AppTheme.primary)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                        Text("Skedence Platform")
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.primary)
+                                        
+                                        Text("Version 1.0")
+                                            .font(.labelMedium)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
+                                    
+                                    Spacer()
+                                }
+                                
+                                Text("You're using Skedence, a scheduling platform for fitness and sports organizations. This app is powered by your organization's account.")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
@@ -178,7 +323,7 @@ struct MorePlaceholderView: View {
                             .font(.labelMedium)
                             .foregroundStyle(AppTheme.textSecondary)
                         
-                        Text("Version 1.0")
+                        Text("© 2026 All rights reserved")
                             .font(.labelSmall)
                             .foregroundStyle(AppTheme.textTertiary)
                     }
