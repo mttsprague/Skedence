@@ -307,20 +307,30 @@ export const createPaymentIntentConnect = functions.https.onCall(
         );
       }
 
-      // Validate package amount
-      const validPackages: { [key: string]: number } = {
-        single: 8000, // $80
-        five_pack: 37500, // $375
-        ten_pack: 70000, // $700
-        two_athlete: 14000, // $140
-        three_athlete: 18000, // $180
-        class_pass: 4500, // $45
-      };
+      // Load organization's pricing structure
+      const validPackages: { [key: string]: number } = {};
+      
+      if (orgData.pricingStructure?.tiers) {
+        // Load from dynamic pricing structure
+        for (const tier of orgData.pricingStructure.tiers) {
+          for (const pkg of tier.packages) {
+            validPackages[pkg.packageType] = pkg.priceInCents;
+          }
+        }
+        console.log(`✅ Loaded ${Object.keys(validPackages).length} packages from pricing structure for org ${orgId}`);
+      } else {
+        // Fallback to default pricing if no custom structure
+        console.log("⚠️ No pricing structure found for org, using default pricing");
+        validPackages.private = 8000; // $80
+        validPackages["2_athlete"] = 12000; // $120
+        validPackages["3_athlete"] = 16000; // $160
+        validPackages.class_pass = 2000; // $20
+      }
 
       if (!validPackages[packageType] || validPackages[packageType] !== amount) {
         throw new functions.https.HttpsError(
           "invalid-argument",
-          "Invalid package type or amount"
+          `Invalid package type or amount. Expected ${validPackages[packageType]} for ${packageType}, got ${amount}`
         );
       }
 
