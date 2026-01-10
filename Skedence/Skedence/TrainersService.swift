@@ -27,10 +27,22 @@ final class TrainersService: ObservableObject {
                 .getDocuments()
             trainers = snap.documents.map { doc in
                 let data = doc.data()
+                
+                // Handle both old (name) and new (firstName/lastName) schema
+                var firstName = data["firstName"] as? String
+                var lastName = data["lastName"] as? String
+                
+                // Fallback to old 'name' field if firstName doesn't exist
+                if firstName == nil, let oldName = data["name"] as? String {
+                    let parts = oldName.split(separator: " ", maxSplits: 1)
+                    firstName = String(parts.first ?? "")
+                    lastName = parts.count > 1 ? String(parts[1]) : ""
+                }
+                
                 return Trainer(
                     id: doc.documentID,
-                    firstName: data["firstName"] as? String,
-                    lastName: data["lastName"] as? String,
+                    firstName: firstName,
+                    lastName: lastName,
                     email: data["email"] as? String,
                     avatarUrl: data["avatarUrl"] as? String,
                     photoURL: data["photoURL"] as? String,

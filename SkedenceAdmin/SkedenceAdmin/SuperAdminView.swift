@@ -573,7 +573,8 @@ struct AddTrainerView: View {
     let onAdded: (String) -> Void
     
     @State private var trainerEmail = ""
-    @State private var trainerName = ""
+    @State private var trainerFirstName = ""
+    @State private var trainerLastName = ""
     @State private var trainerRole = "trainer"
     @State private var isAdding = false
     
@@ -596,7 +597,8 @@ struct AddTrainerView: View {
                     TextField("Email", text: $trainerEmail)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
-                    TextField("Name", text: $trainerName)
+                    TextField("First Name", text: $trainerFirstName)
+                    TextField("Last Name", text: $trainerLastName)
                     Picker("Role", selection: $trainerRole) {
                         ForEach(roles, id: \.self) { role in
                             Text(role.capitalized).tag(role)
@@ -644,7 +646,7 @@ struct AddTrainerView: View {
                             await addTrainer()
                         }
                     }
-                    .disabled(isAdding || orgId.isEmpty || trainerEmail.isEmpty || trainerName.isEmpty)
+                    .disabled(isAdding || orgId.isEmpty || trainerEmail.isEmpty || trainerFirstName.isEmpty || trainerLastName.isEmpty)
                 }
             }
         }
@@ -656,7 +658,8 @@ struct AddTrainerView: View {
         if let trainerId = await viewModel.addTrainer(
             orgId: orgId,
             email: trainerEmail,
-            name: trainerName,
+            firstName: trainerFirstName,
+            lastName: trainerLastName,
             role: trainerRole
         ) {
             await MainActor.run {

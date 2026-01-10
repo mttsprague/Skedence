@@ -85,10 +85,22 @@ class SuperAdminViewModel: ObservableObject {
             let snapshot = try await db.collection("trainers").getDocuments()
             trainers = snapshot.documents.compactMap { doc in
                 let data = doc.data()
+                
+                // Handle both old (name) and new (firstName/lastName) schema
+                var firstName = data["firstName"] as? String ?? ""
+                var lastName = data["lastName"] as? String ?? ""
+                
+                // Fallback to old 'name' field if firstName is empty
+                if firstName.isEmpty, let oldName = data["name"] as? String, !oldName.isEmpty {
+                    let parts = oldName.split(separator: " ", maxSplits: 1)
+                    firstName = String(parts.first ?? "")
+                    lastName = parts.count > 1 ? String(parts[1]) : ""
+                }
+                
                 return AdminTrainer(
                     id: doc.documentID,
-                    firstName: data["firstName"] as? String ?? "",
-                    lastName: data["lastName"] as? String ?? "",
+                    firstName: firstName,
+                    lastName: lastName,
                     email: data["email"] as? String,
                     orgId: data["orgId"] as? String,
                     organizationName: nil, // Will be populated separately if needed
@@ -323,7 +335,8 @@ class AddTrainerViewModel: ObservableObject {
     func addTrainer(
         orgId: String,
         email: String,
-        name: String,
+        firstName: String,
+        lastName: String,
         role: String
     ) async -> String? {
         errorMessage = nil
@@ -355,14 +368,10 @@ class AddTrainerViewModel: ObservableObject {
                 let userRef = db.collection("users").document()
                 userId = userRef.documentID
                 
-                let nameParts = name.split(separator: " ")
-                let firstName = nameParts.first.map(String.init) ?? name
-                let lastName = nameParts.dropFirst().joined(separator: " ")
-                
                 let userData: [String: Any] = [
                     "emailAddress": email,
                     "firstName": firstName,
-                    "lastName": lastName.isEmpty ? "" : lastName,
+                    "lastName": lastName,
                     "orgId": orgId,
                     "active": true,
                     "needsPasswordSetup": true, // Flag to indicate they need to set password
@@ -378,13 +387,9 @@ class AddTrainerViewModel: ObservableObject {
             let trainerRef = db.collection("trainers").document()
             let trainerId = trainerRef.documentID
             
-            let nameParts = name.split(separator: " ")
-            let firstName = nameParts.first.map(String.init) ?? name
-            let lastName = nameParts.dropFirst().joined(separator: " ")
-            
             let trainerData: [String: Any] = [
                 "firstName": firstName,
-                "lastName": lastName.isEmpty ? "" : lastName,
+                "lastName": lastName,
                 "email": email,
                 "orgId": orgId,
                 "userId": userId,
