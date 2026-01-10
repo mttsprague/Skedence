@@ -166,28 +166,16 @@ struct ScheduleView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            // Trainer selector (menu for admins, button for trainers)
-            if auth.isAdmin {
-                Menu {
-                    ForEach(viewModel.allTrainers) { trainer in
-                        Button {
-                            viewModel.editingTrainerId = trainer.id
-                            Task { await viewModel.loadWeek() }
-                        } label: {
-                            HStack {
-                                Text(trainer.displayName)
-                                if viewModel.editingTrainerId == trainer.id || (viewModel.editingTrainerId == nil && trainer.id == auth.userId) {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        avatarView
-                            .frame(width: 36, height: 36)
+            // Trainer/Options selector button
+            Button {
+                showOptions = true
+            } label: {
+                HStack(spacing: 12) {
+                    avatarView
+                        .frame(width: 36, height: 36)
 
-                        VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if auth.isAdmin {
                             Text(viewModel.allTrainers.first(where: { $0.id == (viewModel.editingTrainerId ?? auth.userId) })?.displayName ?? "Select Trainer")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.primary)
@@ -201,20 +189,7 @@ struct ScheduleView: View {
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
-                        }
-                    }
-                    .padding(4)
-                    .contentShape(Rectangle())
-                }
-            } else {
-                Button {
-                    showOptions = true
-                } label: {
-                    HStack(spacing: 12) {
-                        avatarView
-                            .frame(width: 36, height: 36)
-
-                        VStack(alignment: .leading, spacing: 2) {
+                        } else {
                             Text(auth.trainerDisplayName ?? "My Schedule")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.primary)
@@ -225,10 +200,10 @@ struct ScheduleView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             
             Spacer()
             

@@ -16,6 +16,7 @@ final class AdminPaymentService: ObservableObject {
     @Published var isProcessing: Bool = false
     @Published var errorMessage: String?
     @Published var savedPaymentMethods: [SavedPaymentMethod] = []
+    @Published var lastPaymentIntentId: String?
     
     private let functions = Functions.functions()
     private let db = Firestore.firestore()
@@ -47,6 +48,11 @@ final class AdminPaymentService: ObservableObject {
             guard let resultData = result.data as? [String: Any],
                   let clientSecret = resultData["clientSecret"] as? String else {
                 throw PaymentError.invalidResponse
+            }
+            
+            // Store paymentIntentId if provided by backend (prevents unused warning if previously bound)
+            if let paymentIntentId = resultData["paymentIntentId"] as? String {
+                self.lastPaymentIntentId = paymentIntentId
             }
             
             return clientSecret
@@ -153,3 +159,4 @@ enum PaymentError: LocalizedError {
         }
     }
 }
+

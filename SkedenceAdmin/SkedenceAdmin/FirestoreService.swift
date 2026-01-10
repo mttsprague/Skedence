@@ -250,7 +250,20 @@ final class FirestoreService {
             .getDocuments()
         let trainers: [Trainer] = snapshot.documents.compactMap { doc in
             let data = doc.data()
-            let name = (data["name"] as? String) ?? "Unknown"
+            // Try firstName/lastName first, fall back to name field
+            let firstName = data["firstName"] as? String
+            let lastName = data["lastName"] as? String
+            let name: String
+            if let first = firstName, let last = lastName {
+                name = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
+            } else if let first = firstName {
+                name = first
+            } else if let last = lastName {
+                name = last
+            } else {
+                name = (data["name"] as? String) ?? "Unknown"
+            }
+            
             let email = (data["email"] as? String) ?? ""
             let avatarUrl = data["avatarUrl"] as? String
             let photoURL = data["photoURL"] as? String
