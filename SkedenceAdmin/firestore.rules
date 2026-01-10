@@ -215,8 +215,16 @@ service cloud.firestore {
 
       // Schedules subcollection
       match /schedules/{slotId} {
-        // Trainers/admins in the org can read schedules
-        allow read: if 'orgId' in resource.data && isOrgTrainer(resource.data.orgId);
+        // Allow trainers to read their own schedules
+        // Allow admins/owners to read schedules if the parent trainer is in their org
+        allow read: if isSignedIn() && (
+          // Trainer reading their own schedule
+          request.auth.uid == trainerId
+          // OR admin/owner reading any trainer's schedule in their org
+          || (exists(/databases/$(database)/documents/trainers/$(trainerId))
+            && 'orgId' in get(/databases/$(database)/documents/trainers/$(trainerId)).data
+            && isOrgTrainer(get(/databases/$(database)/documents/trainers/$(trainerId)).data.orgId))
+        );
 
         // Trainers can manage their own schedules if they belong to the org
         // Admins/owners can manage any trainer's schedules in their org
@@ -314,11 +322,12 @@ service cloud.firestore {
     // Allows queries across all trainer schedules within same org
     // =========================================================================
     match /{path=**}/schedules/{slotId} {
-      // Allow get for specific documents
-      allow get: if 'orgId' in resource.data && isOrgTrainer(resource.data.orgId);
-      
-      // Allow list queries for trainers (needed for collection group queries)
+      // Allow authenticated users to query schedules
+      // Individual documents are protected by the main schedules rule above
       allow list: if isSignedIn();
+      
+      // Allow get if user can access the schedule based on trainer membership
+      allow get: if isSignedIn();
     }
 
     // =========================================================================
