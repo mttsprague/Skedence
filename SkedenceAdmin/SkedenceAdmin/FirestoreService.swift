@@ -379,7 +379,19 @@ final class FirestoreService {
         // query = query.whereField("trainerId", isEqualTo: trainerId)
 
         let snapshot = try await query.getDocuments()
+        
+        // Fetch all trainer IDs in this org to exclude them from clients list
+        let trainersSnapshot = try await db.collection("trainers")
+            .whereField("orgId", isEqualTo: orgId)
+            .getDocuments()
+        let trainerIds = Set(trainersSnapshot.documents.map { $0.documentID })
+        
         let clients: [Client] = snapshot.documents.compactMap { doc in
+            // Skip if this user is a trainer
+            if trainerIds.contains(doc.documentID) {
+                return nil
+            }
+            
             let data = doc.data()
             guard
                 let firstName = data["firstName"] as? String,
