@@ -155,11 +155,18 @@ struct AddEditLocationSheet: View {
                     try await locationsService.addLocation(newLocation)
                 }
                 
-                onSave()
-                dismiss()
+                // Only call onSave and dismiss if we got here without error
+                await MainActor.run {
+                    isSaving = false
+                    onSave()
+                    dismiss()
+                }
             } catch {
-                errorMessage = error.localizedDescription
-                isSaving = false
+                await MainActor.run {
+                    errorMessage = "Failed to save: \(error.localizedDescription)"
+                    isSaving = false
+                    print("❌ Error saving location: \(error)")
+                }
             }
         }
     }

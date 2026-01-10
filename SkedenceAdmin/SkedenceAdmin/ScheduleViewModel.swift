@@ -71,10 +71,12 @@ final class ScheduleViewModel: ObservableObject {
             allTrainers = []
             return
         }
+        print("🔄 Loading trainers for orgId: \(orgId)")
         do {
             allTrainers = try await FirestoreService.shared.fetchAllTrainers(orgId: orgId)
+            print("✅ Loaded \(allTrainers.count) trainers: \(allTrainers.map { $0.displayName })")
         } catch {
-            print("Error loading trainers: \(error)")
+            print("❌ Error loading trainers: \(error)")
             allTrainers = []
         }
     }
