@@ -317,6 +317,21 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // LOCATIONS COLLECTION
+    // =========================================================================
+    match /locations/{locationId} {
+      // Anyone in the same org can read active locations
+      allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      
+      // Only admins can create, update, or delete locations
+      allow create: if newDocBelongsToUserOrg() 
+        && isOrgAdmin(request.resource.data.orgId);
+      
+      allow update, delete: if belongsToUserOrg() 
+        && isOrgAdmin(resource.data.orgId);
+    }
+
+    // =========================================================================
     // DENY ALL OTHER ACCESS
     // =========================================================================
     match /{document=**} {
