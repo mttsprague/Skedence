@@ -12,8 +12,8 @@ struct ScheduleRepository {
         try await FirestoreService.shared.fetchTrainerSchedule(trainerId: trainerId, from: from, to: to, orgId: orgId)
     }
 
-    func upsertSlot(trainerId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status) async throws {
-        try await FirestoreService.shared.upsertTrainerSlot(trainerId: trainerId, startTime: startTime, endTime: endTime, status: status)
+    func upsertSlot(trainerId: String, orgId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status) async throws {
+        try await FirestoreService.shared.upsertTrainerSlot(trainerId: trainerId, orgId: orgId, startTime: startTime, endTime: endTime, status: status)
     }
 
     func deleteSlot(trainerId: String, startTime: Date) async throws {

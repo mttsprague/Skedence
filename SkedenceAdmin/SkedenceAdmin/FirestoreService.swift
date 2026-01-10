@@ -212,7 +212,7 @@ final class FirestoreService {
         return String(format: "%04d-%02d-%02dT%02d", y, m, d, h)
     }
 
-    func upsertTrainerSlot(trainerId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status) async throws {
+    func upsertTrainerSlot(trainerId: String, orgId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status) async throws {
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         let docId = scheduleDocId(for: startTime)
@@ -222,6 +222,7 @@ final class FirestoreService {
             "startTime": Timestamp(date: startTime),
             "endTime": Timestamp(date: endTime),
             "status": status.rawValue,
+            "orgId": orgId,
             "updatedAt": FieldValue.serverTimestamp()
         ]
         try await ref.setData(data, merge: true)
@@ -529,7 +530,7 @@ final class FirestoreService {
     }
     
     // MARK: - Admin Booking
-    func adminBookLesson(trainerId: String, slotId: String, clientId: String, packageId: String) async throws {
+    func adminBookLesson(trainerId: String, slotId: String, clientId: String, packageId: String, orgId: String) async throws {
         #if canImport(FirebaseFirestore)
         print("🔵 adminBookLesson: Start")
         let db = Firestore.firestore()
@@ -572,7 +573,7 @@ final class FirestoreService {
         let batch = db.batch()
         
         print("🔵 Adding booking to batch")
-        // 5. Create the booking document with all required fields
+        // 5. Create the booking document with all required fields including orgId
         let bookingRef = db.collection("bookings").document()
         let packageIdCopy = String(packageId)
         batch.setData([
@@ -588,7 +589,8 @@ final class FirestoreService {
             "packageId": packageIdCopy,
             "lessonPackageId": packageIdCopy,
             "scheduleSlotId": slotId,
-            "slotId": slotId
+            "slotId": slotId,
+            "orgId": orgId
         ], forDocument: bookingRef)
         
         print("🔵 Adding package update to batch")

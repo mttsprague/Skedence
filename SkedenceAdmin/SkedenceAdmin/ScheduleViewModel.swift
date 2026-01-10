@@ -300,8 +300,13 @@ final class ScheduleViewModel: ObservableObject {
 
             let actualSlotEnd = min(nextHour, endTime)
             do {
+                guard let orgId = orgId else {
+                    print("❌ No orgId available for schedule operation")
+                    continue
+                }
                 try await scheduleRepo.upsertSlot(
                     trainerId: trainerId,
+                    orgId: orgId,
                     startTime: currentSlotStart,
                     endTime: actualSlotEnd,
                     status: status
@@ -394,6 +399,7 @@ final class ScheduleViewModel: ObservableObject {
                     do {
                         try await scheduleRepo.upsertSlot(
                             trainerId: trainer.id,
+                            orgId: orgId,
                             startTime: currentSlotStart,
                             endTime: actualSlotEnd,
                             status: status
@@ -477,9 +483,15 @@ final class ScheduleViewModel: ObservableObject {
         print("🎯 Have trainer")
         
         do {
+            guard let orgId = orgId else {
+                print("❌ No orgId available")
+                return false
+            }
+            
             print("🎯 Creating slot")
             try await scheduleRepo.upsertSlot(
                 trainerId: trainerId,
+                orgId: orgId,
                 startTime: startTime,
                 endTime: endTime,
                 status: .open
@@ -495,7 +507,8 @@ final class ScheduleViewModel: ObservableObject {
                 trainerId: trainerId,
                 slotId: slotId,
                 clientId: clientId,
-                packageId: packageId
+                packageId: packageId,
+                orgId: orgId
             )
             print("✅ Booked")
             
