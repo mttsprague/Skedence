@@ -733,6 +733,12 @@ private struct ViewLifecycleModifiers: ViewModifier {
             }
             .onChange(of: auth.currentOrgId) { _, newOrgId in
                 viewModel.setOrgId(newOrgId)
+                // Reload trainers when orgId becomes available and user is admin
+                if auth.isAdmin {
+                    Task {
+                        await viewModel.loadAllTrainers()
+                    }
+                }
             }
             .onChange(of: auth.isTrainer) { _, _ in
                 Task {

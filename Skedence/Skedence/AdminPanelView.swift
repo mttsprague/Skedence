@@ -115,7 +115,7 @@ struct AdminPanelView: View {
                 )
                 .environmentObject(auth)
             }
-            .onChange(of: showingAddLocation) { newValue in
+            .onChangeCompat(of: showingAddLocation) { newValue in
                 if !newValue {
                     locationToEdit = nil
                 }
@@ -1297,8 +1297,8 @@ extension AdminPanelView {
         .padding(.top, Spacing.md)
     }
     
-    privlet maxLocations = organizationBilling?.locationLimit ?? 1maxLocations = 1
-        
+    private var canAddMoreLocations: Bool {
+        let maxLocations = organizationBilling?.locationLimit ?? 1
         return locationsService.locations.count < maxLocations
     }
 }
@@ -1363,4 +1363,19 @@ struct AlertItem: Identifiable {
     let id = UUID()
     let title: String
     let message: String
+}
+
+// MARK: - Compatibility helpers
+
+private extension View {
+    @ViewBuilder
+    func onChangeCompat<Value: Equatable>(of value: Value, perform action: @escaping (Value) -> Void) -> some View {
+        if #available(iOS 17.0, *) {
+            self.onChange(of: value) { _, newValue in
+                action(newValue)
+            }
+        } else {
+            self.onChange(of: value, perform: action)
+        }
+    }
 }

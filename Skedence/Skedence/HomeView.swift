@@ -102,6 +102,33 @@ struct HomeView: View {
                                 }
                             }
                         }
+                    } else if auth.isAdmin {
+                        // Show placeholder for admins when no location set
+                        CardView(padding: Spacing.md) {
+                            HStack(spacing: Spacing.md) {
+                                ZStack {
+                                    Circle()
+                                        .fill(AppTheme.gray100)
+                                        .frame(width: 56, height: 56)
+                                    
+                                    Image(systemName: "mappin.circle")
+                                        .font(.system(size: 26))
+                                        .foregroundStyle(AppTheme.textTertiary)
+                                }
+
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text("No Location Set")
+                                        .font(.headingSmall)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    
+                                    Text("Add your location in Admin")
+                                        .font(.bodyMedium)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+
+                                Spacer()
+                            }
+                        }
                     }
 
                     // Coming Up Section
