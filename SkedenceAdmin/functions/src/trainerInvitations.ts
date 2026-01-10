@@ -63,6 +63,36 @@ export const sendTrainerInvitation = onDocumentCreated(
       const memberData = orgMemberDoc.data();
       const role = memberData?.role || "trainer";
 
+      // Fetch owner information
+      let ownerName = "your team";
+      try {
+        const ownersSnapshot = await admin.firestore()
+          .collection("orgMembers")
+          .where("orgId", "==", userData.orgId)
+          .where("role", "==", "owner")
+          .limit(1)
+          .get();
+
+        if (!ownersSnapshot.empty) {
+          const ownerMembership = ownersSnapshot.docs[0].data();
+          const ownerUserId = ownerMembership.userId;
+
+          const ownerDoc = await admin.firestore()
+            .collection("users")
+            .doc(ownerUserId)
+            .get();
+
+          if (ownerDoc.exists) {
+            const ownerData = ownerDoc.data();
+            const ownerFirst = ownerData?.firstName || "";
+            const ownerLast = ownerData?.lastName || "";
+            ownerName = `${ownerFirst} ${ownerLast}`.trim() || "your team";
+          }
+        }
+      } catch (error) {
+        console.log("Could not fetch owner info, using default:", error);
+      }
+
       // Prepare email content
       const emailData = {
         to: emailAddress,
@@ -79,18 +109,20 @@ export const sendTrainerInvitation = onDocumentCreated(
             playStoreLink: "https://play.google.com/store/apps/details?id=com.skedence.admin", // TODO: Update with actual Play Store link
           },
         },
-        subject: `You've been invited to join ${orgData.name || "Skedence"}`,
+        subject: `You have been invited to ${orgData.name || "Skedence"} by ${ownerName}!`,
         text: generateInvitationText(
           fullName,
           orgData.name || "the organization",
           role,
-          emailAddress
+          emailAddress,
+          ownerName
         ),
         html: generateInvitationHTML(
           fullName,
           orgData.name || "the organization",
           role,
-          emailAddress
+          emailAddress,
+          ownerName
         ),
       };
 
@@ -115,20 +147,22 @@ export const sendTrainerInvitation = onDocumentCreated(
  * @param {string} orgName - The name of the organization
  * @param {string} role - The role assigned to the trainer
  * @param {string} email - The email address for the trainer to use
+ * @param {string} ownerName - The name of the person who invited them
  * @return {string} Plain text email content
  */
 function generateInvitationText(
   trainerName: string,
   orgName: string,
   role: string,
-  email: string
+  email: string,
+  ownerName: string
 ): string {
   return `
 Welcome to ${orgName}!
 
 Hi ${trainerName},
 
-Great news! You've been added as a ${role.toLowerCase()} for ${orgName}. You're now part of the team!
+Great news! ${ownerName} has invited you to join ${orgName} as a ${role.toLowerCase()}. You're now part of the team!
 
 YOUR LOGIN EMAIL
 ${email}
@@ -173,13 +207,15 @@ Visit us at: https://skedence.app
  * @param {string} orgName - The name of the organization
  * @param {string} role - The role assigned to the trainer
  * @param {string} email - The email address for the trainer to use
+ * @param {string} ownerName - The name of the person who invited them
  * @return {string} HTML email content
  */
 function generateInvitationHTML(
   trainerName: string,
   orgName: string,
   role: string,
-  email: string
+  email: string,
+  ownerName: string
 ): string {
   return `
 <!DOCTYPE html>
@@ -284,9 +320,9 @@ function generateInvitationHTML(
   
   <div class="content">
     <p>Hi ${trainerName},</p>
-    
-    <p>Great news! You've been added as a <strong>${role}</strong> for ${orgName}. You're now part of the team!</p>
-    
+
+    <p>Great news! <strong>${ownerName}</strong> has invited you to join <strong>${orgName}</strong> as a <strong>${role.toLowerCase()}</strong>. You're now part of the team!</p>
+
     <div class="highlight-box">
       <strong>Your Login Email:</strong>
       <div class="email-badge">${email}</div>
