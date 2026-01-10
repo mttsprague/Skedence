@@ -24,6 +24,7 @@ struct AdminPanelView: View {
     // Pass management states
     @State private var selectedClient: SimpleUser?
     @State private var selectedPassType: String = ""
+    @State private var selectedPassTitle: String = ""
     @State private var passQuantity: Int = 1
     @State private var passAction: PassAction = .add
     @State private var isAddingPass = false
@@ -140,9 +141,10 @@ struct AdminPanelView: View {
                 locationsService.loadLocations(orgId: orgId)
                 organizationBilling = await adminService.fetchOrganizationBilling(orgId: orgId)
                 
-                // Set default pass type to first package if none selected
+                // Set default pass selection to first package if none selected
                 if selectedPassType.isEmpty, let firstPackage = pricingService.allPackageOptions.first {
-                    selectedPassType = firstPackage.title
+                    selectedPassType = firstPackage.packageType
+                    selectedPassTitle = firstPackage.title
                 }
             }
         }
@@ -1009,13 +1011,30 @@ extension AdminPanelView {
     private var pricingStructureContent: some View {
         VStack(alignment: .leading, spacing: Spacing.xl) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                Text("Pricing Structure")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                
-                Text("Set up pricing tiers and package options")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.textSecondary)
+                HStack {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("Pricing Structure")
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        Text("Set up pricing tiers and package options")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        alertItem = AlertItem(
+                            title: "Package Type Format",
+                            message: "Use lowercase letters and underscores (_) for package types.\n\nExamples:\n• private\n• 2_athlete\n• 3_athlete\n• class_pass\n• small_group\n\nAvoid spaces - use underscores instead."
+                        )
+                    } label: {
+                        Image(systemName: "info.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(AppTheme.primary)
+                    }
+                }
             }
             .padding(.horizontal, Spacing.lg)
             
@@ -1024,6 +1043,19 @@ extension AdminPanelView {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else {
+                // Display current pricing info
+                if let structure = pricingService.pricingStructure {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(AppTheme.success)
+                        Text("Currently: \(structure.tiers.count) tier(s), \(structure.allPackages.count) package(s)")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.bottom, Spacing.xs)
+                }
+                
                 tiersEditor
                 
                 // Save button
@@ -1047,43 +1079,50 @@ extension AdminPanelView {
                 }
                 .disabled(isSavingPricing || editingTiers.isEmpty)
                 .padding(.horizontal, Spacing.lg)
+                .padding(.bottom, Spacing.lg)
             }
         }
         .task {
             guard let orgId = auth.currentOrgId else { return }
+            print("📋 Loading pricing structure for org: \(orgId)")
             await pricingService.loadPricingStructure(for: orgId)
             // Initialize editing state
             if let structure = pricingService.pricingStructure {
                 editingTiers = structure.tiers
+                print("✅ Loaded \(structure.tiers.count) tiers with \(structure.allPackages.count) packages")
             } else {
                 // Start with one empty tier
                 editingTiers = [PricingTier(tierName: "", packages: [])]
+                print("⚠️ Starting with empty pricing structure")
             }
         }
     }
     
     private var tiersEditor: some View {
-        VStack(spacing: Spacing.lg) {
-            ForEach(editingTiers.indices, id: \.self) { tierIndex in
-                tierCard(tierIndex: tierIndex)
-            }
-            
-            // Add Tier button
-            Button {
-                addTier()
-            } label: {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Add Tier")
+        ScrollView {
+            VStack(spacing: Spacing.lg) {
+                ForEach(editingTiers.indices, id: \.self) { tierIndex in
+                    tierCard(tierIndex: tierIndex)
                 }
-                .font(.headline)
-                .foregroundStyle(AppTheme.primary)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color(uiColor: .secondarySystemGroupedBackground))
-                .cornerRadius(CornerRadius.md)
+                
+                // Add Tier button
+                Button {
+                    addTier()
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Add Tier")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(CornerRadius.md)
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.bottom, Spacing.xl)
             }
-            .padding(.horizontal, Spacing.lg)
         }
     }
     
@@ -1138,47 +1177,74 @@ extension AdminPanelView {
     }
     
     private func packageRow(tierIndex: Int, packageIndex: Int) -> some View {
-        HStack(spacing: Spacing.md) {
-            // Package title
-            TextField("Package Title (e.g., 1 Athlete Private Lesson)", text: $editingTiers[tierIndex].packages[packageIndex].title)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, Spacing.sm)
-                .padding(.vertical, Spacing.xs)
-                .background(Color(uiColor: .secondarySystemGroupedBackground))
-                .cornerRadius(CornerRadius.sm)
-            
-            // Package Type
-            TextField("Type (e.g., private)", text: $editingTiers[tierIndex].packages[packageIndex].packageType)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, Spacing.sm)
-                .padding(.vertical, Spacing.xs)
-                .background(Color(uiColor: .secondarySystemGroupedBackground))
-                .cornerRadius(CornerRadius.sm)
-                .frame(width: 120)
-            
-            // Price input
-            HStack(spacing: 4) {
-                Text("$")
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            // Title label and delete button
+            HStack {
+                Text("Package \(packageIndex + 1)")
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
-                TextField("0.00", value: $editingTiers[tierIndex].packages[packageIndex].priceInDollars, format: .number.precision(.fractionLength(2)))
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.plain)
-                    .frame(width: 80)
-                    .multilineTextAlignment(.trailing)
+                Spacer()
+                Button {
+                    deletePackage(at: packageIndex, from: tierIndex)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.xs)
-            .background(Color(uiColor: .secondarySystemGroupedBackground))
-            .cornerRadius(CornerRadius.sm)
             
-            // Delete button
-            Button {
-                deletePackage(at: packageIndex, from: tierIndex)
-            } label: {
-                Image(systemName: "minus.circle.fill")
-                    .foregroundStyle(.red)
+            // Package title (full width)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Title")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.textSecondary)
+                TextField("e.g., 1 Athlete Private Lesson", text: $editingTiers[tierIndex].packages[packageIndex].title)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(CornerRadius.sm)
+            }
+            
+            // Package Type and Price (side by side)
+            HStack(spacing: Spacing.sm) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Type (use_underscores)")
+                        .font(.caption2)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    TextField("e.g., private", text: $editingTiers[tierIndex].packages[packageIndex].packageType)
+                        .textFieldStyle(.plain)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground))
+                        .cornerRadius(CornerRadius.sm)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Price")
+                        .font(.caption2)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    HStack(spacing: 4) {
+                        Text("$")
+                            .foregroundStyle(AppTheme.textSecondary)
+                        TextField("0.00", value: $editingTiers[tierIndex].packages[packageIndex].priceInDollars, format: .number.precision(.fractionLength(2)))
+                            .keyboardType(.decimalPad)
+                            .textFieldStyle(.plain)
+                            .frame(width: 70)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(CornerRadius.sm)
+                }
             }
         }
+        .padding(Spacing.sm)
+        .background(Color(uiColor: .tertiarySystemGroupedBackground))
+        .cornerRadius(CornerRadius.sm)
     }
     
     // MARK: - Pricing Actions
@@ -1206,26 +1272,33 @@ extension AdminPanelView {
         }
         
         // Validate
-        for tier in editingTiers {
+        for (tierIndex, tier) in editingTiers.enumerated() {
             if tier.tierName.isEmpty {
-                alertItem = AlertItem(title: "Validation Error", message: "All tiers must have a name")
+                alertItem = AlertItem(title: "Validation Error", message: "Tier \(tierIndex + 1) must have a name")
                 return
             }
-            for package in tier.packages {
+            for (pkgIndex, package) in tier.packages.enumerated() {
                 if package.title.isEmpty {
-                    alertItem = AlertItem(title: "Validation Error", message: "All packages must have a title")
+                    alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package \(pkgIndex + 1) must have a title")
                     return
                 }
                 if package.priceInCents <= 0 {
-                    alertItem = AlertItem(title: "Validation Error", message: "All packages must have a price greater than $0")
+                    alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have a price greater than $0")
                     return
                 }
                 if package.packageType.isEmpty {
-                    alertItem = AlertItem(title: "Validation Error", message: "All packages must have a package type (e.g., 'private', '2_athlete', 'class_pass')")
+                    alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have a package type")
+                    return
+                }
+                // Check for spaces in packageType
+                if package.packageType.contains(" ") {
+                    alertItem = AlertItem(title: "Validation Error", message: "Package type '\(package.packageType)' cannot contain spaces. Use underscores (_) instead.")
                     return
                 }
             }
         }
+        
+        print("🔄 Saving pricing structure with \(editingTiers.count) tiers to org: \(orgId)")
         
         isSavingPricing = true
         
@@ -1234,9 +1307,11 @@ extension AdminPanelView {
                 let structure = PricingStructure(tiers: editingTiers, lastUpdated: Date())
                 try await pricingService.savePricingStructure(structure, for: orgId)
                 
-                alertItem = AlertItem(title: "Success", message: "Pricing structure saved successfully")
+                print("✅ Pricing structure saved successfully")
+                alertItem = AlertItem(title: "Success ✓", message: "Pricing structure saved successfully. \(editingTiers.flatMap(\.packages).count) packages across \(editingTiers.count) tiers.")
             } catch {
-                alertItem = AlertItem(title: "Error", message: error.localizedDescription)
+                print("❌ Error saving pricing structure: \(error)")
+                alertItem = AlertItem(title: "Save Failed", message: "Failed to save: \(error.localizedDescription)")
             }
             
             isSavingPricing = false
