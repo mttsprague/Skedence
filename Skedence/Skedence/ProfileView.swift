@@ -886,7 +886,7 @@ private struct RegisterForm: View {
                                 autocapitalization: .characters,
                                 disableAutocorrection: true
                             )
-                            .onChange(of: organizationCode) { _, newValue in
+                            .onChangeCompat(of: organizationCode) { newValue in
                                 // Auto-validate when 6 characters entered
                                 if newValue.count == 6 {
                                     Task {
@@ -1038,7 +1038,7 @@ private struct RegisterForm: View {
                         text: $athleteBirthday,
                         keyboardType: .numberPad
                     )
-                    .onChange(of: athleteBirthday) { _, newValue in
+                    .onChangeCompat(of: athleteBirthday) { newValue in
                         athleteBirthday = formatBirthdayInput(newValue)
                     }
                     
@@ -1083,7 +1083,7 @@ private struct RegisterForm: View {
                                 text: $athlete2Birthday,
                                 keyboardType: .numberPad
                             )
-                            .onChange(of: athlete2Birthday) { _, newValue in
+                            .onChangeCompat(of: athlete2Birthday) { newValue in
                                 athlete2Birthday = formatBirthdayInput(newValue)
                             }
                             
@@ -1120,7 +1120,7 @@ private struct RegisterForm: View {
                                 text: $athlete3Birthday,
                                 keyboardType: .numberPad
                             )
-                            .onChange(of: athlete3Birthday) { _, newValue in
+                            .onChangeCompat(of: athlete3Birthday) { newValue in
                                 athlete3Birthday = formatBirthdayInput(newValue)
                             }
                             
@@ -1482,5 +1482,22 @@ private struct FormField: View {
         .padding(16)
         .background(Color(UIColor.systemGray6))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+// MARK: - Compatibility helper to silence iOS 17 onChange deprecation while supporting earlier OS versions
+
+private extension View {
+    @ViewBuilder
+    func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
+        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+            self.onChange(of: value) { newValue in
+                action(newValue)
+            }
+        } else {
+            self.onChange(of: value) { _, newValue in
+                action(newValue)
+            }
+        }
     }
 }
