@@ -332,11 +332,12 @@ final class FirestoreService {
     }
 
     // MARK: - Trainers (owner-writable)
-    func createOrUpdateTrainerProfile(trainerId: String, name: String, email: String, avatarUrl: String? = nil, photoURL: String? = nil, imageUrl: String? = nil, active: Bool = true) async throws {
+    func createOrUpdateTrainerProfile(trainerId: String, firstName: String, lastName: String, email: String, avatarUrl: String? = nil, photoURL: String? = nil, imageUrl: String? = nil, active: Bool = true) async throws {
         #if canImport(FirebaseFirestore)
         let ref = Firestore.firestore().collection("trainers").document(trainerId)
         var data: [String: Any] = [
-            "name": name,
+            "firstName": firstName,
+            "lastName": lastName,
             "email": email,
             "active": active
         ]

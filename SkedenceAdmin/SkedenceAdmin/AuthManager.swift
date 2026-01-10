@@ -159,7 +159,8 @@ final class AuthManager: ObservableObject {
             // If the callable is missing or you’re in a dev build, fall back to local simulation
             try await FirestoreService.shared.createOrUpdateTrainerProfile(
                 trainerId: uid,
-                name: "\(firstName) \(lastName)",
+                firstName: firstName,
+                lastName: lastName,
                 email: email
             )
         }
@@ -167,7 +168,8 @@ final class AuthManager: ObservableObject {
         // Dev fallback: simulate what the function would do
         try await FirestoreService.shared.createOrUpdateTrainerProfile(
             trainerId: uid,
-            name: "\(firstName) \(lastName)",
+            firstName: firstName,
+            lastName: lastName,
             email: email
         )
         #else

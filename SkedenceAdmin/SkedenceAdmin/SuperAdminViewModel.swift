@@ -86,21 +86,10 @@ class SuperAdminViewModel: ObservableObject {
             trainers = snapshot.documents.compactMap { doc in
                 let data = doc.data()
                 
-                // Handle both old (name) and new (firstName/lastName) schema
-                var firstName = data["firstName"] as? String ?? ""
-                var lastName = data["lastName"] as? String ?? ""
-                
-                // Fallback to old 'name' field if firstName is empty
-                if firstName.isEmpty, let oldName = data["name"] as? String, !oldName.isEmpty {
-                    let parts = oldName.split(separator: " ", maxSplits: 1)
-                    firstName = String(parts.first ?? "")
-                    lastName = parts.count > 1 ? String(parts[1]) : ""
-                }
-                
                 return AdminTrainer(
                     id: doc.documentID,
-                    firstName: firstName,
-                    lastName: lastName,
+                    firstName: data["firstName"] as? String ?? "",
+                    lastName: data["lastName"] as? String ?? "",
                     email: data["email"] as? String,
                     orgId: data["orgId"] as? String,
                     organizationName: nil, // Will be populated separately if needed

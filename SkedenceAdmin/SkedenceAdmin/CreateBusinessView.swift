@@ -206,14 +206,16 @@ struct CreateBusinessView: View {
                         try await db.collection("users").document(existingUserId).updateData([
                             "authId": userId,
                             "needsPasswordSetup": false,
-                            "name": "\(ownerFirstName) \(ownerLastName)",
+                            "firstName": ownerFirstName,
+                            "lastName": ownerLastName,
                             "registeredAt": Timestamp(date: Date())
                         ])
                         
                         // Update trainer document if it exists
                         if let trainerId = existingUserData["trainerId"] as? String {
                             try await db.collection("trainers").document(trainerId).updateData([
-                                "name": "\(ownerFirstName) \(ownerLastName)"
+                                "firstName": ownerFirstName,
+                                "lastName": ownerLastName
                             ])
                         }
                         
@@ -288,7 +290,9 @@ struct CreateBusinessView: View {
                 // 3. Create user document
                 let userData: [String: Any] = [
                     "email": ownerEmail.lowercased(),
-                    "name": "\(ownerFirstName) \(ownerLastName)",
+                    "emailAddress": ownerEmail.lowercased(),
+                    "firstName": ownerFirstName,
+                    "lastName": ownerLastName,
                     "orgId": orgId,
                     "needsPasswordSetup": false,
                     "authId": userId,
@@ -316,7 +320,8 @@ struct CreateBusinessView: View {
                 // 5. Create trainer profile
                 let trainerData: [String: Any] = [
                     "orgId": orgId,
-                    "name": "\(ownerFirstName) \(ownerLastName)",
+                    "firstName": ownerFirstName,
+                    "lastName": ownerLastName,
                     "email": ownerEmail,
                     "active": true,
                     "isAdmin": true,
