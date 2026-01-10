@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import FirebaseCore
 import FirebaseCrashlytics
 import FirebaseAnalytics
@@ -13,6 +14,7 @@ import StripePaymentSheet
 
 @main
 struct SkedenceApp: App {
+    @StateObject private var deepLinkManager = DeepLinkManager()
 
     init() {
         // Configure Firebase
@@ -40,6 +42,41 @@ struct SkedenceApp: App {
     var body: some Scene {
         WindowGroup {
             AppRootView()
+                .environmentObject(deepLinkManager)
+                .onOpenURL { url in
+                    handleDeepLink(url)
+                }
         }
     }
+    
+    private func handleDeepLink(_ url: URL) {
+        print("🔗 Deep link received: \(url)")
+        
+        // Parse skedence://register?orgCode=POLY24
+        guard url.scheme == "skedence" else {
+            print("❌ Invalid URL scheme: \(url.scheme ?? "none")")
+            return
+        }
+        
+        if url.host == "register" {
+            // Extract query parameters
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let queryItems = components.queryItems else {
+                print("❌ No query parameters found")
+                return
+            }
+            
+            if let orgCode = queryItems.first(where: { $0.name == "orgCode" })?.value {
+                print("✅ Organization code from deep link: \(orgCode)")
+                deepLinkManager.organizationCode = orgCode
+                deepLinkManager.shouldNavigateToRegister = true
+            }
+        }
+    }
+}
+
+// Deep Link Manager
+class DeepLinkManager: ObservableObject {
+    @Published var organizationCode: String?
+    @Published var shouldNavigateToRegister: Bool = false
 }

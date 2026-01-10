@@ -808,6 +808,7 @@ private struct SignInForm: View {
 
 private struct RegisterForm: View {
     @EnvironmentObject var auth: AuthManager
+    @EnvironmentObject var deepLinkManager: DeepLinkManager
 
     @State private var isRegistering = false
     
@@ -1207,6 +1208,18 @@ private struct RegisterForm: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                     .padding(.bottom, 32)
+            }
+        }
+        .onAppear {
+            // Pre-fill organization code from deep link
+            if let deepLinkCode = deepLinkManager.organizationCode {
+                organizationCode = deepLinkCode
+                Task {
+                    await validateOrganizationCode(deepLinkCode)
+                }
+                // Clear the deep link after using it
+                deepLinkManager.organizationCode = nil
+                deepLinkManager.shouldNavigateToRegister = false
             }
         }
     }

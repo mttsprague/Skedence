@@ -419,15 +419,15 @@ struct ShareAppLinkCard: View {
                     .padding(.vertical, Spacing.sm)
                 } else if let code = organizationCode {
                     VStack(spacing: Spacing.sm) {
-                        // App Store Link with Deep Link
-                        let appStoreLink = "https://apps.apple.com/app/skedence/id123456789?orgCode=\\(code)"
+                        // Deep Link
+                        let deepLink = "skedence://register?orgCode=\(code)"
                         
                         HStack(spacing: Spacing.xs) {
                             Image(systemName: "link")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
                             
-                            Text(appStoreLink)
+                            Text(deepLink)
                                 .font(.caption)
                                 .foregroundStyle(AppTheme.textSecondary)
                                 .lineLimit(1)
@@ -441,7 +441,7 @@ struct ShareAppLinkCard: View {
                         
                         HStack(spacing: Spacing.sm) {
                             Button {
-                                UIPasteboard.general.string = appStoreLink
+                                UIPasteboard.general.string = deepLink
                                 showCopied = true
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                                     showCopied = false
@@ -457,7 +457,7 @@ struct ShareAppLinkCard: View {
                             .buttonStyle(SecondaryButtonStyle())
                             
                             Button {
-                                let activityVC = UIActivityViewController(activityItems: [appStoreLink], applicationActivities: nil)
+                                let activityVC = UIActivityViewController(activityItems: [deepLink], applicationActivities: nil)
                                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                                    let window = windowScene.windows.first,
                                    let rootVC = window.rootViewController {
@@ -472,6 +472,43 @@ struct ShareAppLinkCard: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(PrimaryButtonStyle())
+                        }
+                        
+                        // QR Code Section
+                        Divider()
+                            .padding(.vertical, Spacing.sm)
+                        
+                        VStack(spacing: Spacing.sm) {
+                            Text("QR Code")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            
+                            if let qrImage = generateQRCode(from: deepLink) {
+                                Image(uiImage: qrImage)
+                                    .interpolation(.none)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 200, height: 200)
+                                    .padding(Spacing.md)
+                                    .background(Color.white)
+                                    .cornerRadius(CornerRadius.md)
+                                
+                                Button {
+                                    saveQRCodeToPhotos(qrImage)
+                                } label: {
+                                    HStack(spacing: Spacing.xs) {
+                                        Image(systemName: "square.and.arrow.down.fill")
+                                        Text("Save QR Code")
+                                            .font(.bodySmall)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(SecondaryButtonStyle())
+                            } else {
+                                Text("Unable to generate QR code")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.error)
+                            }
                         }
                     }
                 } else {
@@ -501,6 +538,38 @@ struct ShareAppLinkCard: View {
             #endif
         } catch {
             print("❌ Error loading organization code: \(error.localizedDescription)")
+        }
+    }
+    
+    private func generateQRCode(from string: String) -> UIImage? {
+        let data = string.data(using: .utf8)
+        
+        guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(data, forKey: "inputMessage")
+        filter.setValue("H", forKey: "inputCorrectionLevel")
+        
+        guard let ciImage = filter.outputImage else { return nil }
+        
+        // Scale up the QR code for better quality
+        let transform = CGAffineTransform(scaleX: 10, y: 10)
+        let scaledImage = ciImage.transformed(by: transform)
+        
+        let context = CIContext()
+        guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) else { return nil }
+        
+        return UIImage(cgImage: cgImage)
+    }
+    
+    private func saveQRCodeToPhotos(_ image: UIImage) {
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        
+        // Show a simple alert or toast (you can enhance this)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            let alert = UIAlertController(title: "Saved!", message: "QR code saved to Photos", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            rootVC.present(alert, animated: true)
         }
     }
 }\n\n#Preview {\n    ContentView()\n        .environmentObject(AuthManager())\n}

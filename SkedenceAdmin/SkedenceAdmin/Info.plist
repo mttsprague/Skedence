@@ -46,5 +46,7 @@
 	<false/>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleDefault</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save QR codes to your photo library for easy sharing with clients</string>
 </dict>
 </plist>
