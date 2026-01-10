@@ -246,12 +246,17 @@ class CreateOrgViewModel: ObservableObject {
             let orgRef = db.collection("organizations").document()
             let orgId = orgRef.documentID
             
+            // Generate unique invite code
+            let inviteCode = await generateUniqueInviteCode()
+            
             let orgData: [String: Any] = [
                 "name": name,
                 "subscriptionPlan": plan,
                 "subscriptionStatus": isFree ? "active" : "trialing",
                 "disabled": false,
                 "createdAt": Timestamp(),
+                "inviteCode": inviteCode,
+                "inviteCodeCreatedAt": Timestamp(),
                 "billing": [
                     "isActive": true,
                     "isFree": isFree
@@ -299,6 +304,47 @@ class CreateOrgViewModel: ObservableObject {
             print("❌ Error creating organization: \(error)")
             return nil
         }
+    }
+    
+    // MARK: - Invite Code Generation
+    
+    /// Generate a random 6-character alphanumeric invite code
+    /// Excludes similar characters (O/0, I/1) to avoid confusion
+    private func generateInviteCode() -> String {
+        let chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // Exclude O, 0, I, 1
+        return String((0..<6).map { _ in chars.randomElement()! })
+    }
+    
+    /// Check if an invite code already exists in Firestore
+    private func codeExists(_ code: String) async -> Bool {
+        do {
+            let snapshot = try await db.collection("organizations")
+                .whereField("inviteCode", isEqualTo: code)
+                .limit(to: 1)
+                .getDocuments()
+            return !snapshot.documents.isEmpty
+        } catch {
+            print("❌ Error checking if code exists: \(error)")
+            return false
+        }
+    }
+    
+    /// Generate a unique invite code by checking against existing codes
+    private func generateUniqueInviteCode() async -> String {
+        var code = generateInviteCode()
+        var attempts = 0
+        let maxAttempts = 10
+        
+        while await codeExists(code) && attempts < maxAttempts {
+            code = generateInviteCode()
+            attempts += 1
+        }
+        
+        if attempts >= maxAttempts {
+            print("⚠️ Warning: Max attempts reached generating unique code, using: \(code)")
+        }
+        
+        return code
     }
 }
 

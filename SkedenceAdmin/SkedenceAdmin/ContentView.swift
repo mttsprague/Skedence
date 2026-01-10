@@ -6,6 +6,11 @@
 //
 
 import SwiftUI
+import UIKit
+import CoreImage
+#if canImport(FirebaseFirestore)
+import FirebaseFirestore
+#endif
 
 struct ContentView: View {
     @EnvironmentObject private var auth: AuthManager
@@ -362,7 +367,7 @@ struct InfoRow: View {
             Text(value)
                 .font(.bodyMedium)
                 .foregroundStyle(AppTheme.textPrimary)
-                .textSelection(copyable ? .enabled : .disabled)
+                .conditionalTextSelection(copyable)
             
             if copyable {
                 Button {
@@ -572,4 +577,21 @@ struct ShareAppLinkCard: View {
             rootVC.present(alert, animated: true)
         }
     }
-}\n\n#Preview {\n    ContentView()\n        .environmentObject(AuthManager())\n}
+}
+
+// Helper to conditionally apply text selection without ternary type mismatch
+private extension View {
+    @ViewBuilder
+    func conditionalTextSelection(_ enabled: Bool) -> some View {
+        if enabled {
+            self.textSelection(.enabled)
+        } else {
+            self.textSelection(.disabled)
+        }
+    }
+}
+
+#Preview {
+    ContentView()
+        .environmentObject(AuthManager())
+}
