@@ -286,7 +286,7 @@ export const bookLesson = functions.https.onCall(
         const trainerFirstName = trainerData.firstName || "";
         const trainerLastName = trainerData.lastName || "";
         const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
-        
+
         transaction.set(newBookingRef, {
           clientUID: userId,
           trainerId: trainerId,
@@ -868,7 +868,7 @@ export const processTrainerAvailability = functions.https.onCall(
             const trainerFirstName = trainerData.firstName || "";
             const trainerLastName = trainerData.lastName || "";
             const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
-            
+
             batch.set(slotRef, {
               status: status,
               startTime: slotStartTime,

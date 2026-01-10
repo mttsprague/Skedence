@@ -66,6 +66,8 @@ export const sendTrainerInvitation = onDocumentCreated(
       // Prepare email content
       const emailData = {
         to: emailAddress,
+        from: "Skedence <no-reply@skedence.com>",
+        replyTo: "support@skedence.com",
         template: {
           name: "trainer-invitation",
           data: {
@@ -78,6 +80,12 @@ export const sendTrainerInvitation = onDocumentCreated(
           },
         },
         subject: `You've been invited to join ${orgData.name || "Skedence"}`,
+        text: generateInvitationText(
+          fullName,
+          orgData.name || "the organization",
+          role,
+          emailAddress
+        ),
         html: generateInvitationHTML(
           fullName,
           orgData.name || "the organization",
@@ -100,6 +108,64 @@ export const sendTrainerInvitation = onDocumentCreated(
       return;
     }
   });
+
+/**
+ * Generate plain text email template for trainer invitation
+ * @param {string} trainerName - The name of the trainer being invited
+ * @param {string} orgName - The name of the organization
+ * @param {string} role - The role assigned to the trainer
+ * @param {string} email - The email address for the trainer to use
+ * @return {string} Plain text email content
+ */
+function generateInvitationText(
+  trainerName: string,
+  orgName: string,
+  role: string,
+  email: string
+): string {
+  return `
+Welcome to ${orgName}!
+
+Hi ${trainerName},
+
+Great news! You've been added as a ${role.toLowerCase()} for ${orgName}. You're now part of the team!
+
+YOUR LOGIN EMAIL
+${email}
+
+Make sure to use this exact email address when registering.
+
+GETTING STARTED
+
+1. Download the SkedenceAdmin App
+   Download the app from the App Store or Play Store.
+
+2. Create Your Account
+   Open the app and tap "Create Business" or "Sign Up".
+   Use the email: ${email}
+
+3. Set Your Password
+   Choose a secure password for your account. You'll use this to log in.
+
+4. You're All Set!
+   Your account will automatically be linked to ${orgName} and you'll have ${role.toLowerCase()} access.
+
+DOWNLOAD THE APP
+App Store: https://apps.apple.com/app/skedence-admin
+Play Store: https://play.google.com/store/apps/details?id=com.skedence.admin
+
+IMPORTANT: Make sure to use the email ${email} when registering. This is how the app will link your account to ${orgName}.
+
+If you have any questions or need help getting started, feel free to reach out to your organization admin.
+
+Welcome aboard!
+The Skedence Team
+
+---
+This invitation was sent because you were added to ${orgName}.
+Visit us at: https://skedence.app
+  `.trim();
+}
 
 /**
  * Generate HTML email template for trainer invitation
