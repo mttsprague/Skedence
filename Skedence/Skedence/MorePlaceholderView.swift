@@ -69,7 +69,7 @@ struct MorePlaceholderView: View {
                         CardView {
                             VStack(spacing: Spacing.md) {
                                 // Email
-                                Link(destination: URL(string: "mailto:info@polyfacevolleyball.com")!) {
+                                Link(destination: URL(string: "mailto:support@skedence.com")!) {
                                     HStack(spacing: Spacing.md) {
                                         ZStack {
                                             RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
@@ -82,11 +82,11 @@ struct MorePlaceholderView: View {
                                         }
                                         
                                         VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                            Text("Email")
+                                            Text("Email Support")
                                                 .font(.labelMedium)
                                                 .foregroundStyle(AppTheme.textSecondary)
                                             
-                                            Text("info@polyfacevolleyball.com")
+                                            Text("support@skedence.com")
                                                 .font(.bodyMedium)
                                                 .foregroundStyle(AppTheme.primary)
                                         }
@@ -102,7 +102,7 @@ struct MorePlaceholderView: View {
                                 Divider()
                                 
                                 // Website
-                                Link(destination: URL(string: "https://www.polyfacevolleyball.com/")!) {
+                                Link(destination: URL(string: "https://www.skedence.com")!) {
                                     HStack(spacing: Spacing.md) {
                                         ZStack {
                                             RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
@@ -119,7 +119,7 @@ struct MorePlaceholderView: View {
                                                 .font(.labelMedium)
                                                 .foregroundStyle(AppTheme.textSecondary)
                                             
-                                            Text("polyfacevolleyball.com")
+                                            Text("skedence.com")
                                                 .font(.bodyMedium)
                                                 .foregroundStyle(AppTheme.primary)
                                         }
@@ -135,59 +135,12 @@ struct MorePlaceholderView: View {
                         }
                     }
                     
-                    // Social Media Section
-                    VStack(alignment: .leading, spacing: Spacing.md) {
-                        SectionHeaderView(title: "Follow Us")
-                        
-                        CardView {
-                            Link(destination: URL(string: "https://www.instagram.com/polyface_volleyball_academy/")!) {
-                                HStack(spacing: Spacing.md) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [
-                                                        Color(red: 0.51, green: 0.22, blue: 0.82),
-                                                        Color(red: 0.88, green: 0.19, blue: 0.36),
-                                                        Color(red: 0.98, green: 0.60, blue: 0.22)
-                                                    ],
-                                                    startPoint: .bottomLeading,
-                                                    endPoint: .topTrailing
-                                                )
-                                            )
-                                            .frame(width: 48, height: 48)
-                                        
-                                        Image(systemName: "camera.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(.white)
-                                    }
-                                    
-                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                        Text("Instagram")
-                                            .font(.labelMedium)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                        
-                                        Text("@polyface_volleyball_academy")
-                                            .font(.bodyMedium)
-                                            .foregroundStyle(AppTheme.primary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "arrow.up.right")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(AppTheme.textTertiary)
-                                }
-                            }
-                        }
-                    }
-                    
                     // Legal Section
                     VStack(alignment: .leading, spacing: Spacing.md) {
                         SectionHeaderView(title: "Legal")
                         
                         CardView {
-                            Link(destination: URL(string: "https://www.polyfacevolleyball.com/privacypolicy")!) {
+                            Link(destination: URL(string: "https://www.skedence.com/privacy")!) {
                                 HStack(spacing: Spacing.md) {
                                     ZStack {
                                         RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
@@ -221,7 +174,7 @@ struct MorePlaceholderView: View {
                     
                     // App Info
                     VStack(spacing: Spacing.xs) {
-                        Text("Skedence Volleyball Academy")
+                        Text("Skedence")
                             .font(.labelMedium)
                             .foregroundStyle(AppTheme.textSecondary)
                         

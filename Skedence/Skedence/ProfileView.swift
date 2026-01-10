@@ -870,10 +870,6 @@ private struct RegisterForm: View {
                     Text("Create Your Account")
                         .font(.system(size: 28, weight: .bold))
                         .foregroundStyle(.primary)
-                    
-                    Text("Join Polyface Volleyball Academy")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
                 .padding(.bottom, 8)
                 
@@ -890,7 +886,7 @@ private struct RegisterForm: View {
                                 autocapitalization: .characters,
                                 disableAutocorrection: true
                             )
-                            .onChange(of: organizationCode) { newValue in
+                            .onChange(of: organizationCode) { _, newValue in
                                 // Auto-validate when 6 characters entered
                                 if newValue.count == 6 {
                                     Task {
