@@ -260,7 +260,8 @@ struct AdminPanelView: View {
                             Menu {
                                 ForEach(pricingService.allPackageOptions) { package in
                                     Button {
-                                        selectedPassType = package.title
+                                        selectedPassType = package.packageType // Store packageType for database
+                                        selectedPassTitle = package.title // Store title for display
                                     } label: {
                                         HStack {
                                             Text(package.title)
@@ -271,9 +272,9 @@ struct AdminPanelView: View {
                                 }
                             } label: {
                                 HStack {
-                                    Text(selectedPassType.isEmpty ? "Select a pass type" : selectedPassType)
+                                    Text(selectedPassTitle.isEmpty ? "Select a pass type" : selectedPassTitle)
                                         .font(.bodyMedium)
-                                        .foregroundStyle(selectedPassType.isEmpty ? AppTheme.textTertiary : AppTheme.textPrimary)
+                                        .foregroundStyle(selectedPassTitle.isEmpty ? AppTheme.textTertiary : AppTheme.textPrimary)
                                     Spacer()
                                     Image(systemName: "chevron.up.chevron.down")
                                         .font(.system(size: 14, weight: .semibold))
@@ -459,12 +460,13 @@ struct AdminPanelView: View {
             // Show success alert
             alertItem = AlertItem(
                 title: "Pass Added",
-                message: "Successfully added \(passQuantity) \(selectedPassType)\(passQuantity == 1 ? "" : "s") to \(client.firstName) \(client.lastName)'s account."
+                message: "Successfully added \(passQuantity) \(selectedPassTitle)\(passQuantity == 1 ? "" : "s") to \(client.firstName) \(client.lastName)'s account."
             )
             
             // Reset selections
             selectedClient = nil
             selectedPassType = ""
+            selectedPassTitle = ""
             passQuantity = 1
             
             // Refresh data
@@ -504,6 +506,7 @@ struct AdminPanelView: View {
             // Reset selections
             selectedClient = nil
             selectedPassType = ""
+            selectedPassTitle = ""
             passQuantity = 1
             passAction = .add
             
@@ -1137,12 +1140,21 @@ extension AdminPanelView {
     private func packageRow(tierIndex: Int, packageIndex: Int) -> some View {
         HStack(spacing: Spacing.md) {
             // Package title
-            TextField("Package Title (e.g., 1 Athlete)", text: $editingTiers[tierIndex].packages[packageIndex].title)
+            TextField("Package Title (e.g., 1 Athlete Private Lesson)", text: $editingTiers[tierIndex].packages[packageIndex].title)
                 .textFieldStyle(.plain)
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, Spacing.xs)
                 .background(Color(uiColor: .secondarySystemGroupedBackground))
                 .cornerRadius(CornerRadius.sm)
+            
+            // Package Type
+            TextField("Type (e.g., private)", text: $editingTiers[tierIndex].packages[packageIndex].packageType)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.xs)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .cornerRadius(CornerRadius.sm)
+                .frame(width: 120)
             
             // Price input
             HStack(spacing: 4) {
@@ -1180,7 +1192,7 @@ extension AdminPanelView {
     }
     
     private func addPackage(to tierIndex: Int) {
-        editingTiers[tierIndex].packages.append(PackageOption(title: "", priceInCents: 0))
+        editingTiers[tierIndex].packages.append(PackageOption(title: "", priceInCents: 0, packageType: ""))
     }
     
     private func deletePackage(at packageIndex: Int, from tierIndex: Int) {
@@ -1206,6 +1218,10 @@ extension AdminPanelView {
                 }
                 if package.priceInCents <= 0 {
                     alertItem = AlertItem(title: "Validation Error", message: "All packages must have a price greater than $0")
+                    return
+                }
+                if package.packageType.isEmpty {
+                    alertItem = AlertItem(title: "Validation Error", message: "All packages must have a package type (e.g., 'private', '2_athlete', 'class_pass')")
                     return
                 }
             }

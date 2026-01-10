@@ -335,7 +335,7 @@ struct PurchaseLessonsView: View {
             
             // Create payment intent - routes to trainer's Stripe Connect account
             let clientSecret = try await stripeService.createPaymentIntent(
-                packageType: selectedPackage.title.lowercased().replacingOccurrences(of: " ", with: "_"),
+                packageType: selectedPackage.packageType, // Use packageType, not title
                 amount: selectedPackage.priceInCents,
                 trainerId: trainerId,
                 orgId: orgId // Payment goes to trainer's organization

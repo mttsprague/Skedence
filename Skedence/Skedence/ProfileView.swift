@@ -89,6 +89,7 @@ private struct SignedInProfileScreen: View {
     @StateObject private var trainersService = TrainersService()
     @StateObject private var classesService = ClassesService()
     @StateObject private var customerService = StripeCustomerService()
+    @StateObject private var pricingService = PricingStructureService()
 
     @State private var tab: Tab = .schedule
     enum Tab: String { case schedule = "SCHEDULE", passes = "PASSES", wallet = "WALLET" }
@@ -123,6 +124,8 @@ private struct SignedInProfileScreen: View {
             if customerService.paymentMethods.isEmpty {
                 await customerService.loadPaymentMethods()
             }
+            // Load pricing structure for dynamic pass display
+            await pricingService.loadPricingStructure(for: orgId)
         }
         .refreshable {
             guard let orgId = auth.currentOrgId else { return }
@@ -464,24 +467,29 @@ private struct SignedInProfileScreen: View {
         .padding(.horizontal, 16)
     }
 
-    // MARK: PASSES tab (updated)
+    // MARK: PASSES tab (dynamically generated from pricing structure)
 
     private var passesTab: some View {
         VStack(spacing: 12) {
-            if packagesService.isLoading {
+            if packagesService.isLoading || pricingService.isLoading {
                 ProgressView().padding()
             } else {
-                // Private Lesson Passes
-                passTypeCard(title: "Private Lesson Passes", count: privatePassesRemaining, icon: "person.fill")
-                
-                // 2-Athlete Passes
-                passTypeCard(title: "2-Athlete Passes", count: twoAthletePassesRemaining, icon: "person.2.fill")
-                
-                // 3-Athlete Passes
-                passTypeCard(title: "3-Athlete Passes", count: threeAthletePassesRemaining, icon: "person.3.fill")
-                
-                // Class Passes
-                passTypeCard(title: "Class Passes", count: classPassesRemaining, icon: "sportscourt.fill")
+                // Dynamically display all package types from pricing structure
+                let packageTypes = pricingService.allPackageOptions
+                if packageTypes.isEmpty {
+                    Text("No pass types configured")
+                        .foregroundStyle(.secondary)
+                        .padding()
+                } else {
+                    ForEach(packageTypes) { packageOption in
+                        let count = remainingPasses(forType: packageOption.packageType)
+                        passTypeCard(
+                            title: packageOption.title,
+                            count: count,
+                            icon: iconForPackageType(packageOption.packageType)
+                        )
+                    }
+                }
 
                 // Bottom Buy button
                 NavigationLink {
@@ -503,6 +511,31 @@ private struct SignedInProfileScreen: View {
             }
         }
         .padding(.horizontal, 16)
+    }
+    
+    // Helper to get remaining passes for a specific packageType
+    private func remainingPasses(forType packageType: String) -> Int {
+        packagesService.packages.reduce(into: 0) { sum, pkg in
+            guard pkg.expirationDate >= Date() else { return }
+            guard pkg.packageType == packageType else { return }
+            sum += max(0, pkg.lessonsRemaining)
+        }
+    }
+    
+    // Helper to get icon for package type
+    private func iconForPackageType(_ packageType: String) -> String {
+        switch packageType {
+        case "private", "1_athlete":
+            return "person.fill"
+        case "2_athlete":
+            return "person.2.fill"
+        case "3_athlete":
+            return "person.3.fill"
+        case "class_pass", "class":
+            return "sportscourt.fill"
+        default:
+            return "ticket.fill"
+        }
     }
     
     private func passTypeCard(title: String, count: Int, icon: String) -> some View {
@@ -700,38 +733,6 @@ private struct SignedInProfileScreen: View {
     private var remainingCredits: Int {
         packagesService.packages.reduce(into: 0) { sum, pkg in
             guard pkg.expirationDate >= Date() else { return }
-            sum += max(0, pkg.lessonsRemaining)
-        }
-    }
-    
-    private var privatePassesRemaining: Int {
-        packagesService.packages.reduce(into: 0) { sum, pkg in
-            guard pkg.expirationDate >= Date() else { return }
-            guard pkg.packageType == "private" else { return }
-            sum += max(0, pkg.lessonsRemaining)
-        }
-    }
-    
-    private var twoAthletePassesRemaining: Int {
-        packagesService.packages.reduce(into: 0) { sum, pkg in
-            guard pkg.expirationDate >= Date() else { return }
-            guard pkg.packageType == "2_athlete" else { return }
-            sum += max(0, pkg.lessonsRemaining)
-        }
-    }
-    
-    private var threeAthletePassesRemaining: Int {
-        packagesService.packages.reduce(into: 0) { sum, pkg in
-            guard pkg.expirationDate >= Date() else { return }
-            guard pkg.packageType == "3_athlete" else { return }
-            sum += max(0, pkg.lessonsRemaining)
-        }
-    }
-    
-    private var classPassesRemaining: Int {
-        packagesService.packages.reduce(into: 0) { sum, pkg in
-            guard pkg.expirationDate >= Date() else { return }
-            guard pkg.packageType == "class_pass" else { return }
             sum += max(0, pkg.lessonsRemaining)
         }
     }

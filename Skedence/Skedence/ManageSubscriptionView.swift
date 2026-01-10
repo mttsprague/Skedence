@@ -336,7 +336,7 @@ private struct UsageCard: View {
             }
         }
         .padding()
-        .background(AppTheme.surfaceSecondary)
+        .background(Color.platformBackground)
         .cornerRadius(CornerRadius.md)
     }
 }
@@ -406,7 +406,7 @@ private struct PlanCard: View {
             }
         }
         .padding()
-        .background(isCurrentPlan ? AppTheme.primary.opacity(0.1) : AppTheme.surfaceSecondary)
+        .background(isCurrentPlan ? AppTheme.primary.opacity(0.1) : Color.platformBackground)
         .overlay(
             RoundedRectangle(cornerRadius: CornerRadius.md)
                 .stroke(isCurrentPlan ? AppTheme.primary : Color.clear, lineWidth: 2)

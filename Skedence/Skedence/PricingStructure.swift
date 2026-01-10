@@ -12,6 +12,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var title: String // e.g., "1 Athlete", "2 Athletes", "Small Group"
     var priceInCents: Int // e.g., 8000 = $80.00
+    var packageType: String // e.g., "private", "2_athlete", "3_athlete", "class_pass"
     
     /// Formatted price for display (e.g., "$80.00")
     var formattedPrice: String {
@@ -25,8 +26,15 @@ struct PackageOption: Codable, Identifiable, Hashable {
         set { priceInCents = Int(newValue * 100) }
     }
     
+    /// Auto-generated packageType from title (backward compatibility)
+    mutating func autoGeneratePackageType() {
+        if packageType.isEmpty {
+            packageType = title.lowercased().replacingOccurrences(of: " ", with: "_")
+        }
+    }
+    
     enum CodingKeys: String, CodingKey {
-        case id, title, priceInCents
+        case id, title, priceInCents, packageType
     }
 }
 
@@ -57,10 +65,10 @@ struct PricingStructure: Codable {
                 PricingTier(
                     tierName: "Standard",
                     packages: [
-                        PackageOption(title: "1 Athlete", priceInCents: 8000),
-                        PackageOption(title: "2 Athletes", priceInCents: 12000),
-                        PackageOption(title: "3 Athletes", priceInCents: 16000),
-                        PackageOption(title: "Class", priceInCents: 2000)
+                        PackageOption(title: "1 Athlete Private Lesson", priceInCents: 8000, packageType: "private"),
+                        PackageOption(title: "2 Athlete Private Lesson", priceInCents: 12000, packageType: "2_athlete"),
+                        PackageOption(title: "3 Athlete Private Lesson", priceInCents: 16000, packageType: "3_athlete"),
+                        PackageOption(title: "Class Pass", priceInCents: 2000, packageType: "class_pass")
                     ]
                 )
             ],

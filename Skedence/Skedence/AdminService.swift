@@ -264,6 +264,7 @@ final class AdminService: ObservableObject {
     }
     
     // Add pass to client (admin only)
+    // passType parameter should be the packageType (e.g., "private", "2_athlete"), not the title
     func addPassToClient(clientId: String, passType: String, totalLessons: Int) async throws {
         guard isAdmin else {
             throw NSError(domain: "AdminService", code: -1,
@@ -281,7 +282,7 @@ final class AdminService: ObservableObject {
         let expirationDate = Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now.addingTimeInterval(365 * 24 * 60 * 60)
         
         let passData: [String: Any] = [
-            "packageType": passType,
+            "packageType": passType, // This must be packageType (e.g., "private"), not title
             "totalLessons": totalLessons,
             "lessonsUsed": 0,
             "purchaseDate": Timestamp(date: now),
