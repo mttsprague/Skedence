@@ -36,6 +36,7 @@ struct AdminPanelView: View {
     @State private var showingAddLocation = false
     @State private var locationToEdit: Location?
     @State private var organizationBilling: OrganizationBilling?
+    @State private var showingManageSubscription = false
     
     enum AdminTab: String, CaseIterable {
         case passes = "Passes"
@@ -114,6 +115,10 @@ struct AdminPanelView: View {
                     }
                 )
                 .environmentObject(auth)
+            }
+            .sheet(isPresented: $showingManageSubscription) {
+                ManageSubscriptionView(orgId: auth.currentOrgId ?? "")
+                    .environmentObject(auth)
             }
             .onChangeCompat(of: showingAddLocation) { newValue in
                 if !newValue {
@@ -1277,7 +1282,7 @@ extension AdminPanelView {
                         .foregroundStyle(AppTheme.textSecondary)
                     
                     Button {
-                        // TODO: Navigate to pricing/upgrade
+                        showingManageSubscription = true
                     } label: {
                         Text("Upgrade Subscription")
                             .font(.bodyMedium.weight(.semibold))

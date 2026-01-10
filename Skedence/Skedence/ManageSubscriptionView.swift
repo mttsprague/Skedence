@@ -1,0 +1,421 @@
+//
+//  ManageSubscriptionView.swift
+//  Skedence
+//
+//  Subscription management UI
+//  View current plan, upgrade/downgrade, cancel subscription
+//
+
+import SwiftUI
+import FirebaseFunctions
+
+struct ManageSubscriptionView: View {
+    @EnvironmentObject var auth: AuthManager
+    @Environment(\.dismiss) var dismiss
+    
+    let orgId: String
+    
+    @State private var isLoading = true
+    @State private var currentPlan = "free"
+    @State private var status = "active"
+    @State private var bookingsThisMonth = 0
+    @State private var recommendedPlan = "free"
+    @State private var currentPeriodEnd: Date?
+    @State private var cancelAtPeriodEnd = false
+    @State private var errorMessage: String?
+    @State private var showingUpgrade = false
+    @State private var isProcessing = false
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: Spacing.lg) {
+                    if isLoading {
+                        ProgressView()
+                            .padding(.vertical, Spacing.xxl)
+                    } else {
+                        // Current Plan Section
+                        CurrentPlanCard(
+                            plan: currentPlan,
+                            status: status,
+                            periodEnd: currentPeriodEnd,
+                            cancelAtPeriodEnd: cancelAtPeriodEnd
+                        )
+                        
+                        // Usage Section
+                        UsageCard(
+                            bookingsThisMonth: bookingsThisMonth,
+                            currentPlan: currentPlan,
+                            recommendedPlan: recommendedPlan
+                        )
+                        
+                        // Plans Section
+                        VStack(spacing: Spacing.md) {
+                            Text("Available Plans")
+                                .font(.headingMedium)
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            PlanCard(
+                                name: "Free",
+                                price: "$0",
+                                features: [
+                                    "Up to 50 bookings/month",
+                                    "Basic scheduling",
+                                    "Client management",
+                                ],
+                                isCurrentPlan: currentPlan == "free",
+                                onSelect: {}
+                            )
+                            .disabled(true)
+                            
+                            PlanCard(
+                                name: "Starter",
+                                price: "$29",
+                                features: [
+                                    "Up to 200 bookings/month",
+                                    "Advanced scheduling",
+                                    "Client packages",
+                                    "Payment processing",
+                                    "Email support",
+                                ],
+                                isCurrentPlan: currentPlan == "starter",
+                                isRecommended: recommendedPlan == "starter" && currentPlan == "free",
+                                onSelect: {
+                                    if currentPlan != "starter" {
+                                        showingUpgrade = true
+                                    }
+                                }
+                            )
+                            
+                            PlanCard(
+                                name: "Professional",
+                                price: "$79",
+                                features: [
+                                    "Unlimited bookings",
+                                    "Multi-trainer support",
+                                    "Advanced analytics",
+                                    "Custom branding",
+                                    "Priority support",
+                                    "API access",
+                                ],
+                                isCurrentPlan: currentPlan == "professional",
+                                isRecommended: recommendedPlan == "professional",
+                                onSelect: {
+                                    if currentPlan != "professional" {
+                                        showingUpgrade = true
+                                    }
+                                }
+                            )
+                        }
+                        
+                        // Cancel Subscription Button
+                        if currentPlan != "free" && !cancelAtPeriodEnd {
+                            Button(action: cancelSubscription) {
+                                Text("Cancel Subscription")
+                                    .font(.bodyMedium)
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, Spacing.sm)
+                            }
+                        }
+                        
+                        // Error Message
+                        if let error = errorMessage {
+                            Text(error)
+                                .font(.bodyMedium)
+                                .foregroundStyle(.red)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(CornerRadius.md)
+                        }
+                    }
+                }
+                .padding(Spacing.lg)
+            }
+            .navigationTitle("Subscription")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+            .task {
+                await loadBillingStatus()
+            }
+            .refreshable {
+                await loadBillingStatus()
+            }
+        }
+    }
+    
+    func loadBillingStatus() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let functions = Functions.functions()
+            let callable = functions.httpsCallable("getBillingStatus")
+            
+            let result = try await callable.call(["orgId": orgId])
+            
+            if let data = result.data as? [String: Any] {
+                currentPlan = data["currentPlan"] as? String ?? "free"
+                status = data["status"] as? String ?? "active"
+                bookingsThisMonth = data["bookingsThisMonth"] as? Int ?? 0
+                recommendedPlan = data["recommendedPlan"] as? String ?? "free"
+                cancelAtPeriodEnd = data["cancelAtPeriodEnd"] as? Bool ?? false
+                
+                if let timestamp = data["currentPeriodEnd"] as? [String: Any],
+                   let seconds = timestamp["_seconds"] as? Double {
+                    currentPeriodEnd = Date(timeIntervalSince1970: seconds)
+                }
+            }
+            
+            isLoading = false
+        } catch {
+            errorMessage = "Failed to load billing status: \(error.localizedDescription)"
+            isLoading = false
+        }
+    }
+    
+    func cancelSubscription() {
+        isProcessing = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                let functions = Functions.functions()
+                let callable = functions.httpsCallable("cancelSubscription")
+                
+                _ = try await callable.call(["orgId": orgId])
+                
+                await loadBillingStatus()
+                isProcessing = false
+            } catch {
+                errorMessage = "Failed to cancel subscription: \(error.localizedDescription)"
+                isProcessing = false
+            }
+        }
+    }
+}
+
+// MARK: - Current Plan Card
+
+private struct CurrentPlanCard: View {
+    let plan: String
+    let status: String
+    let periodEnd: Date?
+    let cancelAtPeriodEnd: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Current Plan")
+                        .font(.labelLarge)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    
+                    Text(plan.capitalized)
+                        .font(.displaySmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+                
+                Spacer()
+                
+                // Status Badge
+                if status == "active" {
+                    BadgeView(text: "Active", color: .green)
+                } else if status == "past_due" {
+                    BadgeView(text: "Past Due", color: .red)
+                } else if status == "canceled" {
+                    BadgeView(text: "Canceled", color: .gray)
+                }
+            }
+            
+            if cancelAtPeriodEnd, let end = periodEnd {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.orange)
+                    Text("Cancels on \(end.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.bodyMedium)
+                        .foregroundStyle(.orange)
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(CornerRadius.sm)
+            } else if let end = periodEnd, plan != "free" {
+                Text("Renews on \(end.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.bodyMedium)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
+        .padding()
+        .background(AppTheme.primary.opacity(0.1))
+        .cornerRadius(CornerRadius.md)
+    }
+}
+
+// MARK: - Usage Card
+
+private struct UsageCard: View {
+    let bookingsThisMonth: Int
+    let currentPlan: String
+    let recommendedPlan: String
+    
+    var limitForPlan: Int {
+        switch currentPlan {
+        case "free": return 50
+        case "starter": return 200
+        default: return Int.max
+        }
+    }
+    
+    var usagePercentage: Double {
+        guard limitForPlan != Int.max else { return 0 }
+        return Double(bookingsThisMonth) / Double(limitForPlan)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("Usage This Month")
+                .font(.headingSmall)
+                .foregroundStyle(AppTheme.textPrimary)
+            
+            HStack(alignment: .bottom, spacing: Spacing.xs) {
+                Text("\(bookingsThisMonth)")
+                    .font(.displayMedium)
+                    .foregroundStyle(AppTheme.textPrimary)
+                
+                if limitForPlan != Int.max {
+                    Text("/ \(limitForPlan)")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+                
+                Text("bookings")
+                    .font(.bodyLarge)
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+            
+            if limitForPlan != Int.max {
+                // Progress Bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 8)
+                            .cornerRadius(4)
+                        
+                        Rectangle()
+                            .fill(usagePercentage > 0.8 ? Color.red : AppTheme.primary)
+                            .frame(
+                                width: geometry.size.width * min(usagePercentage, 1.0),
+                                height: 8
+                            )
+                            .cornerRadius(4)
+                    }
+                }
+                .frame(height: 8)
+                
+                if usagePercentage > 0.8 && recommendedPlan != currentPlan {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                        Text("Consider upgrading to \(recommendedPlan.capitalized)")
+                            .font(.bodyMedium)
+                            .foregroundStyle(.orange)
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(CornerRadius.sm)
+                }
+            }
+        }
+        .padding()
+        .background(AppTheme.surfaceSecondary)
+        .cornerRadius(CornerRadius.md)
+    }
+}
+
+// MARK: - Plan Card
+
+private struct PlanCard: View {
+    let name: String
+    let price: String
+    let features: [String]
+    let isCurrentPlan: Bool
+    var isRecommended: Bool = false
+    let onSelect: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(name)
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    
+                    HStack(alignment: .bottom, spacing: 2) {
+                        Text(price)
+                            .font(.displaySmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        if price != "$0" {
+                            Text("/month")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                if isCurrentPlan {
+                    BadgeView(text: "Current", color: AppTheme.primary)
+                } else if isRecommended {
+                    BadgeView(text: "Recommended", color: .orange)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                ForEach(features, id: \.self) { feature in
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.system(size: 14))
+                        Text(feature)
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+                }
+            }
+            
+            if !isCurrentPlan {
+                Button(action: onSelect) {
+                    Text("Select Plan")
+                        .font(.labelLarge)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.sm)
+                        .background(AppTheme.primary)
+                        .foregroundStyle(.white)
+                        .cornerRadius(CornerRadius.md)
+                }
+            }
+        }
+        .padding()
+        .background(isCurrentPlan ? AppTheme.primary.opacity(0.1) : AppTheme.surfaceSecondary)
+        .overlay(
+            RoundedRectangle(cornerRadius: CornerRadius.md)
+                .stroke(isCurrentPlan ? AppTheme.primary : Color.clear, lineWidth: 2)
+        )
+        .cornerRadius(CornerRadius.md)
+    }
+}
+
+#Preview {
+    ManageSubscriptionView(orgId: "test_org_123")
+        .environmentObject(AuthManager())
+}
