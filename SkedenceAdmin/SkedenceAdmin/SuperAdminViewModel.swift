@@ -86,10 +86,14 @@ class SuperAdminViewModel: ObservableObject {
             trainers = snapshot.documents.compactMap { doc in
                 let data = doc.data()
                 
+                let firstName = data["firstName"] as? String ?? ""
+                let lastName = data["lastName"] as? String ?? ""
+                print("🔍 Trainer \(doc.documentID): firstName='\(firstName)', lastName='\(lastName)', email=\(data["email"] as? String ?? "nil")")
+                
                 return AdminTrainer(
                     id: doc.documentID,
-                    firstName: data["firstName"] as? String ?? "",
-                    lastName: data["lastName"] as? String ?? "",
+                    firstName: firstName,
+                    lastName: lastName,
                     email: data["email"] as? String,
                     orgId: data["orgId"] as? String,
                     organizationName: nil, // Will be populated separately if needed
@@ -151,11 +155,16 @@ class SuperAdminViewModel: ObservableObject {
                 if let userDoc = try? await db.collection("users").document(memberId).getDocument(),
                    let userData = userDoc.data() {
                     
+                    let firstName = userData["firstName"] as? String ?? ""
+                    let lastName = userData["lastName"] as? String ?? ""
+                    let email = userData["emailAddress"] as? String ?? userData["email"] as? String
+                    print("🔍 User \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(memberData["role"] as? String ?? "nil")")
+                    
                     users.append(AdminUser(
                         id: userDoc.documentID,
-                        firstName: userData["firstName"] as? String ?? "",
-                        lastName: userData["lastName"] as? String ?? "",
-                        emailAddress: userData["emailAddress"] as? String ?? userData["email"] as? String,
+                        firstName: firstName,
+                        lastName: lastName,
+                        emailAddress: email,
                         orgId: userData["orgId"] as? String ?? orgId,
                         organizationName: nil,
                         role: memberData["role"] as? String
