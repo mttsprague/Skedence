@@ -15,6 +15,7 @@ struct HomeView: View {
     @ObservedObject var scheduleService: ScheduleService
     @ObservedObject var classesService: ClassesService
     @StateObject private var locationsService = LocationsService()
+    @StateObject private var adminService = AdminService()
     @Environment(\.openURL) private var openURL
     
     @Binding var selectedTab: Int
@@ -102,13 +103,13 @@ struct HomeView: View {
                                 }
                             }
                         }
-                    } else if auth.isAdmin {
+                    } else if adminService.isAdmin {
                         // Show placeholder for admins when no location set
                         CardView(padding: Spacing.md) {
                             HStack(spacing: Spacing.md) {
                                 ZStack {
                                     Circle()
-                                        .fill(AppTheme.gray100)
+                                        .fill(Color.platformSecondaryBackground)
                                         .frame(width: 56, height: 56)
                                     
                                     Image(systemName: "mappin.circle")
@@ -197,6 +198,8 @@ struct HomeView: View {
             // Load upcoming classes
             if let orgId = auth.currentOrgId {
                 await classesService.loadUpcomingClasses(orgId: orgId)
+                // Check admin status for showing admin-only placeholder
+                await adminService.checkAdminStatus()
             }
         }
     }

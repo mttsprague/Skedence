@@ -1375,7 +1375,14 @@ private extension View {
                 action(newValue)
             }
         } else {
-            self.onChange(of: value, perform: action)
+            // Route through a helper that is deprecated on iOS 17 to avoid deprecation errors.
+            self.onChangePreiOS17(of: value, perform: action)
         }
+    }
+    
+    // This wrapper is only used to call the pre–iOS 17 signature without surfacing deprecation errors on iOS 17+.
+    @available(iOS, introduced: 13.0, deprecated: 17.0)
+    func onChangePreiOS17<Value: Equatable>(of value: Value, perform action: @escaping (Value) -> Void) -> some View {
+        self.onChange(of: value, perform: action)
     }
 }

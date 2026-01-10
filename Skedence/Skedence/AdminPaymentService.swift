@@ -45,8 +45,7 @@ final class AdminPaymentService: ObservableObject {
         do {
             let result = try await callable.call(data)
             guard let resultData = result.data as? [String: Any],
-                  let clientSecret = resultData["clientSecret"] as? String,
-                  let paymentIntentId = resultData["paymentIntentId"] as? String else {
+                  let clientSecret = resultData["clientSecret"] as? String else {
                 throw PaymentError.invalidResponse
             }
             
