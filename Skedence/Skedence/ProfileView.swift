@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct ProfileView: View {
     @EnvironmentObject var auth: AuthManager
@@ -808,9 +809,12 @@ private struct SignInForm: View {
 private struct RegisterForm: View {
     @EnvironmentObject var auth: AuthManager
 
-    @State private var showingWaiver = false
-    @State private var waiverSignature: WaiverSignature?
     @State private var isRegistering = false
+    
+    @State private var organizationCode = ""
+    @State private var validatedOrgId: String?
+    @State private var validatedOrgName: String?
+    @State private var isValidatingCode = false
     
     @State private var email = ""
     @State private var password = ""
@@ -848,6 +852,7 @@ private struct RegisterForm: View {
         isValidBirthday(athleteBirthday) &&
         !athletePosition.isEmpty &&
         !phoneNumber.isEmpty &&
+        validatedOrgId != nil &&
         !isRegistering
     }
 
@@ -870,6 +875,78 @@ private struct RegisterForm: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.bottom, 8)
+                
+                // Organization Code Section
+                VStack(alignment: .leading, spacing: 16) {
+                    SectionHeader(icon: "building.2.fill", title: "Organization Code")
+                    
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            FormField(
+                                icon: "ticket.fill",
+                                placeholder: "Enter 6-digit code",
+                                text: $organizationCode,
+                                autocapitalization: .characters,
+                                disableAutocorrection: true
+                            )
+                            .onChange(of: organizationCode) { newValue in
+                                // Auto-validate when 6 characters entered
+                                if newValue.count == 6 {
+                                    Task {
+                                        await validateOrganizationCode(newValue)
+                                    }
+                                } else {
+                                    validatedOrgId = nil
+                                    validatedOrgName = nil
+                                }
+                            }
+                            
+                            if isValidatingCode {
+                                ProgressView()
+                                    .frame(width: 44, height: 44)
+                            } else if validatedOrgId != nil {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(.green)
+                                    .frame(width: 44, height: 44)
+                            }
+                        }
+                        
+                        if let orgName = validatedOrgName {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("Connected to \(orgName)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.green.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else if !organizationCode.isEmpty && organizationCode.count == 6 && !isValidatingCode {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text("Invalid organization code")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.orange.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                    
+                    Text("Ask your coach or administrator for your organization code")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
+                }
+                .padding(.horizontal)
                 
                 // Account Credentials Section
                 VStack(alignment: .leading, spacing: 16) {
@@ -1091,7 +1168,9 @@ private struct RegisterForm: View {
                 // Submit Button
                 Button {
                     guard canSubmit else { return }
-                    showingWaiver = true
+                    Task {
+                        await registerAccount()
+                    }
                 } label: {
                     HStack(spacing: 12) {
                         if isRegistering {
@@ -1101,7 +1180,7 @@ private struct RegisterForm: View {
                             Image(systemName: "arrow.right.circle.fill")
                                 .font(.title3)
                         }
-                        Text(isRegistering ? "Creating Account..." : "Review Waiver & Complete Registration")
+                        Text(isRegistering ? "Creating Account..." : "Complete Registration")
                             .font(.headline)
                     }
                     .foregroundStyle(.white)
@@ -1122,7 +1201,7 @@ private struct RegisterForm: View {
                 .padding(.top, 8)
                 
                 // Privacy Note
-                Text("By registering, you'll review and sign our liability waiver")
+                Text("By registering, you agree to our terms of service")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -1130,20 +1209,38 @@ private struct RegisterForm: View {
                     .padding(.bottom, 32)
             }
         }
-        .sheet(isPresented: $showingWaiver) {
-            WaiverAgreementView { signature in
-                // Waiver signed - now create the account
-                waiverSignature = signature
-                showingWaiver = false
-                
-                Task {
-                    await registerWithWaiver(signature: signature)
-                }
-            }
-        }
     }
     
     // MARK: - Helper Functions
+    
+    private func validateOrganizationCode(_ code: String) async {
+        guard code.count == 6 else { return }
+        
+        isValidatingCode = true
+        defer { isValidatingCode = false }
+        
+        do {
+            let db = Firestore.firestore()
+            let snapshot = try await db.collection("organizations")
+                .whereField("inviteCode", isEqualTo: code.uppercased())
+                .limit(to: 1)
+                .getDocuments()
+            
+            if let doc = snapshot.documents.first {
+                validatedOrgId = doc.documentID
+                validatedOrgName = doc.data()["name"] as? String ?? "Unknown Organization"
+                print("✅ Valid organization code: \(code) -> \(validatedOrgName ?? "")")
+            } else {
+                validatedOrgId = nil
+                validatedOrgName = nil
+                print("❌ Invalid organization code: \(code)")
+            }
+        } catch {
+            print("❌ Error validating organization code: \(error.localizedDescription)")
+            validatedOrgId = nil
+            validatedOrgName = nil
+        }
+    }
     
     private func formatBirthdayInput(_ input: String) -> String {
         // Remove any non-digit characters
@@ -1189,11 +1286,11 @@ private struct RegisterForm: View {
         return true
     }
     
-    private func registerWithWaiver(signature: WaiverSignature) async {
+    private func registerAccount() async {
         isRegistering = true
         defer { isRegistering = false }
         
-        // Step 1: Create Firebase Auth account
+        // Create Firebase Auth account with organization ID
         let success = await auth.register(
             email: email.trimmingCharacters(in: .whitespacesAndNewlines),
             password: password,
@@ -1212,31 +1309,14 @@ private struct RegisterForm: View {
             athlete2Position: athlete2Position.isEmpty ? nil : athlete2Position,
             athlete3Position: athlete3Position.isEmpty ? nil : athlete3Position,
             notesForCoach: notesForCoach.isEmpty ? nil : notesForCoach,
-            phoneNumber: phoneNumber.isEmpty ? nil : phoneNumber
+            phoneNumber: phoneNumber.isEmpty ? nil : phoneNumber,
+            orgId: validatedOrgId
         )
         
-        guard success, let userId = Auth.auth().currentUser?.uid else {
+        if success {
+            print("✅ Registration completed successfully")
+        } else {
             print("❌ Registration failed")
-            return
-        }
-        
-        // Step 2: Generate and upload waiver PDF
-        do {
-            guard let pdfData = WaiverPDFGenerator.generateWaiverPDF(signature: signature) else {
-                print("❌ Failed to generate waiver PDF")
-                return
-            }
-            
-            print("📄 Uploading waiver for user: \(userId)")
-            _ = try await DocumentsService.shared.saveWaiverDocument(
-                userId: userId,
-                pdfData: pdfData,
-                signature: signature
-            )
-            print("✅ Waiver uploaded and saved successfully")
-        } catch {
-            print("❌ Error saving waiver: \(error.localizedDescription)")
-            // Account is created but waiver failed - they can re-sign later if needed
         }
     }
 }

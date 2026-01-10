@@ -15,6 +15,7 @@ final class AdminService: ObservableObject {
     @Published private(set) var isAdmin = false
     @Published private(set) var isLoading = false
     @Published private(set) var allUsers: [SimpleUser] = []
+    @Published private(set) var organizationData: [String: Any]?
     
     private let db = Firestore.firestore()
     
@@ -42,6 +43,12 @@ final class AdminService: ObservableObject {
                 let role = data["role"] as? String ?? ""
                 isAdmin = (role == "admin" || role == "owner")
                 print("✅ User role from orgMembers: \(role), isAdmin = \(isAdmin)")
+                
+                // Load organization data if admin
+                if isAdmin, let orgId = data["orgId"] as? String {
+                    await loadOrganizationData(orgId: orgId)
+                }
+                
                 isLoading = false
                 return
             }
@@ -54,6 +61,11 @@ final class AdminService: ObservableObject {
                 let data = userDoc.data() ?? [:]
                 isAdmin = data["isAdmin"] as? Bool ?? false
                 print("✅ isAdmin from user document: \(isAdmin)")
+                
+                // Load organization data if admin and orgId exists
+                if isAdmin, let orgId = data["orgId"] as? String {
+                    await loadOrganizationData(orgId: orgId)
+                }
             } else {
                 print("❌ User document does not exist for UID: \(uid)")
                 isAdmin = false
@@ -64,6 +76,22 @@ final class AdminService: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    // Load organization data
+    func loadOrganizationData(orgId: String) async {
+        do {
+            let doc = try await db.collection("organizations").document(orgId).getDocument()
+            
+            if doc.exists {
+                organizationData = doc.data()
+                print("✅ Loaded organization data for: \(orgId)")
+            } else {
+                print("❌ Organization document does not exist: \(orgId)")
+            }
+        } catch {
+            print("❌ Error loading organization data: \(error.localizedDescription)")
+        }
     }
     
     // Create a new class (admin only)

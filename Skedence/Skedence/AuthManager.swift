@@ -77,7 +77,8 @@ final class AuthManager: ObservableObject {
                   athlete2Position: String?,
                   athlete3Position: String?,
                   notesForCoach: String?,
-                  phoneNumber: String?) async -> Bool {
+                  phoneNumber: String?,
+                  orgId: String?) async -> Bool {
         authError = nil // Clear any stale errors before starting
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
@@ -104,6 +105,7 @@ final class AuthManager: ObservableObject {
                 "notesForCoach": notesForCoach,
                 "phoneNumber": phoneNumber,
                 "photoURL": nil,
+                "orgId": orgId,
                 "active": true,
                 "createdAt": now,
                 "updatedAt": now
@@ -117,6 +119,18 @@ final class AuthManager: ObservableObject {
             print("AuthManager.register → Payload: \(payload)")
 
             try await db.collection("users").document(uid).setData(payload)
+            
+            // Create orgMembers entry if orgId provided
+            if let orgId = orgId {
+                try await db.collection("orgMembers").addDocument(data: [
+                    "userId": uid,
+                    "orgId": orgId,
+                    "role": "client",
+                    "isActive": true,
+                    "joinedAt": Timestamp(date: now)
+                ])
+                print("✅ Created orgMember for \(uid) in org \(orgId)")
+            }
             
             // Track sign up event
             AnalyticsService.shared.logUserSignUp(userId: uid, method: "email")

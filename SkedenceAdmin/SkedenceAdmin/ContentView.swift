@@ -199,10 +199,21 @@ struct MoreView: View {
                                         }
                                         return "User"
                                     }())
+                                    
+                                    if let orgId = auth.currentOrgId {
+                                        Divider()
+                                        InfoRow(label: "Organization ID", value: orgId, copyable: true)
+                                    }
                                 }
                             }
                         }
                         .padding(.horizontal, Spacing.lg)
+                        
+                        // Share App Link Card
+                        if let orgId = auth.currentOrgId {
+                            ShareAppLinkCard(orgId: orgId)
+                                .padding(.horizontal, Spacing.lg)
+                        }
                         
                         // Sign Out Button
                         Button {
@@ -340,27 +351,156 @@ struct InfoRow: View {
     let value: String
     var copyable: Bool = false
     
+    @State private var showCopied = false
+    
     var body: some View {
         HStack {
             Text(label)
                 .font(.bodyMedium)
                 .foregroundStyle(AppTheme.textSecondary)
             Spacer()
+            Text(value)
+                .font(.bodyMedium)
+                .foregroundStyle(AppTheme.textPrimary)
+                .textSelection(copyable ? .enabled : .disabled)
+            
             if copyable {
-                Text(value)
-                    .font(.bodyMedium)
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .textSelection(.enabled)
-            } else {
-                Text(value)
-                    .font(.bodyMedium)
-                    .foregroundStyle(AppTheme.textPrimary)
+                Button {
+                    UIPasteboard.general.string = value
+                    showCopied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        showCopied = false
+                    }
+                } label: {
+                    Image(systemName: showCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                        .font(.bodyMedium)
+                        .foregroundStyle(showCopied ? AppTheme.success : AppTheme.primary)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 }
 
-#Preview {
-    ContentView()
-        .environmentObject(AuthManager())
-}
+// Share App Link Card
+struct ShareAppLinkCard: View {
+    let orgId: String
+    @State private var showCopied = false
+    @State private var organizationCode: String?
+    @State private var isLoading = true
+    
+    var body: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack {
+                    Image(systemName: "arrow.down.app.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppTheme.primary)
+                    
+                    Text("Share App with Clients")
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    
+                    Spacer()
+                }
+                
+                Text("Send clients a link to download the app with your organization pre-filled")
+                    .font(.bodySmall)
+                    .foregroundStyle(AppTheme.textSecondary)
+                
+                if isLoading {
+                    HStack {
+                        ProgressView()
+                        Text("Loading organization code...")
+                            .font(.bodySmall)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.sm)
+                } else if let code = organizationCode {
+                    VStack(spacing: Spacing.sm) {
+                        // App Store Link with Deep Link
+                        let appStoreLink = "https://apps.apple.com/app/skedence/id123456789?orgCode=\\(code)"
+                        
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "link")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            
+                            Text(appStoreLink)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            
+                            Spacer()
+                        }
+                        .padding(Spacing.sm)
+                        .background(Color(UIColor.systemGray6))
+                        .cornerRadius(CornerRadius.xs)
+                        
+                        HStack(spacing: Spacing.sm) {
+                            Button {
+                                UIPasteboard.general.string = appStoreLink
+                                showCopied = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    showCopied = false
+                                }
+                            } label: {
+                                HStack(spacing: Spacing.xs) {
+                                    Image(systemName: showCopied ? "checkmark.circle.fill" : "doc.on.doc.fill")
+                                    Text(showCopied ? "Copied!" : "Copy Link")
+                                        .font(.bodySmall)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(SecondaryButtonStyle())
+                            
+                            Button {
+                                let activityVC = UIActivityViewController(activityItems: [appStoreLink], applicationActivities: nil)
+                                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                   let window = windowScene.windows.first,
+                                   let rootVC = window.rootViewController {
+                                    rootVC.present(activityVC, animated: true)
+                                }
+                            } label: {
+                                HStack(spacing: Spacing.xs) {
+                                    Image(systemName: "square.and.arrow.up.fill")
+                                    Text("Share")
+                                        .font(.bodySmall)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(PrimaryButtonStyle())
+                        }
+                    }
+                } else {
+                    Text("Unable to load organization code")
+                        .font(.bodySmall)
+                        .foregroundStyle(AppTheme.error)
+                }
+            }
+        }
+        .task {
+            await loadOrganizationCode()
+        }
+    }
+    
+    private func loadOrganizationCode() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            #if canImport(FirebaseFirestore)
+            let db = Firestore.firestore()
+            let doc = try await db.collection("organizations").document(orgId).getDocument()
+            
+            if let data = doc.data(), let code = data["inviteCode"] as? String {
+                organizationCode = code
+            }
+            #endif
+        } catch {
+            print("❌ Error loading organization code: \(error.localizedDescription)")
+        }
+    }
+}\n\n#Preview {\n    ContentView()\n        .environmentObject(AuthManager())\n}
