@@ -32,6 +32,11 @@ struct AdminPanelView: View {
     @State private var editingTiers: [PricingTier] = []
     @State private var isSavingPricing = false
     
+    // Location states
+    @State private var showingAddLocation = false
+    @State private var locationToEdit: Location?
+    @State private var organizationBilling: OrganizationBilling?
+    
     enum AdminTab: String, CaseIterable {
         case passes = "Passes"
         case classes = "Classes"
@@ -100,6 +105,21 @@ struct AdminPanelView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingAddLocation) {
+                AddEditLocationSheet(
+                    locationsService: locationsService,
+                    locationToEdit: locationToEdit,
+                    onSave: {
+                        locationToEdit = nil
+                    }
+                )
+                .environmentObject(auth)
+            }
+            .onChange(of: showingAddLocation) { newValue in
+                if !newValue {
+                    locationToEdit = nil
+                }
+            }
             .alert(item: $alertItem) { item in
                 Alert(title: Text(item.title), message: Text(item.message))
             }
@@ -113,6 +133,7 @@ struct AdminPanelView: View {
                 await adminService.loadAllUsers(orgId: orgId)
                 await pricingService.loadPricingStructure(for: orgId)
                 locationsService.loadLocations(orgId: orgId)
+                organizationBilling = await adminService.fetchOrganizationBilling(orgId: orgId)
                 
                 // Set default pass type to first package if none selected
                 if selectedPassType.isEmpty, let firstPackage = pricingService.allPackageOptions.first {
@@ -1210,7 +1231,8 @@ extension AdminPanelView {
                 LocationCard(
                     location: location,
                     onEdit: {
-                        // TODO: Add edit functionality
+                        locationToEdit = location
+                        showingAddLocation = true
                     },
                     onDelete: {
                         Task {
@@ -1228,7 +1250,8 @@ extension AdminPanelView {
             // Add Location button or upgrade prompt
             if canAddMoreLocations {
                 Button {
-                    // TODO: Show add location sheet
+                    locationToEdit = nil
+                    showingAddLocation = true
                 } label: {
                     HStack {
                         Image(systemName: "plus.circle.fill")
@@ -1274,16 +1297,7 @@ extension AdminPanelView {
         .padding(.top, Spacing.md)
     }
     
-    private var canAddMoreLocations: Bool {
-        // Free trial and Starter: 1 location
-        // Studio: 2 locations
-        // Academy: 5 locations  
-        // Enterprise: unlimited
-        let maxLocations: Int
-        
-        // TODO: Get actual subscription tier from auth/organization
-        // For now, default to 1 (free/starter)
-        maxLocations = 1
+    privlet maxLocations = organizationBilling?.locationLimit ?? 1maxLocations = 1
         
         return locationsService.locations.count < maxLocations
     }

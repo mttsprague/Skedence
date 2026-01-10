@@ -350,6 +350,73 @@ final class AdminService: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Client only has \(lessonsToRemove - remainingToRemove) available passes of this type"])
         }
     }
+    
+    // Fetch organization billing info
+    func fetchOrganizationBilling(orgId: String) async -> OrganizationBilling? {
+        do {
+            let doc = try await db.collection("organizations").document(orgId).getDocument()
+            guard doc.exists, let data = doc.data() else {
+                return nil
+            }
+            
+            // Extract billing info
+            guard let billingData = data["billing"] as? [String: Any] else {
+                return nil
+            }
+            
+            let status = billingData["status"] as? String ?? "trialing"
+            let plan = billingData["plan"] as? String ?? "free"
+            let isActive = billingData["isActive"] as? Bool ?? true
+            let isInGrace = billingData["isInGrace"] as? Bool ?? false
+            
+            return OrganizationBilling(
+                status: status,
+                plan: plan,
+                trialEndsAt: (billingData["trialEndsAt"] as? Timestamp)?.dateValue(),
+                currentPeriodEnd: (billingData["currentPeriodEnd"] as? Timestamp)?.dateValue(),
+                graceEndsAt: (billingData["graceEndsAt"] as? Timestamp)?.dateValue(),
+                stripeCustomerId: billingData["stripeCustomerId"] as? String,
+                stripeSubscriptionId: billingData["stripeSubscriptionId"] as? String,
+                isActive: isActive,
+                isInGrace: isInGrace
+            )
+        } catch {
+            print("❌ Error fetching organization billing: \(error)")
+            return nil
+        }
+    }
+}
+
+// Organization billing structure
+struct OrganizationBilling {
+    var status: String
+    var plan: String
+    var trialEndsAt: Date?
+    var currentPeriodEnd: Date?
+    var graceEndsAt: Date?
+    var stripeCustomerId: String?
+    var stripeSubscriptionId: String?
+    var isActive: Bool
+    var isInGrace: Bool
+    
+    var planTier: String {
+        plan
+    }
+    
+    var locationLimit: Int {
+        switch plan.lowercased() {
+        case "free", "starter":
+            return 1
+        case "studio":
+            return 2
+        case "academy":
+            return 5
+        case "enterprise":
+            return 999
+        default:
+            return 1
+        }
+    }
 }
 
 // Simple user model for admin dropdown

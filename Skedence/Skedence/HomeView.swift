@@ -23,10 +23,6 @@ struct HomeView: View {
     private var isAuthenticated: Bool {
         Auth.auth().currentUser != nil
     }
-    
-    private var primaryLocation: Location? {
-        locationsService.locations.first
-    }
 
     var body: some View {
         NavigationView {
@@ -53,50 +49,58 @@ struct HomeView: View {
                         }
                     }
 
-                    // Location Card
-                    if let location = primaryLocation {
-                        CardView(padding: Spacing.md) {
-                            Button {
-                                openInMaps(address: location.fullAddress)
-                            } label: {
-                                HStack(spacing: Spacing.md) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [AppTheme.primary, AppTheme.primaryLight],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing)
-                                            )
-                                            .frame(width: 56, height: 56)
-                                        
-                                        Image(systemName: "mappin.circle.fill")
-                                            .font(.system(size: 26))
-                                            .foregroundStyle(.white)
+                    // Location Cards
+                    if !locationsService.locations.isEmpty {
+                        VStack(alignment: .leading, spacing: Spacing.sm) {
+                            if locationsService.locations.count > 1 {
+                                SectionHeaderView(title: "Locations")
+                            }
+                            
+                            ForEach(locationsService.locations) { location in
+                                CardView(padding: Spacing.md) {
+                                    Button {
+                                        openInMaps(address: location.fullAddress)
+                                    } label: {
+                                        HStack(spacing: Spacing.md) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(
+                                                        LinearGradient(
+                                                            colors: [AppTheme.primary, AppTheme.primaryLight],
+                                                            startPoint: .topLeading,
+                                                            endPoint: .bottomTrailing)
+                                                    )
+                                                    .frame(width: 56, height: 56)
+                                                
+                                                Image(systemName: "mappin.circle.fill")
+                                                    .font(.system(size: 26))
+                                                    .foregroundStyle(.white)
+                                            }
+
+                                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                                Text(location.name)
+                                                    .font(.headingSmall)
+                                                    .foregroundStyle(AppTheme.textPrimary)
+                                                
+                                                Text(location.addressLine1)
+                                                    .font(.bodyMedium)
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                                
+                                                Text(location.cityStateZip)
+                                                    .font(.bodySmall)
+                                                    .foregroundStyle(AppTheme.textTertiary)
+                                            }
+
+                                            Spacer()
+
+                                            Image(systemName: "chevron.right.circle.fill")
+                                                .font(.system(size: 24))
+                                                .foregroundStyle(AppTheme.primary.opacity(0.3))
+                                        }
                                     }
-
-                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                        Text(location.name)
-                                            .font(.headingSmall)
-                                            .foregroundStyle(AppTheme.textPrimary)
-                                        
-                                        Text(location.addressLine1)
-                                            .font(.bodyMedium)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                        
-                                        Text(location.cityStateZip)
-                                            .font(.bodySmall)
-                                            .foregroundStyle(AppTheme.textTertiary)
-                                    }
-
-                                    Spacer()
-
-                                    Image(systemName: "chevron.right.circle.fill")
-                                        .font(.system(size: 24))
-                                        .foregroundStyle(AppTheme.primary.opacity(0.3))
+                                    .buttonStyle(.plain)
                                 }
                             }
-                            .buttonStyle(.plain)
                         }
                     }
 
