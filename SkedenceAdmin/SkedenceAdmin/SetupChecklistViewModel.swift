@@ -23,6 +23,13 @@ class SetupChecklistViewModel: ObservableObject {
                       let document = snapshot?.documents.first else { return }
                 
                 let orgId = document.documentID
+                
+                // Guard against empty orgId
+                guard !orgId.isEmpty else {
+                    print("⚠️ SetupChecklistViewModel received document with empty ID")
+                    return
+                }
+                
                 self.bookingLink = "https://skedence.app/book/\(orgId)"
                 
                 // Load onboarding progress
@@ -48,6 +55,12 @@ class SetupChecklistViewModel: ObservableObject {
     }
     
     private func checkActualProgress(orgId: String) async {
+        // Guard against empty orgId
+        guard !orgId.isEmpty else {
+            print("⚠️ SetupChecklistViewModel.checkActualProgress called with empty orgId")
+            return
+        }
+        
         // Check if Stripe is connected
         let orgDoc = try? await db.collection("organizations").document(orgId).getDocument()
         if let stripeId = orgDoc?.data()?["stripeCustomerId"] as? String, !stripeId.isEmpty {

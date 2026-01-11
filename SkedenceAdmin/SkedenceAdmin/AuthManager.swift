@@ -186,7 +186,7 @@ final class AuthManager: ObservableObject {
 
     func refreshTrainerStatus() async {
         #if canImport(FirebaseAuth) && canImport(FirebaseFirestore)
-        guard let uid = Auth.auth().currentUser?.uid else {
+        guard let uid = Auth.auth().currentUser?.uid, !uid.isEmpty else {
             self.isTrainer = false
             return
         }
@@ -204,7 +204,7 @@ final class AuthManager: ObservableObject {
 
     func refreshTrainerProfileIfNeeded() async {
         #if canImport(FirebaseAuth) && canImport(FirebaseFirestore)
-        guard isTrainer, let uid = Auth.auth().currentUser?.uid else {
+        guard isTrainer, let uid = Auth.auth().currentUser?.uid, !uid.isEmpty else {
             self.trainerDisplayName = nil
             self.trainerPhotoURLString = nil
             self.isAdmin = false
@@ -268,6 +268,11 @@ final class AuthManager: ObservableObject {
     
     // STEP 8: Load dynamic branding from organization
     private func loadOrgBranding(orgId: String) async {
+        guard !orgId.isEmpty else {
+            print("⚠️ loadOrgBranding called with empty orgId")
+            return
+        }
+        
         #if canImport(FirebaseFirestore)
         do {
             let db = Firestore.firestore()
@@ -318,7 +323,7 @@ final class AuthManager: ObservableObject {
             }
             
             // Load user profile data (firstName, lastName)
-            if let uid = userId {
+            if let uid = userId, !uid.isEmpty {
                 let userDoc = try await db.collection("users").document(uid).getDocument()
                 if let userData = userDoc.data() {
                     userFirstName = userData["firstName"] as? String

@@ -396,6 +396,11 @@ struct TrainerWeekView: View {
     }
     
     private func fetchParticipants(classId: String) async throws -> [ClassParticipant] {
+        guard !classId.isEmpty else {
+            print("⚠️ fetchParticipants called with empty classId")
+            return []
+        }
+        
         let db = Firestore.firestore()
         let snapshot = try await db.collection("classes")
             .document(classId)

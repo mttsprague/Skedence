@@ -126,6 +126,12 @@ final class FirestoreService {
         // Fetch all class documents to check isOpenForRegistration
         var openClassIds = Set<String>()
         for classId in classIdsToCheck {
+            // Guard against empty classId
+            guard !classId.isEmpty else {
+                print("⚠️ Skipping empty classId in registration check")
+                continue
+            }
+            
             do {
                 let classDoc = try await db.collection("classes").document(classId).getDocument()
                 if classDoc.exists,
@@ -318,6 +324,11 @@ final class FirestoreService {
     }
     
     func fetchTrainer(by id: String) async throws -> Trainer? {
+        guard !id.isEmpty else {
+            print("⚠️ fetchTrainer called with empty id")
+            return nil
+        }
+        
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         let doc = try await db.collection("trainers").document(id).getDocument()
@@ -365,6 +376,11 @@ final class FirestoreService {
 
     // MARK: - Users (profiles) compliant with rules
     func createOrUpdateUserProfile(uid: String, firstName: String, lastName: String, emailAddress: String, phoneNumber: String? = nil, photoURL: String? = nil, active: Bool = true) async throws {
+        guard !uid.isEmpty else {
+            print("⚠️ createOrUpdateUserProfile called with empty uid")
+            throw FirestoreServiceError.notAvailable
+        }
+        
         #if canImport(FirebaseFirestore)
         let ref = Firestore.firestore().collection("users").document(uid)
 
@@ -394,6 +410,11 @@ final class FirestoreService {
 
     // MARK: - Trainers (owner-writable)
     func createOrUpdateTrainerProfile(trainerId: String, firstName: String, lastName: String, email: String, avatarUrl: String? = nil, photoURL: String? = nil, imageUrl: String? = nil, active: Bool = true) async throws {
+        guard !trainerId.isEmpty else {
+            print("⚠️ createOrUpdateTrainerProfile called with empty trainerId")
+            throw FirestoreServiceError.notAvailable
+        }
+        
         #if canImport(FirebaseFirestore)
         let ref = Firestore.firestore().collection("trainers").document(trainerId)
         var data: [String: Any] = [
@@ -490,6 +511,11 @@ final class FirestoreService {
 
     // MARK: - Single client fetch
     func fetchClient(by uid: String) async throws -> Client? {
+        guard !uid.isEmpty else {
+            print("⚠️ fetchClient called with empty uid")
+            return nil
+        }
+        
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         let snap = try await db.collection("users").document(uid).getDocument()
@@ -538,6 +564,11 @@ final class FirestoreService {
     
     // MARK: - Client Lesson Packages
     func fetchClientPackages(clientId: String) async throws -> [LessonPackage] {
+        guard !clientId.isEmpty else {
+            print("⚠️ fetchClientPackages called with empty clientId")
+            return []
+        }
+        
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         let snapshot = try await db.collection("users")
@@ -578,6 +609,11 @@ final class FirestoreService {
     
     // MARK: - Admin Booking
     func adminBookLesson(trainerId: String, slotId: String, clientId: String, packageId: String, orgId: String) async throws {
+        guard !trainerId.isEmpty, !slotId.isEmpty, !clientId.isEmpty, !packageId.isEmpty, !orgId.isEmpty else {
+            print("⚠️ adminBookLesson called with empty ID(s): trainerId=\(trainerId), slotId=\(slotId), clientId=\(clientId), packageId=\(packageId), orgId=\(orgId)")
+            throw FirestoreServiceError.notAvailable
+        }
+        
         #if canImport(FirebaseFirestore)
         print("🔵 adminBookLesson: Start")
         let db = Firestore.firestore()
@@ -677,6 +713,11 @@ final class FirestoreService {
     
     // MARK: - Client Bookings
     func fetchClientBookings(clientId: String, upcoming: Bool, orgId: String) async throws -> [ClientBooking] {
+        guard !clientId.isEmpty, !orgId.isEmpty else {
+            print("⚠️ fetchClientBookings called with empty clientId or orgId")
+            return []
+        }
+        
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         let now = Timestamp(date: Date())
@@ -717,7 +758,7 @@ final class FirestoreService {
                     
                     // Fetch package type if packageId exists
                     var packageType: String? = nil
-                    if let pkgId = packageId {
+                    if let pkgId = packageId, !pkgId.isEmpty, !clientId.isEmpty {
                         do {
                             let packageDoc = try await db.collection("users")
                                 .document(clientId)
@@ -763,6 +804,11 @@ final class FirestoreService {
     
     // MARK: - Client Documents
     func fetchClientDocuments(clientId: String) async throws -> [ClientDocument] {
+        guard !clientId.isEmpty else {
+            print("⚠️ fetchClientDocuments called with empty clientId")
+            return []
+        }
+        
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         let snapshot = try await db.collection("users")

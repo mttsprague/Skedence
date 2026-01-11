@@ -43,7 +43,8 @@ class SuperAdminViewModel: ObservableObject {
                 .getDocuments()
             
             guard let memberDoc = memberSnapshot.documents.first,
-                  let orgId = memberDoc.data()["orgId"] as? String else {
+                  let orgId = memberDoc.data()["orgId"] as? String,
+                  !orgId.isEmpty else {
                 errorMessage = "No organization found"
                 isLoading = false
                 return
@@ -144,7 +145,7 @@ class SuperAdminViewModel: ObservableObject {
                 }
             }
             
-            guard let orgId = currentOrgId else {
+            guard let orgId = currentOrgId, !orgId.isEmpty else {
                 errorMessage = "No organization found"
                 isLoading = false
                 return
@@ -159,7 +160,7 @@ class SuperAdminViewModel: ObservableObject {
             
             for memberDoc in membersSnapshot.documents {
                 let memberData = memberDoc.data()
-                guard let memberId = memberData["userId"] as? String else { continue }
+                guard let memberId = memberData["userId"] as? String, !memberId.isEmpty else { continue }
                 
                 // Skip trainers - only show clients/users in the Users tab
                 let role = memberData["role"] as? String ?? "client"
@@ -200,6 +201,11 @@ class SuperAdminViewModel: ObservableObject {
     }
     
     func updateUserRole(userId: String, orgId: String, newRole: String) async {
+        guard !userId.isEmpty, !orgId.isEmpty else {
+            print("⚠️ updateUserRole called with empty userId or orgId")
+            return
+        }
+        
         do {
             let memberDocId = "\(userId)_\(orgId)"
             try await db.collection("orgMembers").document(memberDocId).updateData([
@@ -262,6 +268,12 @@ class CreateOrgViewModel: ObservableObject {
             // Create organization
             let orgRef = db.collection("organizations").document()
             let orgId = orgRef.documentID
+            
+            guard !orgId.isEmpty else {
+                print("⚠️ Generated empty orgId")
+                errorMessage = "Failed to generate organization ID"
+                return nil
+            }
             
             // Generate unique invite code
             let inviteCode = await generateUniqueInviteCode()
@@ -415,6 +427,13 @@ class AddTrainerViewModel: ObservableObject {
             if let existingUserDoc = userQuery.documents.first {
                 // User already exists
                 userId = existingUserDoc.documentID
+                
+                guard !userId.isEmpty else {
+                    print("⚠️ Existing user has empty documentID")
+                    errorMessage = "Invalid user ID"
+                    return nil
+                }
+                
                 print("✅ Found existing user: \(userId)")
                 
                 // Update user with orgId
@@ -428,6 +447,12 @@ class AddTrainerViewModel: ObservableObject {
                 isNewUser = true
                 let userRef = db.collection("users").document()
                 userId = userRef.documentID
+                
+                guard !userId.isEmpty else {
+                    print("⚠️ Generated empty userId")
+                    errorMessage = "Failed to generate user ID"
+                    return nil
+                }
                 
                 let userData: [String: Any] = [
                     "emailAddress": email,
@@ -448,6 +473,12 @@ class AddTrainerViewModel: ObservableObject {
             let trainerRef = db.collection("trainers").document()
             let trainerId = trainerRef.documentID
             
+            guard !trainerId.isEmpty else {
+                print("⚠️ Generated empty trainerId")
+                errorMessage = "Failed to generate trainer ID"
+                return nil
+            }
+            
             let trainerData: [String: Any] = [
                 "firstName": firstName,
                 "lastName": lastName,
@@ -462,6 +493,12 @@ class AddTrainerViewModel: ObservableObject {
             print("✅ Created trainer: \(trainerId)")
             
             // Create orgMembers entry
+            guard !userId.isEmpty, !orgId.isEmpty else {
+                print("⚠️ Cannot create orgMember with empty userId or orgId")
+                errorMessage = "Invalid user or org ID"
+                return nil
+            }
+            
             let memberData: [String: Any] = [
                 "userId": userId,
                 "orgId": orgId,

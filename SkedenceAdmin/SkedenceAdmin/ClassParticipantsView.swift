@@ -186,6 +186,12 @@ class ParticipantsLoader: ObservableObject {
     }
     
     func loadParticipants() async {
+        guard !classId.isEmpty else {
+            print("⚠️ loadParticipants called with empty classId")
+            isLoading = false
+            return
+        }
+        
         isLoading = true
         
         do {

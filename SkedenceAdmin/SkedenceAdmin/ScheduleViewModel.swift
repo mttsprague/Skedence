@@ -254,8 +254,11 @@ final class ScheduleViewModel: ObservableObject {
     // MARK: - Prefetch class participants for instant sheet presentation
     func prefetchClassParticipantsForVisibleWeek() async {
         // Collect unique class IDs from class bookings
-        let allClassIds = Set(slotsByDay.values.flatMap { daySlots in
-            daySlots.compactMap { $0.isClass ? $0.classId : nil }
+        let allClassIds: Set<String> = Set(slotsByDay.values.flatMap { daySlots in
+            daySlots.compactMap { slot in
+                guard slot.isClass, let classId = slot.classId, !classId.isEmpty else { return nil }
+                return classId
+            }
         })
         // Skip any already cached
         let missing = allClassIds.subtracting(participantsByClassId.keys)
@@ -284,6 +287,11 @@ final class ScheduleViewModel: ObservableObject {
     }
     
     private func fetchParticipants(classId: String) async throws -> [ClassParticipant] {
+        guard !classId.isEmpty else {
+            print("⚠️ fetchParticipants called with empty classId")
+            return []
+        }
+        
         let db = Firestore.firestore()
         
         // Break the chain to help the compiler pick the async getDocuments() overload
