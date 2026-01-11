@@ -71,6 +71,10 @@ struct BookView: View {
             }
             .onAppear {
                 setupInitialMode()
+                // Reload classes when view appears if in classes mode
+                if mode == .classes, let orgId = auth.currentOrgId {
+                    Task { await classesService.loadOpenClasses(orgId: orgId) }
+                }
             }
             .onChangeCompat(of: initialMode) { _, newValue in
                 mode = newValue == 1 ? .classes : .lessons
@@ -320,6 +324,11 @@ struct BookView: View {
                                             Text("\(Int((slot.endTime.timeIntervalSince(slot.startTime)) / 60)) min session")
                                                 .font(.bodySmall)
                                                 .foregroundStyle(AppTheme.textSecondary)
+                                            if let location = slot.location {
+                                                Label(location, systemImage: "mappin.circle.fill")
+                                                    .font(.bodySmall)
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                            }
                                         } else {
                                             Text("Too close to start time")
                                                 .font(.bodySmall)

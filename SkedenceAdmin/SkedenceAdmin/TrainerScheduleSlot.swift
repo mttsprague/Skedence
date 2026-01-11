@@ -26,6 +26,7 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
     var updatedAt: Date? // Added to match schema
     var isClassBooking: Bool? // NEW: Indicates this is a class booking
     var classId: String? // NEW: Reference to the class document
+    var location: String? // Location name for this availability slot
 
     // Consider a slot booked if the backend sets status to "booked" OR if clientId is present.
     var isBooked: Bool { status == .booked || clientId != nil }

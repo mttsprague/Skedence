@@ -771,17 +771,18 @@ private struct SheetModifiers: ViewModifier {
                     defaultHour: ctx.hour,
                     isAdmin: auth.isAdmin,
                     editingTrainerId: viewModel.editingTrainerId,
-                    onSaveSingle: { day, start, end, status, applyToAllTrainers in
+                    orgId: auth.organizationId,
+                    onSaveSingle: { day, start, end, status, applyToAllTrainers, location in
                         Task {
                             if applyToAllTrainers {
-                                await viewModel.setCustomSlotForAllTrainers(on: day, startTime: start, endTime: end, status: status)
+                                await viewModel.setCustomSlotForAllTrainers(on: day, startTime: start, endTime: end, status: status, location: location)
                             } else {
-                                await viewModel.setCustomSlot(on: day, startTime: start, endTime: end, status: status, billingPlan: auth.billingPlan)
+                                await viewModel.setCustomSlot(on: day, startTime: start, endTime: end, status: status, billingPlan: auth.billingPlan, location: location)
                             }
                             editorContext = nil
                         }
                     },
-                    onSaveOngoing: { startDate, endDate, dailyStartHour, dailyEndHour, durationMinutes, daysOfWeek, status, applyToAllTrainers in
+                    onSaveOngoing: { startDate, endDate, dailyStartHour, dailyEndHour, durationMinutes, daysOfWeek, status, applyToAllTrainers, location in
                         Task {
                             if applyToAllTrainers {
                                 await viewModel.openAvailabilityForAllTrainers(
@@ -791,7 +792,8 @@ private struct SheetModifiers: ViewModifier {
                                     dailyEndHour: dailyEndHour,
                                     slotDurationMinutes: durationMinutes,
                                     selectedDaysOfWeek: daysOfWeek,
-                                    status: status
+                                    status: status,
+                                    location: location
                                 )
                             } else {
                                 await viewModel.openAvailability(
@@ -801,7 +803,8 @@ private struct SheetModifiers: ViewModifier {
                                     dailyEndHour: dailyEndHour,
                                     slotDurationMinutes: durationMinutes,
                                     selectedDaysOfWeek: daysOfWeek,
-                                    status: status
+                                    status: status,
+                                    location: location
                                 )
                             }
                             editorContext = nil

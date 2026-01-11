@@ -13,17 +13,19 @@ struct AvailabilityEditorSheet: View {
     let isAdmin: Bool
     let editingTrainerId: String?
     let orgId: String?
-    let onSaveSingle: (Date, Date, Date, TrainerScheduleSlot.Status, Bool) -> Void
-    let onSaveOngoing: (Date?, Date?, Int?, Int?, Int?, [Int]?, TrainerScheduleSlot.Status, Bool) -> Void
+    let onSaveSingle: (Date, Date, Date, TrainerScheduleSlot.Status, Bool, String?) -> Void
+    let onSaveOngoing: (Date?, Date?, Int?, Int?, Int?, [Int]?, TrainerScheduleSlot.Status, Bool, String?) -> Void
     let onBookLesson: (String, TimeInterval, TimeInterval, String) -> Void // clientId, startTime, endTime, packageId
 
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var locationsService = LocationsService()
 
     // Single-slot state
     @State private var singleDay: Date
     @State private var singleStart: Date
     @State private var singleEnd: Date
     @State private var singleStatus: TrainerScheduleSlot.Status = .open
+    @State private var selectedLocation: Location?
 
     // Recurring toggle and inputs
     @State private var recurringEnabled: Bool = false
@@ -65,8 +67,8 @@ struct AvailabilityEditorSheet: View {
         isAdmin: Bool = false,
         editingTrainerId: String? = nil,
         orgId: String? = nil,
-        onSaveSingle: @escaping (Date, Date, Date, TrainerScheduleSlot.Status, Bool) -> Void,
-        onSaveOngoing: @escaping (Date?, Date?, Int?, Int?, Int?, [Int]?, TrainerScheduleSlot.Status, Bool) -> Void,
+        onSaveSingle: @escaping (Date, Date, Date, TrainerScheduleSlot.Status, Bool, String?) -> Void,
+        onSaveOngoing: @escaping (Date?, Date?, Int?, Int?, Int?, [Int]?, TrainerScheduleSlot.Status, Bool, String?) -> Void,
         onBookLesson: @escaping (String, TimeInterval, TimeInterval, String) -> Void = { _, _, _, _ in }
     ) {
         self.defaultDay = defaultDay
@@ -129,6 +131,10 @@ struct AvailabilityEditorSheet: View {
                 snapAndSyncTimes()
                 if isAdmin {
                     loadClients()
+                }
+                // Load locations
+                if let orgId = orgId {
+                    locationsService.loadLocations(orgId: orgId)
                 }
             }
         }
@@ -331,6 +337,14 @@ struct AvailabilityEditorSheet: View {
             )
             .onChange(of: singleEnd) { _, _ in
                 snapAndSyncTimes()
+            }
+            
+            // Location picker
+            Picker("Location", selection: $selectedLocation) {
+                Text("Select Location").tag(nil as Location?)
+                ForEach(locationsService.locations) { location in
+                    Text(location.name).tag(location as Location?)
+                }
             }
         }
     }
@@ -547,7 +561,7 @@ struct AvailabilityEditorSheet: View {
         let minEnd = cal.date(byAdding: .hour, value: 1, to: startOnDay) ?? startOnDay.addingTimeInterval(3600)
         var endOnDay = roundDownToHour(anchor(time: singleEnd, toDay: singleDay, calendar: cal), calendar: cal)
         if endOnDay < minEnd { endOnDay = minEnd }
-        onSaveSingle(singleDay, startOnDay, endOnDay, singleStatus, applyToAllTrainers)
+        onSaveSingle(singleDay, startOnDay, endOnDay, singleStatus, applyToAllTrainers, selectedLocation?.name)
         dismiss()
     }
 
@@ -568,7 +582,7 @@ struct AvailabilityEditorSheet: View {
         
         let daysArray = selectedWeekdays.isEmpty ? nil : Array(selectedWeekdays).sorted()
 
-        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers)
+        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, selectedLocation?.name)
         dismiss()
     }
 

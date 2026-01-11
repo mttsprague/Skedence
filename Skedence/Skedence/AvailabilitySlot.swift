@@ -16,9 +16,10 @@ struct AvailabilitySlot: Identifiable, Hashable {
     var status: String?
     var startTime: Date
     var endTime: Date
+    var location: String? // Location name for this availability slot
 
     enum CodingKeys: String, CodingKey {
-        case id, trainerId, title, status, startTime, endTime
+        case id, trainerId, title, status, startTime, endTime, location
     }
 
     var displayTitle: String { (title?.isEmpty == false) ? title! : "Private Lesson" }

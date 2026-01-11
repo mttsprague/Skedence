@@ -202,6 +202,14 @@ struct HomeView: View {
                 await adminService.checkAdminStatus()
             }
         }
+        .onAppear {
+            // Reload classes when view appears (e.g., after creating a class in admin)
+            if let orgId = auth.currentOrgId {
+                Task {
+                    await classesService.loadUpcomingClasses(orgId: orgId)
+                }
+            }
+        }
     }
 
     private func openInMaps(address: String) {
