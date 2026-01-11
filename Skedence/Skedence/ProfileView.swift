@@ -1488,24 +1488,14 @@ private struct FormField: View {
 // MARK: - Compatibility helper to silence iOS 17 onChange deprecation while supporting earlier OS versions
 
 private extension View {
-    // iOS 17+ (and corresponding platform versions): use the new one-parameter closure
-    @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *)
     @ViewBuilder
     func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
-        self.onChange(of: value) { newValue in
-            action(newValue)
-        }
-    }
-
-    // Pre–iOS 17 (and corresponding platform versions): use the legacy two-parameter closure
-    @available(iOS, introduced: 13.0, obsoleted: 17.0)
-    @available(macOS, introduced: 10.15, obsoleted: 14.0)
-    @available(tvOS, introduced: 13.0, obsoleted: 17.0)
-    @available(watchOS, introduced: 6.0, obsoleted: 10.0)
-    @ViewBuilder
-    func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
-        self.onChange(of: value) { _, newValue in
-            action(newValue)
+        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
+            self.onChange(of: value) { _, newValue in
+                action(newValue)
+            }
+        } else {
+            self.onChange(of: value, perform: action)
         }
     }
 }

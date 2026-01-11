@@ -148,7 +148,8 @@ final class AdminService: ObservableObject {
             "clientName": title,
             "classId": classRef.documentID,
             "isClassBooking": true,
-            "bookedAt": Timestamp(date: Date())
+            "bookedAt": Timestamp(date: Date()),
+            "orgId": orgId
         ]
         
         // Add slot to all trainers' schedules
@@ -254,7 +255,8 @@ final class AdminService: ObservableObject {
             "packageType": "class",
             "classId": classId,
             "isClassBooking": true,
-            "bookedAt": Timestamp(date: Date())
+            "bookedAt": Timestamp(date: Date()),
+            "orgId": orgId
         ]
         
         for trainerDoc in trainersSnapshot.documents {

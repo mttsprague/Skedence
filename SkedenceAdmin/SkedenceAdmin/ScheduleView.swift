@@ -695,9 +695,18 @@ private struct ViewLifecycleModifiers: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task {
-                viewModel.setTrainerId(auth.userId ?? "trainer_demo")
-                viewModel.setOrgId(auth.currentOrgId)
-                await viewModel.loadWeek()
+                // Set IDs first, before loading data
+                if let userId = auth.userId, !userId.isEmpty {
+                    viewModel.setTrainerId(userId)
+                }
+                if let orgId = auth.currentOrgId {
+                    viewModel.setOrgId(orgId)
+                }
+                
+                // Only load if we have valid IDs
+                if auth.userId != nil && auth.currentOrgId != nil {
+                    await viewModel.loadWeek()
+                }
                 
                 if auth.isAdmin {
                     await viewModel.loadAllTrainers()
@@ -771,7 +780,7 @@ private struct SheetModifiers: ViewModifier {
                     defaultHour: ctx.hour,
                     isAdmin: auth.isAdmin,
                     editingTrainerId: viewModel.editingTrainerId,
-                    orgId: auth.organizationId,
+                    orgId: auth.currentOrgId,
                     onSaveSingle: { day, start, end, status, applyToAllTrainers, location in
                         Task {
                             if applyToAllTrainers {

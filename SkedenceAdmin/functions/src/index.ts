@@ -281,6 +281,7 @@ export const bookLesson = functions.https.onCall(
           clientId: userId,
           clientName: clientFullName,
           bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+          orgId: orgId || trainerData.orgId, // Ensure orgId is present
         });
 
         const newBookingRef = db.collection("bookings").doc();
@@ -300,6 +301,7 @@ export const bookLesson = functions.https.onCall(
           trainerName: trainerFullName,
           clientName: clientFullName,
           scheduleSlotId: slotId,
+          orgId: orgId || trainerData.orgId, // Add orgId to booking record
         });
       });
 

@@ -39,6 +39,12 @@ final class FirestoreService {
     // MARK: - Schedule (fetch)
     func fetchTrainerSchedule(trainerId: String, from: Date, to: Date, orgId: String) async throws -> [TrainerScheduleSlot] {
         #if canImport(FirebaseFirestore)
+        // Validate trainerId is not empty
+        guard !trainerId.isEmpty else {
+            print("❌ fetchTrainerSchedule called with empty trainerId")
+            return []
+        }
+        
         let db = Firestore.firestore()
         let startTs = Timestamp(date: from)
         let endTs = Timestamp(date: to)
