@@ -300,9 +300,9 @@ class TrainerAvatarViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let snapshot = try await db.collection("organizations")
-                .document(orgId)
-                .collection("trainers")
+            // Query top-level trainers collection filtered by orgId
+            let snapshot = try await db.collection("trainers")
+                .whereField("orgId", isEqualTo: orgId)
                 .order(by: "firstName")
                 .getDocuments()
             
@@ -311,6 +311,8 @@ class TrainerAvatarViewModel: ObservableObject {
                 trainer?.id = doc.documentID
                 return trainer
             }
+            
+            print("✅ Loaded \(trainers.count) trainers for orgId: \(orgId)")
             
             isLoadingTrainers = false
         } catch {
@@ -375,10 +377,8 @@ class TrainerAvatarViewModel: ObservableObject {
             // Get download URL
             let downloadURL = try await storageRef.downloadURL()
             
-            // Update trainer document with photo URL
-            try await db.collection("organizations")
-                .document(orgId)
-                .collection("trainers")
+            // Update trainer document with photo URL in top-level trainers collection
+            try await db.collection("trainers")
                 .document(trainerId)
                 .updateData([
                     "photoURL": downloadURL.absoluteString,
