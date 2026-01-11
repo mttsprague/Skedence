@@ -54,10 +54,25 @@ class SetupChecklistViewModel: ObservableObject {
             progress.hasConnectedStripe = true
         }
         
-        // Check if packages exist
+        // Check if packages exist (either in subcollection OR pricingStructure field)
+        var hasPackages = false
+        
+        // Check subcollection first
         let packagesSnapshot = try? await db.collection("organizations").document(orgId)
             .collection("packages").getDocuments()
         if let count = packagesSnapshot?.documents.count, count > 0 {
+            hasPackages = true
+        }
+        
+        // Also check if pricingStructure field exists
+        if !hasPackages, let pricingStructure = orgDoc?.data()?["pricingStructure"] as? [String: Any] {
+            if let tiers = pricingStructure["tiers"] as? [[String: Any]], !tiers.isEmpty {
+                hasPackages = true
+                print("✅ Found pricing structure with \(tiers.count) tiers")
+            }
+        }
+        
+        if hasPackages {
             progress.hasCreatedPackages = true
         }
         
