@@ -8,12 +8,62 @@
 import Foundation
 
 struct Trainer: Identifiable, Codable, Hashable {
-    var id: String
-    var displayName: String
-    var email: String
+    var id: String?
+    var firstName: String?
+    var lastName: String?
+    var email: String?
     var avatarUrl: String?
     var photoURL: String?
     var imageUrl: String?
+    var orgId: String?
     var active: Bool = true
     var admin: Bool = false
+    
+    // Legacy field for backwards compatibility
+    var name: String?
+
+    var displayName: String {
+        if let first = firstName, let last = lastName {
+            return "\(first) \(last)".trimmingCharacters(in: .whitespaces)
+        }
+        return name ?? "Unknown"
+    }
+    
+    var anyPhotoURLString: String? { avatarUrl ?? photoURL ?? imageUrl }
+    
+    enum CodingKeys: String, CodingKey {
+        case firstName, lastName, email, avatarUrl, photoURL, imageUrl, orgId, name, active, admin
+    }
+    
+    // Custom init to exclude id from decoding
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
+        lastName = try container.decodeIfPresent(String.self, forKey: .lastName)
+        email = try container.decodeIfPresent(String.self, forKey: .email)
+        avatarUrl = try container.decodeIfPresent(String.self, forKey: .avatarUrl)
+        photoURL = try container.decodeIfPresent(String.self, forKey: .photoURL)
+        imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+        orgId = try container.decodeIfPresent(String.self, forKey: .orgId)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        active = try container.decodeIfPresent(Bool.self, forKey: .active) ?? true
+        admin = try container.decodeIfPresent(Bool.self, forKey: .admin) ?? false
+        // id is not decoded - will be set manually from document ID
+    }
+    
+    // Custom encode to exclude id from encoding
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(firstName, forKey: .firstName)
+        try container.encodeIfPresent(lastName, forKey: .lastName)
+        try container.encodeIfPresent(email, forKey: .email)
+        try container.encodeIfPresent(avatarUrl, forKey: .avatarUrl)
+        try container.encodeIfPresent(photoURL, forKey: .photoURL)
+        try container.encodeIfPresent(imageUrl, forKey: .imageUrl)
+        try container.encodeIfPresent(orgId, forKey: .orgId)
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encode(active, forKey: .active)
+        try container.encode(admin, forKey: .admin)
+        // id is not encoded - it's stored as document ID in Firestore
+    }
 }
