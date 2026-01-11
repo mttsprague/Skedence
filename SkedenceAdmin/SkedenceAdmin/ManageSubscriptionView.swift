@@ -127,6 +127,25 @@ struct ManageSubscriptionView: View {
                                     }
                                 }
                             )
+                            
+                            PlanCard(
+                                name: "Enterprise",
+                                price: "$499",
+                                features: [
+                                    "Unlimited trainers",
+                                    "White-label branding",
+                                    "Custom domain",
+                                    "API access",
+                                    "Dedicated support",
+                                    "Custom integrations",
+                                ],
+                                isCurrentPlan: currentPlan == "enterprise",
+                                onSelect: {
+                                    if currentPlan != "enterprise" {
+                                        showingUpgrade = true
+                                    }
+                                }
+                            )
                         }
                         
                         // Cancel Subscription Button

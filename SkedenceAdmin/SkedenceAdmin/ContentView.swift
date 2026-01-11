@@ -145,20 +145,28 @@ struct MoreView: View {
                     VStack(spacing: Spacing.xl) {
                         // Profile Header
                         VStack(spacing: Spacing.md) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [AppTheme.primary, AppTheme.primaryLight],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 80, height: 80)
-                                
-                                Text(initials)
-                                    .font(.displaySmall)
-                                    .foregroundStyle(.white)
+                            // Avatar
+                            if let photoURLString = auth.trainerPhotoURLString,
+                               let url = URL(string: photoURLString) {
+                                AsyncImage(url: url) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(Circle())
+                                    case .failure(_):
+                                        DefaultInitialsAvatar(initials: initials)
+                                    case .empty:
+                                        ProgressView()
+                                            .frame(width: 80, height: 80)
+                                    @unknown default:
+                                        DefaultInitialsAvatar(initials: initials)
+                                    }
+                                }
+                            } else {
+                                DefaultInitialsAvatar(initials: initials)
                             }
                             
                             VStack(spacing: Spacing.xxs) {
@@ -590,6 +598,30 @@ private extension View {
             self.textSelection(.enabled)
         } else {
             self.textSelection(.disabled)
+        }
+    }
+}
+
+// MARK: - Default Initials Avatar Component
+
+private struct DefaultInitialsAvatar: View {
+    let initials: String
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [AppTheme.primary, AppTheme.primaryLight],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 80, height: 80)
+            
+            Text(initials)
+                .font(.displaySmall)
+                .foregroundStyle(.white)
         }
     }
 }

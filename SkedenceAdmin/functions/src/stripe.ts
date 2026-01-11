@@ -51,7 +51,7 @@ export const createPaymentIntent = functions.https.onCall(
       // Get user's orgId to load pricing structure
       const userDoc = await db.collection("users").doc(userId).get();
       const userData = userDoc.data();
-      
+
       if (!userData?.orgId) {
         throw new functions.https.HttpsError(
           "failed-precondition",
@@ -62,10 +62,10 @@ export const createPaymentIntent = functions.https.onCall(
       // Load organization's pricing structure
       const orgDoc = await db.collection("organizations").doc(userData.orgId).get();
       const orgData = orgDoc.data();
-      
+
       // Build valid packages map from pricing structure
       const validPackages: { [key: string]: number } = {};
-      
+
       if (orgData?.pricingStructure?.tiers) {
         // Load from dynamic pricing structure
         for (const tier of orgData.pricingStructure.tiers) {

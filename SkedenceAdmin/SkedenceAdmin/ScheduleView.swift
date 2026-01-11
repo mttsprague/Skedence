@@ -731,7 +731,13 @@ private struct ViewLifecycleModifiers: ViewModifier {
             .onChange(of: viewModel.selectedDate) { oldValue, newValue in
                 Task { await viewModel.loadWeek() }
             }
-            .alert("Subscription Required", isPresented: viewModel.$showSlotLimitAlert) {
+            .alert(
+                "Subscription Required",
+                isPresented: Binding(
+                    get: { viewModel.showSlotLimitAlert },
+                    set: { viewModel.showSlotLimitAlert = $0 }
+                )
+            ) {
                 Button("Upgrade Now") {
                     // Navigate to pricing/subscription
                 }
@@ -872,4 +878,3 @@ private struct SheetModifiers: ViewModifier {
             }
     }
 }
-

@@ -2,7 +2,12 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+if (!stripeSecretKey) {
+  throw new Error("STRIPE_SECRET_KEY is not set");
+}
+
+const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2025-02-24.acacia",
 });
 
@@ -36,10 +41,17 @@ export const stripeWebhook = functions.https.onRequest(async (req, res) => {
   let event: Stripe.Event;
 
   try {
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
+    if (!webhookSecret) {
+      console.error("STRIPE_WEBHOOK_SECRET is not configured");
+      res.status(500).send("Webhook secret not configured");
+      return;
+    }
+
     event = stripe.webhooks.constructEvent(
       req.rawBody,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      webhookSecret
     );
   } catch (err: any) {
     console.error("Webhook signature verification failed:", err.message);
@@ -97,17 +109,35 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log(`   Customer: ${customerId}`);
   console.log(`   Subscription: ${subscriptionId}`);
 
-  // Update organization with Stripe IDs
+  // Fetch the subscription to get the plan details
+  let planTier = "free";
+  let status = "trialing";
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    status = subscription.status;
+
+    if (subscription.items.data[0]) {
+      const priceId = subscription.items.data[0].price.id;
+      planTier = mapPriceIdToPlan(priceId);
+      console.log(`   Detected plan: ${planTier} (from price ${priceId})`);
+    }
+  } catch (error) {
+    console.error("Error fetching subscription:", error);
+  }
+
+  // Update organization with Stripe IDs and plan
   await admin.firestore().collection("organizations").doc(orgId).update({
     "billing.stripeCustomerId": customerId,
     "billing.stripeSubscriptionId": subscriptionId,
-    "billing.status": "trialing",
+    "billing.plan": planTier,
+    "billing.status": status,
     "billing.isActive": true,
     "billing.isInGrace": false,
     "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  console.log(`✅ Checkout completed for org ${orgId}`);
+  console.log(`✅ Checkout completed for org ${orgId} - Plan: ${planTier}, Status: ${status}`);
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
@@ -137,14 +167,14 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   if (subscription.items.data[0]) {
     const priceId = subscription.items.data[0].price.id;
     const planTier = mapPriceIdToPlan(priceId);
-    if (planTier) {
+    if (planTier && planTier !== "unknown") {
       updateData["billing.plan"] = planTier;
     }
   }
 
   await admin.firestore().collection("organizations").doc(orgId).update(updateData);
 
-  console.log(`Subscription updated for org ${orgId}: ${status}`);
+  console.log(`✅ Subscription updated for org ${orgId}: Plan=${updateData["billing.plan"] || "not changed"}, Status=${status}`);
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -188,16 +218,36 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   const orgId = await findOrgByStripeCustomer(invoice.customer as string);
   if (!orgId) return;
 
-  // Clear grace period
-  await admin.firestore().collection("organizations").doc(orgId).update({
+  // Get subscription to extract plan if needed
+  const subscriptionId = invoice.subscription as string;
+  const updateData: any = {
     "billing.status": "active",
     "billing.isActive": true,
     "billing.isInGrace": false,
     "billing.graceEndsAt": null,
     "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
-  });
+  };
 
-  console.log(`Payment succeeded for org ${orgId}`);
+  // Fetch subscription to ensure plan is set correctly
+  if (subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      if (subscription.items.data[0]) {
+        const priceId = subscription.items.data[0].price.id;
+        const planTier = mapPriceIdToPlan(priceId);
+        if (planTier && planTier !== "unknown") {
+          updateData["billing.plan"] = planTier;
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching subscription on payment success:", error);
+    }
+  }
+
+  // Clear grace period and activate subscription
+  await admin.firestore().collection("organizations").doc(orgId).update(updateData);
+
+  console.log(`✅ Payment succeeded for org ${orgId}, status set to active, plan: ${updateData["billing.plan"] || "not changed"}`);
 }
 
 async function findOrgByStripeCustomer(customerId: string): Promise<string | null> {

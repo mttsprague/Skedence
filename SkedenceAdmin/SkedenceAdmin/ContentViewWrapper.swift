@@ -56,10 +56,12 @@ struct ContentViewWrapper: View {
                     let progress = OnboardingProgress(
                         hasConnectedStripe: progressData["hasConnectedStripe"] as? Bool ?? false,
                         hasCreatedPackages: progressData["hasCreatedPackages"] as? Bool ?? false,
+                        hasSharedLink: progressData["hasSharedLink"] as? Bool ?? false,
+                        selectedTemplate: progressData["selectedTemplate"] as? String,
+                        completedAt: nil,
                         hasAddedTrainer: progressData["hasAddedTrainer"] as? Bool ?? false,
                         hasSetAvailability: progressData["hasSetAvailability"] as? Bool ?? false,
-                        hasInvitedClient: progressData["hasInvitedClient"] as? Bool ?? false,
-                        selectedTemplate: progressData["selectedTemplate"] as? String
+                        hasInvitedClient: progressData["hasInvitedClient"] as? Bool ?? false
                     )
                     
                     // Show onboarding if not complete

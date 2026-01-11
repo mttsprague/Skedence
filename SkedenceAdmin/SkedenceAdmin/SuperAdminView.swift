@@ -17,6 +17,7 @@ struct SuperAdminView: View {
     @State private var showingCreateOrganization = false
     @State private var showingAddTrainer = false
     @State private var showingPricing = false
+    @State private var showingAvatarUpload = false
     @State private var alertItem: AlertItem?
     @Environment(\.openURL) private var openURL
     
@@ -117,6 +118,10 @@ struct SuperAdminView: View {
                         await viewModel.loadTrainers()
                     }
                 }
+            }
+            .sheet(isPresented: $showingAvatarUpload) {
+                TrainerAvatarUploadView()
+                    .environmentObject(auth)
             }
             .alert(item: $alertItem) { item in
                 Alert(title: Text(item.title), message: Text(item.message))
@@ -236,6 +241,39 @@ struct SuperAdminView: View {
     
     private var trainersContent: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
+            // Upload Trainer Avatar Card
+            Button {
+                showingAvatarUpload = true
+            } label: {
+                HStack {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.title2)
+                        .foregroundStyle(AppTheme.primary)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Upload Trainer Avatar")
+                            .font(.headingSmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        Text("Add or update trainer profile photos")
+                            .font(.bodySmall)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(CornerRadius.md)
+                .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+            }
+            
+            Divider()
+                .padding(.vertical, Spacing.sm)
+            
             // Trainer limit banner
             if !canAddTrainer {
                 HStack {

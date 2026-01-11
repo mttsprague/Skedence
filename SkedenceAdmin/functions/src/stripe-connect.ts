@@ -309,7 +309,7 @@ export const createPaymentIntentConnect = functions.https.onCall(
 
       // Load organization's pricing structure
       const validPackages: { [key: string]: number } = {};
-      
+
       if (orgData.pricingStructure?.tiers) {
         // Load from dynamic pricing structure
         for (const tier of orgData.pricingStructure.tiers) {

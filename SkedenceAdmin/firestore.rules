@@ -104,6 +104,22 @@ service cloud.firestore {
       
       // Only owners can delete
       allow delete: if isOrgOwner(orgId);
+      
+      // Trainers subcollection within organizations
+      match /trainers/{trainerId} {
+        // Owners and admins can read all trainers in their org
+        // Trainers can read their own profile
+        allow get: if isOrgAdmin(orgId) || request.auth.uid == trainerId;
+        
+        // Owners and admins can list trainers in their org
+        allow list: if isOrgAdmin(orgId);
+        
+        // Owners and admins can create, update trainers in their org
+        allow create, update: if isOrgAdmin(orgId);
+        
+        // Only owners can delete trainers
+        allow delete: if isOrgOwner(orgId);
+      }
     }
 
     // =========================================================================
