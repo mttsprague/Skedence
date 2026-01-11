@@ -731,6 +731,14 @@ private struct ViewLifecycleModifiers: ViewModifier {
             .onChange(of: viewModel.selectedDate) { oldValue, newValue in
                 Task { await viewModel.loadWeek() }
             }
+            .alert("Subscription Required", isPresented: viewModel.$showSlotLimitAlert) {
+                Button("Upgrade Now") {
+                    // Navigate to pricing/subscription
+                }
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.slotLimitMessage)
+            }
     }
 }
 
@@ -762,7 +770,7 @@ private struct SheetModifiers: ViewModifier {
                             if applyToAllTrainers {
                                 await viewModel.setCustomSlotForAllTrainers(on: day, startTime: start, endTime: end, status: status)
                             } else {
-                                await viewModel.setCustomSlot(on: day, startTime: start, endTime: end, status: status)
+                                await viewModel.setCustomSlot(on: day, startTime: start, endTime: end, status: status, billingPlan: auth.billingPlan)
                             }
                             editorContext = nil
                         }

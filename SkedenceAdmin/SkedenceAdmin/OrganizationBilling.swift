@@ -79,18 +79,23 @@ struct OrganizationBilling: Codable {
     }
     
     var paywallState: PaywallState {
+        // Block if cancelled or inactive (and not in grace period)
         if isCanceled || (!isActive && !isInGrace) {
             return .fullBlock
         }
         
+        // Show grace period banner if past due but still in grace
         if isPastDue && isInGrace {
             return .graceBanner(daysLeft: daysLeftInGrace)
         }
         
-        if isTrialing {
+        // Show trial banner ONLY if actually trialing (not on paid plan)
+        // Don't show banner if they have an active paid subscription
+        if isTrialing && plan == "free" {
             return .trialBanner(daysLeft: daysLeftInTrial)
         }
         
+        // No banner for active paid subscriptions
         return .none
     }
 }

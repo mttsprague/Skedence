@@ -27,6 +27,11 @@ final class ScheduleViewModel: ObservableObject {
     @Published var selectedTrainerId: String?
     @Published var allTrainers: [Trainer] = []
     @Published var editingTrainerId: String? // For admin: which trainer's schedule to edit
+    
+    // Slot limit enforcement
+    @Published var showSlotLimitAlert = false
+    @Published var slotLimitMessage = ""
+    @Published var totalOpenSlotsCount = 0
 
     // State used by ScheduleView
     @Published var weekDays: [Date] = []
@@ -62,6 +67,44 @@ final class ScheduleViewModel: ObservableObject {
     func setOrgId(_ id: String?) {
         orgId = id
         Task { await loadWeek() }
+    }
+    
+    // Count total open availability slots for free trial enforcement
+    func countOpenSlots(for trainerId: String, orgId: String) async -> Int {
+        do {
+            #if canImport(FirebaseFirestore)
+            let db = Firestore.firestore()
+            
+            // Count all open slots for this trainer (future slots only)
+            let now = Date()
+            let snapshot = try await db.collectionGroup("schedules")
+                .whereField("trainerId", isEqualTo: trainerId)
+                .whereField("orgId", isEqualTo: orgId)
+                .whereField("status", isEqualTo: "open")
+                .whereField("startTime", isGreaterThan: Timestamp(date: now))
+                .getDocuments()
+            
+            return snapshot.documents.count
+            #else
+            return 0
+            #endif
+        } catch {
+            print("❌ Error counting slots: \(error)")
+            return 0
+        }
+    }
+    
+    // Check if can add more slots based on billing plan
+    func canAddSlots(billingPlan: String, currentSlotCount: Int) -> (allowed: Bool, message: String?) {
+        // Free plan: limit to 2 slots
+        if billingPlan.lowercased() == "free" {
+            if currentSlotCount >= 2 {
+                return (false, "Free trial allows 2 availability slots. Subscribe to add unlimited slots and grow your business!")
+            }
+        }
+        
+        // Paid plans: unlimited slots
+        return (true, nil)
     }
     
     // Load all trainers (for admin selector)
@@ -282,13 +325,37 @@ final class ScheduleViewModel: ObservableObject {
 
     // Allows custom start/end (from the wheel editor)
     // Updated: Splits multi-hour blocks into one-hour slots
-    func setCustomSlot(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status) async {
+    func setCustomSlot(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, billingPlan: String = "free") async {
         guard endTime > startTime else { return }
 
         let calendar = Calendar.current
         var currentSlotStart = startTime
         // Use editingTrainerId if set (admin editing another trainer), otherwise use myTrainerId
         let trainerId = editingTrainerId ?? myTrainerId
+        
+        // Only enforce slot limits for "open" status
+        if status == .open {
+            guard let orgId = orgId else {
+                print("❌ No orgId available for schedule operation")
+                return
+            }
+            
+            // Count existing open slots
+            let existingSlots = await countOpenSlots(for: trainerId, orgId: orgId)
+            
+            // Calculate how many new slots will be created
+            let duration = endTime.timeIntervalSince(startTime)
+            let hoursToCreate = Int(duration / 3600)
+            
+            // Check if adding these slots would exceed the limit
+            let check = canAddSlots(billingPlan: billingPlan, currentSlotCount: existingSlots + hoursToCreate)
+            
+            if !check.allowed, let message = check.message {
+                slotLimitMessage = message
+                showSlotLimitAlert = true
+                return
+            }
+        }
 
         while currentSlotStart < endTime {
             guard let nextHour = calendar.date(byAdding: .hour, value: 1, to: currentSlotStart) else { break }
