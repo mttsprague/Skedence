@@ -448,14 +448,21 @@ export const getBillingStatus = functions.https.onCall(
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const bookingsSnapshot = await db.collection("bookings")
-        .where("orgId", "==", orgId)
-        .where("startTime", ">=", admin.firestore.Timestamp.fromDate(startOfMonth))
-        .where("status", "==", "booked")
-        .count()
-        .get();
+      let bookingCount = 0;
+      try {
+        const bookingsSnapshot = await db.collection("bookings")
+          .where("orgId", "==", orgId)
+          .where("startTime", ">=", admin.firestore.Timestamp.fromDate(startOfMonth))
+          .where("status", "==", "booked")
+          .count()
+          .get();
 
-      const bookingCount = bookingsSnapshot.data().count;
+        bookingCount = bookingsSnapshot.data().count;
+      } catch (bookingError) {
+        // If booking count fails (e.g., missing index), log but continue
+        console.warn("Failed to count bookings, defaulting to 0:", bookingError);
+        bookingCount = 0;
+      }
 
       // Determine recommended plan
       let recommendedPlan = "free";
