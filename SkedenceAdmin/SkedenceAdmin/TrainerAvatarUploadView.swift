@@ -303,7 +303,7 @@ class TrainerAvatarViewModel: ObservableObject {
             let snapshot = try await db.collection("organizations")
                 .document(orgId)
                 .collection("trainers")
-                .order(by: "name")
+                .order(by: "firstName")
                 .getDocuments()
             
             trainers = snapshot.documents.compactMap { doc in
