@@ -89,20 +89,40 @@ struct ManageSubscriptionView: View {
                             )
                             
                             PlanCard(
-                                name: "Professional",
-                                price: "$79",
+                                name: "Studio",
+                                price: "$99",
                                 features: [
-                                    "Unlimited bookings",
-                                    "Multi-trainer support",
-                                    "Advanced analytics",
-                                    "Custom branding",
-                                    "Priority support",
-                                    "API access",
+                                    "Up to 5 trainers",
+                                    "Unlimited clients",
+                                    "Multi-trainer scheduling",
+                                    "Admin dashboard",
+                                    "Cancellation policies",
+                                    "Email reminders",
                                 ],
-                                isCurrentPlan: currentPlan == "professional",
-                                isRecommended: recommendedPlan == "professional",
+                                isCurrentPlan: currentPlan == "studio",
+                                isRecommended: recommendedPlan == "studio",
                                 onSelect: {
-                                    if currentPlan != "professional" {
+                                    if currentPlan != "studio" {
+                                        showingUpgrade = true
+                                    }
+                                }
+                            )
+                            
+                            PlanCard(
+                                name: "Academy",
+                                price: "$249",
+                                features: [
+                                    "Up to 15 trainers",
+                                    "Multiple locations",
+                                    "Roles & permissions",
+                                    "Advanced analytics",
+                                    "Revenue tracking",
+                                    "Priority support",
+                                ],
+                                isCurrentPlan: currentPlan == "academy",
+                                isRecommended: recommendedPlan == "academy",
+                                onSelect: {
+                                    if currentPlan != "academy" {
                                         showingUpgrade = true
                                     }
                                 }

@@ -30,6 +30,11 @@ final class AuthManager: ObservableObject {
     @Published var trainerDisplayName: String?
     @Published var trainerPhotoURLString: String?
     
+    // User profile fields (from /users/{uid})
+    @Published var userFirstName: String?
+    @Published var userLastName: String?
+    @Published var organizationName: String?
+    
     // STEP 8: Dynamic branding from organization
     @Published var primaryColor: Color = Color(red: 0.20, green: 0.70, blue: 0.68) // Default teal
     @Published var logoUrl: String?
@@ -273,6 +278,10 @@ final class AuthManager: ObservableObject {
                 return
             }
             
+            // Load organization name
+            organizationName = orgData["name"] as? String
+            print("AuthManager: Loaded organization name: \(organizationName ?? "nil")")
+            
             // Load branding
             if let branding = orgData["branding"] as? [String: Any] {
                 if let colorHex = branding["primaryColor"] as? String {
@@ -306,6 +315,16 @@ final class AuthManager: ObservableObject {
                 isBillingBlocked = ["past_due", "canceled", "unpaid"].contains(billingStatus)
                 
                 print("AuthManager: Loaded billing - plan: \(billingPlan), status: \(billingStatus), blocked: \(isBillingBlocked)")
+            }
+            
+            // Load user profile data (firstName, lastName)
+            if let uid = userId {
+                let userDoc = try await db.collection("users").document(uid).getDocument()
+                if let userData = userDoc.data() {
+                    userFirstName = userData["firstName"] as? String
+                    userLastName = userData["lastName"] as? String
+                    print("AuthManager: Loaded user name: \(userFirstName ?? "") \(userLastName ?? "")")
+                }
             }
         } catch {
             print("AuthManager: ❌ Failed to load org branding: \(error.localizedDescription)")

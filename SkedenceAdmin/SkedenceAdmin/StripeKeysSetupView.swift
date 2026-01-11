@@ -103,7 +103,7 @@ struct StripeKeysSetupView: View {
                     }
                     
                     // Error Message
-                    if let error = errorMessage {
+                    if let error = validationError ?? errorMessage {
                         Text(error)
                             .font(.bodySmall)
                             .foregroundStyle(.red)
@@ -159,10 +159,35 @@ struct StripeKeysSetupView: View {
         let expectedPkPrefix = isTestMode ? "pk_test_" : "pk_live_"
         let expectedSkPrefix = isTestMode ? "sk_test_" : "sk_live_"
         
-        return publishableKey.hasPrefix(expectedPkPrefix) &&
-               secretKey.hasPrefix(expectedSkPrefix) &&
-               publishableKey.count > 20 &&
-               secretKey.count > 20
+        // Stripe publishable keys are typically 40-50 characters
+        // Stripe secret keys are typically 50-100 characters
+        let pkValid = publishableKey.hasPrefix(expectedPkPrefix) && publishableKey.count >= 40
+        let skValid = secretKey.hasPrefix(expectedSkPrefix) && secretKey.count >= 50
+        
+        return pkValid && skValid
+    }
+    
+    var validationError: String? {
+        let expectedPkPrefix = isTestMode ? "pk_test_" : "pk_live_"
+        let expectedSkPrefix = isTestMode ? "sk_test_" : "sk_live_"
+        
+        if !publishableKey.isEmpty && !publishableKey.hasPrefix(expectedPkPrefix) {
+            return "Publishable key must start with \(expectedPkPrefix)"
+        }
+        
+        if !publishableKey.isEmpty && publishableKey.count < 40 {
+            return "Publishable key is too short. Expected at least 40 characters, got \(publishableKey.count)"
+        }
+        
+        if !secretKey.isEmpty && !secretKey.hasPrefix(expectedSkPrefix) {
+            return "Secret key must start with \(expectedSkPrefix)"
+        }
+        
+        if !secretKey.isEmpty && secretKey.count < 50 {
+            return "Secret key is too short. Expected at least 50 characters, got \(secretKey.count)"
+        }
+        
+        return nil
     }
     
     func saveStripeKeys() async {

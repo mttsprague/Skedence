@@ -204,6 +204,11 @@ struct MoreView: View {
                                         }
                                         return "User"
                                     }())
+                                    
+                                    if let orgName = auth.organizationName {
+                                        Divider()
+                                        InfoRow(label: "Organization", value: orgName)
+                                    }
                                 }
                             }
                         }
@@ -328,10 +333,13 @@ struct MoreView: View {
     }
     
     private var trainerName: String {
-        if !auth.firstNameInput.isEmpty || !auth.lastNameInput.isEmpty {
-            return "\(auth.firstNameInput) \(auth.lastNameInput)".trimmingCharacters(in: .whitespaces)
+        let firstName = auth.userFirstName ?? auth.firstNameInput
+        let lastName = auth.userLastName ?? auth.lastNameInput
+        
+        if !firstName.isEmpty || !lastName.isEmpty {
+            return "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
         }
-        return "Trainer"
+        return auth.userEmail ?? "User"
     }
 
     private func submitAuth(isSignUp: Bool) async {

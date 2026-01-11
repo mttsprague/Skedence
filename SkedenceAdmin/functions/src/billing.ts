@@ -460,9 +460,11 @@ export const getBillingStatus = functions.https.onCall(
       // Determine recommended plan
       let recommendedPlan = "free";
       if (bookingCount > 200) {
-        recommendedPlan = "professional";
+        recommendedPlan = "academy";  // High volume → Academy
+      } else if (bookingCount > 100) {
+        recommendedPlan = "studio";   // Medium volume → Studio
       } else if (bookingCount > 50) {
-        recommendedPlan = "starter";
+        recommendedPlan = "starter";  // Low volume → Starter
       }
 
       return {

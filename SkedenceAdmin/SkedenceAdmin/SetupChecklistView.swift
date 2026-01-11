@@ -87,8 +87,14 @@ struct SetupChecklistView: View {
                     ChecklistItem(
                         title: "Share Your Booking Link",
                         description: "Invite your first client",
-                        isComplete: viewModel.progress.hasInvitedClient,
-                        action: { showShareSheet = true }
+                        isComplete: viewModel.progress.hasSharedLink || viewModel.progress.hasInvitedClient,
+                        action: { 
+                            showShareSheet = true
+                            // Mark as complete when they tap share
+                            Task {
+                                await viewModel.markSharedLink()
+                            }
+                        }
                     )
                 }
                 .padding(.horizontal)
@@ -124,8 +130,13 @@ struct SetupChecklistView: View {
                 }
                 
                 if viewModel.progress.isComplete {
-                    Button(action: { viewModel.dismissChecklist() }) {
-                        Text("Start Using Skedence")
+                    Button(action: { 
+                        Task {
+                            await viewModel.removeChecklist()
+                            dismiss()
+                        }
+                    }) {
+                        Text("Remove Setup Checklist")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)

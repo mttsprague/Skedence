@@ -29,9 +29,10 @@ class SetupChecklistViewModel: ObservableObject {
                 if let progressData = document.data()["onboardingProgress"] as? [String: Any] {
                     self.progress.hasConnectedStripe = progressData["hasConnectedStripe"] as? Bool ?? false
                     self.progress.hasCreatedPackages = progressData["hasCreatedPackages"] as? Bool ?? false
+                    self.progress.hasSharedLink = progressData["hasSharedLink"] as? Bool ?? false
+                    self.progress.hasInvitedClient = progressData["hasInvitedClient"] as? Bool ?? false
                     self.progress.hasAddedTrainer = progressData["hasAddedTrainer"] as? Bool ?? false
                     self.progress.hasSetAvailability = progressData["hasSetAvailability"] as? Bool ?? false
-                    self.progress.hasInvitedClient = progressData["hasInvitedClient"] as? Bool ?? false
                     self.progress.selectedTemplate = progressData["selectedTemplate"] as? String
                     
                     if let timestamp = progressData["completedAt"] as? Timestamp {
@@ -91,9 +92,8 @@ class SetupChecklistViewModel: ObservableObject {
         var progressData: [String: Any] = [
             "hasConnectedStripe": progress.hasConnectedStripe,
             "hasCreatedPackages": progress.hasCreatedPackages,
-            "hasAddedTrainer": progress.hasAddedTrainer,
-            "hasSetAvailability": progress.hasSetAvailability,
-            "hasInvitedClient": progress.hasInvitedClient
+            "hasSharedLink": progress.hasSharedLink,
+            "hasInvitedClient": progress.hasSharedLink || progress.hasInvitedClient  // Backwards compat
         ]
         
         if let template = progress.selectedTemplate {
@@ -108,6 +108,32 @@ class SetupChecklistViewModel: ObservableObject {
         try await orgDoc.reference.updateData([
             "onboardingProgress": progressData
         ])
+    }
+    
+    func markSharedLink() async {
+        progress.hasSharedLink = true
+        try? await updateProgress()
+    }
+    
+    func removeChecklist() async {
+        // Mark checklist as dismissed in organization
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        do {
+            let orgSnapshot = try await db.collection("organizations")
+                .whereField("adminIds", arrayContains: userId)
+                .limit(to: 1)
+                .getDocuments()
+            
+            guard let orgDoc = orgSnapshot.documents.first else { return }
+            
+            try await orgDoc.reference.updateData([
+                "onboardingProgress.checklistDismissed": true,
+                "onboardingProgress.dismissedAt": Timestamp(date: Date())
+            ])
+        } catch {
+            print("❌ Error removing checklist: \\(error)")
+        }
     }
     
     func applyTemplate(_ template: SportTemplate) {
