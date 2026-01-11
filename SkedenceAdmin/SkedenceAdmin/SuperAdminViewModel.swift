@@ -77,12 +77,22 @@ class SuperAdminViewModel: ObservableObject {
         isLoading = false
     }
     
-    func loadTrainers() async {
+    func loadTrainers(orgId: String? = nil) async {
         isLoading = true
         errorMessage = nil
         
         do {
-            let snapshot = try await db.collection("trainers").getDocuments()
+            var query: Query = db.collection("trainers")
+            
+            // Filter by orgId if provided
+            if let orgId = orgId {
+                query = query.whereField("orgId", isEqualTo: orgId)
+                print("🔍 Loading trainers for orgId: \(orgId)")
+            } else {
+                print("⚠️ Loading ALL trainers (no orgId filter)")
+            }
+            
+            let snapshot = try await query.getDocuments()
             trainers = snapshot.documents.compactMap { doc in
                 let data = doc.data()
                 
@@ -197,7 +207,7 @@ class SuperAdminViewModel: ObservableObject {
         }
     }
     
-    func deleteTrainer(trainerId: String) async {
+    func deleteTrainer(trainerId: String, orgId: String?) async {
         do {
             // Call Cloud Function to delete trainer and all associated data
             let functions = Functions.functions()
@@ -209,7 +219,7 @@ class SuperAdminViewModel: ObservableObject {
                let success = data["success"] as? Bool,
                success {
                 print("✅ Successfully deleted trainer: \(trainerId)")
-                await loadTrainers() // Refresh trainers list
+                await loadTrainers(orgId: orgId) // Refresh trainers list
                 await loadAllUsers() // Refresh users list as well
             } else {
                 let message = (result.data as? [String: Any])?["message"] as? String ?? "Unknown error"

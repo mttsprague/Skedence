@@ -455,6 +455,7 @@ final class ScheduleViewModel: ObservableObject {
             
             for trainer in allTrainers {
                 guard trainer.active else { continue }
+                guard let trainerId = trainer.id else { continue }
                 
                 let calendar = Calendar.current
                 var currentSlotStart = startTime
@@ -465,14 +466,14 @@ final class ScheduleViewModel: ObservableObject {
                     
                     do {
                         try await scheduleRepo.upsertSlot(
-                            trainerId: trainer.id,
+                            trainerId: trainerId,
                             orgId: orgId,
                             startTime: currentSlotStart,
                             endTime: actualSlotEnd,
                             status: status
                         )
                     } catch {
-                        print("Failed to set slot for trainer \(trainer.id): \(error)")
+                        print("Failed to set slot for trainer \(String(describing: trainer.id)): \(error)")
                     }
                     
                     currentSlotStart = nextHour
@@ -514,10 +515,11 @@ final class ScheduleViewModel: ObservableObject {
             
             for trainer in allTrainers {
                 guard trainer.active else { continue }
+                guard let trainerId = trainer.id else { continue }
                 
                 do {
                     let result = try await FunctionsService.shared.processTrainerAvailability(
-                        trainerId: trainer.id,
+                        trainerId: trainerId,
                         startDate: startStr,
                         endDate: endStr,
                         dailyStartHour: dailyStartHour,
@@ -528,7 +530,7 @@ final class ScheduleViewModel: ObservableObject {
                     )
                     print("Applied to \(trainer.displayName): \(result.message) slotsAdded=\(result.slotsAdded ?? 0)")
                 } catch {
-                    print("Failed to process availability for trainer \(trainer.id): \(error)")
+                    print("Failed to process availability for trainer \(String(describing: trainer.id)): \(error)")
                 }
             }
             

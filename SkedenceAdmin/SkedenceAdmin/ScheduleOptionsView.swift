@@ -101,8 +101,10 @@ struct ScheduleOptionsView: View {
                             } else {
                                 ForEach(trainers) { trainer in
                                     Button {
-                                        onSelectTrainer(trainer.id)
-                                        dismiss()
+                                        if let id = trainer.id {
+                                            onSelectTrainer(id)
+                                            dismiss()
+                                        }
                                     } label: {
                                         trainerRow(trainer)
                                     }
@@ -210,4 +212,3 @@ struct ScheduleOptionsView: View {
         .padding(.vertical, 4)
     }
 }
-

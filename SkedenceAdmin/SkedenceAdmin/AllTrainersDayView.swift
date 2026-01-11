@@ -41,11 +41,12 @@ final class AllTrainersDayViewModel: ObservableObject {
         var newMap: [String: [TrainerScheduleSlot]] = [:]
 
         for trainer in trainers {
+            guard let trainerId = trainer.id else { continue }
             do {
-                let slots = try await scheduleRepo.fetchScheduleSlots(trainerId: trainer.id, from: startOfDay, to: endOfDay, orgId: orgId)
-                newMap[trainer.id] = slots.sorted { $0.startTime < $1.startTime }
+                let slots = try await scheduleRepo.fetchScheduleSlots(trainerId: trainerId, from: startOfDay, to: endOfDay, orgId: orgId)
+                newMap[trainerId] = slots.sorted { $0.startTime < $1.startTime }
             } catch {
-                newMap[trainer.id] = []
+                newMap[trainerId] = []
             }
         }
 
@@ -168,7 +169,8 @@ struct AllTrainersDayView: View {
                                                         RoundedRectangle(cornerRadius: 12)
                                                             .fill(Color(UIColor.systemGray5))
 
-                                                        if let slot = viewModel.slotFor(trainerId: trainer.id, atHour: hour) {
+                                                        if let trainerId = trainer.id,
+                                                           let slot = viewModel.slotFor(trainerId: trainerId, atHour: hour) {
                                                             EventCell(slot: slot)
                                                                 .contentShape(Rectangle())
                                                                 .onTapGesture {

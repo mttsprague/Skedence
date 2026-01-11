@@ -115,7 +115,7 @@ struct SuperAdminView: View {
                     orgName: viewModel.organizations.first?.name ?? "Your Organization"
                 ) { trainerId in
                     Task {
-                        await viewModel.loadTrainers()
+                        await viewModel.loadTrainers(orgId: auth.currentOrgId)
                     }
                 }
             }
@@ -343,7 +343,7 @@ struct SuperAdminView: View {
     
     private func loadData() async {
         await viewModel.loadOrganizations()
-        await viewModel.loadTrainers()
+        await viewModel.loadTrainers(orgId: auth.currentOrgId)
         await viewModel.loadAllUsers()
     }
 }
@@ -440,7 +440,7 @@ struct TrainerCard: View {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
                 Task {
-                    await viewModel.deleteTrainer(trainerId: trainer.id)
+                    await viewModel.deleteTrainer(trainerId: trainer.id, orgId: auth.currentOrgId)
                 }
             }
         } message: {
