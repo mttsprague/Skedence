@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct WaiverAgreementView: View {
+    @EnvironmentObject var auth: AuthManager
     @Environment(\.dismiss) private var dismiss
     let onWaiverSigned: (WaiverSignature) -> Void
     
@@ -53,7 +54,7 @@ struct WaiverAgreementView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                             
                             ScrollView {
-                                Text(waiverText)
+                                Text(waiverText(orgName: auth.organizationName ?? \"Your Organization\"))
                                     .font(.bodySmall)
                                     .foregroundStyle(AppTheme.textSecondary)
                                     .lineSpacing(4)
@@ -201,37 +202,40 @@ struct WaiverAgreementView: View {
 
 // MARK: - Waiver Text Content
 
-private let waiverText = """
-POLYFACE VOLLEYBALL ACADEMY
+private func waiverText(orgName: String) -> String {
+    let acronym = orgName.split(separator: " ").map { String($0.prefix(1)) }.joined()
+    return """
+\(orgName.uppercased())
 
 RELEASE OF LIABILITY, ASSUMPTION OF RISK, AND INDEMNIFICATION AGREEMENT
 
-I acknowledge that I am voluntarily participating in volleyball lessons, training sessions, camps, or related activities offered by Polyface Volleyball Academy ("PVA").
+I acknowledge that I am voluntarily participating in volleyball lessons, training sessions, camps, or related activities offered by \(orgName) ("\(acronym)").
 
 I understand that participation in volleyball activities involves inherent risks, including but not limited to physical contact with other participants, falls, collisions, impact with volleyballs or equipment, overuse injuries, property damage, and serious injury or death. I knowingly and voluntarily assume all such risks, whether known or unknown, associated with my participation.
 
-I hereby release, waive, and discharge Polyface Volleyball Academy, and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, actions, or causes of action arising out of or related to my participation in PVA activities, including claims arising from the ordinary negligence of Polyface Volleyball Academy or its coaches, instructors, employees, agents, or representatives.
+I hereby release, waive, and discharge \(orgName), and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, actions, or causes of action arising out of or related to my participation in \(acronym) activities, including claims arising from the ordinary negligence of \(orgName) or its coaches, instructors, employees, agents, or representatives.
 
 This release does not apply to acts of gross negligence, recklessness, or intentional misconduct.
 
-I acknowledge that Polyface Volleyball Academy has taken reasonable steps to provide a safe training environment; however, I understand that accidents and injuries may still occur. I agree to follow all rules, safety instructions, and guidelines provided by PVA and its staff, and I acknowledge that failure to do so may increase the risk of injury to myself or others.
+I acknowledge that \(orgName) has taken reasonable steps to provide a safe training environment; however, I understand that accidents and injuries may still occur. I agree to follow all rules, safety instructions, and guidelines provided by \(acronym) and its staff, and I acknowledge that failure to do so may increase the risk of injury to myself or others.
 
-I further agree to indemnify and hold harmless Polyface Volleyball Academy, and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, damages, losses, or expenses (including reasonable attorneys' fees) brought by any third party arising out of or related to my participation in PVA activities.
+I further agree to indemnify and hold harmless \(orgName), and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, damages, losses, or expenses (including reasonable attorneys' fees) brought by any third party arising out of or related to my participation in \(acronym) activities.
 
 MINOR PARTICIPANTS (If Applicable)
 
-If the participant is under eighteen (18) years of age, I represent and warrant that I am the parent or legal guardian of the minor participant. I consent to the minor's participation in Polyface Volleyball Academy activities and execute this agreement on behalf of both myself and the minor, releasing and waiving claims as described above to the fullest extent permitted by Tennessee law.
+If the participant is under eighteen (18) years of age, I represent and warrant that I am the parent or legal guardian of the minor participant. I consent to the minor's participation in \(orgName) activities and execute this agreement on behalf of both myself and the minor, releasing and waiving claims as described above to the fullest extent permitted by Tennessee law.
 
 IMAGE / VIDEO / LIKENESS RELEASE
 
-I grant Polyface Volleyball Academy permission to photograph, record, or otherwise capture my image, voice, or likeness (or that of the minor participant) during PVA activities and to use such media for lawful promotional, marketing, educational, and social media purposes, without compensation. I understand that such media may be edited and used in various formats and platforms for an indefinite period.
+I grant \(orgName) permission to photograph, record, or otherwise capture my image, voice, or likeness (or that of the minor participant) during \(acronym) activities and to use such media for lawful promotional, marketing, educational, and social media purposes, without compensation. I understand that such media may be edited and used in various formats and platforms for an indefinite period.
 
 ACKNOWLEDGMENT AND ELECTRONIC ACCEPTANCE
 
-By clicking "I Agree", I acknowledge that I have read and understand this Release of Liability, Assumption of Risk, and Media Release Agreement, and that I am voluntarily giving up certain legal rights, including the right to sue for claims arising from the ordinary negligence of Polyface Volleyball Academy.
+By clicking "I Agree", I acknowledge that I have read and understand this Release of Liability, Assumption of Risk, and Media Release Agreement, and that I am voluntarily giving up certain legal rights, including the right to sue for claims arising from the ordinary negligence of \(orgName).
 
 This agreement shall be governed by and construed in accordance with the laws of the State of Tennessee
 """
+}
 
 // MARK: - Waiver Signature Model
 

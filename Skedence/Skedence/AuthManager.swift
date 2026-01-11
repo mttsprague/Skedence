@@ -13,6 +13,7 @@ final class AuthManager: ObservableObject {
     @Published var primaryColor: Color = Color(red: 0.20, green: 0.70, blue: 0.68) // Default teal
     @Published var logoUrl: String?
     @Published var stripePublishableKey: String?
+    @Published var organizationName: String?
     
     // Check if user is authenticated
     var isAuthenticated: Bool {
@@ -228,6 +229,12 @@ final class AuthManager: ObservableObject {
             guard let orgData = orgDoc.data() else {
                 print("AuthManager: ⚠️ Organization document not found for: \(orgId)")
                 return
+            }
+            
+            // Load organization name
+            if let name = orgData["name"] as? String {
+                organizationName = name
+                print("AuthManager: Loaded organizationName: \(name)")
             }
             
             // Load branding

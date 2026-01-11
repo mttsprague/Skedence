@@ -10,9 +10,11 @@ import PDFKit
 
 struct WaiverPDFGenerator {
     
-    static func generateWaiverPDF(signature: WaiverSignature) -> Data? {
+    static func generateWaiverPDF(signature: WaiverSignature, organizationName: String = \"Your Organization\") -> Data? {
+        let acronym = organizationName.split(separator: \" \").map { String($0.prefix(1)) }.joined()
+        
         let pdfMetaData = [
-            kCGPDFContextCreator: "Polyface Volleyball Academy",
+            kCGPDFContextCreator: organizationName,
             kCGPDFContextTitle: "Release of Liability Waiver",
             kCGPDFContextAuthor: signature.fullName
         ]
@@ -40,7 +42,7 @@ struct WaiverPDFGenerator {
                 .font: UIFont.boldSystemFont(ofSize: 20),
                 .foregroundColor: UIColor.black
             ]
-            let title = "POLYFACE VOLLEYBALL ACADEMY"
+            let title = organizationName.uppercased()
             let titleSize = title.size(withAttributes: titleAttributes)
             let titleX = (pageWidth - titleSize.width) / 2
             title.draw(at: CGPoint(x: titleX, y: currentY), withAttributes: titleAttributes)
@@ -84,11 +86,11 @@ struct WaiverPDFGenerator {
             
             // Main waiver content - split into sections to avoid overlap
             let section1 = """
-            I acknowledge that I am voluntarily participating in volleyball lessons, training sessions, camps, or related activities offered by Polyface Volleyball Academy ("PVA").
+            I acknowledge that I am voluntarily participating in volleyball lessons, training sessions, camps, or related activities offered by \(organizationName) ("\(acronym)").
 
             I understand that participation in volleyball activities involves inherent risks, including but not limited to physical contact with other participants, falls, collisions, impact with volleyballs or equipment, overuse injuries, property damage, and serious injury or death. I knowingly and voluntarily assume all such risks, whether known or unknown, associated with my participation.
 
-            I hereby release, waive, and discharge Polyface Volleyball Academy, and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, actions, or causes of action arising out of or related to my participation in PVA activities, including claims arising from the ordinary negligence of Polyface Volleyball Academy or its coaches, instructors, employees, agents, or representatives.
+            I hereby release, waive, and discharge \(organizationName), and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, actions, or causes of action arising out of or related to my participation in \(acronym) activities, including claims arising from the ordinary negligence of \(organizationName) or its coaches, instructors, employees, agents, or representatives.
             """
             
             let section1Rect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 130)
@@ -98,9 +100,9 @@ struct WaiverPDFGenerator {
             let section2 = """
             This release does not apply to acts of gross negligence, recklessness, or intentional misconduct.
 
-            I acknowledge that Polyface Volleyball Academy has taken reasonable steps to provide a safe training environment; however, I understand that accidents and injuries may still occur. I agree to follow all rules, safety instructions, and guidelines provided by PVA and its staff, and I acknowledge that failure to do so may increase the risk of injury to myself or others.
+            I acknowledge that \\(organizationName) has taken reasonable steps to provide a safe training environment; however, I understand that accidents and injuries may still occur. I agree to follow all rules, safety instructions, and guidelines provided by \\(acronym) and its staff, and I acknowledge that failure to do so may increase the risk of injury to myself or others.
 
-            I further agree to indemnify and hold harmless Polyface Volleyball Academy, and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, damages, losses, or expenses (including reasonable attorneys' fees) brought by any third party arising out of or related to my participation in PVA activities.
+            I further agree to indemnify and hold harmless \\(organizationName), and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, damages, losses, or expenses (including reasonable attorneys' fees) brought by any third party arising out of or related to my participation in \\(acronym) activities.
             """
             
             let section2Rect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 120)
@@ -117,7 +119,7 @@ struct WaiverPDFGenerator {
             currentY += 18
             
             let minorContent = """
-            If the participant is under eighteen (18) years of age, I represent and warrant that I am the parent or legal guardian of the minor participant. I consent to the minor's participation in Polyface Volleyball Academy activities and execute this agreement on behalf of both myself and the minor, releasing and waiving claims as described above to the fullest extent permitted by Tennessee law.
+            If the participant is under eighteen (18) years of age, I represent and warrant that I am the parent or legal guardian of the minor participant. I consent to the minor's participation in \(organizationName) activities and execute this agreement on behalf of both myself and the minor, releasing and waiving claims as described above to the fullest extent permitted by Tennessee law.
             """
             
             let minorRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 70)
@@ -134,7 +136,7 @@ struct WaiverPDFGenerator {
             currentY += 18
             
             let mediaReleaseContent = """
-            I grant Polyface Volleyball Academy permission to photograph, record, or otherwise capture my image, voice, or likeness (or that of the minor participant) during PVA activities and to use such media for lawful promotional, marketing, educational, and social media purposes, without compensation. I understand that such media may be edited and used in various formats and platforms for an indefinite period.
+            I grant \(organizationName) permission to photograph, record, or otherwise capture my image, voice, or likeness (or that of the minor participant) during \(acronym) activities and to use such media for lawful promotional, marketing, educational, and social media purposes, without compensation. I understand that such media may be edited and used in various formats and platforms for an indefinite period.
             """
             
             let mediaReleaseRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 65)
@@ -147,7 +149,7 @@ struct WaiverPDFGenerator {
             currentY += 18
             
             let ackContent = """
-            By clicking "I Agree", I acknowledge that I have read and understand this Release of Liability, Assumption of Risk, and Media Release Agreement, and that I am voluntarily giving up certain legal rights, including the right to sue for claims arising from the ordinary negligence of Polyface Volleyball Academy.
+            By clicking "I Agree", I acknowledge that I have read and understand this Release of Liability, Assumption of Risk, and Media Release Agreement, and that I am voluntarily giving up certain legal rights, including the right to sue for claims arising from the ordinary negligence of \(organizationName).
 
             This agreement shall be governed by and construed in accordance with the laws of the State of Tennessee
             """
@@ -217,7 +219,7 @@ struct WaiverPDFGenerator {
             currentY += 30
             
             // Footer note
-            let footerNote = "This document was digitally signed through the Polyface Volleyball Academy mobile application."
+            let footerNote = "This document was digitally signed through the \(organizationName) mobile application."
             let footerAttributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 9),
                 .foregroundColor: UIColor.gray
