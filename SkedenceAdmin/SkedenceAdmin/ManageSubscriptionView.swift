@@ -208,6 +208,12 @@ struct ManageSubscriptionView: View {
                 recommendedPlan = data["recommendedPlan"] as? String ?? "free"
                 cancelAtPeriodEnd = data["cancelAtPeriodEnd"] as? Bool ?? false
                 
+                print("📊 Billing Status Loaded:")
+                print("   - currentPlan: '\(currentPlan)'")
+                print("   - status: '\(status)'")
+                print("   - bookingsThisMonth: \(bookingsThisMonth)")
+                print("   - recommendedPlan: '\(recommendedPlan)'")
+                
                 if let timestamp = data["currentPeriodEnd"] as? [String: Any],
                    let seconds = timestamp["_seconds"] as? Double {
                     currentPeriodEnd = Date(timeIntervalSince1970: seconds)
