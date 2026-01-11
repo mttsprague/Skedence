@@ -847,6 +847,7 @@ struct CreateClassView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var adminService: AdminService
     @ObservedObject var trainersService: TrainersService
+    @StateObject private var locationsService = LocationsService()
     let onCreated: () -> Void
     
     @State private var title = ""
@@ -854,7 +855,7 @@ struct CreateClassView: View {
     @State private var startDate = Date()
     @State private var endDate = Date().addingTimeInterval(3600)
     @State private var maxParticipants = 20
-    @State private var location = "Oakwood Community Church"
+    @State private var selectedLocation: Location?
     @State private var selectedTrainer: Trainer?
     @State private var isCreating = false
     @State private var errorMessage: String?
@@ -872,7 +873,13 @@ struct CreateClassView: View {
                         TextEditor(text: $description)
                             .frame(minHeight: 80, maxHeight: 160)
                     }
-                    TextField("Location", text: $location)
+                    
+                    Picker("Location", selection: $selectedLocation) {
+                        Text("Select a location").tag(nil as Location?)
+                        ForEach(locationsService.locations) { location in
+                            Text(location.name).tag(location as Location?)
+                        }
+                    }
                 }
                 
                 Section("Head Trainer") {
@@ -911,7 +918,12 @@ struct CreateClassView: View {
                     Button("Create") {
                         Task { await createClass() }
                     }
-                    .disabled(isCreating || title.isEmpty || description.isEmpty || selectedTrainer == nil)
+                    .disabled(isCreating || title.isEmpty || description.isEmpty || selectedTrainer == nil || selectedLocation == nil)
+                }
+            }
+            .task {
+                if let orgId = auth.currentOrgId {
+                    locationsService.loadLocations(orgId: orgId)
                 }
             }
         }
@@ -921,6 +933,10 @@ struct CreateClassView: View {
     private func createClass() async {
         guard let trainer = selectedTrainer else {
             errorMessage = "Please select a head trainer"
+            return
+        }
+        guard let location = selectedLocation else {
+            errorMessage = "Please select a location"
             return
         }
         // Validate required trainer fields (id and name must be non-optional)
@@ -946,7 +962,7 @@ struct CreateClassView: View {
                 startTime: startDate,
                 endTime: endDate,
                 maxParticipants: maxParticipants,
-                location: location,
+                location: location.name,
                 trainerId: trainerId,
                 trainerName: trainerName
             )

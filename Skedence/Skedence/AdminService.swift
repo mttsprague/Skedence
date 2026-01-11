@@ -268,23 +268,38 @@ final class AdminService: ObservableObject {
         guard isAdmin else { return }
         
         do {
-            let snapshot = try await db.collection("users")
+            // Get org members with role 'client' only (exclude trainers, admins, owners)
+            let membersSnapshot = try await db.collection("orgMembers")
                 .whereField("orgId", isEqualTo: orgId)
+                .whereField("role", isEqualTo: "client")
+                .whereField("isActive", isEqualTo: true)
                 .getDocuments()
-            allUsers = snapshot.documents.compactMap { doc in
-                let data = doc.data()
-                let firstName = data["firstName"] as? String ?? ""
-                let lastName = data["lastName"] as? String ?? ""
-                let athleteFirst = data["athleteFirstName"] as? String ?? ""
-                let athleteLast = data["athleteLastName"] as? String ?? ""
+            
+            var users: [SimpleUser] = []
+            
+            for memberDoc in membersSnapshot.documents {
+                let memberData = memberDoc.data()
+                guard let userId = memberData["userId"] as? String else { continue }
                 
-                return SimpleUser(
-                    id: doc.documentID,
-                    firstName: firstName,
-                    lastName: lastName,
-                    athleteName: athleteFirst.isEmpty ? "" : "\(athleteFirst) \(athleteLast)".trimmingCharacters(in: .whitespaces)
-                )
-            }.sorted { $0.lastName < $1.lastName }
+                // Load user document
+                if let userDoc = try? await db.collection("users").document(userId).getDocument(),
+                   let data = userDoc.data() {
+                    let firstName = data["firstName"] as? String ?? ""
+                    let lastName = data["lastName"] as? String ?? ""
+                    let athleteFirst = data["athleteFirstName"] as? String ?? ""
+                    let athleteLast = data["athleteLastName"] as? String ?? ""
+                    
+                    users.append(SimpleUser(
+                        id: userDoc.documentID,
+                        firstName: firstName,
+                        lastName: lastName,
+                        athleteName: athleteFirst.isEmpty ? "" : "\(athleteFirst) \(athleteLast)".trimmingCharacters(in: .whitespaces)
+                    ))
+                }
+            }
+            
+            allUsers = users.sorted { $0.lastName < $1.lastName }
+            print("✅ Loaded \(allUsers.count) client users (excluding trainers)")
         } catch {
             print("Error loading users: \(error)")
             allUsers = []
