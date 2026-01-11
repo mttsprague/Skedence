@@ -54,7 +54,7 @@ struct WaiverAgreementView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                             
                             ScrollView {
-                                Text(waiverText(orgName: auth.organizationName ?? \"Your Organization\"))
+                                Text(waiverText(orgName: auth.organizationName ?? "Your Organization"))
                                     .font(.bodySmall)
                                     .foregroundStyle(AppTheme.textSecondary)
                                     .lineSpacing(4)

@@ -343,7 +343,7 @@ struct PurchaseLessonsView: View {
             
             // Configure payment sheet with option to save card
             var configuration = PaymentSheet.Configuration()
-            configuration.merchantDisplayName = auth.organizationName ?? \"Your Organization\"
+            configuration.merchantDisplayName = auth.organizationName ?? "Your Organization"
             configuration.allowsDelayedPaymentMethods = false
             
             // Enable saving payment methods

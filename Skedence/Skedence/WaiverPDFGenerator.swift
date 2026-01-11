@@ -10,8 +10,8 @@ import PDFKit
 
 struct WaiverPDFGenerator {
     
-    static func generateWaiverPDF(signature: WaiverSignature, organizationName: String = \"Your Organization\") -> Data? {
-        let acronym = organizationName.split(separator: \" \").map { String($0.prefix(1)) }.joined()
+    static func generateWaiverPDF(signature: WaiverSignature, organizationName: String = "Your Organization") -> Data? {
+        let acronym = organizationName.split(separator: " ").map { String($0.prefix(1)) }.joined()
         
         let pdfMetaData = [
             kCGPDFContextCreator: organizationName,
