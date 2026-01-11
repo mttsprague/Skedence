@@ -301,16 +301,19 @@ class TrainerAvatarViewModel: ObservableObject {
         
         do {
             // Query top-level trainers collection filtered by orgId
+            // Note: Removed .order(by:) to avoid index requirement
             let snapshot = try await db.collection("trainers")
                 .whereField("orgId", isEqualTo: orgId)
-                .order(by: "firstName")
                 .getDocuments()
             
             trainers = snapshot.documents.compactMap { doc in
+                let data = doc.data()
+                print("🔍 TrainerAvatar - Doc \(doc.documentID): orgId=\(data["orgId"] as? String ?? "nil"), firstName=\(data["firstName"] as? String ?? "nil"), lastName=\(data["lastName"] as? String ?? "nil")")
+                
                 var trainer = try? doc.data(as: Trainer.self)
                 trainer?.id = doc.documentID
                 return trainer
-            }
+            }.sorted { ($0.displayName) < ($1.displayName) }
             
             print("✅ Loaded \(trainers.count) trainers for orgId: \(orgId)")
             
