@@ -91,7 +91,8 @@ final class FunctionsService {
         dailyEndHour: Int? = nil,
         slotDurationMinutes: Int? = nil,
         daysOfWeek: [Int]? = nil,
-        status: String = "open"
+        status: String = "open",
+        location: String? = nil
     ) async throws -> ProcessAvailabilityResult {
         #if canImport(FirebaseFunctions)
         guard Auth.auth().currentUser != nil else { throw FunctionsServiceError.unauthenticated }
@@ -125,6 +126,7 @@ final class FunctionsService {
         if let dailyEndHour { payload["dailyEndHour"] = dailyEndHour }
         if let slotDurationMinutes { payload["slotDurationMinutes"] = slotDurationMinutes }
         if let daysOfWeek { payload["daysOfWeek"] = daysOfWeek }
+        if let location { payload["location"] = location }
 
         do {
             let result = try await functions.httpsCallable("processTrainerAvailability").call(payload)

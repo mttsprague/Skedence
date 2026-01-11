@@ -212,19 +212,25 @@ final class FirestoreService {
         return String(format: "%04d-%02d-%02dT%02d", y, m, d, h)
     }
 
-    func upsertTrainerSlot(trainerId: String, orgId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status) async throws {
+    func upsertTrainerSlot(trainerId: String, orgId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String? = nil) async throws {
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         let docId = scheduleDocId(for: startTime)
         let ref = db.collection("trainers").document(trainerId).collection("schedules").document(docId)
 
-        let data: [String: Any] = [
+        var data: [String: Any] = [
             "startTime": Timestamp(date: startTime),
             "endTime": Timestamp(date: endTime),
             "status": status.rawValue,
             "orgId": orgId,
             "updatedAt": FieldValue.serverTimestamp()
         ]
+        
+        // Add location if provided
+        if let location = location {
+            data["location"] = location
+        }
+        
         try await ref.setData(data, merge: true)
         #else
         throw FirestoreServiceError.notAvailable

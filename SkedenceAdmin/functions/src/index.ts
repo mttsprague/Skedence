@@ -86,6 +86,7 @@ interface ProcessTrainerAvailabilityData {
   daysOfWeek?: number[]; // 0=Sunday ... 6=Saturday (LOCAL weekday)
   timezoneOffsetMinutes?: number; // Date.getTimezoneOffset() from client (positive west of UTC)
   status?: string; // "open" or "unavailable"
+  location?: string; // optional: location name for availability slots
 }
 
 // --- Cloud Functions ---
@@ -730,6 +731,7 @@ export const processTrainerAvailability = functions.https.onCall(
       daysOfWeek, // optional filter 0..6 (Sun..Sat), interpreted in LOCAL time
       timezoneOffsetMinutes, // required for local interpretation (JS getTimezoneOffset)
       status = "open", // default to "open" if not specified
+      location, // optional location name
     } = request.data;
 
     if (typeof timezoneOffsetMinutes !== "number" || !isFinite(timezoneOffsetMinutes)) {
@@ -869,7 +871,7 @@ export const processTrainerAvailability = functions.https.onCall(
             const trainerLastName = trainerData.lastName || "";
             const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
 
-            batch.set(slotRef, {
+            const slotData: Record<string, any> = {
               status: status,
               startTime: slotStartTime,
               endTime: slotEndTime,
@@ -877,7 +879,14 @@ export const processTrainerAvailability = functions.https.onCall(
               clientName: null,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
               trainerName: trainerFullName,
-            });
+            };
+            
+            // Add location if provided
+            if (location) {
+              slotData.location = location;
+            }
+
+            batch.set(slotRef, slotData);
             slotsAddedCount++;
           } else {
             functions.logger.debug(

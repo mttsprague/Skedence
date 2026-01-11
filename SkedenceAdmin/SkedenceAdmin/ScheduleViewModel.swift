@@ -325,7 +325,7 @@ final class ScheduleViewModel: ObservableObject {
 
     // Allows custom start/end (from the wheel editor)
     // Updated: Splits multi-hour blocks into one-hour slots
-    func setCustomSlot(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, billingPlan: String = "free") async {
+    func setCustomSlot(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, billingPlan: String = "free", location: String? = nil) async {
         guard endTime > startTime else { return }
 
         let calendar = Calendar.current
@@ -376,7 +376,8 @@ final class ScheduleViewModel: ObservableObject {
                     orgId: orgId,
                     startTime: currentSlotStart,
                     endTime: actualSlotEnd,
-                    status: status
+                    status: status,
+                    location: location
                 )
             } catch {
                 print("Failed to upsert slot for \(currentSlotStart): \(error)")
@@ -410,7 +411,8 @@ final class ScheduleViewModel: ObservableObject {
         dailyEndHour: Int? = nil,
         slotDurationMinutes: Int? = nil,
         selectedDaysOfWeek: [Int]? = nil,
-        status: TrainerScheduleSlot.Status = .open
+        status: TrainerScheduleSlot.Status = .open,
+        location: String? = nil
     ) async {
         let fmt = DateFormatter()
         fmt.calendar = Calendar(identifier: .gregorian)
@@ -433,7 +435,8 @@ final class ScheduleViewModel: ObservableObject {
                 dailyEndHour: dailyEndHour,
                 slotDurationMinutes: slotDurationMinutes,
                 daysOfWeek: selectedDaysOfWeek,
-                status: status.rawValue
+                status: status.rawValue,
+                location: location
             )
             print("processTrainerAvailability: \(result.message) slotsAdded=\(result.slotsAdded ?? 0)")
             await loadWeek()
@@ -443,7 +446,7 @@ final class ScheduleViewModel: ObservableObject {
     }
     
     // Admin-only: Set custom slot for all trainers
-    func setCustomSlotForAllTrainers(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status) async {
+    func setCustomSlotForAllTrainers(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String? = nil) async {
         guard status == .unavailable else { return }
         guard let orgId = orgId else {
             print("⚠️ No orgId available for setCustomSlotForAllTrainers")
@@ -470,7 +473,8 @@ final class ScheduleViewModel: ObservableObject {
                             orgId: orgId,
                             startTime: currentSlotStart,
                             endTime: actualSlotEnd,
-                            status: status
+                            status: status,
+                            location: location
                         )
                     } catch {
                         print("Failed to set slot for trainer \(String(describing: trainer.id)): \(error)")
@@ -494,7 +498,8 @@ final class ScheduleViewModel: ObservableObject {
         dailyEndHour: Int? = nil,
         slotDurationMinutes: Int? = nil,
         selectedDaysOfWeek: [Int]? = nil,
-        status: TrainerScheduleSlot.Status = .unavailable
+        status: TrainerScheduleSlot.Status = .unavailable,
+        location: String? = nil
     ) async {
         guard status == .unavailable else { return }
         guard let orgId = orgId else {
@@ -526,7 +531,8 @@ final class ScheduleViewModel: ObservableObject {
                         dailyEndHour: dailyEndHour,
                         slotDurationMinutes: slotDurationMinutes,
                         daysOfWeek: selectedDaysOfWeek,
-                        status: status.rawValue
+                        status: status.rawValue,
+                        location: location
                     )
                     print("Applied to \(trainer.displayName): \(result.message) slotsAdded=\(result.slotsAdded ?? 0)")
                 } catch {
