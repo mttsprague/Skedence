@@ -272,19 +272,35 @@ final class FirestoreService {
             let active = (data["active"] as? Bool) ?? true
             return Trainer(
                 id: doc.documentID,
-                displayName: name,
+                firstName: firstName,
+                lastName: lastName,
                 email: email,
                 avatarUrl: avatarUrl,
                 photoURL: photoURL,
                 imageUrl: imageUrl,
-                active: active
+                orgId: orgId,
+                active: active,
+                admin: false,
+                name: name
             )
         }
         return trainers
         #else
         // No Firestore in this build; provide a small placeholder list
         return [
-            Trainer(id: "trainer_demo", displayName: "Demo Trainer", email: "demo@example.com", avatarUrl: nil, photoURL: nil, imageUrl: nil, active: true)
+            Trainer(
+                id: "trainer_demo",
+                firstName: "Demo",
+                lastName: "Trainer",
+                email: "demo@example.com",
+                avatarUrl: nil,
+                photoURL: nil,
+                imageUrl: nil,
+                orgId: nil,
+                active: true,
+                admin: false,
+                name: "Demo Trainer"
+            )
         ]
         #endif
     }
@@ -295,24 +311,43 @@ final class FirestoreService {
         let doc = try await db.collection("trainers").document(id).getDocument()
         guard let data = doc.data() else { return nil }
         
+        let firstName = data["firstName"] as? String
+        let lastName = data["lastName"] as? String
         let name = (data["name"] as? String) ?? "Unknown"
         let email = (data["email"] as? String) ?? ""
         let avatarUrl = data["avatarUrl"] as? String
         let photoURL = data["photoURL"] as? String
         let imageUrl = data["imageUrl"] as? String
+        let orgId = data["orgId"] as? String
         let active = (data["active"] as? Bool) ?? true
         
         return Trainer(
             id: doc.documentID,
-            displayName: name,
+            firstName: firstName,
+            lastName: lastName,
             email: email,
             avatarUrl: avatarUrl,
             photoURL: photoURL,
             imageUrl: imageUrl,
-            active: active
+            orgId: orgId,
+            active: active,
+            admin: false,
+            name: name
         )
         #else
-        return Trainer(id: "trainer_demo", displayName: "Demo Trainer", email: "demo@example.com", avatarUrl: nil, photoURL: nil, imageUrl: nil, active: true)
+        return Trainer(
+            id: "trainer_demo",
+            firstName: "Demo",
+            lastName: "Trainer",
+            email: "demo@example.com",
+            avatarUrl: nil,
+            photoURL: nil,
+            imageUrl: nil,
+            orgId: nil,
+            active: true,
+            admin: false,
+            name: "Demo Trainer"
+        )
         #endif
     }
 
@@ -750,3 +785,4 @@ final class FirestoreService {
         #endif
     }
 }
+

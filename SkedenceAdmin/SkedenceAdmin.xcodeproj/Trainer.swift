@@ -16,8 +16,6 @@ struct Trainer: Identifiable, Codable, Hashable {
     var photoURL: String?
     var imageUrl: String?
     var orgId: String?
-    var active: Bool = true
-    var admin: Bool = false
     
     // Legacy field for backwards compatibility
     var name: String?
@@ -32,24 +30,7 @@ struct Trainer: Identifiable, Codable, Hashable {
     var anyPhotoURLString: String? { avatarUrl ?? photoURL ?? imageUrl }
     
     enum CodingKeys: String, CodingKey {
-        case firstName, lastName, email, avatarUrl, photoURL, imageUrl, orgId, name, active, admin
-    }
-    
-    // Memberwise initializer for manual construction
-    init(id: String? = nil, firstName: String? = nil, lastName: String? = nil, email: String? = nil, 
-         avatarUrl: String? = nil, photoURL: String? = nil, imageUrl: String? = nil, 
-         orgId: String? = nil, active: Bool = true, admin: Bool = false, name: String? = nil) {
-        self.id = id
-        self.firstName = firstName
-        self.lastName = lastName
-        self.email = email
-        self.avatarUrl = avatarUrl
-        self.photoURL = photoURL
-        self.imageUrl = imageUrl
-        self.orgId = orgId
-        self.active = active
-        self.admin = admin
-        self.name = name
+        case firstName, lastName, email, avatarUrl, photoURL, imageUrl, orgId, name
     }
     
     // Custom init to exclude id from decoding
@@ -63,8 +44,6 @@ struct Trainer: Identifiable, Codable, Hashable {
         imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
         orgId = try container.decodeIfPresent(String.self, forKey: .orgId)
         name = try container.decodeIfPresent(String.self, forKey: .name)
-        active = try container.decodeIfPresent(Bool.self, forKey: .active) ?? true
-        admin = try container.decodeIfPresent(Bool.self, forKey: .admin) ?? false
         // id is not decoded - will be set manually from document ID
     }
     
@@ -79,8 +58,6 @@ struct Trainer: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(imageUrl, forKey: .imageUrl)
         try container.encodeIfPresent(orgId, forKey: .orgId)
         try container.encodeIfPresent(name, forKey: .name)
-        try container.encode(active, forKey: .active)
-        try container.encode(admin, forKey: .admin)
-        // id is not encoded - it's stored as document ID in Firestore
+        // id is not encoded
     }
 }
