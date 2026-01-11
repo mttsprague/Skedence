@@ -395,6 +395,7 @@ struct TrainerCard: View {
     let trainer: AdminTrainer
     let viewModel: SuperAdminViewModel
     @State private var showingDeleteConfirmation = false
+    @EnvironmentObject var auth: AuthManager
     
     var body: some View {
         HStack {

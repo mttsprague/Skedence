@@ -37,6 +37,18 @@ service firebase.storage {
                        || request.resource.contentType.matches('image/.*'));
     }
     
+    // Trainer avatar images uploaded by organization owners/admins
+    match /organizations/{orgId}/trainers/avatars/{imageFile} {
+      // Anyone authenticated can read trainer avatars
+      allow read: if request.auth != null;
+      
+      // Org owners and admins can upload trainer avatars
+      // Max 5MB for avatar images
+      allow write: if request.auth != null
+                   && validateFileSize(5)
+                   && request.resource.contentType.matches('image/.*');
+    }
+    
     // Trainer profile images
     match /trainers/{trainerId}/profile/{imageFile} {
       // Anyone authenticated can read trainer profile images
