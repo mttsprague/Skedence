@@ -123,14 +123,16 @@ final class AuthManager: ObservableObject {
             
             // Create orgMembers entry if orgId provided
             if let orgId = orgId {
-                try await db.collection("orgMembers").addDocument(data: [
+                // Use deterministic document ID format: {userId}_{orgId}
+                let membershipId = "\(uid)_\(orgId)"
+                try await db.collection("orgMembers").document(membershipId).setData([
                     "userId": uid,
                     "orgId": orgId,
                     "role": "client",
                     "isActive": true,
                     "joinedAt": Timestamp(date: now)
                 ])
-                print("✅ Created orgMember for \(uid) in org \(orgId)")
+                print("✅ Created orgMember for \(uid) in org \(orgId) with ID: \(membershipId)")
             }
             
             // Track sign up event
