@@ -63,12 +63,10 @@ service cloud.firestore {
     // ORGANIZATION MEMBERSHIP COLLECTION (Source of Truth)
     // =========================================================================
     match /orgMembers/{membershipId} {
-      // Users can read their own membership records (get by ID)
-      // Note: This must allow get() operations for permission checking in other rules
-      allow get: if isSignedIn() && (
-        resource.data.userId == request.auth.uid 
-        || membershipId == request.auth.uid + '_' + resource.data.orgId
-      );
+      // Users can read their own membership records by checking the document ID pattern
+      // Pattern: {uid}_{orgId} - allows reading without accessing resource.data
+      // This is critical for isMemberOfOrg() checks to work properly
+      allow get: if isSignedIn() && membershipId.matches('^' + request.auth.uid + '_[a-zA-Z0-9]+$');
       
       // Allow list queries filtered by userId or orgId (for admin panels)
       allow list: if isSignedIn();
