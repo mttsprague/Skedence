@@ -16,11 +16,13 @@ service cloud.firestore {
     }
 
     // Check if user has an active membership in the organization
+    // Optimized to use a single get() call and store the result
     function isMemberOfOrg(orgId) {
+      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
       return isSignedIn() 
-        && exists(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId))
-        && get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.isActive == true
-        && get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.orgId == orgId;
+        && memberDoc != null
+        && memberDoc.data.orgId == orgId
+        && (memberDoc.data.isActive == true || !('isActive' in memberDoc.data)); // Allow if isActive not set or true
     }
 
     // Get user's role in an organization
