@@ -88,9 +88,10 @@ service cloud.firestore {
     // ORGANIZATIONS COLLECTION
     // =========================================================================
     match /organizations/{orgId} {
-      // Members can read their own organization (including pricing structure)
+      // Members can read their own organization (including pricing structure, branding, subscription)
+      // This includes get() and snapshot listeners (which use get internally)
       // Also allow reading for invite code validation during registration
-      allow get: if isMemberOfOrg(orgId);
+      allow read: if isMemberOfOrg(orgId);
       
       // Allow querying by inviteCode for registration validation (even if not signed in)
       allow list: if true;
