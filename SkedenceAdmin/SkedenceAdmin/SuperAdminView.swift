@@ -379,8 +379,8 @@ struct SuperAdminView: View {
             } else if viewModel.allUsers.isEmpty {
                 EmptyStateView(
                     icon: "person.2",
-                    title: "No Team Members",
-                    message: "Team members will appear here"
+                    title: "No Staff Members",
+                    message: "Owners, admins, and trainers will appear here"
                 )
             } else {
                 ForEach(viewModel.allUsers) { user in

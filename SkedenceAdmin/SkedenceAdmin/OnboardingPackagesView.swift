@@ -238,6 +238,9 @@ struct OnboardingPackagesView: View {
                     "pricingStructure": dictionary
                 ], merge: true)
                 
+                print("✅ OnboardingPackages: Saved pricing structure for org \(orgId)")
+                print("   Package: \(packageOption.title) - \(packageOption.formattedPrice)")
+                
                 coordinator.organizationData["packagesComplete"] = true
                 coordinator.moveToNextStep()
                 isSaving = false

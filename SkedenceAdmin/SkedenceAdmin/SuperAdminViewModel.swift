@@ -162,8 +162,12 @@ class SuperAdminViewModel: ObservableObject {
                 let memberData = memberDoc.data()
                 guard let memberId = memberData["userId"] as? String, !memberId.isEmpty else { continue }
                 
-                // Show all org members including trainers, admins, owners, and clients
+                // Users tab should only show staff: trainers, admins, owners (NOT clients)
                 let role = memberData["role"] as? String ?? "client"
+                if role == "client" {
+                    print("🔍 Skipping client \(memberId) from Users tab")
+                    continue
+                }
                 
                 // Try user document first
                 var firstName = ""
@@ -187,7 +191,7 @@ class SuperAdminViewModel: ObservableObject {
                     }
                 }
                 
-                print("🔍 User \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(role)")
+                print("🔍 Staff member \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(role)")
                 
                 users.append(AdminUser(
                     id: memberId,
