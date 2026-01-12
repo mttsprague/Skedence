@@ -45,6 +45,9 @@ final class AuthManager: ObservableObject {
     @Published var billingStatus: String = "active"
     @Published var subscriptionEndDate: Date?
     @Published var isBillingBlocked: Bool = false
+    
+    // Onboarding status
+    @Published var onboardingComplete: Bool = false
 
     // Fields for convenience in the MoreView
     @Published var emailInput: String = ""
@@ -65,10 +68,18 @@ final class AuthManager: ObservableObject {
             self.userEmail = user?.email
             Task {
                 if let uid = user?.uid {
+                    // Always load org data on auth state change
+                    // loadOrgId will check onboarding status from Firestore
                     await self.loadOrgId(for: uid)
+                    
+                    // Only load trainer data if onboarding is complete
+                    if self.onboardingComplete {
+                        await self.refreshTrainerStatus()
+                        await self.refreshTrainerProfileIfNeeded()
+                    } else {
+                        print("AuthManager: Auth state changed - Onboarding not complete, skipping trainer data load")
+                    }
                 }
-                await self.refreshTrainerStatus()
-                await self.refreshTrainerProfileIfNeeded()
             }
         }
         #else
@@ -286,6 +297,15 @@ final class AuthManager: ObservableObject {
             // Load organization name
             organizationName = orgData["name"] as? String
             print("AuthManager: Loaded organization name: \(organizationName ?? "nil")")
+            
+            // Check if onboarding is complete
+            if orgData["onboardingCompletedAt"] != nil {
+                onboardingComplete = true
+                print("AuthManager: Onboarding completed")
+            } else {
+                onboardingComplete = false
+                print("AuthManager: Onboarding NOT complete")
+            }
             
             // Load branding
             if let branding = orgData["branding"] as? [String: Any] {

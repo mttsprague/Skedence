@@ -17,95 +17,74 @@ struct AppRootView: View {
     @StateObject private var packagesService = PackagesService()
     @StateObject private var bookingsService = BookingsService()
     @StateObject private var classesService = ClassesService()
-    @StateObject private var adminService = AdminService()
     @ObservedObject private var subscriptionStatus = SubscriptionStatusService.shared
     
     @State private var selectedTab = 0
     @State private var bookViewMode = 0
     @State private var organizationIsActive = true
+    @State private var hasSetInitialTab = false
 
     var body: some View {
         Group {
             if auth.isReady {
-                if adminService.isLoading {
-                    VStack(spacing: Spacing.lg) {
-                        ProgressView()
-                            .tint(AppTheme.primary as Color)
-                        Text("Loading…")
-                            .font(.bodyLarge)
-                            .foregroundStyle(AppTheme.textSecondary as Color)
-                    }
-                } else {
-                    TabView(selection: $selectedTab) {
-                        HomeView(usersService: usersService,
-                                 scheduleService: scheduleService,
-                                 classesService: classesService,
-                                 selectedTab: $selectedTab,
-                                 bookViewMode: $bookViewMode)
-                            .tabItem {
-                                Label("Home", systemImage: "house.fill")
-                            }
-                            .tag(0)
-                            .environmentObject(auth)
-
-                        BookView(trainersService: trainersService,
-                                 scheduleService: scheduleService,
-                                 packagesService: packagesService,
-                                 usersService: usersService,
-                                 initialMode: $bookViewMode)
-                            .tabItem {
-                                Label("Book", systemImage: "calendar.badge.plus")
-                            }
-                            .tag(1)
-                            .environmentObject(auth)
-
-                        ProfileView(usersService: usersService,
-                                    packagesService: packagesService,
-                                    bookingsService: bookingsService,
-                                    scheduleService: scheduleService)
-                            .environmentObject(auth)
-                            .tabItem {
-                                Label("Profile", systemImage: "person.crop.circle")
-                            }
-                            .tag(2)
-
-                        MorePlaceholderView()
-                            .tabItem {
-                                Label("More", systemImage: "ellipsis.circle")
-                            }
-                            .tag(3)
-                            .environmentObject(auth)
-                        
-                        // Show Admin tab only for logged-in admins
-                        if auth.isAuthenticated && adminService.isAdmin {
-                            AdminPanelView()
-                                .tabItem {
-                                    Label("Admin", systemImage: "star.fill")
-                                }
-                                .tag(4)
-                                .environmentObject(auth)
+                TabView(selection: $selectedTab) {
+                    HomeView(usersService: usersService,
+                             scheduleService: scheduleService,
+                             classesService: classesService,
+                             selectedTab: $selectedTab,
+                             bookViewMode: $bookViewMode)
+                        .tabItem {
+                            Label("Home", systemImage: "house.fill")
                         }
-                    }
-                    .tint(AppTheme.primary as Color)
-                    .environmentObject(auth)
-                    .environmentObject(usersService)
-                    .environmentObject(scheduleService)
-                    .environmentObject(trainersService)
-                    .environmentObject(packagesService)
-                    .environmentObject(bookingsService)
-                    .environmentObject(classesService)
-                    .environmentObject(adminService)
-                    .environmentObject(subscriptionStatus)
-                    .overlay {
-                        if !organizationIsActive {
-                            ClientBookingBlockedView(
-                                organizationName: "This business",
-                                trainerName: "Trainer",
-                                trainerEmail: nil,
-                                trainerPhone: nil,
-                                onDismiss: { organizationIsActive = true }
-                            )
+                        .tag(0)
+                        .environmentObject(auth)
+
+                    BookView(trainersService: trainersService,
+                             scheduleService: scheduleService,
+                             packagesService: packagesService,
+                             usersService: usersService,
+                             initialMode: $bookViewMode)
+                        .tabItem {
+                            Label("Book", systemImage: "calendar.badge.plus")
                         }
+                        .tag(1)
+                        .environmentObject(auth)
+
+                    ProfileView(usersService: usersService,
+                                packagesService: packagesService,
+                                bookingsService: bookingsService,
+                                scheduleService: scheduleService)
+                        .environmentObject(auth)
+                        .tabItem {
+                            Label("Profile", systemImage: "person.crop.circle")
+                        }
+                        .tag(2)
+
+                    MorePlaceholderView()
+                        .tabItem {
+                            Label("More", systemImage: "ellipsis.circle")
+                        }
+                        .tag(3)
+                        .environmentObject(auth)
+                }
+                .tint(AppTheme.primary as Color)
+                .environmentObject(auth)
+                .environmentObject(usersService)
+                .environmentObject(scheduleService)
+                .environmentObject(trainersService)
+                .environmentObject(packagesService)
+                .environmentObject(bookingsService)
+                .environmentObject(classesService)
+                .environmentObject(subscriptionStatus)
+                .overlay {
+                    if !organizationIsActive {
+                        ClientBookingBlockedView(
+                            organizationName: "This business",
+                            trainerName: "Trainer",
+                            trainerEmail: nil,
+                            trainerPhone: nil,
+                            onDismiss: { organizationIsActive = true }
+                        )
                     }
                 }
             } else {
@@ -120,8 +99,16 @@ struct AppRootView: View {
         }
         .task { @MainActor in
             await auth.ensureSignedIn() // Temporary anonymous; replace with Email/Password flow
-            // Check admin status after authentication
-            await adminService.checkAdminStatus()
+            
+            // Set initial tab based on authentication status
+            if !hasSetInitialTab {
+                hasSetInitialTab = true
+                if auth.isAuthenticated {
+                    selectedTab = 0 // Home tab
+                } else {
+                    selectedTab = 2 // Profile tab for sign in/register
+                }
+            }
             // Start monitoring subscription status
             if let orgId = auth.currentOrgId {
                 subscriptionStatus.monitorOrgStatus(organizationId: orgId)

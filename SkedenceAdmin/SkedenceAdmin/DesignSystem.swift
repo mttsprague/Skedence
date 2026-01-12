@@ -252,4 +252,14 @@ extension Color {
         return Color.white
         #endif
     }
+    
+    static var platformGroupedBackground: Color {
+        #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+        return Color(UIColor.systemGroupedBackground)
+        #elseif os(macOS)
+        return Color(NSColor.underPageBackgroundColor)
+        #else
+        return Color.gray.opacity(0.06)
+        #endif
+    }
 }

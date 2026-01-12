@@ -92,8 +92,8 @@ service cloud.firestore {
       // Also allow reading for invite code validation during registration
       allow get: if isMemberOfOrg(orgId);
       
-      // Allow querying by inviteCode for registration validation
-      allow list: if isSignedIn();
+      // Allow querying by inviteCode for registration validation (even if not signed in)
+      allow list: if true;
       
       // Admins can update organization settings (including pricing structure)
       // Owners have full control

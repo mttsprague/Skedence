@@ -10,6 +10,7 @@ import SwiftUI
 
 struct OnboardingLandingView: View {
     @EnvironmentObject var auth: AuthManager
+    @EnvironmentObject var coordinator: OnboardingCoordinator
     @State private var showingCreateBusiness: Bool = false
     @State private var showingSignIn: Bool = false
     
@@ -106,8 +107,9 @@ struct OnboardingLandingView: View {
             }
         }
         .sheet(isPresented: $showingCreateBusiness) {
-            CreateBusinessView()
+            OnboardingFlowView()
                 .environmentObject(auth)
+                .environmentObject(coordinator)
         }
         .sheet(isPresented: $showingSignIn) {
             SignInView()

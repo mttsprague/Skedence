@@ -162,32 +162,42 @@ class SuperAdminViewModel: ObservableObject {
                 let memberData = memberDoc.data()
                 guard let memberId = memberData["userId"] as? String, !memberId.isEmpty else { continue }
                 
-                // Skip trainers - only show clients/users in the Users tab
+                // Show all org members including trainers, admins, owners, and clients
                 let role = memberData["role"] as? String ?? "client"
-                if role == "trainer" || role == "admin" || role == "owner" {
-                    print("🔍 Skipping user \(memberId) with role: \(role)")
-                    continue
-                }
                 
-                // Load user document
+                // Try user document first
+                var firstName = ""
+                var lastName = ""
+                var email: String?
+                
                 if let userDoc = try? await db.collection("users").document(memberId).getDocument(),
                    let userData = userDoc.data() {
-                    
-                    let firstName = userData["firstName"] as? String ?? ""
-                    let lastName = userData["lastName"] as? String ?? ""
-                    let email = userData["emailAddress"] as? String ?? userData["email"] as? String
-                    print("🔍 User \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(role)")
-                    
-                    users.append(AdminUser(
-                        id: userDoc.documentID,
-                        firstName: firstName,
-                        lastName: lastName,
-                        emailAddress: email,
-                        orgId: userData["orgId"] as? String ?? orgId,
-                        organizationName: nil,
-                        role: role
-                    ))
+                    firstName = userData["firstName"] as? String ?? ""
+                    lastName = userData["lastName"] as? String ?? ""
+                    email = userData["emailAddress"] as? String ?? userData["email"] as? String
                 }
+                
+                // If user doc doesn't have name, try trainer doc (for trainers/admins/owners)
+                if firstName.isEmpty && lastName.isEmpty {
+                    if let trainerDoc = try? await db.collection("trainers").document(memberId).getDocument(),
+                       let trainerData = trainerDoc.data() {
+                        firstName = trainerData["firstName"] as? String ?? ""
+                        lastName = trainerData["lastName"] as? String ?? ""
+                        email = trainerData["email"] as? String
+                    }
+                }
+                
+                print("🔍 User \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(role)")
+                
+                users.append(AdminUser(
+                    id: memberId,
+                    firstName: firstName,
+                    lastName: lastName,
+                    emailAddress: email,
+                    orgId: orgId,
+                    organizationName: nil,
+                    role: role
+                ))
             }
             
             allUsers = users

@@ -92,8 +92,8 @@ service cloud.firestore {
       // Also allow reading for invite code validation during registration
       allow get: if isMemberOfOrg(orgId);
       
-      // Allow querying by inviteCode for registration validation
-      allow list: if isSignedIn();
+      // Allow querying by inviteCode for registration validation (even if not signed in)
+      allow list: if true;
       
       // Admins can update organization settings (including pricing structure)
       // Owners have full control
@@ -231,15 +231,15 @@ service cloud.firestore {
 
       // Schedules subcollection
       match /schedules/{slotId} {
-        // Allow trainers to read their own schedules
-        // Allow admins/owners to read schedules if the parent trainer is in their org
+        // Allow anyone to read schedules if the parent trainer is in their org
+        // OR trainer reading their own schedule
         allow read: if isSignedIn() && (
           // Trainer reading their own schedule
           request.auth.uid == trainerId
-          // OR admin/owner reading any trainer's schedule in their org
+          // OR member reading schedules of trainer in their org
           || (exists(/databases/$(database)/documents/trainers/$(trainerId))
             && 'orgId' in get(/databases/$(database)/documents/trainers/$(trainerId)).data
-            && isOrgTrainer(get(/databases/$(database)/documents/trainers/$(trainerId)).data.orgId))
+            && isMemberOfOrg(get(/databases/$(database)/documents/trainers/$(trainerId)).data.orgId))
         );
 
         // Trainers can manage their own schedules if they belong to the org
@@ -340,10 +340,7 @@ service cloud.firestore {
     match /{path=**}/schedules/{slotId} {
       // Allow authenticated users to query schedules
       // Individual documents are protected by the main schedules rule above
-      allow list: if isSignedIn();
-      
-      // Allow get if user can access the schedule based on trainer membership
-      allow get: if isSignedIn();
+      allow read: if isSignedIn();
     }
 
     // =========================================================================

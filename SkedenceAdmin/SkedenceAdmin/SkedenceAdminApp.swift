@@ -16,6 +16,7 @@ import FirebaseCore
 struct SkedenceAdminApp: App {
     @StateObject private var auth = AuthManager()
     @StateObject private var subscriptionStatus = SubscriptionStatusService.shared
+    @StateObject private var onboardingCoordinator = OnboardingCoordinator()
 
     init() {
         configureFirebaseIfAvailable()
@@ -36,10 +37,17 @@ struct SkedenceAdminApp: App {
 
     var body: some Scene {
         WindowGroup {
-            // STEP 9: Show onboarding if not authenticated
+            // Show onboarding if not authenticated OR if authenticated but onboarding not complete
             if !auth.isAuthenticated {
                 OnboardingLandingView()
                     .environmentObject(auth)
+                    .environmentObject(onboardingCoordinator)
+            } else if auth.isAuthenticated && !auth.onboardingComplete {
+                // User is authenticated but hasn't finished onboarding
+                // Show the onboarding flow which will handle both new and returning incomplete users
+                OnboardingFlowView()
+                    .environmentObject(auth)
+                    .environmentObject(onboardingCoordinator)
             } else {
                 ContentViewWrapper()
                     .environmentObject(auth)

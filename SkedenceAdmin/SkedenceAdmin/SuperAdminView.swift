@@ -71,7 +71,7 @@ struct SuperAdminView: View {
                     }
                 }
             }
-            .navigationTitle("Admin")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -189,29 +189,6 @@ struct SuperAdminView: View {
                 Divider()
                     .padding(.vertical, Spacing.md)
                 
-                // Setup Checklist
-                NavigationLink(destination: SetupChecklistView()) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Setup Checklist")
-                                .font(.headingSmall)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text("Complete your onboarding")
-                                .font(.bodyMedium)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                        Spacer()
-                        Image(systemName: "checkmark.circle")
-                            .foregroundStyle(AppTheme.primary)
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(CornerRadius.md)
-                    .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
-                }
-                
                 // Manage Subscription
                 NavigationLink(destination: ManageSubscriptionView(orgId: auth.currentOrgId ?? "").environmentObject(auth)) {
                     HStack {
@@ -231,6 +208,79 @@ struct SuperAdminView: View {
                     .background(Color(.systemBackground))
                     .cornerRadius(CornerRadius.md)
                     .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+                }
+                
+                // Contact Us
+                Button {
+                    if let url = URL(string: "mailto:support@skedence.com?subject=Support%20Request") {
+                        openURL(url)
+                    }
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Contact Us")
+                                .font(.headingSmall)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("Get help from our team")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "envelope")
+                            .foregroundStyle(AppTheme.primary)
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(CornerRadius.md)
+                    .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+                }
+                .buttonStyle(.plain)
+                
+                // Legal Section
+                VStack(spacing: Spacing.sm) {
+                    Button {
+                        if let url = URL(string: "https://skedence.com/privacy") {
+                            openURL(url)
+                        }
+                    } label: {
+                        HStack {
+                            Text("Privacy Policy")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(CornerRadius.md)
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        if let url = URL(string: "https://skedence.com/terms") {
+                            openURL(url)
+                        }
+                    } label: {
+                        HStack {
+                            Text("Terms of Service")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(CornerRadius.md)
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -329,8 +379,8 @@ struct SuperAdminView: View {
             } else if viewModel.allUsers.isEmpty {
                 EmptyStateView(
                     icon: "person.2",
-                    title: "No Users",
-                    message: "Users will appear here once they sign up"
+                    title: "No Team Members",
+                    message: "Team members will appear here"
                 )
             } else {
                 ForEach(viewModel.allUsers) { user in
