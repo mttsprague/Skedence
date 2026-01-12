@@ -13,6 +13,7 @@ struct SuperAdminView: View {
     @EnvironmentObject var auth: AuthManager
     @StateObject private var viewModel = SuperAdminViewModel()
     @StateObject private var enforcement = SubscriptionEnforcementService()
+    @StateObject private var onboardingCoordinator = OnboardingCoordinator()
     @State private var selectedTab: AdminTab = .organizations
     @State private var showingCreateOrganization = false
     @State private var showingAddTrainer = false
@@ -210,6 +211,29 @@ struct SuperAdminView: View {
                     .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
                 }
                 
+                // Stripe Settings
+                NavigationLink(destination: OnboardingStripeView().environmentObject(auth).environmentObject(onboardingCoordinator)) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Stripe Settings")
+                                .font(.headingSmall)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("Connect or update Stripe account")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "creditcard")
+                            .foregroundStyle(AppTheme.primary)
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(CornerRadius.md)
+                    .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+                }
+                
                 // Contact Us
                 Button {
                     if let url = URL(string: "mailto:support@skedence.com?subject=Support%20Request") {
@@ -241,7 +265,7 @@ struct SuperAdminView: View {
                 // Legal Section
                 VStack(spacing: Spacing.sm) {
                     Button {
-                        if let url = URL(string: "https://skedence.com/privacy") {
+                        if let url = URL(string: "https://www.skedence.com/privacy-policy") {
                             openURL(url)
                         }
                     } label: {
@@ -262,7 +286,7 @@ struct SuperAdminView: View {
                     .buttonStyle(.plain)
                     
                     Button {
-                        if let url = URL(string: "https://skedence.com/terms") {
+                        if let url = URL(string: "https://www.skedence.com/terms-of-service") {
                             openURL(url)
                         }
                     } label: {
