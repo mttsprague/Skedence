@@ -505,10 +505,18 @@ interface CreateCheckoutData {
  */
 export const createStripeCheckout = functions.https.onRequest(
   async (req, res) => {
-    // Set CORS headers
-    res.set("Access-Control-Allow-Origin", "*");
+    // Set CORS headers - restrict to Firebase hosting domain only
+    const allowedOrigins = [
+      "https://polyface-ae6d3.firebaseapp.com",
+      "https://polyface-ae6d3.web.app",
+    ];
+    const origin = req.get("origin");
+    if (origin && allowedOrigins.includes(origin)) {
+      res.set("Access-Control-Allow-Origin", origin);
+    }
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type");
+    res.set("Access-Control-Allow-Credentials", "true");
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
