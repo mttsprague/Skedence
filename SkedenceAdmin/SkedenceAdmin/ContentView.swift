@@ -33,27 +33,27 @@ struct ContentView: View {
                 }
                 .tag(1)
 
+            MoreView()
+                .tabItem {
+                    Label("Account", systemImage: selectedTab == 2 ? "person.crop.circle.fill" : "person.crop.circle")
+                }
+                .tag(2)
+
             // Only show Management tab for owners and admins
             if auth.currentOrgRole == "owner" || auth.currentOrgRole == "admin" {
                 AdminPanelView()
                     .tabItem {
-                        Label("Manage", systemImage: selectedTab == 2 ? "briefcase.fill" : "briefcase")
+                        Label("Manage", systemImage: selectedTab == 3 ? "briefcase.fill" : "briefcase")
                     }
-                    .tag(2)
+                    .tag(3)
                     .environmentObject(auth)
             }
 
-            MoreView()
-                .tabItem {
-                    Label("Account", systemImage: selectedTab == 3 ? "person.crop.circle.fill" : "person.crop.circle")
-                }
-                .tag(3)
-
-            // Only show Settings tab for owners and admins
+            // Only show Business tab for owners and admins
             if auth.currentOrgRole == "owner" || auth.currentOrgRole == "admin" {
                 SuperAdminView()
                     .tabItem {
-                        Label("Settings", systemImage: selectedTab == 4 ? "gear" : "gear")
+                        Label("Business", systemImage: selectedTab == 4 ? "gear" : "gear")
                     }
                     .tag(4)
                     .environmentObject(auth)

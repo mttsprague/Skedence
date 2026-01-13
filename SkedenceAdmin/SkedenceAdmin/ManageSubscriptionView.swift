@@ -265,11 +265,14 @@ struct ManageSubscriptionView: View {
         errorMessage = nil
         
         // Map plan names to Stripe price IDs
+        // TODO: Replace these with actual Stripe price IDs from your Stripe dashboard
+        // Go to Stripe Dashboard > Products > Create subscription plans with these names
+        // and copy the price IDs here
         let priceIds: [String: String] = [
-            "starter": "price_starter_monthly",
-            "studio": "price_studio_monthly",
-            "academy": "price_academy_monthly",
-            "enterprise": "price_enterprise_monthly"
+            "starter": "price_1SkWFR2XPese4Q6C8OAznMnV",  // $29/month - Update with actual ID
+            "studio": "price_1SkWFc2XPese4Q6CKdZVuZZu",   // $99/month - Update with actual ID
+            "academy": "price_1SkWFt2XPese4Q6CYpqRBpCh",  // $249/month - Update with actual ID
+            "enterprise": "price_1SkWG92XPese4Q6CnQVNYmZ9" // $499/month - Update with actual ID
         ]
         
         guard let priceId = priceIds[plan] else {
@@ -292,7 +295,7 @@ struct ManageSubscriptionView: View {
                 #endif
             }
         } else {
-            errorMessage = "Failed to create checkout session"
+            errorMessage = "Failed to create checkout session. Please check your Stripe configuration and ensure subscription prices are set up in your Stripe dashboard."
         }
         
         isProcessing = false

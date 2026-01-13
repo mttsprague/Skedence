@@ -240,20 +240,9 @@ struct OnboardingAccountView: View {
                 
                 try await orgRef.setData(orgData)
                 
-                // Create user document
-                let userData: [String: Any] = [
-                    "email": ownerEmail.lowercased(),
-                    "emailAddress": ownerEmail.lowercased(),
-                    "firstName": ownerFirstName,
-                    "lastName": ownerLastName,
-                    "orgId": orgId,
-                    "needsPasswordSetup": false,
-                    "authId": userId,
-                    "createdAt": Timestamp(date: Date()),
-                    "registeredAt": Timestamp(date: Date())
-                ]
-                
-                try await db.collection("users").document(userId).setData(userData)
+                // NOTE: Trainers are NOT added to users collection
+                // Users collection is for clients only
+                // Trainers go in trainers collection and orgMembers
                 
                 // Create orgMember
                 let memberData: [String: Any] = [

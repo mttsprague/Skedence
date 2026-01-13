@@ -449,15 +449,33 @@ final class FirestoreService {
 
         let snapshot = try await query.getDocuments()
         
-        // Fetch all trainer IDs in this org to exclude them from clients list
+        // Fetch all trainer/admin/owner IDs in this org to exclude them from clients list
         let trainersSnapshot = try await db.collection("trainers")
             .whereField("orgId", isEqualTo: orgId)
             .getDocuments()
         let trainerIds = Set(trainersSnapshot.documents.map { $0.documentID })
         
+        // Also check orgMembers for staff roles (trainer, admin, owner)
+        let orgMembersSnapshot = try await db.collection("orgMembers")
+            .whereField("orgId", isEqualTo: orgId)
+            .getDocuments()
+        let staffUserIds = Set(orgMembersSnapshot.documents.compactMap { doc -> String? in
+            let role = doc.data()["role"] as? String ?? "client"
+            // Exclude trainers, admins, and owners from clients list
+            if role == "trainer" || role == "admin" || role == "owner" {
+                return doc.data()["userId"] as? String
+            }
+            return nil
+        })
+        
         let clients: [Client] = snapshot.documents.compactMap { doc in
-            // Skip if this user is a trainer
+            // Skip if this user is a trainer (in trainers collection)
             if trainerIds.contains(doc.documentID) {
+                return nil
+            }
+            
+            // Skip if this user has a staff role (trainer/admin/owner) in orgMembers
+            if staffUserIds.contains(doc.documentID) {
                 return nil
             }
             

@@ -25,7 +25,7 @@ struct SuperAdminView: View {
     enum AdminTab: String, CaseIterable {
         case organizations = "Organizations"
         case trainers = "Trainers"
-        case users = "Users"
+        case users = "Members"
     }
     
     // Trainer limits based on plan

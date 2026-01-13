@@ -3,12 +3,15 @@ import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 
 /**
- * Cloud Function that triggers when a new user document is created.
- * If the user has needsPasswordSetup: true, sends them an invitation email
+ * Cloud Function that triggers when a new trainer document is created.
+ * If the trainer has needsPasswordSetup: true, sends them an invitation email
  * with instructions to download the app and register.
+ *
+ * NOTE: Trainers are stored in the trainers collection, NOT users collection.
+ * Users collection is for clients only.
  */
 export const sendTrainerInvitation = onDocumentCreated(
-  "users/{userId}",
+  "trainers/{trainerId}",
   async (event) => {
     const snap = event.data;
     if (!snap) {
@@ -16,45 +19,45 @@ export const sendTrainerInvitation = onDocumentCreated(
       return;
     }
 
-    const userData = snap.data();
-    const userId = event.params.userId;
+    const trainerData = snap.data();
+    const trainerId = event.params.trainerId;
 
-    console.log(`Processing user ${userId}, needsPasswordSetup: ${userData.needsPasswordSetup}`);
-    console.log(`User data fields:`, Object.keys(userData));
+    console.log(`Processing trainer ${trainerId}, needsPasswordSetup: ${trainerData.needsPasswordSetup}`);
+    console.log(`Trainer data fields:`, Object.keys(trainerData));
 
     // Only send invitation if this is a new trainer account that needs setup
-    if (!userData.needsPasswordSetup) {
-      console.log(`User ${userId} doesn't need password setup, skipping invitation`);
+    if (!trainerData.needsPasswordSetup) {
+      console.log(`Trainer ${trainerId} doesn't need password setup, skipping invitation`);
       return;
     }
 
     try {
       // Get email address
-      const emailAddress = userData.emailAddress || userData.email;
+      const emailAddress = trainerData.emailAddress || trainerData.email;
       if (!emailAddress) {
-        console.error(`No email address found for user ${userId}. Available fields:`, Object.keys(userData));
+        console.error(`No email address found for trainer ${trainerId}. Available fields:`, Object.keys(trainerData));
         return;
       }
 
       // Construct full name from firstName and lastName
-      const firstName = userData.firstName || "";
-      const lastName = userData.lastName || "";
+      const firstName = trainerData.firstName || "";
+      const lastName = trainerData.lastName || "";
       const fullName = `${firstName} ${lastName}`.trim() || "there";
 
       // Fetch organization details
       const orgDoc = await admin.firestore()
         .collection("organizations")
-        .doc(userData.orgId)
+        .doc(trainerData.orgId)
         .get();
 
       const orgData = orgDoc.data();
       if (!orgData) {
-        console.error(`Organization ${userData.orgId} not found for user ${userId}`);
+        console.error(`Organization ${trainerData.orgId} not found for trainer ${trainerId}`);
         return;
       }
 
       // Get the trainer's role from orgMembers
-      const membershipId = `${userId}_${userData.orgId}`;
+      const membershipId = `${trainerId}_${trainerData.orgId}`;
       const orgMemberDoc = await admin.firestore()
         .collection("orgMembers")
         .doc(membershipId)
@@ -68,7 +71,7 @@ export const sendTrainerInvitation = onDocumentCreated(
       try {
         const ownersSnapshot = await admin.firestore()
           .collection("orgMembers")
-          .where("orgId", "==", userData.orgId)
+          .where("orgId", "==", trainerData.orgId)
           .where("role", "==", "owner")
           .limit(1)
           .get();
@@ -77,8 +80,9 @@ export const sendTrainerInvitation = onDocumentCreated(
           const ownerMembership = ownersSnapshot.docs[0].data();
           const ownerUserId = ownerMembership.userId;
 
+          // Owner is a trainer, so look in trainers collection
           const ownerDoc = await admin.firestore()
-            .collection("users")
+            .collection("trainers")
             .doc(ownerUserId)
             .get();
 
@@ -136,7 +140,7 @@ export const sendTrainerInvitation = onDocumentCreated(
 
       return;
     } catch (error) {
-      console.error(`❌ Error sending invitation for user ${userId}:`, error);
+      console.error(`❌ Error sending invitation for trainer ${trainerId}:`, error);
       return;
     }
   });
@@ -455,6 +459,7 @@ export const sendOwnerWelcomeEmail = onDocumentCreated(
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
         subject: `Welcome to Skedence! 🎉`,
+        text: generateOwnerWelcomeEmailText(fullName, orgName),
         html: generateOwnerWelcomeEmail(fullName, orgName),
       });
 
@@ -464,6 +469,44 @@ export const sendOwnerWelcomeEmail = onDocumentCreated(
     }
   }
 );
+
+function generateOwnerWelcomeEmailText(name: string, orgName: string): string {
+  return `
+Welcome to Skedence! 🎉
+
+Hi ${name},
+
+Congratulations on setting up ${orgName}! You've taken the first step toward streamlining your training business.
+
+WHAT'S NEXT?
+
+1. Invite Your Trainers
+Head to the Team section to add trainers to your organization. They'll receive an email invitation to download the app.
+
+2. Set Up Your Schedule
+Create availability blocks so clients can book sessions with you and your trainers.
+
+3. Create Packages & Classes
+Set up lesson packages for clients to purchase and create group classes.
+
+4. Share Your Invite Code
+Give your unique organization invite code to clients so they can join and start booking.
+
+PRO TIPS
+- Test the client experience: Have a friend use your invite code to see what clients see
+- Set up Stripe Connect: Enable payments to start accepting bookings and collecting revenue
+- Customize your branding: Add your logo and brand colors in organization settings
+
+If you have questions or need help, reply to this email or reach out at matt.sprague@skedence.com
+
+We're excited to see your business grow! 💪
+The Skedence Team
+
+---
+You're receiving this because you created an account with Skedence.
+Visit us at: https://skedence.app
+  `.trim();
+}
 
 function generateOwnerWelcomeEmail(name: string, orgName: string): string {
   return `

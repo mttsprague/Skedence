@@ -43,6 +43,22 @@ export const sendBookingConfirmation = onDocumentCreated(
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
         subject: `✅ Lesson Confirmed with ${trainerName}`,
+        text: `Your Lesson is Confirmed!
+
+Hi ${clientName},
+
+Your training session has been successfully booked.
+
+SESSION DETAILS
+Trainer: ${trainerName}
+Date: ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}
+Time: ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}
+${booking.location ? `Location: ${booking.location}` : ""}
+
+Need to reschedule or cancel? Please contact us at least 24 hours in advance.
+
+See you soon!
+The ${orgName} Team`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #35b3af;">Your Lesson is Confirmed!</h2>
@@ -114,6 +130,24 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
         subject: `✅ Registered for ${className}`,
+        text: `You're Registered!
+
+Hi ${clientName},
+
+You've successfully registered for ${className}.
+
+CLASS DETAILS
+Class: ${className}
+${classData?.description ? classData.description : ""}
+Date: ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}
+Time: ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}
+${classData?.location ? `Location: ${classData.location}` : ""}
+Instructor: ${classData?.trainerName || "Staff"}
+
+We're looking forward to seeing you there!
+
+Best,
+The ${orgName} Team`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #35b3af;">You're Registered!</h2>
@@ -194,6 +228,32 @@ export const sendSubscriptionConfirmation = onDocumentCreated(
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
         subject,
+        text: `${isTrial ? "Welcome to Your Free Trial!" : "Subscription Confirmed!"}
+
+Hi ${ownerName},
+
+${isTrial ?
+    "Your free trial has started! You now have full access to all Skedence features." :
+    "Thank you for subscribing to Skedence. Your payment has been processed successfully."
+}
+
+SUBSCRIPTION DETAILS
+Organization: ${orgName}
+Plan: ${plan.charAt(0).toUpperCase() + plan.slice(1)}
+Status: ${isTrial ? "Free Trial" : "Active"}
+${isTrial ? "Trial Period: 14 days" : ""}
+
+${isTrial ? "💡 REMINDER: Your trial will automatically convert to a paid subscription after 14 days. You can cancel anytime before then.\n\n" : ""}
+WHAT'S NEXT?
+- Set up your schedule and availability
+- Invite trainers to your organization
+- Add your service locations
+- Create lesson packages for clients
+
+Need help getting started? Reply to this email and we'll be happy to assist!
+
+Best,
+The Skedence Team`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #35b3af;">${isTrial ? "Welcome to Your Free Trial!" : "Subscription Confirmed!"}</h2>

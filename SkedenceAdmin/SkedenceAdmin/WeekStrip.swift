@@ -17,7 +17,7 @@ struct WeekStrip: View {
     var onNextWeek: (() -> Void)? = nil
     
     // Layout constants to match ScheduleView
-    private let timeColWidth: CGFloat = 56
+    private let timeColWidth: CGFloat = 44
 
     var body: some View {
         VStack(spacing: 10) {

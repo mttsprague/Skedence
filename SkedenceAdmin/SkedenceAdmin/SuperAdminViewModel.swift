@@ -160,35 +160,61 @@ class SuperAdminViewModel: ObservableObject {
             
             for memberDoc in membersSnapshot.documents {
                 let memberData = memberDoc.data()
-                guard let memberId = memberData["userId"] as? String, !memberId.isEmpty else { continue }
-                
-                // Users tab should only show staff: trainers, admins, owners (NOT clients)
-                let role = memberData["role"] as? String ?? "client"
-                if role == "client" {
-                    print("🔍 Skipping client \(memberId) from Users tab")
+                guard let memberId = memberData["userId"] as? String, !memberId.isEmpty else {
+                    print("⚠️ orgMember has no userId: \(memberDoc.documentID)")
                     continue
                 }
                 
-                // Try user document first
+                // Members tab should only show staff: trainers, admins, owners (NOT clients)
+                // NOTE: Staff are stored in trainers collection, clients in users collection
+                let role = memberData["role"] as? String ?? "client"
+                if role == "client" {
+                    print("🔍 Skipping client \(memberId) from Members tab")
+                    continue
+                }
+                
+                print("🔍 Looking up trainer \(memberId) from orgMember \(memberDoc.documentID)")
+                
+                // Staff (trainers/admins/owners) are in trainers collection
+                // The userId in orgMembers should be the trainer document ID
                 var firstName = ""
                 var lastName = ""
                 var email: String?
+                var foundTrainerDoc = false
                 
-                if let userDoc = try? await db.collection("users").document(memberId).getDocument(),
-                   let userData = userDoc.data() {
-                    firstName = userData["firstName"] as? String ?? ""
-                    lastName = userData["lastName"] as? String ?? ""
-                    email = userData["emailAddress"] as? String ?? userData["email"] as? String
+                // First, try to find trainer by the memberId (which should be trainerId)
+                if let trainerDoc = try? await db.collection("trainers").document(memberId).getDocument(),
+                   trainerDoc.exists,
+                   let trainerData = trainerDoc.data() {
+                    firstName = trainerData["firstName"] as? String ?? ""
+                    lastName = trainerData["lastName"] as? String ?? ""
+                    email = trainerData["email"] as? String ?? trainerData["emailAddress"] as? String
+                    foundTrainerDoc = true
+                    print("✅ Found trainer doc by ID \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil")")
                 }
                 
-                // If user doc doesn't have name, try trainer doc (for trainers/admins/owners)
-                if firstName.isEmpty && lastName.isEmpty {
-                    if let trainerDoc = try? await db.collection("trainers").document(memberId).getDocument(),
-                       let trainerData = trainerDoc.data() {
+                // Fallback: If trainer doc not found by memberId, search by Firebase Auth UID
+                // This handles legacy data where trainers might still have user documents
+                if !foundTrainerDoc {
+                    print("⚠️ No trainer doc for \(memberId), searching trainers by userId field...")
+                    let trainerQuery = try? await db.collection("trainers")
+                        .whereField("userId", isEqualTo: memberId)
+                        .limit(to: 1)
+                        .getDocuments()
+                    
+                    if let trainerDoc = trainerQuery?.documents.first {
+                        let trainerData = trainerDoc.data()
                         firstName = trainerData["firstName"] as? String ?? ""
                         lastName = trainerData["lastName"] as? String ?? ""
-                        email = trainerData["email"] as? String
+                        email = trainerData["email"] as? String ?? trainerData["emailAddress"] as? String
+                        foundTrainerDoc = true
+                        print("✅ Found trainer doc by userId query: firstName='\(firstName)', lastName='\(lastName)'")
                     }
+                }
+                
+                if !foundTrainerDoc {
+                    print("❌ No trainer document found for userId \(memberId) - skipping")
+                    continue
                 }
                 
                 print("🔍 Staff member \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(role)")
@@ -429,61 +455,11 @@ class AddTrainerViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            // Check if user already exists with this email
-            let userQuery = try await db.collection("users")
-                .whereField("emailAddress", isEqualTo: email)
-                .limit(to: 1)
-                .getDocuments()
+            // NOTE: Trainers are NOT added to users collection
+            // Users collection is for clients only
+            // Trainers go in trainers collection and orgMembers
             
-            var userId: String
-            var isNewUser = false
-            
-            if let existingUserDoc = userQuery.documents.first {
-                // User already exists
-                userId = existingUserDoc.documentID
-                
-                guard !userId.isEmpty else {
-                    print("⚠️ Existing user has empty documentID")
-                    errorMessage = "Invalid user ID"
-                    return nil
-                }
-                
-                print("✅ Found existing user: \(userId)")
-                
-                // Update user with orgId
-                try await db.collection("users").document(userId).updateData([
-                    "orgId": orgId,
-                    "updatedAt": Timestamp()
-                ])
-            } else {
-                // Create new user document with temporary data
-                // They'll need to complete registration via the app
-                isNewUser = true
-                let userRef = db.collection("users").document()
-                userId = userRef.documentID
-                
-                guard !userId.isEmpty else {
-                    print("⚠️ Generated empty userId")
-                    errorMessage = "Failed to generate user ID"
-                    return nil
-                }
-                
-                let userData: [String: Any] = [
-                    "emailAddress": email,
-                    "firstName": firstName,
-                    "lastName": lastName,
-                    "orgId": orgId,
-                    "active": true,
-                    "needsPasswordSetup": true, // Flag to indicate they need to set password
-                    "createdAt": Timestamp(),
-                    "updatedAt": Timestamp()
-                ]
-                
-                try await userRef.setData(userData)
-                print("✅ Created user document: \(userId)")
-            }
-            
-            // Create trainer document
+            // Generate a unique ID for this trainer
             let trainerRef = db.collection("trainers").document()
             let trainerId = trainerRef.documentID
             
@@ -493,12 +469,17 @@ class AddTrainerViewModel: ObservableObject {
                 return nil
             }
             
+            // Use trainerId as the userId for orgMembers (trainers don't need separate user docs)
+            let userId = trainerId
+            
+            // Create trainer document (already have trainerRef from above)
             let trainerData: [String: Any] = [
                 "firstName": firstName,
                 "lastName": lastName,
                 "email": email,
                 "orgId": orgId,
-                "userId": userId,
+                "emailAddress": email,
+                "needsPasswordSetup": true,
                 "active": true,
                 "createdAt": Timestamp()
             ]
@@ -524,15 +505,11 @@ class AddTrainerViewModel: ObservableObject {
             try await db.collection("orgMembers")
                 .document("\(userId)_\(orgId)")
                 .setData(memberData)
-            print("✅ Created orgMember for user: \(userId)")
+            print("✅ Created orgMember for trainer: \(userId)")
             
-            // If this is a new user, we should send them an invitation email
-            // This would be handled by a Cloud Function trigger on user creation
-            // or we can call a Cloud Function here
-            if isNewUser {
-                print("📧 New user created. They will need to register via the app with email: \(email)")
-                // TODO: Call Cloud Function to send invitation email
-            }
+            // The trainer will receive an invitation email via Cloud Function
+            // triggered when the trainer document is created
+            print("📧 New trainer created. They will receive invitation email at: \(email)")
             
             return trainerId
         } catch {

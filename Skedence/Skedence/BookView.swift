@@ -687,69 +687,47 @@ private struct ClassCard: View {
     var body: some View {
         Button(action: onTap) {
             CardView {
-                VStack(alignment: .leading, spacing: Spacing.md) {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // Title and Status
                     HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            HStack {
-                                Text(classItem.title)
-                                    .font(.headingMedium)
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                
-                                if isRegistered {
-                                    BadgeView(text: "Registered", color: AppTheme.success)
-                                }
-                            }
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            Text(classItem.title)
+                                .font(.headingMedium)
+                                .foregroundStyle(AppTheme.primary)
+                                .fontWeight(.semibold)
                             
-                            Text(classItem.description)
-                                .font(.bodyMedium)
-                                .foregroundStyle(AppTheme.textSecondary)
-                                .lineLimit(2)
+                            if isRegistered {
+                                BadgeView(text: "✓ You're Registered", color: AppTheme.success)
+                            }
                         }
                         
                         Spacer()
                         
-                        if isRegistered {
-                            // Don't show capacity if already registered
-                            EmptyView()
-                        } else if classItem.isFull {
-                            BadgeView(text: "Full", color: AppTheme.error)
-                        } else {
-                            BadgeView(text: "\(classItem.spotsRemaining) spots", color: AppTheme.success)
+                        if !isRegistered {
+                            if classItem.isFull {
+                                BadgeView(text: "Full", color: AppTheme.error)
+                            } else {
+                                BadgeView(text: "\(classItem.spotsRemaining) spots left", color: AppTheme.success)
+                            }
                         }
                     }
+                    
+                    // Description
+                    Text(classItem.description)
+                        .font(.bodyMedium)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                     
                     Divider()
                     
-                    HStack(spacing: Spacing.lg) {
-                        HStack(spacing: Spacing.xxs) {
-                            Image(systemName: "calendar")
-                                .font(.bodySmall)
-                            Text(classItem.startTime.formatted(date: .abbreviated, time: .omitted))
-                                .font(.bodyMedium)
-                        }
-                        
-                        HStack(spacing: Spacing.xxs) {
-                            Image(systemName: "clock")
-                                .font(.bodySmall)
-                            Text(classItem.startTime.formatted(date: .omitted, time: .shortened))
-                                .font(.bodyMedium)
-                        }
-                        
-                        HStack(spacing: Spacing.xxs) {
-                            Image(systemName: "mappin.circle")
-                                .font(.bodySmall)
-                            Text(classItem.location)
-                                .font(.bodyMedium)
-                        }
-                        
-                        HStack(spacing: Spacing.xxs) {
-                            Image(systemName: "person.fill")
-                                .font(.bodySmall)
-                            Text(classItem.trainerName)
-                                .font(.bodyMedium)
-                        }
+                    // Class Details
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        DetailRow(icon: "calendar", text: classItem.startTime.formatted(date: .abbreviated, time: .omitted))
+                        DetailRow(icon: "clock", text: classItem.startTime.formatted(date: .omitted, time: .shortened))
+                        DetailRow(icon: "mappin.circle", text: classItem.location)
+                        DetailRow(icon: "person.fill", text: classItem.trainerName)
                     }
-                    .foregroundStyle(AppTheme.textSecondary)
                 }
             }
         }
@@ -760,6 +738,24 @@ private struct ClassCard: View {
             } else {
                 isRegistered = false
             }
+        }
+    }
+}
+
+// Helper view for detail rows
+private struct DetailRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .font(.bodyMedium)
+                .foregroundStyle(AppTheme.primary)
+                .frame(width: 20)
+            Text(text)
+                .font(.bodyMedium)
+                .foregroundStyle(AppTheme.textPrimary)
         }
     }
 }
