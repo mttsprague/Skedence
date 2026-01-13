@@ -51,7 +51,7 @@ struct ScheduleView: View {
     // Layout constants
     private let rowHeight: CGFloat = 56
     private let rowVerticalPadding: CGFloat = 1
-    private let timeColWidth: CGFloat = 56
+    private let timeColWidth: CGFloat = 44
     private let dayColumnWidth: CGFloat = 47
     private let columnSpacing: CGFloat = 0
     
@@ -206,6 +206,23 @@ struct ScheduleView: View {
             .buttonStyle(.plain)
             
             Spacer()
+            
+            // Add availability button
+            Button {
+                // Create availability at current time or next hour
+                let now = Date()
+                let cal = Calendar.current
+                let currentHour = cal.component(.hour, from: now)
+                if subscriptionStatus.canPerformAction(.createAvailability) {
+                    editorContext = EditorContext(day: now, hour: currentHour)
+                }
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(AppTheme.primary)
+                    .symbolRenderingMode(.hierarchical)
+            }
+            .buttonStyle(.plain)
             
             // Jump to current week button
             Button {

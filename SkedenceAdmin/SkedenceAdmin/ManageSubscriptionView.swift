@@ -25,6 +25,8 @@ struct ManageSubscriptionView: View {
     @State private var errorMessage: String?
     @State private var showingUpgrade = false
     @State private var isProcessing = false
+    @State private var selectedPlanForUpgrade: String?
+    @StateObject private var enforcement = SubscriptionEnforcementService()
     
     var body: some View {
         NavigationStack {
@@ -83,7 +85,10 @@ struct ManageSubscriptionView: View {
                                 isRecommended: recommendedPlan == "starter" && currentPlan == "free",
                                 onSelect: {
                                     if currentPlan != "starter" {
-                                        showingUpgrade = true
+                                        selectedPlanForUpgrade = "starter"
+                                        Task {
+                                            await upgradeSubscription(to: "starter")
+                                        }
                                     }
                                 }
                             )
@@ -103,7 +108,10 @@ struct ManageSubscriptionView: View {
                                 isRecommended: recommendedPlan == "studio",
                                 onSelect: {
                                     if currentPlan != "studio" {
-                                        showingUpgrade = true
+                                        selectedPlanForUpgrade = "studio"
+                                        Task {
+                                            await upgradeSubscription(to: "studio")
+                                        }
                                     }
                                 }
                             )
@@ -123,7 +131,10 @@ struct ManageSubscriptionView: View {
                                 isRecommended: recommendedPlan == "academy",
                                 onSelect: {
                                     if currentPlan != "academy" {
-                                        showingUpgrade = true
+                                        selectedPlanForUpgrade = "academy"
+                                        Task {
+                                            await upgradeSubscription(to: "academy")
+                                        }
                                     }
                                 }
                             )
@@ -142,7 +153,10 @@ struct ManageSubscriptionView: View {
                                 isCurrentPlan: currentPlan == "enterprise",
                                 onSelect: {
                                     if currentPlan != "enterprise" {
-                                        showingUpgrade = true
+                                        selectedPlanForUpgrade = "enterprise"
+                                        Task {
+                                            await upgradeSubscription(to: "enterprise")
+                                        }
                                     }
                                 }
                             )
@@ -245,8 +259,44 @@ struct ManageSubscriptionView: View {
                 isProcessing = false
             }
         }
-    }
-}
+    }    
+    func upgradeSubscription(to plan: String) async {
+        isProcessing = true
+        errorMessage = nil
+        
+        // Map plan names to Stripe price IDs
+        let priceIds: [String: String] = [
+            "starter": "price_starter_monthly",
+            "studio": "price_studio_monthly",
+            "academy": "price_academy_monthly",
+            "enterprise": "price_enterprise_monthly"
+        ]
+        
+        guard let priceId = priceIds[plan] else {
+            errorMessage = "Invalid plan selected"
+            isProcessing = false
+            return
+        }
+        
+        // Use enforcement service to create checkout session
+        if let checkoutUrl = await enforcement.createCheckoutSession(
+            organizationId: orgId,
+            priceId: priceId
+        ) {
+            // Open the Stripe checkout page
+            await MainActor.run {
+                #if os(iOS)
+                UIApplication.shared.open(checkoutUrl)
+                #else
+                NSWorkspace.shared.open(checkoutUrl)
+                #endif
+            }
+        } else {
+            errorMessage = "Failed to create checkout session"
+        }
+        
+        isProcessing = false
+    }}
 
 // MARK: - Current Plan Card
 

@@ -90,7 +90,7 @@ struct AllTrainersDayView: View {
     // Layout constants (matching ScheduleView)
     private let rowHeight: CGFloat = 56
     private let rowVerticalPadding: CGFloat = 1
-    private let timeColWidth: CGFloat = 56
+    private let timeColWidth: CGFloat = 44
     private let columnSpacing: CGFloat = 0
     private let gridHeaderVPad: CGFloat = 6
     private let horizontalPaddingPerCell: CGFloat = 2

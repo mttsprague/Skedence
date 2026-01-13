@@ -16,8 +16,8 @@ struct ProfileView: View {
     @ObservedObject var bookingsService: BookingsService
     @ObservedObject var scheduleService: ScheduleService
 
-    @State private var authMode: AuthMode = .signIn
-    enum AuthMode: String, CaseIterable { case signIn = "Sign In", register = "Register" }
+    @State private var authMode: AuthMode = .createAccount
+    enum AuthMode: String, CaseIterable { case createAccount = "Create Account", signIn = "Sign In" }
 
     // Consider FirebaseAuth session as "signed in" for UI
     private var isSignedIn: Bool { Auth.auth().currentUser != nil }
@@ -44,8 +44,8 @@ struct ProfileView: View {
                 } else {
                     VStack(spacing: 24) {
                         Picker("Mode", selection: $authMode) {
+                            Text("Create Account").tag(AuthMode.createAccount)
                             Text("Sign In").tag(AuthMode.signIn)
-                            Text("Register").tag(AuthMode.register)
                         }
                         .pickerStyle(.segmented)
                         .padding(.horizontal)
@@ -62,7 +62,7 @@ struct ProfileView: View {
 
                         Spacer(minLength: 20)
                     }
-                    .navigationTitle(authMode == .signIn ? "Sign In" : "Register")
+                    .navigationTitle(authMode == .signIn ? "Sign In" : "Create Account")
                 }
             }
             .task {
@@ -385,7 +385,7 @@ private struct SignedInProfileScreen: View {
                 }
             }
 
-            // View Full Schedule button
+            // View Your Schedule button
             NavigationLink {
                 MyUpcomingLessonsView(bookingsService: bookingsService,
                                       trainersService: trainersService,
@@ -395,7 +395,7 @@ private struct SignedInProfileScreen: View {
                 HStack(spacing: 8) {
                     Image(systemName: "calendar.badge.clock")
                         .font(.system(size: 18, weight: .semibold))
-                    Text("View Full Schedule")
+                    Text("View Your Schedule")
                         .font(.headline)
                 }
                 .foregroundStyle(.white)

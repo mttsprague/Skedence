@@ -558,10 +558,26 @@ struct AvailabilityEditorSheet: View {
     private func saveSingle() {
         let cal = Calendar.current
         let startOnDay = roundDownToHour(anchor(time: singleStart, toDay: singleDay, calendar: cal), calendar: cal)
-        let minEnd = cal.date(byAdding: .hour, value: 1, to: startOnDay) ?? startOnDay.addingTimeInterval(3600)
-        var endOnDay = roundDownToHour(anchor(time: singleEnd, toDay: singleDay, calendar: cal), calendar: cal)
-        if endOnDay < minEnd { endOnDay = minEnd }
-        onSaveSingle(singleDay, startOnDay, endOnDay, singleStatus, applyToAllTrainers, selectedLocation?.name)
+        let endOnDay = roundDownToHour(anchor(time: singleEnd, toDay: singleDay, calendar: cal), calendar: cal)
+        
+        // Calculate the number of hours between start and end
+        let hoursBetween = cal.dateComponents([.hour], from: startOnDay, to: endOnDay).hour ?? 1
+        
+        // If spanning multiple hours, create individual hourly slots
+        if hoursBetween > 1 {
+            for hourOffset in 0..<hoursBetween {
+                guard let slotStart = cal.date(byAdding: .hour, value: hourOffset, to: startOnDay),
+                      let slotEnd = cal.date(byAdding: .hour, value: 1, to: slotStart) else {
+                    continue
+                }
+                onSaveSingle(singleDay, slotStart, slotEnd, singleStatus, applyToAllTrainers, selectedLocation?.name)
+            }
+        } else {
+            // Single hour slot or less
+            let minEnd = cal.date(byAdding: .hour, value: 1, to: startOnDay) ?? startOnDay.addingTimeInterval(3600)
+            let finalEnd = endOnDay < minEnd ? minEnd : endOnDay
+            onSaveSingle(singleDay, startOnDay, finalEnd, singleStatus, applyToAllTrainers, selectedLocation?.name)
+        }
         dismiss()
     }
 
