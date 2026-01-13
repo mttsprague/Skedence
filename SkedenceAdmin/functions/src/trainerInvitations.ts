@@ -102,17 +102,6 @@ export const sendTrainerInvitation = onDocumentCreated(
         to: emailAddress,
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
-        template: {
-          name: "trainer-invitation",
-          data: {
-            trainerName: fullName,
-            orgName: orgData.name || "the organization",
-            role: role.charAt(0).toUpperCase() + role.slice(1),
-            email: emailAddress,
-            appStoreLink: "https://apps.apple.com/app/skedence-admin", // TODO: Update with actual App Store link
-            playStoreLink: "https://play.google.com/store/apps/details?id=com.skedence.admin", // TODO: Update with actual Play Store link
-          },
-        },
         subject: `You have been invited to ${orgData.name || "Skedence"} by ${ownerName}!`,
         text: generateInvitationText(
           fullName,
@@ -229,176 +218,269 @@ function generateInvitationHTML(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      line-height: 1.6;
-      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    .email-container {
       max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
     }
     .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 30px;
-      border-radius: 8px 8px 0 0;
+      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
+      padding: 48px 32px;
       text-align: center;
     }
     .header h1 {
+      margin: 0 0 12px 0;
+      font-size: 32px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+    .header p {
       margin: 0;
-      font-size: 28px;
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.95);
     }
     .content {
-      background: #ffffff;
-      padding: 30px;
-      border: 1px solid #e0e0e0;
-      border-top: none;
+      padding: 40px 32px;
+      color: #1a1a1a;
+      line-height: 1.7;
     }
-    .highlight-box {
-      background: #f8f9fa;
-      border-left: 4px solid #667eea;
-      padding: 20px;
-      margin: 25px 0;
-      border-radius: 4px;
+    .content p {
+      margin: 0 0 16px 0;
+      font-size: 16px;
     }
-    .highlight-box strong {
-      color: #667eea;
+    .email-badge {
+      background: linear-gradient(135deg, #E8F5F4 0%, #D4EEEC 100%);
+      border: 2px solid #33B2AE;
+      color: #1a1a1a;
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 18px;
+      font-weight: 600;
+      display: inline-block;
+      margin: 20px 0;
+      letter-spacing: 0.5px;
+    }
+    .info-box {
+      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
+      border-left: 4px solid #33B2AE;
+      padding: 24px;
+      margin: 28px 0;
+      border-radius: 12px;
+    }
+    .info-box strong {
+      color: #33B2AE;
       display: block;
-      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .step-container {
+      margin: 32px 0;
     }
     .step {
-      background: #f0f7ff;
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: 6px;
-      border-left: 3px solid #667eea;
+      background: #ffffff;
+      border: 2px solid #E8F5F4;
+      padding: 20px 24px;
+      margin: 16px 0;
+      border-radius: 12px;
+      display: flex;
+      align-items: flex-start;
+      transition: all 0.3s ease;
+    }
+    .step:hover {
+      border-color: #33B2AE;
+      box-shadow: 0 4px 12px rgba(51, 178, 174, 0.1);
     }
     .step-number {
-      display: inline-block;
-      background: #667eea;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
       color: white;
-      width: 24px;
-      height: 24px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       text-align: center;
-      line-height: 24px;
-      font-weight: bold;
-      margin-right: 10px;
+      line-height: 32px;
+      font-weight: 700;
+      font-size: 16px;
+      margin-right: 16px;
+    }
+    .step-content {
+      flex: 1;
+    }
+    .step-content strong {
+      color: #1a1a1a;
+      display: block;
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
+    .step-content p {
+      margin: 0;
+      color: #666;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .button-container {
+      text-align: center;
+      margin: 36px 0;
+      padding: 28px 0;
+      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
+      border-radius: 12px;
+    }
+    .button-container p {
+      margin: 0 0 20px 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
     }
     .button {
       display: inline-block;
-      background: #667eea;
+      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
       color: white;
-      padding: 14px 32px;
+      padding: 16px 32px;
       text-decoration: none;
-      border-radius: 6px;
+      border-radius: 10px;
       font-weight: 600;
-      margin: 20px 0;
+      font-size: 16px;
+      margin: 8px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(51, 178, 174, 0.2);
     }
-    .button:hover {
-      background: #5568d3;
+    .warning-box {
+      background: #FFF8E1;
+      border: 2px solid #FFB74D;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 28px 0;
+    }
+    .warning-box strong {
+      color: #F57C00;
+      font-size: 15px;
+    }
+    .warning-box p {
+      margin: 8px 0 0 0;
+      color: #5D4037;
+      font-size: 15px;
+      line-height: 1.6;
     }
     .footer {
-      background: #f8f9fa;
-      padding: 20px;
+      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
+      padding: 32px;
       text-align: center;
-      border-radius: 0 0 8px 8px;
       color: #666;
       font-size: 14px;
+      line-height: 1.6;
     }
-    .email-badge {
-      background: #e3f2fd;
-      color: #1976d2;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-family: monospace;
-      font-weight: bold;
-      display: inline-block;
-      margin: 10px 0;
+    .footer a {
+      color: #33B2AE;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    h2 {
+      color: #1a1a1a;
+      font-size: 24px;
+      font-weight: 700;
+      margin: 32px 0 20px 0;
+      letter-spacing: -0.5px;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🎉 Welcome to ${orgName}!</h1>
-  </div>
-  
-  <div class="content">
-    <p>Hi ${trainerName},</p>
+  <div class="email-container">
+    <div class="header">
+      <h1>🎉 Welcome to ${orgName}!</h1>
+      <p>You've been invited to join the team</p>
+    </div>
+    
+    <div class="content">
+      <p style="font-size: 18px; font-weight: 600; color: #1a1a1a;">Hi ${trainerName},</p>
 
-    <p>Great news! <strong>${ownerName}</strong> has invited you to join <strong>${orgName}</strong> as a <strong>${role.toLowerCase()}</strong>. You're now part of the team!</p>
+      <p>Great news! <strong>${ownerName}</strong> has invited you to join <strong>${orgName}</strong> as a <strong>${role}</strong>. You're now part of the team!</p>
 
-    <div class="highlight-box">
-      <strong>Your Login Email:</strong>
-      <div class="email-badge">${email}</div>
-      <p style="margin: 8px 0 0 0; font-size: 14px; color: #666;">
-        Make sure to use this exact email address when registering.
+      <div class="info-box">
+        <strong>🔑 Your Login Email</strong>
+        <div class="email-badge">${email}</div>
+        <p style="margin: 0; font-size: 14px; color: #666;">
+          Use this exact email address when creating your account
+        </p>
+      </div>
+      
+      <h2>🚀 Getting Started</h2>
+      
+      <div class="step-container">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <strong>Download SkedenceAdmin</strong>
+            <p>Get the app from the App Store or Play Store to manage your schedule and clients.</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <strong>Create Your Account</strong>
+            <p>Open the app and tap "Create Business" or "Sign Up". Use <strong>${email}</strong> as your email.</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <strong>Set Your Password</strong>
+            <p>Choose a secure password. You'll use this along with your email to log in.</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <strong>You're All Set!</strong>
+            <p>Your account will automatically link to ${orgName} with ${role.toLowerCase()} access.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="button-container">
+        <p>Download the App Now</p>
+        <a href="https://apps.apple.com/app/skedence-admin" class="button">
+          📱 App Store
+        </a>
+        <a href="https://play.google.com/store/apps/details?id=com.skedence.admin" class="button">
+          🤖 Play Store
+        </a>
+      </div>
+      
+      <div class="warning-box">
+        <strong>⚠️ Important Reminder</strong>
+        <p>Make sure to use <strong>${email}</strong> when registering. This is how the app will link your account to ${orgName}.</p>
+      </div>
+      
+      <p style="margin-top: 32px; color: #666;">Questions or need help? Reach out to your organization admin or reply to this email.</p>
+      
+      <p style="margin-top: 28px; padding-top: 28px; border-top: 1px solid #E8F5F4;">
+        Welcome aboard! 🎊<br>
+        <strong style="color: #1a1a1a;">The Skedence Team</strong>
       </p>
     </div>
     
-    <h2 style="color: #667eea; margin-top: 30px;">🚀 Getting Started</h2>
-    
-    <div class="step">
-      <span class="step-number">1</span>
-      <strong>Download the SkedenceAdmin App</strong>
-      <p style="margin: 8px 0 0 28px;">
-        Download the app from the App Store or Play Store.
+    <div class="footer">
+      <p>This invitation was sent because you were added to ${orgName}.</p>
+      <p style="margin-top: 12px;">
+        <a href="https://skedence.app">Visit skedence.app</a>
       </p>
     </div>
-    
-    <div class="step">
-      <span class="step-number">2</span>
-      <strong>Create Your Account</strong>
-      <p style="margin: 8px 0 0 28px;">
-        Open the app and tap "Create Business" or "Sign Up". Use the email: <code>${email}</code>
-      </p>
-    </div>
-    
-    <div class="step">
-      <span class="step-number">3</span>
-      <strong>Set Your Password</strong>
-      <p style="margin: 8px 0 0 28px;">
-        Choose a secure password for your account. You'll use this to log in.
-      </p>
-    </div>
-    
-    <div class="step">
-      <span class="step-number">4</span>
-      <strong>You're All Set!</strong>
-      <p style="margin: 8px 0 0 28px;">
-        Your account will automatically be linked to ${orgName} and you'll have ${role} access.
-      </p>
-    </div>
-    
-    <div style="text-align: center; margin: 30px 0;">
-      <p style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">Download the App:</p>
-      <a href="https://apps.apple.com/app/skedence-admin" class="button" style="margin-right: 10px;">
-        📱 App Store
-      </a>
-      <a href="https://play.google.com/store/apps/details?id=com.skedence.admin" class="button">
-        🤖 Play Store
-      </a>
-    </div>
-    
-    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px; margin: 25px 0;">
-      <strong style="color: #856404;">⚠️ Important:</strong>
-      <p style="margin: 8px 0 0 0; color: #856404;">
-        Make sure to use the email <strong>${email}</strong> when registering. This is how the app will link your account to ${orgName}.
-      </p>
-    </div>
-    
-    <p style="margin-top: 30px;">If you have any questions or need help getting started, feel free to reach out to your organization admin.</p>
-    
-    <p style="margin-top: 25px;">
-      Welcome aboard! 🎊<br>
-      <strong>The Skedence Team</strong>
-    </p>
-  </div>
-  
-  <div class="footer">
-    <p>This invitation was sent because you were added to ${orgName}.</p>
-    <p style="margin-top: 10px;">
-      <a href="https://skedence.app" style="color: #667eea; text-decoration: none;">skedence.app</a>
-    </p>
   </div>
 </body>
 </html>
@@ -430,26 +512,26 @@ export const sendOwnerWelcomeEmail = onDocumentCreated(
     console.log(`Sending welcome email to owner ${ownerUserId} for org ${orgId}`);
 
     try {
-      // Get owner's user document
-      const userDoc = await admin.firestore()
-        .collection("users")
+      // Get owner's trainer document (owners are in trainers collection)
+      const trainerDoc = await admin.firestore()
+        .collection("trainers")
         .doc(ownerUserId)
         .get();
 
-      if (!userDoc.exists) {
-        console.error(`User ${ownerUserId} not found`);
+      if (!trainerDoc.exists) {
+        console.error(`Trainer ${ownerUserId} not found`);
         return;
       }
 
-      const userData = userDoc.data();
-      const emailAddress = userData?.emailAddress || userData?.email;
+      const trainerData = trainerDoc.data();
+      const emailAddress = trainerData?.email || trainerData?.emailAddress;
 
       if (!emailAddress) {
         console.error(`No email address found for owner ${ownerUserId}`);
         return;
       }
 
-      const firstName = userData?.firstName || "";
+      const firstName = trainerData?.firstName || "";
       const fullName = `${firstName}`.trim() || "there";
       const orgName = orgData.name || "your organization";
 
@@ -516,71 +598,232 @@ function generateOwnerWelcomeEmail(name: string, orgName: string): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0; }
-    .content { background: #ffffff; padding: 40px 30px; border: 1px solid #e0e0e0; border-top: none; }
-    .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white !important; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
-    .feature-box { background: #f8f9fa; border-left: 4px solid #667eea; padding: 15px 20px; margin: 20px 0; border-radius: 6px; }
-    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-    h1 { margin: 0; font-size: 32px; font-weight: 700; }
-    h2 { color: #667eea; font-size: 20px; margin-top: 30px; }
-    ul { padding-left: 20px; }
-    li { margin: 10px 0; }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    }
+    .header {
+      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
+      padding: 48px 32px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0 0 12px 0;
+      font-size: 36px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      margin: 0;
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.95);
+    }
+    .content {
+      padding: 40px 32px;
+      color: #1a1a1a;
+      line-height: 1.7;
+    }
+    .content p {
+      margin: 0 0 16px 0;
+      font-size: 16px;
+    }
+    h2 {
+      color: #1a1a1a;
+      font-size: 24px;
+      font-weight: 700;
+      margin: 36px 0 24px 0;
+      letter-spacing: -0.5px;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .feature-card {
+      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
+      border: 2px solid #E8F5F4;
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.3s ease;
+    }
+    .feature-card:hover {
+      border-color: #33B2AE;
+      box-shadow: 0 4px 12px rgba(51, 178, 174, 0.1);
+    }
+    .feature-number {
+      display: inline-block;
+      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 36px;
+      font-weight: 700;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    .feature-card strong {
+      display: block;
+      color: #1a1a1a;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      margin: 0;
+      color: #666;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .tips-box {
+      background: linear-gradient(135deg, #FFF8E1 0%, #FFF3CC 100%);
+      border: 2px solid #FFD54F;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 28px 0;
+    }
+    .tips-box h3 {
+      margin: 0 0 16px 0;
+      color: #F57C00;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .tips-box ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .tips-box li {
+      color: #5D4037;
+      margin: 10px 0;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .tips-box li strong {
+      color: #E65100;
+    }
+    .cta-box {
+      text-align: center;
+      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
+      border-radius: 12px;
+      padding: 32px;
+      margin: 32px 0;
+    }
+    .cta-box p {
+      margin: 0 0 20px 0;
+      font-size: 17px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
+      color: white;
+      padding: 16px 40px;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(51, 178, 174, 0.2);
+    }
+    .footer {
+      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
+      padding: 32px;
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .footer a {
+      color: #33B2AE;
+      text-decoration: none;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Welcome to Skedence! 🎉</h1>
-    <p style="margin-top: 15px; font-size: 18px; opacity: 0.95;">Your training business management platform is ready</p>
-  </div>
-  
-  <div class="content">
-    <p style="font-size: 18px;">Hi ${name},</p>
-    
-    <p><strong>Congratulations on setting up ${orgName}!</strong> You've taken the first step toward streamlining your training business.</p>
-    
-    <h2>🚀 What's Next?</h2>
-    
-    <div class="feature-box">
-      <strong>1. Invite Your Trainers</strong>
-      <p style="margin: 8px 0 0 0;">Head to the Team section to add trainers to your organization. They'll receive an email invitation to download the app.</p>
+  <div class="email-container">
+    <div class="header">
+      <h1>Welcome to Skedence! 🎉</h1>
+      <p>Your training business platform is ready</p>
     </div>
     
-    <div class="feature-box">
-      <strong>2. Set Up Your Schedule</strong>
-      <p style="margin: 8px 0 0 0;">Create availability blocks so clients can book sessions with you and your trainers.</p>
+    <div class="content">
+      <p style="font-size: 20px; font-weight: 600; color: #1a1a1a;">Hi ${name},</p>
+      
+      <p><strong>Congratulations on setting up ${orgName}!</strong> You've taken the first step toward streamlining your training business and delivering an exceptional experience to your clients.</p>
+      
+      <h2>🚀 What's Next?</h2>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-number">1</div>
+          <strong>Invite Your Trainers</strong>
+          <p>Head to the Business tab → Trainers section to add your team. They'll receive an email invitation to download the admin app and join your organization.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-number">2</div>
+          <strong>Set Up Your Schedule</strong>
+          <p>Create availability blocks for yourself and your trainers. This allows clients to see when they can book sessions with you.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-number">3</div>
+          <strong>Create Packages & Classes</strong>
+          <p>Set up lesson packages for clients to purchase (e.g., 5-pack, 10-pack) and create group classes for multiple participants.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-number">4</div>
+          <strong>Share Your Invite Code</strong>
+          <p>Give your unique organization invite code to clients so they can download the Skedence app and start booking sessions with you.</p>
+        </div>
+      </div>
+      
+      <div class="tips-box">
+        <h3>💡 Pro Tips for Success</h3>
+        <ul>
+          <li><strong>Test the client experience:</strong> Have a friend or family member use your invite code to see what your clients will experience when booking.</li>
+          <li><strong>Set up Stripe Connect:</strong> Enable payments through Stripe to start accepting bookings and collecting revenue automatically.</li>
+          <li><strong>Customize your branding:</strong> Add your logo and brand colors in organization settings to make the experience feel uniquely yours.</li>
+          <li><strong>Start small:</strong> Begin with a few availability blocks and expand as you get comfortable with the platform.</li>
+        </ul>
+      </div>
+      
+      <div class="cta-box">
+        <p>Need help getting started?</p>
+        <a href="mailto:matt.sprague@skedence.com" class="button">Contact Support</a>
+      </div>
+      
+      <p style="margin-top: 32px; padding-top: 32px; border-top: 2px solid #E8F5F4; color: #666;">
+        We're excited to see your business grow and help you deliver an amazing experience to your clients. If you have any questions, reply to this email anytime!
+      </p>
+      
+      <p style="margin-top: 28px; font-size: 18px;">
+        Welcome aboard! 💪<br>
+        <strong style="color: #1a1a1a;">The Skedence Team</strong>
+      </p>
     </div>
     
-    <div class="feature-box">
-      <strong>3. Create Packages & Classes</strong>
-      <p style="margin: 8px 0 0 0;">Set up lesson packages for clients to purchase and create group classes.</p>
+    <div class="footer">
+      <p>You're receiving this because you created <strong>${orgName}</strong> on Skedence.</p>
+      <p style="margin-top: 12px;">
+        <a href="https://skedence.app">Visit skedence.app</a>
+      </p>
     </div>
-    
-    <div class="feature-box">
-      <strong>4. Share Your Invite Code</strong>
-      <p style="margin: 8px 0 0 0;">Give your unique organization invite code to clients so they can join and start booking.</p>
-    </div>
-    
-    <h2>💡 Pro Tips</h2>
-    <ul>
-      <li><strong>Test the client experience:</strong> Have a friend use your invite code to see what clients see</li>
-      <li><strong>Set up Stripe Connect:</strong> Enable payments to start accepting bookings and collecting revenue</li>
-      <li><strong>Customize your branding:</strong> Add your logo and brand colors in organization settings</li>
-    </ul>
-    
-    <p style="margin-top: 30px;">If you have questions or need help, reply to this email or reach out at <a href="mailto:matt.sprague@skedence.com" style="color: #667eea;">matt.sprague@skedence.com</a></p>
-    
-    <p style="margin-top: 25px;">
-      We're excited to see your business grow! 💪<br>
-      <strong>The Skedence Team</strong>
-    </p>
-  </div>
-  
-  <div class="footer">
-    <p>You're receiving this because you created an account with Skedence.</p>
-    <p style="margin-top: 10px;">
-      <a href="https://skedence.app" style="color: #667eea; text-decoration: none;">skedence.app</a>
-    </p>
   </div>
 </body>
 </html>

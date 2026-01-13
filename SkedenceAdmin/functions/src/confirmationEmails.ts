@@ -60,23 +60,167 @@ Need to reschedule or cancel? Please contact us at least 24 hours in advance.
 See you soon!
 The ${orgName} Team`,
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #35b3af;">Your Lesson is Confirmed!</h2>
-            <p>Hi ${clientName},</p>
-            <p>Your training session has been successfully booked.</p>
-            
-            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0;">Session Details</h3>
-              <p><strong>Trainer:</strong> ${trainerName}</p>
-              <p><strong>Date:</strong> ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}</p>
-              <p><strong>Time:</strong> ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}</p>
-              ${booking.location ? `<p><strong>Location:</strong> ${booking.location}</p>` : ""}
-            </div>
-            
-            <p>Need to reschedule or cancel? Please contact us at least 24 hours in advance.</p>
-            
-            <p>See you soon!<br>The ${orgName} Team</p>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    }
+    .header {
+      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
+      padding: 40px 32px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .content {
+      padding: 40px 32px;
+      color: #1a1a1a;
+      line-height: 1.7;
+    }
+    .details-box {
+      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
+      border: 2px solid #33B2AE;
+      border-radius: 12px;
+      padding: 28px;
+      margin: 28px 0;
+    }
+    .details-box h3 {
+      margin: 0 0 20px 0;
+      color: #33B2AE;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .detail-row {
+      display: flex;
+      align-items: center;
+      margin: 12px 0;
+      font-size: 16px;
+    }
+    .detail-icon {
+      width: 36px;
+      height: 36px;
+      background: #33B2AE;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      font-size: 18px;
+    }
+    .detail-text {
+      flex: 1;
+    }
+    .detail-text strong {
+      display: block;
+      color: #666;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .info-box {
+      background: #FFF8E1;
+      border: 2px solid #FFD54F;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 24px 0;
+      font-size: 15px;
+      color: #5D4037;
+    }
+    .footer {
+      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
+      padding: 28px 32px;
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <h1>✅ Lesson Confirmed!</h1>
+    </div>
+    
+    <div class="content">
+      <p style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Hi ${clientName},</p>
+      <p style="font-size: 16px; margin-bottom: 28px;">Your training session has been successfully booked. We look forward to seeing you!</p>
+      
+      <div class="details-box">
+        <h3>📋 Session Details</h3>
+        
+        <div class="detail-row">
+          <div class="detail-icon">👤</div>
+          <div class="detail-text">
+            <strong>Trainer</strong>
+            ${trainerName}
           </div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-icon">📅</div>
+          <div class="detail-text">
+            <strong>Date</strong>
+            ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}
+          </div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-icon">🕐</div>
+          <div class="detail-text">
+            <strong>Time</strong>
+            ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}
+          </div>
+        </div>
+        
+        ${booking.location ? `
+        <div class="detail-row">
+          <div class="detail-icon">📍</div>
+          <div class="detail-text">
+            <strong>Location</strong>
+            ${booking.location}
+          </div>
+        </div>
+        ` : ""}
+      </div>
+      
+      <div class="info-box">
+        <strong>⏰ Cancellation Policy</strong><br>
+        Need to reschedule or cancel? Please contact us at least 24 hours in advance.
+      </div>
+      
+      <p style="margin-top: 32px; padding-top: 28px; border-top: 2px solid #E8F5F4; font-size: 16px;">
+        See you soon! 👋<br>
+        <strong>The ${orgName} Team</strong>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>Reply to this email if you have any questions or need assistance.</p>
+    </div>
+  </div>
+</body>
+</html>
         `,
       });
 
