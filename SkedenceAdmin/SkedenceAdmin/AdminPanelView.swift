@@ -945,10 +945,15 @@ struct CreateClassView: View {
             errorMessage = "Please select a location"
             return
         }
-        // Validate required trainer fields (id and name must be non-optional)
-        guard let trainerId = trainer.id, !trainerId.isEmpty,
-              let trainerName = trainer.name, !trainerName.isEmpty else {
-            errorMessage = "Selected trainer is missing required information."
+        // Validate required trainer fields
+        guard let trainerId = trainer.id, !trainerId.isEmpty else {
+            errorMessage = "Selected trainer is missing ID."
+            return
+        }
+        
+        let trainerName = trainer.displayName
+        if trainerName.isEmpty || trainerName == "Unknown" {
+            errorMessage = "Selected trainer is missing name information."
             return
         }
         
@@ -1088,9 +1093,14 @@ struct EditClassView: View {
             return
         }
         
-        guard let trainerId = trainer.id, !trainerId.isEmpty,
-              let trainerName = trainer.name, !trainerName.isEmpty else {
-            errorMessage = "Selected trainer is missing required information."
+        guard let trainerId = trainer.id, !trainerId.isEmpty else {
+            errorMessage = "Selected trainer is missing ID."
+            return
+        }
+        
+        let trainerName = trainer.displayName
+        if trainerName.isEmpty || trainerName == "Unknown" {
+            errorMessage = "Selected trainer is missing name information."
             return
         }
         

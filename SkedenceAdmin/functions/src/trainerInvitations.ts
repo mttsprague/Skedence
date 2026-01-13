@@ -400,3 +400,147 @@ function generateInvitationHTML(
 </html>
   `.trim();
 }
+
+/**
+ * Cloud Function that triggers when a new organization is created.
+ * Sends a welcome email to the organization owner.
+ */
+export const sendOwnerWelcomeEmail = onDocumentCreated(
+  "organizations/{orgId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.log("No data associated with the event");
+      return;
+    }
+
+    const orgData = snap.data();
+    const orgId = event.params.orgId;
+    const ownerUserId = orgData.ownerUserId;
+
+    if (!ownerUserId) {
+      console.log(`No ownerUserId found for organization ${orgId}`);
+      return;
+    }
+
+    console.log(`Sending welcome email to owner ${ownerUserId} for org ${orgId}`);
+
+    try {
+      // Get owner's user document
+      const userDoc = await admin.firestore()
+        .collection("users")
+        .doc(ownerUserId)
+        .get();
+
+      if (!userDoc.exists) {
+        console.error(`User ${ownerUserId} not found`);
+        return;
+      }
+
+      const userData = userDoc.data();
+      const emailAddress = userData?.emailAddress || userData?.email;
+
+      if (!emailAddress) {
+        console.error(`No email address found for owner ${ownerUserId}`);
+        return;
+      }
+
+      const firstName = userData?.firstName || "";
+      const fullName = `${firstName}`.trim() || "there";
+      const orgName = orgData.name || "your organization";
+
+      // Send welcome email via SendGrid extension
+      await admin.firestore().collection("mail").add({
+        to: emailAddress,
+        from: "Skedence <no-reply@skedence.com>",
+        replyTo: "matt.sprague@skedence.com",
+        subject: `Welcome to Skedence! 🎉`,
+        html: generateOwnerWelcomeEmail(fullName, orgName),
+      });
+
+      console.log(`✅ Welcome email queued for ${emailAddress}`);
+    } catch (error) {
+      console.error(`Error sending welcome email for org ${orgId}:`, error);
+    }
+  }
+);
+
+function generateOwnerWelcomeEmail(name: string, orgName: string): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0; }
+    .content { background: #ffffff; padding: 40px 30px; border: 1px solid #e0e0e0; border-top: none; }
+    .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white !important; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
+    .feature-box { background: #f8f9fa; border-left: 4px solid #667eea; padding: 15px 20px; margin: 20px 0; border-radius: 6px; }
+    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    h1 { margin: 0; font-size: 32px; font-weight: 700; }
+    h2 { color: #667eea; font-size: 20px; margin-top: 30px; }
+    ul { padding-left: 20px; }
+    li { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Welcome to Skedence! 🎉</h1>
+    <p style="margin-top: 15px; font-size: 18px; opacity: 0.95;">Your training business management platform is ready</p>
+  </div>
+  
+  <div class="content">
+    <p style="font-size: 18px;">Hi ${name},</p>
+    
+    <p><strong>Congratulations on setting up ${orgName}!</strong> You've taken the first step toward streamlining your training business.</p>
+    
+    <h2>🚀 What's Next?</h2>
+    
+    <div class="feature-box">
+      <strong>1. Invite Your Trainers</strong>
+      <p style="margin: 8px 0 0 0;">Head to the Team section to add trainers to your organization. They'll receive an email invitation to download the app.</p>
+    </div>
+    
+    <div class="feature-box">
+      <strong>2. Set Up Your Schedule</strong>
+      <p style="margin: 8px 0 0 0;">Create availability blocks so clients can book sessions with you and your trainers.</p>
+    </div>
+    
+    <div class="feature-box">
+      <strong>3. Create Packages & Classes</strong>
+      <p style="margin: 8px 0 0 0;">Set up lesson packages for clients to purchase and create group classes.</p>
+    </div>
+    
+    <div class="feature-box">
+      <strong>4. Share Your Invite Code</strong>
+      <p style="margin: 8px 0 0 0;">Give your unique organization invite code to clients so they can join and start booking.</p>
+    </div>
+    
+    <h2>💡 Pro Tips</h2>
+    <ul>
+      <li><strong>Test the client experience:</strong> Have a friend use your invite code to see what clients see</li>
+      <li><strong>Set up Stripe Connect:</strong> Enable payments to start accepting bookings and collecting revenue</li>
+      <li><strong>Customize your branding:</strong> Add your logo and brand colors in organization settings</li>
+    </ul>
+    
+    <p style="margin-top: 30px;">If you have questions or need help, reply to this email or reach out at <a href="mailto:matt.sprague@skedence.com" style="color: #667eea;">matt.sprague@skedence.com</a></p>
+    
+    <p style="margin-top: 25px;">
+      We're excited to see your business grow! 💪<br>
+      <strong>The Skedence Team</strong>
+    </p>
+  </div>
+  
+  <div class="footer">
+    <p>You're receiving this because you created an account with Skedence.</p>
+    <p style="margin-top: 10px;">
+      <a href="https://skedence.app" style="color: #667eea; text-decoration: none;">skedence.app</a>
+    </p>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
