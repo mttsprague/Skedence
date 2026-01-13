@@ -197,6 +197,11 @@ struct OnboardingAccountView: View {
                 )
                 let userId = authResult.user.uid
                 
+                // CRITICAL: Set userId in coordinator IMMEDIATELY after auth
+                // This prevents checkExistingAccount from running again and changing the step
+                print("🔒 Setting coordinator.userId IMMEDIATELY after auth: \(userId)")
+                coordinator.userId = userId
+                
                 let db = Firestore.firestore()
                 
                 // Create organization
@@ -276,8 +281,7 @@ struct OnboardingAccountView: View {
                 
                 try await db.collection("trainers").document(userId).setData(trainerData)
                 
-                // Store userId and orgId in coordinator (don't load into AuthManager yet)
-                coordinator.userId = userId
+                // Store orgId and other data in coordinator (userId already set above)
                 coordinator.orgId = orgId
                 coordinator.organizationData["name"] = businessName
                 coordinator.organizationData["timezone"] = timezone
