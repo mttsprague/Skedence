@@ -183,6 +183,8 @@ async function notifyRemovedTrainers(
       // Create email in mail collection
       await db.collection("mail").add({
         to: userData.email,
+        from: "Skedence <no-reply@skedence.com>",
+        replyTo: "matt.sprague@skedence.com",
         message: {
           subject: `Access Removed: ${orgName}`,
           html: generateRemovalEmailHTML(orgName),

@@ -21,16 +21,32 @@ enum AppTheme {
     // Accent: Deep blue
     static let accent = Color(red: 0.15, green: 0.35, blue: 0.65)
     
-    // Neutrals
+    // Neutrals - improved dark mode contrast
     static let textPrimary = Color.primary
-    static let textSecondary = Color(white: 0.5) // Changed from Color.secondary to avoid type inference issues
-    static let textTertiary = Color(white: 0.6)
+    static let textSecondary = Color(light: Color(white: 0.5), dark: Color(white: 0.7))
+    static let textTertiary = Color(light: Color(white: 0.6), dark: Color(white: 0.5))
+    static let border = Color(light: Color(white: 0.85), dark: Color(white: 0.3))
     
-    // Status colors
-    static let success = Color.green
-    static let warning = Color.orange
-    static let error = Color.red
-    static let info = Color.blue
+    // Status colors - better dark mode contrast
+    static let success = Color(light: .green, dark: Color(red: 0.3, green: 0.85, blue: 0.4))
+    static let warning = Color(light: .orange, dark: Color(red: 1.0, green: 0.7, blue: 0.3))
+    static let error = Color(light: .red, dark: Color(red: 1.0, green: 0.4, blue: 0.4))
+    static let info = Color(light: .blue, dark: Color(red: 0.4, green: 0.7, blue: 1.0))
+}
+
+// MARK: - Color Extension for Light/Dark Mode
+extension Color {
+    init(light: Color, dark: Color) {
+        self.init(uiColor: UIColor(light: UIColor(light), dark: UIColor(dark)))
+    }
+}
+
+extension UIColor {
+    convenience init(light: UIColor, dark: UIColor) {
+        self.init { traitCollection in
+            traitCollection.userInterfaceStyle == .dark ? dark : light
+        }
+    }
 }
 
 // MARK: - Typography
@@ -226,5 +242,29 @@ struct EmptyStateView: View {
             }
         }
         .padding(Spacing.xxxl)
+    }
+}
+
+// MARK: - Keyboard Dismiss Toolbar
+extension View {
+    func keyboardDismissToolbar() -> some View {
+        self.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button {
+                    hideKeyboard()
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(AppTheme.primary)
+                }
+            }
+        }
+    }
+    
+    func hideKeyboard() {
+        #if os(iOS)
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        #endif
     }
 }

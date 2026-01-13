@@ -105,6 +105,7 @@ struct EditProfileView: View {
         }
         .navigationTitle("Edit Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDismissToolbar()
         .alert(isSuccess ? "Success" : "Error", isPresented: $showAlert) {
             Button("OK") {
                 if isSuccess {

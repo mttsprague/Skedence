@@ -39,6 +39,10 @@ final class ScheduleViewModel: ObservableObject {
         didSet {
             // Rebuild the visible week whenever the selected day changes
             buildCurrentWeek(anchor: selectedDate)
+            // Reload schedule data when week changes
+            Task {
+                await loadWeek()
+            }
         }
     }
     @Published var visibleHours: [Int] = Array(6...23) // 6am - 11pm (with 12am/midnight as last slot)

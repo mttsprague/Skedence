@@ -138,6 +138,80 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   });
 
   console.log(`✅ Checkout completed for org ${orgId} - Plan: ${planTier}, Status: ${status}`);
+
+  // Send confirmation email
+  await sendSubscriptionEmail(orgId, status === "trialing");
+}
+
+async function sendSubscriptionEmail(orgId: string, isTrial: boolean) {
+  try {
+    const orgDoc = await admin.firestore().collection("organizations").doc(orgId).get();
+    const org = orgDoc.data();
+    if (!org) return;
+
+    const ownerIds = org.adminIds || [];
+    if (ownerIds.length === 0) return;
+
+    const ownerDoc = await admin.firestore().collection("users").doc(ownerIds[0]).get();
+    const owner = ownerDoc.data();
+    if (!owner?.email && !owner?.emailAddress) return;
+
+    const ownerEmail = owner.email || owner.emailAddress;
+    const ownerName = `${owner.firstName || ""} ${owner.lastName || ""}`.trim() || "there";
+    const orgName = org.name || "Your Organization";
+    const plan = org.billing?.plan || "free";
+
+    const subjectText = isTrial ?
+      "🎉 Free Trial Started - Welcome to " + orgName + "!" :
+      "✅ Subscription Active - Welcome to " + orgName + "!";
+
+    await admin.firestore().collection("mail").add({
+      to: ownerEmail,
+      from: "Skedence <no-reply@skedence.com>",
+      replyTo: "matt.sprague@skedence.com",
+      subject: subjectText,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #35b3af;">${isTrial ? "Welcome to Your Free Trial!" : "Subscription Confirmed!"}</h2>
+          <p>Hi ${ownerName},</p>
+          <p>${isTrial ?
+    "Your free trial has started! You now have full access to all Skedence features." :
+    "Thank you for subscribing to Skedence. Your payment has been processed successfully."
+}</p>
+          
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">Subscription Details</h3>
+            <p><strong>Organization:</strong> ${orgName}</p>
+            <p><strong>Plan:</strong> ${plan.charAt(0).toUpperCase() + plan.slice(1)}</p>
+            <p><strong>Status:</strong> ${isTrial ? "Free Trial" : "Active"}</p>
+            ${isTrial ? "<p><strong>Trial Period:</strong> 14 days</p>" : ""}
+          </div>
+          
+          ${isTrial ? `
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>💡 Reminder:</strong> Your trial will automatically convert to a paid subscription after 14 days. You can cancel anytime before then.</p>
+            </div>
+          ` : ""}
+          
+          <h3>What's Next?</h3>
+          <ul>
+            <li>Set up your schedule and availability</li>
+            <li>Invite trainers to your organization</li>
+            <li>Add your service locations</li>
+            <li>Create lesson packages for clients</li>
+          </ul>
+          
+          <p>Need help getting started? Reply to this email and we'll be happy to assist!</p>
+          
+          <p>Best,<br>The Skedence Team</p>
+        </div>
+      `,
+    });
+
+    console.log(`✅ Subscription confirmation sent to ${ownerEmail}`);
+  } catch (error) {
+    console.error("Error sending subscription email:", error);
+  }
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
@@ -277,6 +351,8 @@ async function sendPaymentFailedEmail(orgId: string) {
 
   await admin.firestore().collection("mail").add({
     to: ownerEmail,
+    from: "Skedence <no-reply@skedence.com>",
+    replyTo: "matt.sprague@skedence.com",
     template: {
       name: "payment-failed",
       data: {

@@ -121,6 +121,12 @@ service cloud.firestore {
         // Only owners can delete trainers
         allow delete: if isOrgOwner(orgId);
       }
+      
+      // Onboarding progress subcollection
+      match /onboarding/{docId} {
+        // Owners and admins can read and update onboarding progress
+        allow read, write: if isOrgAdmin(orgId);
+      }
     }
 
     // =========================================================================

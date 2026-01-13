@@ -24,26 +24,51 @@ enum AppTheme {
     // Accent: Deep blue
     static let accent = Color(red: 0.15, green: 0.35, blue: 0.65)
     
-    // Neutrals
+    // Neutrals - improved dark mode contrast
     static let textPrimary = Color.primary
-    static let textSecondary = Color.secondary
-    static let textTertiary = Color(white: 0.6)
-    static let border = Color(UIColor.separator)
+    static let textSecondary = Color(light: Color.secondary, dark: Color(white: 0.7))
+    static let textTertiary = Color(light: Color(white: 0.6), dark: Color(white: 0.5))
+    static let border = Color(light: Color(UIColor.separator), dark: Color(white: 0.3))
     
     // Surface colors
     static let surfaceSecondary = Color(UIColor.secondarySystemBackground)
     
-    // Status colors
-    static let success = Color.green
-    static let warning = Color.orange
-    static let error = Color.red
-    static let info = Color.blue
+    // Status colors - better dark mode contrast
+    static let success = Color(light: .green, dark: Color(red: 0.3, green: 0.85, blue: 0.4))
+    static let warning = Color(light: .orange, dark: Color(red: 1.0, green: 0.7, blue: 0.3))
+    static let error = Color(light: .red, dark: Color(red: 1.0, green: 0.4, blue: 0.4))
+    static let info = Color(light: .blue, dark: Color(red: 0.4, green: 0.7, blue: 1.0))
     
-    // Schedule specific
-    static let booked = Color(red: 0.15, green: 0.35, blue: 0.65)
+    // Schedule specific - improved dark mode
+    static let booked = Color(light: Color(red: 0.15, green: 0.35, blue: 0.65), dark: Color(red: 0.4, green: 0.6, blue: 0.95))
     static let available = Color(red: 0.20, green: 0.70, blue: 0.68)
-    static let unavailable = Color.gray
+    static let unavailable = Color(light: .gray, dark: Color(white: 0.5))
 }
+
+// MARK: - Color Extension for Light/Dark Mode
+extension Color {
+    init(light: Color, dark: Color) {
+        #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+        self.init(uiColor: UIColor(light: UIColor(light), dark: UIColor(dark)))
+        #elseif os(macOS)
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(dark) : NSColor(light)
+        }!)
+        #else
+        self = light
+        #endif
+    }
+}
+
+#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+extension UIColor {
+    convenience init(light: UIColor, dark: UIColor) {
+        self.init { traitCollection in
+            traitCollection.userInterfaceStyle == .dark ? dark : light
+        }
+    }
+}
+#endif
 
 // MARK: - Typography
 extension Font {
@@ -260,6 +285,30 @@ extension Color {
         return Color(NSColor.underPageBackgroundColor)
         #else
         return Color.gray.opacity(0.06)
+        #endif
+    }
+}
+
+// MARK: - Keyboard Dismiss Toolbar
+extension View {
+    func keyboardDismissToolbar() -> some View {
+        self.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button {
+                    hideKeyboard()
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(AppTheme.primary)
+                }
+            }
+        }
+    }
+    
+    func hideKeyboard() {
+        #if os(iOS)
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         #endif
     }
 }

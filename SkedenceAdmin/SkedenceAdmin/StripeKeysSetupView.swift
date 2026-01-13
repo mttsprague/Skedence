@@ -15,7 +15,7 @@ struct StripeKeysSetupView: View {
     
     @State private var publishableKey: String = ""
     @State private var secretKey: String = ""
-    @State private var isTestMode: Bool = true
+    @State private var isTestMode: Bool = false
     @State private var isSaving: Bool = false
     @State private var errorMessage: String?
     @State private var showSuccess: Bool = false

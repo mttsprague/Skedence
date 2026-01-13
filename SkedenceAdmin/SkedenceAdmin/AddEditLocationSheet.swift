@@ -83,6 +83,7 @@ struct AddEditLocationSheet: View {
             }
             .navigationTitle(locationToEdit == nil ? "Add Location" : "Edit Location")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDismissToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {

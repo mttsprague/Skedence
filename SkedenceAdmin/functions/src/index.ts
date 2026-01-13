@@ -32,6 +32,9 @@ export * from "./trainerLimits";
 // Export trainer deletion functions
 export * from "./deleteTrainer";
 
+// Export confirmation email functions
+export * from "./confirmationEmails";
+
 const db = admin.firestore();
 
 /**
@@ -882,7 +885,7 @@ export const processTrainerAvailability = functions.https.onCall(
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
               trainerName: trainerFullName,
             };
-            
+
             // Add location if provided
             if (location) {
               slotData.location = location;

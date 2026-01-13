@@ -96,8 +96,8 @@ export const sendTrainerInvitation = onDocumentCreated(
       // Prepare email content
       const emailData = {
         to: emailAddress,
-        from: "Skedence <matt.sprague@skedence.com>",
-        replyTo: "support@skedence.com",
+        from: "Skedence <no-reply@skedence.com>",
+        replyTo: "matt.sprague@skedence.com",
         template: {
           name: "trainer-invitation",
           data: {

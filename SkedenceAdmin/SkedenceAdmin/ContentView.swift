@@ -484,6 +484,13 @@ struct ShareAppLinkCard: View {
                             
                             Button {
                                 let activityVC = UIActivityViewController(activityItems: [deepLink], applicationActivities: nil)
+                                activityVC.completionWithItemsHandler = { _, completed, _, _ in
+                                    if completed {
+                                        Task {
+                                            await markShareLinkComplete()
+                                        }
+                                    }
+                                }
                                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                                    let window = windowScene.windows.first,
                                    let rootVC = window.rootViewController {
@@ -564,6 +571,23 @@ struct ShareAppLinkCard: View {
             #endif
         } catch {
             print("❌ Error loading organization code: \(error.localizedDescription)")
+        }
+    }
+    
+    private func markShareLinkComplete() async {
+        do {
+            #if canImport(FirebaseFirestore)
+            let db = Firestore.firestore()
+            try await db.collection("organizations").document(orgId)
+                .collection("onboarding").document("progress")
+                .setData([
+                    "hasSharedLink": true,
+                    "hasInvitedClient": true  // Backwards compat
+                ], merge: true)
+            print("✅ Marked share link as complete")
+            #endif
+        } catch {
+            print("❌ Error marking share link complete: \(error)")
         }
     }
     

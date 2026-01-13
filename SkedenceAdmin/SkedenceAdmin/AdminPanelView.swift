@@ -134,6 +134,7 @@ struct AdminPanelView: View {
         .task {
             await adminService.checkAdminStatus()
             if adminService.isAdmin, let orgId = auth.currentOrgId {
+                await adminService.loadOrganizationData(orgId: orgId)
                 await classesService.loadAllClasses(orgId: orgId)
                 await trainersService.loadAll(orgId: orgId)
                 await adminService.loadAllUsers(orgId: orgId)
@@ -744,6 +745,7 @@ struct AdminClassCard: View {
                                 .font(.labelSmall)
                             Text(classItem.startTime.formatted(date: .abbreviated, time: .omitted))
                                 .font(.labelMedium)
+                                .lineLimit(1)
                         }
                         
                         HStack(spacing: Spacing.xxs) {
@@ -751,6 +753,7 @@ struct AdminClassCard: View {
                                 .font(.labelSmall)
                             Text("\(classItem.startTime.formatted(date: .omitted, time: .shortened)) - \(classItem.endTime.formatted(date: .omitted, time: .shortened))")
                                 .font(.labelMedium)
+                                .lineLimit(1)
                         }
                         
                         HStack(spacing: Spacing.xxs) {
@@ -758,6 +761,7 @@ struct AdminClassCard: View {
                                 .font(.labelSmall)
                             Text(classItem.location)
                                 .font(.labelMedium)
+                                .lineLimit(1)
                         }
                         
                         HStack(spacing: Spacing.xxs) {
@@ -765,11 +769,11 @@ struct AdminClassCard: View {
                                 .font(.labelSmall)
                             Text(classItem.trainerName)
                                 .font(.labelMedium)
+                                .lineLimit(1)
                         }
                     }
                     .foregroundStyle(AppTheme.textSecondary)
-                    
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     
                     VStack(alignment: .trailing, spacing: Spacing.xxs) {
                         Text("\(classItem.currentParticipants)/\(classItem.maxParticipants)")
@@ -780,6 +784,7 @@ struct AdminClassCard: View {
                             .font(.labelSmall)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
+                    .frame(minWidth: 70)
                 }
                 
                 Divider()
@@ -886,7 +891,7 @@ struct CreateClassView: View {
                     Picker("Select Trainer", selection: $selectedTrainer) {
                         Text("Select a trainer").tag(nil as Trainer?)
                         ForEach(trainersService.trainers) { trainer in
-                            Text(trainer.name ?? "Unknown").tag(trainer as Trainer?)
+                            Text(trainer.displayName).tag(trainer as Trainer?)
                         }
                     }
                 }
@@ -910,6 +915,7 @@ struct CreateClassView: View {
             }
             .navigationTitle("Create Class")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDismissToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -943,6 +949,12 @@ struct CreateClassView: View {
         guard let trainerId = trainer.id, !trainerId.isEmpty,
               let trainerName = trainer.name, !trainerName.isEmpty else {
             errorMessage = "Selected trainer is missing required information."
+            return
+        }
+        
+        // Validate that end time is after start time
+        if endDate <= startDate {
+            errorMessage = "End time must be after start time"
             return
         }
         
@@ -1040,6 +1052,7 @@ struct EditClassView: View {
             }
             .navigationTitle("Edit Class")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDismissToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
