@@ -42,6 +42,13 @@ struct SkedenceAdminApp: App {
                 OnboardingLandingView()
                     .environmentObject(auth)
                     .environmentObject(onboardingCoordinator)
+                    .onAppear {
+                        // Reset coordinator when returning to landing (logged out state)
+                        onboardingCoordinator.currentStep = .account
+                        onboardingCoordinator.orgId = nil
+                        onboardingCoordinator.userId = nil
+                        onboardingCoordinator.organizationData = [:]
+                    }
             } else if auth.isAuthenticated && !auth.onboardingComplete {
                 // User is authenticated but hasn't finished onboarding
                 // Show the onboarding flow which will handle both new and returning incomplete users

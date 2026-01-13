@@ -109,12 +109,12 @@ struct OnboardingFlowView: View {
             isLoading = false
             return
         }
-        hasCheckedAccount = true
         
         // If onboarding is already complete, user shouldn't be in this flow
         // This prevents users from getting back into onboarding after completion
         if auth.onboardingComplete {
             print("✅ OnboardingFlowView: Onboarding already complete, exiting flow")
+            hasCheckedAccount = true
             isLoading = false
             return
         }
@@ -122,6 +122,7 @@ struct OnboardingFlowView: View {
         // Don't overwrite coordinator if it already has an orgId (from account creation)
         if coordinator.orgId != nil {
             print("✅ OnboardingFlowView: Coordinator already has orgId, skipping check")
+            hasCheckedAccount = true
             isLoading = false
             return
         }
@@ -129,11 +130,18 @@ struct OnboardingFlowView: View {
         // Don't overwrite if coordinator is already past account step (account creation in progress)
         if coordinator.currentStep != .account {
             print("✅ OnboardingFlowView: Already past account step (\(coordinator.currentStep)), skipping check")
+            hasCheckedAccount = true
             isLoading = false
             return
         }
         
+        // Mark as checked BEFORE doing any async work to prevent race conditions
+        hasCheckedAccount = true
+        
         print("🔍 OnboardingFlowView: Checking for existing account data")
+        print("   Current step before check: \(coordinator.currentStep)")
+        print("   Coordinator orgId: \(coordinator.orgId ?? "nil")")
+        print("   Coordinator userId: \(coordinator.userId ?? "nil")")
         
         // If user is already authenticated, they must have started onboarding but didn't finish
         // Skip account creation and go to business details (or later if they have org data)
@@ -147,6 +155,7 @@ struct OnboardingFlowView: View {
                 print("   Found org in auth: \(orgId)")
                 // Skip to business details or later based on what exists
                 coordinator.currentStep = .businessDetails
+                print("   ✏️  Set currentStep to: .businessDetails")
             } else {
                 // No org exists - check if they have an orgMember record
                 print("   No org in auth, checking orgMembers...")
@@ -154,6 +163,7 @@ struct OnboardingFlowView: View {
             }
         } else {
             print("   No authenticated user, starting at account step")
+            print("   Current step after check: \(coordinator.currentStep)")
         }
         // else: user not authenticated, start at .account step (default)
         
