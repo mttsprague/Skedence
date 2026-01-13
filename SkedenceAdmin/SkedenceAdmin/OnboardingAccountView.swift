@@ -23,31 +23,11 @@ struct OnboardingAccountView: View {
     
     @State private var isCreating: Bool = false
     @State private var errorMessage: String?
-    @State private var hasSkippedToNext: Bool = false  // Prevent multiple skips
     
     var body: some View {
-        ZStack {
-            // If already authenticated, skip this step (but only once)
-            if auth.isAuthenticated && !hasSkippedToNext {
-                VStack {
-                    ProgressView()
-                        .tint(.white)
-                    Text("Loading...")
-                        .foregroundStyle(.white)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(AppTheme.primary)
-                .task {
-                    // User is already authenticated, skip to next step (only once)
-                    if !hasSkippedToNext {
-                        hasSkippedToNext = true
-                        coordinator.moveToNextStep()
-                    }
-                }
-            } else {
-                accountCreationView
-            }
-        }
+        // Always show the account creation form when at this step
+        // OnboardingFlowView handles skipping this step if user is already authenticated
+        accountCreationView
     }
     
     var accountCreationView: some View {
