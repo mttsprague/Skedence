@@ -85,8 +85,12 @@ struct OnboardingFlowView: View {
                 .environmentObject(coordinator)
             }
         }
-        .task {
-            await checkExistingAccount()
+        .onAppear {
+            if !hasCheckedAccount {
+                Task {
+                    await checkExistingAccount()
+                }
+            }
         }
     }
     
