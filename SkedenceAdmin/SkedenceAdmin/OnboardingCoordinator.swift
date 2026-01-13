@@ -42,8 +42,12 @@ class OnboardingCoordinator: ObservableObject {
     @Published var organizationData: [String: Any] = [:]
     
     func moveToNextStep() {
+        let oldStep = currentStep
         if let nextStep = OnboardingStep(rawValue: currentStep.rawValue + 1) {
+            print("⏭️  Coordinator.moveToNextStep(): \(oldStep) → \(nextStep)")
             currentStep = nextStep
+        } else {
+            print("⏭️  Coordinator.moveToNextStep(): Already at final step \(oldStep)")
         }
     }
     

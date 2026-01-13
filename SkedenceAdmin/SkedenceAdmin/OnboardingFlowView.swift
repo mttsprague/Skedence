@@ -107,6 +107,9 @@ struct OnboardingFlowView: View {
     }
     
     func checkExistingAccount() async {
+        print("🔍 OnboardingFlowView.checkExistingAccount() CALLED")
+        print("   hasCheckedAccount flag: \(hasCheckedAccount)")
+        
         // Only check once to prevent clearing coordinator after account creation
         guard !hasCheckedAccount else {
             print("⏭️  OnboardingFlowView: Already checked account, skipping")
@@ -208,6 +211,7 @@ struct OnboardingFlowView: View {
             } else {
                 // No orgMember found - user just created account, stay at business details
                 print("   No orgMember found, staying at business details step")
+                print("   ⚠️  CHANGING STEP: account → businessDetails (line 197)")
                 coordinator.currentStep = .businessDetails
             }
         } catch {

@@ -285,9 +285,12 @@ struct OnboardingAccountView: View {
                 
                 print("✅ OnboardingAccountView: Created org with ID: \(orgId)")
                 print("✅ Coordinator now has orgId: \(coordinator.orgId ?? "nil")")
+                print("   Current step before moveToNextStep: \(coordinator.currentStep)")
                 
                 // Move to next step WITHOUT triggering auth reload
                 coordinator.moveToNextStep()
+                
+                print("   Current step after moveToNextStep: \(coordinator.currentStep)")
                 
                 isCreating = false
                 
