@@ -109,6 +109,18 @@ struct OnboardingFlowView: View {
     func checkExistingAccount() async {
         print("🔍 OnboardingFlowView.checkExistingAccount() CALLED")
         print("   hasCheckedAccount flag: \(hasCheckedAccount)")
+        print("   Coordinator orgId: \(coordinator.orgId ?? "nil")")
+        print("   Coordinator userId: \(coordinator.userId ?? "nil")")
+        
+        // CRITICAL: If coordinator already has orgId OR userId, account creation is in progress
+        // Don't run any checks that would change the step
+        if coordinator.orgId != nil || coordinator.userId != nil {
+            print("✅ OnboardingFlowView: Coordinator has data (orgId or userId), skipping all checks")
+            print("   This means account creation is in progress - don't interfere!")
+            hasCheckedAccount = true
+            isLoading = false
+            return
+        }
         
         // Only check once to prevent clearing coordinator after account creation
         guard !hasCheckedAccount else {
@@ -121,14 +133,6 @@ struct OnboardingFlowView: View {
         // This prevents users from getting back into onboarding after completion
         if auth.onboardingComplete {
             print("✅ OnboardingFlowView: Onboarding already complete, exiting flow")
-            hasCheckedAccount = true
-            isLoading = false
-            return
-        }
-        
-        // Don't overwrite coordinator if it already has an orgId (from account creation)
-        if coordinator.orgId != nil {
-            print("✅ OnboardingFlowView: Coordinator already has orgId, skipping check")
             hasCheckedAccount = true
             isLoading = false
             return
@@ -147,8 +151,6 @@ struct OnboardingFlowView: View {
         
         print("🔍 OnboardingFlowView: Checking for existing account data")
         print("   Current step before check: \(coordinator.currentStep)")
-        print("   Coordinator orgId: \(coordinator.orgId ?? "nil")")
-        print("   Coordinator userId: \(coordinator.userId ?? "nil")")
         
         // If user is already authenticated, they must have started onboarding but didn't finish
         // Skip account creation and go to business details (or later if they have org data)
