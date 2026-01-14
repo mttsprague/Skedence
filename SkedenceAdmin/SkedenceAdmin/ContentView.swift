@@ -220,8 +220,8 @@ struct MoreView: View {
                                     Spacer()
                                     
                                     Button {
-                                        editFirstName = auth.firstNameInput
-                                        editLastName = auth.lastNameInput
+                                        editFirstName = auth.userFirstName ?? ""
+                                        editLastName = auth.userLastName ?? ""
                                         editEmail = auth.userEmail ?? ""
                                         showingEditProfile = true
                                     } label: {

@@ -229,6 +229,10 @@ final class AuthManager: ObservableObject {
                 // Check both "isAdmin" and "admin" for backwards compatibility
                 self.isAdmin = (data["isAdmin"] as? Bool) ?? (data["admin"] as? Bool) ?? false
                 
+                // Load firstName and lastName
+                self.userFirstName = data["firstName"] as? String
+                self.userLastName = data["lastName"] as? String
+                
                 if let url = data["photoURL"] as? String, !url.isEmpty {
                     self.trainerPhotoURLString = url
                 } else if let url = data["avatarUrl"] as? String, !url.isEmpty {
