@@ -109,33 +109,50 @@ struct OnboardingStripeView: View {
             // Important info box
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack(spacing: Spacing.xs) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundStyle(AppTheme.primary)
-                    Text("How This Works:")
+                    Image(systemName: "dollarsign.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.title2)
+                    Text("LIVE Mode - Real Payments")
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
+                        .bold()
                 }
                 
-                Text("Stripe processes all client payments directly to YOUR bank account.")
+                Text("This connects your REAL Stripe account for REAL payments.")
                     .font(.bodyMedium)
                     .foregroundStyle(AppTheme.textSecondary)
                     .padding(.bottom, Spacing.xs)
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("✅ Have Stripe already? Sign in to connect your existing account")
-                        .font(.bodySmall)
-                        .foregroundStyle(AppTheme.textPrimary)
-                    Text("✅ New to Stripe? Create a new account during setup (takes 5 min)")
-                        .font(.bodySmall)
-                        .foregroundStyle(AppTheme.textPrimary)
-                    Text("✅ This uses LIVE mode - real payments to your bank")
-                        .font(.bodySmall)
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .bold()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("💳")
+                        Text("Clients pay with real credit cards")
+                            .font(.bodySmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("💰")
+                        Text("Money goes directly to your bank account")
+                            .font(.bodySmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("✅")
+                        Text("Works with existing Stripe account OR create new one")
+                            .font(.bodySmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("⚠️")
+                        Text("NOT a test/sandbox - this is production mode")
+                            .font(.bodySmall)
+                            .foregroundStyle(.orange)
+                            .bold()
+                    }
                 }
             }
             .padding()
-            .background(AppTheme.primary.opacity(0.1))
+            .background(.green.opacity(0.1))
             .cornerRadius(CornerRadius.md)
             
             // What you'll need
@@ -206,27 +223,88 @@ struct OnboardingStripeView: View {
     
     var waitingContent: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
+            // IMPORTANT: Check Live Mode
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("IMPORTANT: Verify Live Mode")
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .bold()
+                }
+                
+                Text("Check the Stripe page that opened:")
+                    .font(.bodyMedium)
+                    .foregroundStyle(AppTheme.textSecondary)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text("✅")
+                        Text("CORRECT: Page says \"Live mode\" or has NO test banner")
+                            .font(.bodySmall)
+                            .foregroundStyle(.green)
+                    }
+                    HStack(spacing: 4) {
+                        Text("❌")
+                        Text("WRONG: Page says \"Test mode\" or \"Sandbox\"")
+                            .font(.bodySmall)
+                            .foregroundStyle(.red)
+                    }
+                }
+                
+                Text("If you see \"Test mode\", STOP and contact support. Your keys are not configured for live payments.")
+                    .font(.bodySmall)
+                    .foregroundStyle(.orange)
+                    .padding(.top, 4)
+            }
+            .padding()
+            .background(.orange.opacity(0.1))
+            .cornerRadius(CornerRadius.md)
+            
             // Instructions
             VStack(alignment: .leading, spacing: Spacing.md) {
-                Text("Complete Setup in Stripe")
+                Text("Complete Setup in Stripe (Browser)")
                     .font(.headingMedium)
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                Text("A browser window should have opened. Follow these steps:")
+                Text("Follow these steps in the Stripe browser window:")
                     .font(.bodyMedium)
                     .foregroundStyle(AppTheme.textSecondary)
                     .padding(.bottom, 4)
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    InstructionStep(number: 1, text: "On the Stripe page, choose:\n   • \"Sign in to existing account\" if you have Stripe\n   • \"Create new account\" if you're new to Stripe")
-                    InstructionStep(number: 2, text: "If creating new account, enter:\n   • Email and password\n   • Business information\n   • Tax ID or SSN")
-                    InstructionStep(number: 3, text: "Connect your bank account (where you'll receive payments)")
-                    InstructionStep(number: 4, text: "Verify your identity (photo ID may be required)")
-                    InstructionStep(number: 5, text: "Click \"Done\" or \"Finish\" in Stripe")
-                    InstructionStep(number: 6, text: "Return to this app and tap \"I've Completed Setup\"")
+                VStack(alignment: .leading, spacing: 10) {
+                    InstructionStep(
+                        number: 1,
+                        text: "Choose one:\n   • \"Sign in\" - if you already have a Stripe account\n   • \"Create account\" - if you're new to Stripe"
+                    )
+                    InstructionStep(
+                        number: 2,
+                        text: "Enter your business details:\n   • Business name and address\n   • Tax ID (EIN) or SSN\n   • Phone number"
+                    )
+                    InstructionStep(
+                        number: 3,
+                        text: "Add your bank account:\n   • Account number and routing number\n   • This is where you'll receive payments"
+                    )
+                    InstructionStep(
+                        number: 4,
+                        text: "Verify your identity:\n   • Upload photo ID if requested\n   • Answer security questions"
+                    )
+                    InstructionStep(
+                        number: 5,
+                        text: "Review and agree to Stripe's terms"
+                    )
+                    InstructionStep(
+                        number: 6,
+                        text: "Click \"Done\" or \"Submit\" in Stripe"
+                    )
+                    InstructionStep(
+                        number: 7,
+                        text: "Come back here and tap \"I've Completed Setup\" below"
+                    )
                 }
                 
-                Text("💡 All client payments go directly to YOUR bank account via Stripe")
+                Text("💰 All payments go directly to your bank account")
                     .font(.bodySmall)
                     .foregroundStyle(AppTheme.primary)
                     .padding(.top, Spacing.xs)
