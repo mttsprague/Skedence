@@ -16,10 +16,10 @@ const GRACE_PERIOD_DAYS = 3;
 // Price ID to Plan mapping
 function mapPriceIdToPlan(priceId: string): string {
   const priceMap: Record<string, string> = {
-    "price_1SnO1V2XPese4Q6CGv0X0Td1": "starter",
-    "price_1SnO4O2XPese4Q6Cxsz7EIsw": "studio",
-    "price_1SnO5p2XPese4Q6C76TJaivf": "academy",
-    "price_1SnO712XPese4Q6CZLdPS2VU": "enterprise",
+    "price_1SpKItFIh2MhEffNfsBy4HyT": "starter",
+    "price_1SpKMkFIh2MhEffNgGdbgMr5": "studio",
+    "price_1SpKNrFIh2MhEffNqZf64sPA": "academy",
+    "price_1SpKOrFIh2MhEffNjU5v5X4P": "enterprise",
   };
   return priceMap[priceId] || "unknown";
 }
