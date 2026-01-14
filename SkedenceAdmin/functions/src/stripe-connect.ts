@@ -25,9 +25,9 @@ const db = admin.firestore();
  * - Payments from clients go directly to owner's bank account via their Stripe
  * - All payments are REAL - this is production, not test mode
  * - Platform can optionally take application fees
- * 
+ *
  * IMPORTANT: Make sure you're using LIVE mode keys (sk_live_...)
- * 
+ *
  * How it works:
  * 1. createConnectAccount: Creates Express Connect account
  * 2. createConnectAccountLink: Generates onboarding URL for owner

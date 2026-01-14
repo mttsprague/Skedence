@@ -21,6 +21,7 @@ module.exports = {
     "/lib/**/*", // Ignore built files.
     "/generated/**/*", // Ignore generated files.
     "migrate.js", // Ignore migration scripts
+    "update-stripe-publishable-key.js", // Ignore Stripe key update script
   ],
   plugins: [
     "@typescript-eslint",
