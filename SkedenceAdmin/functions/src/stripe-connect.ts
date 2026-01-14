@@ -2,6 +2,12 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
+// IMPORTANT: Use LIVE mode secret key for production
+// Test keys start with: sk_test_...
+// Live keys start with: sk_live_...
+// Set this in Firebase Functions config:
+//   firebase functions:config:set stripe.secret_key="sk_live_YOUR_KEY"
+// Or set STRIPE_SECRET_KEY environment variable
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY ||
   functions.config().stripe?.secret_key || "";
 const stripe = new Stripe(stripeSecretKey, {
@@ -13,18 +19,24 @@ const db = admin.firestore();
 /**
  * STEP 8: Stripe Connect Functions
  *
- * These functions enable multi-tenant payment routing:
+ * These functions enable multi-tenant payment routing in LIVE MODE:
  * - Each business connects their own Stripe account (existing or new)
- * - Owners can sign in to existing Stripe account or create new one
- * - Payments from clients go directly to the owner's Stripe account
+ * - Owners can sign in to existing Stripe account OR create new account
+ * - Payments from clients go directly to owner's bank account via their Stripe
+ * - All payments are REAL - this is production, not test mode
  * - Platform can optionally take application fees
  * 
+ * IMPORTANT: Make sure you're using LIVE mode keys (sk_live_...)
+ * 
  * How it works:
- * 1. createConnectAccount: Creates Express Connect account (links to owner's Stripe)
- * 2. createConnectAccountLink: Generates onboarding URL for owner to complete setup
- * 3. Owner completes Stripe onboarding (login or create account + verify bank)
+ * 1. createConnectAccount: Creates Express Connect account
+ * 2. createConnectAccountLink: Generates onboarding URL for owner
+ * 3. Owner completes Stripe onboarding:
+ *    - Signs in to existing Stripe account OR creates new account
+ *    - Connects their bank account
+ *    - Verifies identity
  * 4. refreshConnectAccountStatus: Verifies setup is complete
- * 5. Payments are processed through connected account
+ * 5. Real payments are processed to owner's bank account
  */
 
 // ============================================================================
@@ -71,12 +83,13 @@ export const createConnectAccount = functions.https.onCall(
         );
       }
 
-      // Create Stripe Connect Express account
+      // Create Stripe Connect Express account for LIVE payments
       // This creates a connected account that the owner can claim
       // During onboarding, owner can:
-      // - Sign in to existing Stripe account
-      // - Create a new Stripe account
+      // - Sign in to their existing Stripe account
+      // - Create a brand new Stripe account
       // Either way, this account will be linked to their Stripe login
+      // and payments will go to THEIR bank account
       const account = await stripe.accounts.create({
         type: "express", // Express allows owners to use existing Stripe accounts
         email,

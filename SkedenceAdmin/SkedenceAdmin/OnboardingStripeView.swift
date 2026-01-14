@@ -116,18 +116,22 @@ struct OnboardingStripeView: View {
                         .foregroundStyle(AppTheme.textPrimary)
                 }
                 
-                Text("Stripe will handle all payments from your clients. Money goes directly to YOUR Stripe account.")
+                Text("Stripe processes all client payments directly to YOUR bank account.")
                     .font(.bodyMedium)
                     .foregroundStyle(AppTheme.textSecondary)
                     .padding(.bottom, Spacing.xs)
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("✅ Already have Stripe? Sign in during setup")
+                    Text("✅ Have Stripe already? Sign in to connect your existing account")
                         .font(.bodySmall)
                         .foregroundStyle(AppTheme.textPrimary)
-                    Text("✅ New to Stripe? Create account during setup")
+                    Text("✅ New to Stripe? Create a new account during setup (takes 5 min)")
                         .font(.bodySmall)
                         .foregroundStyle(AppTheme.textPrimary)
+                    Text("✅ This uses LIVE mode - real payments to your bank")
+                        .font(.bodySmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .bold()
                 }
             }
             .padding()
@@ -204,15 +208,25 @@ struct OnboardingStripeView: View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             // Instructions
             VStack(alignment: .leading, spacing: Spacing.md) {
-                Text("Complete setup in Stripe")
+                Text("Complete Setup in Stripe")
                     .font(.headingMedium)
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                Text("1. A new browser window has opened\n2. Sign in to existing Stripe account OR create new account\n3. Connect your bank account\n4. Complete verification\n5. Return here when done")
+                Text("A browser window should have opened. Follow these steps:")
                     .font(.bodyMedium)
                     .foregroundStyle(AppTheme.textSecondary)
+                    .padding(.bottom, 4)
                 
-                Text("💡 Your clients' payments will go directly to your Stripe account")
+                VStack(alignment: .leading, spacing: 8) {
+                    InstructionStep(number: 1, text: "On the Stripe page, choose:\n   • \"Sign in to existing account\" if you have Stripe\n   • \"Create new account\" if you're new to Stripe")
+                    InstructionStep(number: 2, text: "If creating new account, enter:\n   • Email and password\n   • Business information\n   • Tax ID or SSN")
+                    InstructionStep(number: 3, text: "Connect your bank account (where you'll receive payments)")
+                    InstructionStep(number: 4, text: "Verify your identity (photo ID may be required)")
+                    InstructionStep(number: 5, text: "Click \"Done\" or \"Finish\" in Stripe")
+                    InstructionStep(number: 6, text: "Return to this app and tap \"I've Completed Setup\"")
+                }
+                
+                Text("💡 All client payments go directly to YOUR bank account via Stripe")
                     .font(.bodySmall)
                     .foregroundStyle(AppTheme.primary)
                     .padding(.top, Spacing.xs)
@@ -390,6 +404,28 @@ private struct BenefitRow: View {
             Image(systemName: icon)
                 .foregroundStyle(.green)
                 .font(.title3)
+            
+            Text(text)
+                .font(.bodyMedium)
+                .foregroundStyle(AppTheme.textPrimary)
+        }
+    }
+}
+
+// MARK: - Instruction Step
+
+private struct InstructionStep: View {
+    let number: Int
+    let text: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Text("\(number)")
+                .font(.bodyMedium)
+                .foregroundStyle(.white)
+                .frame(width: 24, height: 24)
+                .background(AppTheme.primary)
+                .clipShape(Circle())
             
             Text(text)
                 .font(.bodyMedium)
