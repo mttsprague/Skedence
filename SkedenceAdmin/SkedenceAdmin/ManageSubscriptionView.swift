@@ -264,15 +264,12 @@ struct ManageSubscriptionView: View {
         isProcessing = true
         errorMessage = nil
         
-        // Map plan names to Stripe price IDs
-        // TODO: Replace these with actual Stripe price IDs from your Stripe dashboard
-        // Go to Stripe Dashboard > Products > Create subscription plans with these names
-        // and copy the price IDs here
+        // Map plan names to Stripe price IDs (TEST MODE)
         let priceIds: [String: String] = [
-            "starter": "price_1SkWFR2XPese4Q6C8OAznMnV",  // $29/month - Update with actual ID
-            "studio": "price_1SkWFc2XPese4Q6CKdZVuZZu",   // $99/month - Update with actual ID
-            "academy": "price_1SkWFt2XPese4Q6CYpqRBpCh",  // $249/month - Update with actual ID
-            "enterprise": "price_1SkWG92XPese4Q6CnQVNYmZ9" // $499/month - Update with actual ID
+            "starter": "price_1SnO1V2XPese4Q6CGv0X0Td1",     // $29/month
+            "studio": "price_1SnO4O2XPese4Q6Cxsz7EIsw",      // $99/month
+            "academy": "price_1SnO5p2XPese4Q6C76TJaivf",     // $249/month
+            "enterprise": "price_1SnO712XPese4Q6CZLdPS2VU"  // $499/month
         ]
         
         guard let priceId = priceIds[plan] else {
