@@ -512,7 +512,10 @@ struct OrganizationCard: View {
     }
     
     private func saveOrganizationName() async {
-        guard !editedName.isEmpty, editedName != organization.name else { return }
+        // Ensure we have a valid orgId and a meaningful new name
+        guard let orgId = organization.id,
+              !editedName.isEmpty,
+              editedName != organization.name else { return }
         
         isSaving = true
         errorMessage = nil
@@ -520,7 +523,7 @@ struct OrganizationCard: View {
         do {
             try await Firestore.firestore()
                 .collection("organizations")
-                .document(organization.id)
+                .document(orgId)
                 .updateData(["name": editedName])
             
             await MainActor.run {

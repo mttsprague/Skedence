@@ -106,24 +106,43 @@ struct OnboardingStripeView: View {
             .background(AppTheme.surfaceSecondary)
             .cornerRadius(CornerRadius.md)
             
-            // What you'll need
+            // Important info box
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack(spacing: Spacing.xs) {
                     Image(systemName: "info.circle.fill")
                         .foregroundStyle(AppTheme.primary)
-                    Text("What you'll need:")
+                    Text("How This Works:")
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
                 }
                 
+                Text("Stripe will handle all payments from your clients. Money goes directly to YOUR Stripe account.")
+                    .font(.bodyMedium)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .padding(.bottom, Spacing.xs)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("✅ Already have Stripe? Sign in during setup")
+                        .font(.bodySmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Text("✅ New to Stripe? Create account during setup")
+                        .font(.bodySmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+            }
+            .padding()
+            .background(AppTheme.primary.opacity(0.1))
+            .cornerRadius(CornerRadius.md)
+            
+            // What you'll need
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("You'll need (for new accounts):")
+                    .font(.headingSmall)
+                    .foregroundStyle(AppTheme.textPrimary)
+                
                 Text("• Business bank account\n• Tax ID or SSN\n• Business address\n• About 5 minutes")
                     .font(.bodyMedium)
                     .foregroundStyle(AppTheme.textSecondary)
-                
-                Text("💡 Already have a Stripe account? You can connect it during setup")
-                    .font(.bodySmall)
-                    .foregroundStyle(AppTheme.primary)
-                    .padding(.top, Spacing.xs)
             }
             .padding()
             .background(AppTheme.surfaceSecondary)
@@ -139,7 +158,7 @@ struct OnboardingStripeView: View {
                             ProgressView()
                                 .tint(.white)
                         }
-                        Text(isLoading ? "Setting up..." : "Connect with Stripe")
+                        Text(isLoading ? "Setting up..." : "Connect Your Stripe Account")
                             .font(.headingSmall)
                     }
                     .frame(maxWidth: .infinity)
@@ -189,9 +208,14 @@ struct OnboardingStripeView: View {
                     .font(.headingMedium)
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                Text("1. A new browser window has opened\n2. Follow Stripe's setup process\n3. Return here when done")
+                Text("1. A new browser window has opened\n2. Sign in to existing Stripe account OR create new account\n3. Connect your bank account\n4. Complete verification\n5. Return here when done")
                     .font(.bodyMedium)
                     .foregroundStyle(AppTheme.textSecondary)
+                
+                Text("💡 Your clients' payments will go directly to your Stripe account")
+                    .font(.bodySmall)
+                    .foregroundStyle(AppTheme.primary)
+                    .padding(.top, Spacing.xs)
             }
             .padding()
             .background(AppTheme.surfaceSecondary)

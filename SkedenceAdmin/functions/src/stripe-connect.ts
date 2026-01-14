@@ -14,9 +14,17 @@ const db = admin.firestore();
  * STEP 8: Stripe Connect Functions
  *
  * These functions enable multi-tenant payment routing:
- * - Each business has their own Stripe Connect account
- * - Platform takes application fees
- * - Payments go directly to business owners
+ * - Each business connects their own Stripe account (existing or new)
+ * - Owners can sign in to existing Stripe account or create new one
+ * - Payments from clients go directly to the owner's Stripe account
+ * - Platform can optionally take application fees
+ * 
+ * How it works:
+ * 1. createConnectAccount: Creates Express Connect account (links to owner's Stripe)
+ * 2. createConnectAccountLink: Generates onboarding URL for owner to complete setup
+ * 3. Owner completes Stripe onboarding (login or create account + verify bank)
+ * 4. refreshConnectAccountStatus: Verifies setup is complete
+ * 5. Payments are processed through connected account
  */
 
 // ============================================================================
@@ -64,8 +72,13 @@ export const createConnectAccount = functions.https.onCall(
       }
 
       // Create Stripe Connect Express account
+      // This creates a connected account that the owner can claim
+      // During onboarding, owner can:
+      // - Sign in to existing Stripe account
+      // - Create a new Stripe account
+      // Either way, this account will be linked to their Stripe login
       const account = await stripe.accounts.create({
-        type: "express",
+        type: "express", // Express allows owners to use existing Stripe accounts
         email,
         business_type: "individual",
         metadata: {

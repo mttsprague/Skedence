@@ -11,6 +11,9 @@ import CoreImage
 #if canImport(FirebaseFirestore)
 import FirebaseFirestore
 #endif
+#if canImport(FirebaseAuth)
+import FirebaseAuth
+#endif
 
 struct ContentView: View {
     @EnvironmentObject private var auth: AuthManager
@@ -438,10 +441,10 @@ struct MoreView: View {
                     "email": editEmail
                 ])
             
-            // Update email in Firebase Auth if changed
+            // Update email in Firebase Auth if changed (new flow sends verification before applying the change)
             if editEmail != auth.userEmail {
                 if let user = Auth.auth().currentUser {
-                    try await user.updateEmail(to: editEmail)
+                    try await user.sendEmailVerification(beforeUpdatingEmail: editEmail)
                 }
             }
             
