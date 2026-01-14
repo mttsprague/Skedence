@@ -25,6 +25,7 @@ struct DayScheduleView: View {
     @State private var selectedClassName: String?
     @State private var preloadedParticipants: [ClassParticipant]?
     @State private var classParticipantsShown: Bool = false
+    @State private var hasScrolledToCurrentTime = false
 
     var body: some View {
         NavigationView {
@@ -84,89 +85,102 @@ struct DayScheduleView: View {
                 .padding(.bottom, 8)
 
                 // Simple hour-by-hour list for the selected day
-                ZStack(alignment: .topLeading) {
-                    List {
-                        ForEach(viewModel.visibleHours, id: \.self) { hour in
-                        let day = viewModel.selectedDate
-                        let slotsForDay = viewModel.slotsByDay[DateOnly(day)] ?? []
-                        let cellStart = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
-                        let cellEnd = Calendar.current.date(byAdding: .hour, value: 1, to: cellStart) ?? cellStart.addingTimeInterval(3600)
-                        let matching = slotsForDay.filter { $0.startTime < cellEnd && $0.endTime > cellStart }
+                GeometryReader { geometry in
+                    ZStack(alignment: .topLeading) {
+                        ScrollViewReader { scrollProxy in
+                            List {
+                                ForEach(viewModel.visibleHours, id: \.self) { hour in
+                                    let day = viewModel.selectedDate
+                                    let slotsForDay = viewModel.slotsByDay[DateOnly(day)] ?? []
+                                    let cellStart = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
+                                    let cellEnd = Calendar.current.date(byAdding: .hour, value: 1, to: cellStart) ?? cellStart.addingTimeInterval(3600)
+                                    let matching = slotsForDay.filter { $0.startTime < cellEnd && $0.endTime > cellStart }
 
-                        HStack {
-                            Text(hourLabel(hour))
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-
-                            Divider()
-                                .padding(.horizontal, 4)
-
-                            if let slot = matching.first {
-                                HStack(spacing: 8) {
-                                    VStack(spacing: 2) {
-                                        Text(slot.displayTitle)
-                                            .font(.caption2.weight(.medium))
-                                            .foregroundStyle(.white)
-                                            .lineLimit(2)
-                                    }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .padding(.vertical, 4)
-                                    .padding(.horizontal, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(slot.visualColor)
-                                    )
-                                    
-                                    if slot.isBooked, let name = slot.clientName {
-                                        Text(name)
+                                    HStack {
+                                        Text(hourLabel(hour))
                                             .font(.body)
-                                            .foregroundStyle(.primary)
-                                    }
-                                    
-                                    Spacer()
-                                }
-                                .onTapGesture {
-                                    handleSlotTap(slot)
-                                }
-                            } else {
-                                Text("No events")
-                                    .font(.callout)
-                                    .foregroundStyle(.tertiary)
-                            }
+                                            .foregroundStyle(.secondary)
 
-                            Spacer()
-                        }
-                        .contentShape(Rectangle())
-                    }
-                }
-                .listStyle(.plain)
-                
-                // Current time red line indicator
-                if Calendar.current.isDateInToday(viewModel.selectedDate) {
-                    GeometryReader { geometry in
-                        let now = Date()
-                        let comps = Calendar.current.dateComponents([.hour, .minute], from: now)
-                        if let currentHour = comps.hour, let currentMinute = comps.minute {
-                            let hoursSinceStart = currentHour - viewModel.visibleHours.first!
-                            let minuteOffset = Double(currentMinute) / 60.0
-                            let totalHourOffset = Double(hoursSinceStart) + minuteOffset
-                            let rowHeight: CGFloat = 44 // approximate list row height
-                            let yPosition = CGFloat(totalHourOffset) * rowHeight
-                            
-                            HStack(spacing: 0) {
-                                Circle()
-                                    .fill(.red)
-                                    .frame(width: 8, height: 8)
-                                
-                                Rectangle()
-                                    .fill(.red)
-                                    .frame(height: 2)
+                                        Divider()
+                                            .padding(.horizontal, 4)
+
+                                        if let slot = matching.first {
+                                            HStack(spacing: 8) {
+                                                VStack(spacing: 2) {
+                                                    Text(slot.displayTitle)
+                                                        .font(.caption2.weight(.medium))
+                                                        .foregroundStyle(.white)
+                                                        .lineLimit(2)
+                                                }
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                .padding(.vertical, 4)
+                                                .padding(.horizontal, 8)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .fill(slot.visualColor)
+                                                )
+                                                
+                                                if slot.isBooked, let name = slot.clientName {
+                                                    Text(name)
+                                                        .font(.body)
+                                                        .foregroundStyle(.primary)
+                                                }
+                                                
+                                                Spacer()
+                                            }
+                                            .onTapGesture {
+                                                handleSlotTap(slot)
+                                            }
+                                        } else {
+                                            Text("No events")
+                                                .font(.callout)
+                                                .foregroundStyle(.tertiary)
+                                        }
+
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                    .id(hour)
+                                }
                             }
-                            .offset(y: yPosition)
+                            .listStyle(.plain)
+                            .onAppear {
+                                scrollToCurrentTime(scrollProxy: scrollProxy)
+                            }
+                            .onChange(of: hasScrolledToCurrentTime) { _, newValue in
+                                if !newValue {
+                                    scrollToCurrentTime(scrollProxy: scrollProxy)
+                                }
+                            }
+                        }
+                        
+                        // Current time red line indicator
+                        if Calendar.current.isDateInToday(viewModel.selectedDate) {
+                            let now = Date()
+                            let comps = Calendar.current.dateComponents([.hour, .minute], from: now)
+                            if let currentHour = comps.hour, let currentMinute = comps.minute,
+                               viewModel.visibleHours.contains(currentHour) {
+                                let hoursSinceStart = currentHour - viewModel.visibleHours.first!
+                                let minuteOffset = Double(currentMinute) / 60.0
+                                let totalHourOffset = Double(hoursSinceStart) + minuteOffset
+                                let rowHeight: CGFloat = 44
+                                let yPosition = CGFloat(totalHourOffset) * rowHeight
+                                
+                                HStack(spacing: 0) {
+                                    Circle()
+                                        .fill(.red)
+                                        .frame(width: 10, height: 10)
+                                    
+                                    Rectangle()
+                                        .fill(.red)
+                                        .frame(height: 2)
+                                }
+                                .offset(y: yPosition)
+                                .allowsHitTesting(false)
+                            }
                         }
                     }
                 }
-            }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -197,6 +211,23 @@ struct DayScheduleView: View {
             withAnimation(.easeInOut) {
                 viewModel.selectedDate = newDate
             }
+        }
+    }
+    
+    private func scrollToCurrentTime(scrollProxy: ScrollViewProxy) {
+        guard !hasScrolledToCurrentTime else { return }
+        guard Calendar.current.isDateInToday(viewModel.selectedDate) else { return }
+        
+        let now = Date()
+        let comps = Calendar.current.dateComponents([.hour], from: now)
+        guard let currentHour = comps.hour else { return }
+        
+        // Scroll to the current hour, centered
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                scrollProxy.scrollTo(currentHour, anchor: .center)
+            }
+            hasScrolledToCurrentTime = true
         }
     }
     

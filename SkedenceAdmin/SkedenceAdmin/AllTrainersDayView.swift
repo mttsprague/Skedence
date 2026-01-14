@@ -216,31 +216,6 @@ struct AllTrainersDayView: View {
                                 }
                             }
                         }
-                        
-                        // Current time red line indicator
-                        if Calendar.current.isDateInToday(scheduleViewModel.selectedDate) {
-                            let now = Date()
-                            let comps = Calendar.current.dateComponents([.hour, .minute], from: now)
-                            if let currentHour = comps.hour, let currentMinute = comps.minute,
-                               scheduleViewModel.visibleHours.contains(currentHour) {
-                                let hoursSinceStart = currentHour - scheduleViewModel.visibleHours.first!
-                                let minuteOffset = Double(currentMinute) / 60.0
-                                let totalHourOffset = Double(hoursSinceStart) + minuteOffset
-                                let yPosition = timeColWidth + (headerRowHeight + gridHeaderVPad * 2) + CGFloat(totalHourOffset) * (rowHeight + rowVerticalPadding * 2)
-                                
-                                HStack(spacing: 0) {
-                                    Circle()
-                                        .fill(.red)
-                                        .frame(width: 10, height: 10)
-                                    
-                                    Rectangle()
-                                        .fill(.red)
-                                        .frame(height: 2)
-                                }
-                                .offset(x: timeColWidth, y: yPosition)
-                            }
-                        }
-                    }
 
                     // Current time bar positioned by vertical offset
                     TimelineView(.everyMinute) { context in
