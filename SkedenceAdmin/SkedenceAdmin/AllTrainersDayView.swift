@@ -27,7 +27,7 @@ final class AllTrainersDayViewModel: ObservableObject {
             await reload(for: selectedDate, orgId: orgId)
         } catch {
             self.trainers = []
-            self.slotsByTrainer = [:]
+                       self.slotsByTrainer = [:]
         }
     }
 
@@ -133,6 +133,20 @@ struct AllTrainersDayView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 50)
+                        .onEnded { value in
+                            let horizontalMovement = value.translation.width
+                            if horizontalMovement < -50 {
+                                // Swipe left - next day
+                                shiftDay(by: 1)
+                            } else if horizontalMovement > 50 {
+                                // Swipe right - previous day
+                                shiftDay(by: -1)
+                            }
+                        }
+                )
 
                 let headerRowHeight = 56.0 // trainer avatar+name header height
                 
@@ -219,19 +233,27 @@ struct AllTrainersDayView: View {
                         } // Close ScrollViewReader
 
                         // Current time bar positioned by vertical offset
-                        TimelineView(.everyMinute) { context in
-                            if let y = currentTimeYOffset(
-                                for: context.date,
-                                firstHour: scheduleViewModel.visibleHours.first,
-                                rowHeight: rowHeight,
-                                rowVerticalPadding: rowVerticalPadding
-                            ) {
-                                Rectangle()
-                                    .fill(Color.red)
-                                    .frame(height: 2)
+                        if Calendar.current.isDateInToday(scheduleViewModel.selectedDate) {
+                            TimelineView(.everyMinute) { context in
+                                if let y = currentTimeYOffset(
+                                    for: context.date,
+                                    firstHour: scheduleViewModel.visibleHours.first,
+                                    rowHeight: rowHeight,
+                                    rowVerticalPadding: rowVerticalPadding
+                                ) {
+                                    HStack(spacing: 0) {
+                                        Circle()
+                                            .fill(.red)
+                                            .frame(width: 10, height: 10)
+                                        Rectangle()
+                                            .fill(Color.red)
+                                            .frame(height: 2)
+                                    }
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .offset(x: 0, y: (headerRowHeight + gridHeaderVPad * 2) + y)
-                                    .accessibilityHidden(true)
+                                    .position(x: geometry.size.width / 2 + timeColWidth / 2, y: (headerRowHeight + gridHeaderVPad * 2) + y)
+                                    .allowsHitTesting(false)
+                                    .zIndex(999)
+                                }
                             }
                         }
                     }
