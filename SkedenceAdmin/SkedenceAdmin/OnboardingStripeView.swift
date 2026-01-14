@@ -142,13 +142,6 @@ struct OnboardingStripeView: View {
                             .font(.bodySmall)
                             .foregroundStyle(AppTheme.textPrimary)
                     }
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("⚠️")
-                        Text("NOT a test/sandbox - this is production mode")
-                            .font(.bodySmall)
-                            .foregroundStyle(.orange)
-                            .bold()
-                    }
                 }
             }
             .padding()
