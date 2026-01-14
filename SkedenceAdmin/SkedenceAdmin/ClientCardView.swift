@@ -325,6 +325,17 @@ struct ClientCardView: View {
                                     .foregroundStyle(AppTheme.textPrimary)
                             }
                             
+                            if let location = nextBooking.location {
+                                HStack(spacing: Spacing.xs) {
+                                    Image(systemName: "mappin.circle.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    Text(location)
+                                        .font(.bodyMedium)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                            }
+                            
                             if nextBooking.isClassBooking != true {
                                 HStack(spacing: Spacing.xs) {
                                     Image(systemName: "ticket.fill")

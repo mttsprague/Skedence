@@ -95,9 +95,7 @@ private struct SignedInProfileScreen: View {
     @State private var tab: Tab = .schedule
     enum Tab: String { case schedule = "SCHEDULE", passes = "PASSES", wallet = "WALLET" }
 
-    // Shared venue/location (matches HomeView)
-    private let venueName = "Oakwood Community Church"
-    private let venueCityStateZip = "Chattanooga, TN 37416"
+    // Location is now dynamic from booking data - no hardcoded venue
 
     var body: some View {
         ScrollView {
@@ -257,10 +255,12 @@ private struct SignedInProfileScreen: View {
                                         Text(trainerName(for: booking.trainerUID))
                                             .foregroundStyle(.secondary)
                                     }
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                                        Text("\(venueName) • \(venueCityStateZip)")
-                                            .foregroundStyle(.secondary)
+                                    if let location = booking.location {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
+                                            Text(location)
+                                                .foregroundStyle(.secondary)
+                                        }
                                     }
                                 }
                             case .classItem(let classItem):
@@ -388,9 +388,7 @@ private struct SignedInProfileScreen: View {
             // View Your Schedule button
             NavigationLink {
                 MyUpcomingLessonsView(bookingsService: bookingsService,
-                                      trainersService: trainersService,
-                                      venueName: venueName,
-                                      venueCityStateZip: venueCityStateZip)
+                                      trainersService: trainersService)
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "calendar.badge.clock")
@@ -436,6 +434,13 @@ private struct SignedInProfileScreen: View {
                                         Text(trainerName(for: booking.trainerUID))
                                             .foregroundStyle(.secondary)
                                     }
+                                    if let location = booking.location {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
+                                            Text(location)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
                                 case .classItem(let classItem):
                                     HStack(spacing: 6) {
                                         Image(systemName: "sportscourt.fill").foregroundStyle(Brand.secondary)
@@ -449,11 +454,11 @@ private struct SignedInProfileScreen: View {
                                         Text(trainerName(for: classItem.trainerId))
                                             .foregroundStyle(.secondary)
                                     }
-                                }
-                                HStack(spacing: 6) {
-                                    Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                                    Text(venueName)
-                                        .foregroundStyle(.secondary)
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
+                                        Text(classItem.location)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                             .padding(.vertical, 6)

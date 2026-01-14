@@ -322,7 +322,9 @@ private struct CurrentPlanCard: View {
                 Spacer()
                 
                 // Status Badge
-                if status == "active" {
+                if status == "trialing" {
+                    BadgeView(text: "Trial", color: .blue)
+                } else if status == "active" {
                     BadgeView(text: "Active", color: .green)
                 } else if status == "past_due" {
                     BadgeView(text: "Past Due", color: .red)
@@ -343,14 +345,42 @@ private struct CurrentPlanCard: View {
                 .background(Color.orange.opacity(0.1))
                 .cornerRadius(CornerRadius.sm)
             } else if let end = periodEnd, plan != "free" {
-                Text("Renews on \(end.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.bodyMedium)
-                    .foregroundStyle(AppTheme.textSecondary)
+                // Calculate amount based on plan
+                let amount = planAmount(for: plan)
+                let dateText = end.formatted(date: .abbreviated, time: .omitted)
+                
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: status == "trialing" ? "calendar.badge.clock" : "arrow.clockwise")
+                        .foregroundStyle(AppTheme.primary)
+                    
+                    if status == "trialing" {
+                        Text("Trial ends \(dateText) • First charge: $\(amount)")
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    } else {
+                        Text("Next billing: \(dateText) • $\(amount)")
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                }
+                .padding()
+                .background(AppTheme.primary.opacity(0.05))
+                .cornerRadius(CornerRadius.sm)
             }
         }
         .padding()
         .background(AppTheme.primary.opacity(0.1))
         .cornerRadius(CornerRadius.md)
+    }
+    
+    private func planAmount(for plan: String) -> Int {
+        switch plan.lowercased() {
+        case "starter": return 29
+        case "studio": return 99
+        case "academy": return 249
+        case "enterprise": return 499
+        default: return 0
+        }
     }
 }
 

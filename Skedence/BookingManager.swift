@@ -76,6 +76,7 @@ final class BookingManager: ObservableObject {
                 startTime: nil,
                 endTime: nil,
                 status: "confirmed",
+                location: nil,
                 createdAt: nil,
                 updatedAt: nil
             )
@@ -154,6 +155,7 @@ final class BookingManager: ObservableObject {
             endTime: date(from: dict["endTime"]),
             status: dict["status"] as? String ?? "confirmed",
             // Accept either createdAt/updatedAt or bookedAt (server currently writes bookedAt)
+            location: dict["location"] as? String,
             createdAt: date(from: dict["createdAt"] ?? dict["bookedAt"]),
             updatedAt: date(from: dict["updatedAt"] ?? dict["bookedAt"])
         )

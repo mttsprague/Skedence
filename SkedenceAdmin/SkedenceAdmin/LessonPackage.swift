@@ -64,6 +64,7 @@ struct ClientBooking: Identifiable, Codable {
     var startTime: Date
     var endTime: Date
     var status: String
+    var location: String? // Dynamic location from booking
     var bookedAt: Date?
     var isClassBooking: Bool?
     var classId: String?

@@ -18,6 +18,7 @@ struct Booking: Identifiable {
     let startTime: Date?
     let endTime: Date?
     let status: String
+    let location: String? // Dynamic location from schedule slot
     let createdAt: Date?
     let updatedAt: Date?
 }

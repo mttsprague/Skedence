@@ -212,16 +212,15 @@ struct SuperAdminView: View {
                 }
                 
                 // Stripe Settings
-                NavigationLink(destination: OnboardingStripeView()
+                NavigationLink(destination: StripeSettingsView()
                     .environmentObject(auth)
-                    .environmentObject(configureCoordinatorForStripe())
                 ) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Stripe Settings")
+                            Text("Stripe & Payments")
                                 .font(.headingSmall)
                                 .foregroundStyle(AppTheme.textPrimary)
-                            Text("Connect or update Stripe account")
+                            Text("Accept payments & manage subscription")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }

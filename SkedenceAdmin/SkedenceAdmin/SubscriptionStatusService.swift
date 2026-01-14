@@ -66,8 +66,11 @@ class SubscriptionStatusService: ObservableObject {
     private func updateStatus(from data: [String: Any]) {
         DispatchQueue.main.async {
             self.isDisabled = data["disabled"] as? Bool ?? false
-            self.subscriptionStatus = data["subscriptionStatus"] as? String
-            self.subscriptionPlan = data["subscriptionPlan"] as? String
+            
+            // Get billing data from nested structure
+            let billing = data["billing"] as? [String: Any]
+            self.subscriptionStatus = billing?["status"] as? String
+            self.subscriptionPlan = billing?["plan"] as? String
             
             let accessStatus = self.parseAccessStatus(from: data)
             self.isReadOnly = accessStatus.isReadOnly
@@ -84,7 +87,10 @@ class SubscriptionStatusService: ObservableObject {
     /// Parse access status from data
     private func parseAccessStatus(from data: [String: Any]) -> OrgAccessStatus {
         let disabled = data["disabled"] as? Bool ?? false
-        let status = data["subscriptionStatus"] as? String
+        
+        // Get status from billing nested structure
+        let billing = data["billing"] as? [String: Any]
+        let status = billing?["status"] as? String
         
         if disabled {
             return OrgAccessStatus(

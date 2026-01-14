@@ -315,7 +315,7 @@ struct AvailabilityEditorSheet: View {
     }
 
     private var singleSection: some View {
-        Section("Single Slot") {
+        Section {
             DatePicker("Day", selection: $singleDay, displayedComponents: .date)
                 .onChange(of: singleDay) { _, _ in
                     // Re-anchor both times to selected day, keep on-the-hour and end >= start + 1h
@@ -346,12 +346,20 @@ struct AvailabilityEditorSheet: View {
                     Text(location.name).tag(location as Location?)
                 }
             }
+        } header: {
+            Text("Single Slot")
+        } footer: {
+            if selectedLocation == nil {
+                Text("⚠️ Location is required to create availability")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         }
     }
 
     private var recurringSection: some View {
         Group {
-            Section("Recurring") {
+            Section {
                 Toggle("Recurring", isOn: $recurringEnabled)
 
                 if recurringEnabled {
@@ -416,6 +424,8 @@ struct AvailabilityEditorSheet: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
+            } header: {
+                Text("Recurring")
             }
 
             if recurringEnabled {
@@ -540,11 +550,17 @@ struct AvailabilityEditorSheet: View {
     }
 
     private var singleSaveDisabled: Bool {
-        singleEnd <= singleStart
+        // Require location selection
+        if selectedLocation == nil {
+            return true
+        }
+        return singleEnd <= singleStart
     }
 
     private var recurringDisabled: Bool {
         guard recurringEnabled else { return false }
+        // Require location selection
+        if selectedLocation == nil { return true }
         // Need at least one day selected
         if selectedWeekdays.isEmpty { return true }
         // Validate daily window

@@ -57,6 +57,8 @@ final class BookingsService: ObservableObject {
             startTime: Self.date(from: data["startTime"]),
             endTime: Self.date(from: data["endTime"]),
             status: data["status"] as? String ?? "confirmed",
+            // New: provide location if present on booking (may be copied from slot)
+            location: data["location"] as? String,
             // Accept createdAt/updatedAt or fall back to bookedAt
             createdAt: Self.date(from: data["createdAt"] ?? data["bookedAt"]),
             updatedAt: Self.date(from: data["updatedAt"] ?? data["bookedAt"])
@@ -72,4 +74,3 @@ final class BookingsService: ObservableObject {
         return nil
     }
 }
-

@@ -304,6 +304,7 @@ export const bookLesson = functions.https.onCall(
           trainerName: trainerFullName,
           clientName: clientFullName,
           scheduleSlotId: slotId,
+          location: trainerSlotData.location || "Location TBD", // Copy location from schedule slot
           orgId: orgId || trainerData.orgId, // Add orgId to booking record
         });
       });

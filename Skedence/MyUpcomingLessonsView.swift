@@ -14,10 +14,6 @@ struct MyUpcomingLessonsView: View {
     @StateObject private var classesService = ClassesService()
     @StateObject private var cancellationService = CancellationService()
     @StateObject private var packagesService = PackagesService()
-
-    // Shared venue/location to display
-    let venueName: String
-    let venueCityStateZip: String
     
     @State private var itemToCancel: ScheduleItem?
     @State private var showCancelAlert = false
@@ -82,8 +78,6 @@ struct MyUpcomingLessonsView: View {
                     case .lesson(let booking):
                         LessonRow(booking: booking,
                                   trainerName: trainerName(for: booking.trainerUID),
-                                  venueName: venueName,
-                                  venueCityStateZip: venueCityStateZip,
                                   isCancellable: isCancellable,
                                   onCancel: {
                                       if isCancellable {
@@ -108,7 +102,6 @@ struct MyUpcomingLessonsView: View {
                     case .classItem(let classItem):
                         ClassRow(classItem: classItem,
                                  trainerName: trainerName(for: classItem.trainerId),
-                                 venueName: venueName,
                                  isCancellable: isCancellable,
                                  onCancel: {
                                       if isCancellable {
@@ -233,8 +226,6 @@ struct MyUpcomingLessonsView: View {
 private struct LessonRow: View {
     let booking: Booking
     let trainerName: String
-    let venueName: String
-    let venueCityStateZip: String
     let isCancellable: Bool
     let onCancel: () -> Void
 
@@ -267,10 +258,12 @@ private struct LessonRow: View {
                         .foregroundStyle(.secondary)
                 }
 
-                HStack(spacing: 6) {
-                    Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                    Text("\(venueName) • \(venueCityStateZip)")
-                        .foregroundStyle(.secondary)
+                if let location = booking.location {
+                    HStack(spacing: 6) {
+                        Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
+                        Text(location)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Text(booking.status.capitalized)
@@ -298,7 +291,6 @@ private struct LessonRow: View {
 private struct ClassRow: View {
     let classItem: GroupClass
     let trainerName: String
-    let venueName: String
     let isCancellable: Bool
     let onCancel: () -> Void
 

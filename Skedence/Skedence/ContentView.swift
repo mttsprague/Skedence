@@ -17,7 +17,7 @@ struct AppRootView: View {
     @StateObject private var packagesService = PackagesService()
     @StateObject private var bookingsService = BookingsService()
     @StateObject private var classesService = ClassesService()
-    @ObservedObject private var subscriptionStatus = SubscriptionStatusService.shared
+    // Removed subscription status - clients don't see subscription warnings
     
     @State private var selectedTab = 0
     @State private var bookViewMode = 0
@@ -75,7 +75,7 @@ struct AppRootView: View {
                 .environmentObject(packagesService)
                 .environmentObject(bookingsService)
                 .environmentObject(classesService)
-                .environmentObject(subscriptionStatus)
+                // Removed subscription status from environment
                 .overlay {
                     if !organizationIsActive {
                         ClientBookingBlockedView(
@@ -109,9 +109,9 @@ struct AppRootView: View {
                     selectedTab = 2 // Profile tab for sign in/register
                 }
             }
-            // Start monitoring subscription status
+            // Clients don't monitor subscription - backend enforces limits
+            // Monitor organization billing status for hard blocks only
             if let orgId = auth.currentOrgId {
-                subscriptionStatus.monitorOrgStatus(organizationId: orgId)
                 
                 // Monitor organization billing status
                 Firestore.firestore().collection("organizations").document(orgId)

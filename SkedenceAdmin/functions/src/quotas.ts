@@ -266,8 +266,9 @@ export async function checkOrgAccess(organizationId: string): Promise<{
     return {allowed: false, reason: "Organization is disabled", isReadOnly: false};
   }
 
-  // Check subscription status
-  const subscriptionStatus = orgData?.subscriptionStatus;
+  // Check subscription status from billing nested object
+  const billing = orgData?.billing;
+  const subscriptionStatus = billing?.status;
 
   if (!subscriptionStatus || subscriptionStatus === "canceled" || subscriptionStatus === "incomplete") {
     return {

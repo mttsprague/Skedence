@@ -12,7 +12,7 @@ import FirebaseAuth
 
 struct BookView: View {
     @EnvironmentObject var auth: AuthManager
-    @EnvironmentObject var subscriptionStatus: SubscriptionStatusService
+    // Removed subscription status - clients don't need to check this
     @ObservedObject var trainersService: TrainersService
     @ObservedObject var scheduleService: ScheduleService
     @ObservedObject var packagesService: PackagesService
@@ -111,18 +111,8 @@ struct BookView: View {
     private var contentView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                // Show paywall banner if subscription is expired/past_due
-                if subscriptionStatus.isReadOnly {
-                    PaywallBanner(
-                        message: subscriptionStatus.statusMessage ?? "Your subscription needs attention",
-                        ctaTitle: "Update Billing",
-                        isDismissible: false,
-                        action: {
-                            showSubscriptionSheet = true
-                        }
-                    )
-                    .padding(.horizontal, Spacing.lg)
-                }
+                // Clients should never see subscription warnings
+                // Backend enforces subscription limits
                 
                 modePicker
                 
