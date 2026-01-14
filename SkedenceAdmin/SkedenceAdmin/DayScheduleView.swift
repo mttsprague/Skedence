@@ -53,16 +53,40 @@ struct DayScheduleView: View {
                 .padding(.vertical, 8)
                 .padding(.top, 8)
 
-                // Selected date title
-                Text(viewModel.selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
-                    .font(.headline)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // Selected date title with navigation
+                HStack {
+                    Button {
+                        shiftDay(by: -1)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                    
+                    Text(viewModel.selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    Button {
+                        shiftDay(by: 1)
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
 
                 // Simple hour-by-hour list for the selected day
-                List {
-                    ForEach(viewModel.visibleHours, id: \.self) { hour in
+                ZStack(alignment: .topLeading) {
+                    List {
+                        ForEach(viewModel.visibleHours, id: \.self) { hour in
                         let day = viewModel.selectedDate
                         let slotsForDay = viewModel.slotsByDay[DateOnly(day)] ?? []
                         let cellStart = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
@@ -116,6 +140,33 @@ struct DayScheduleView: View {
                     }
                 }
                 .listStyle(.plain)
+                
+                // Current time red line indicator
+                if Calendar.current.isDateInToday(viewModel.selectedDate) {
+                    GeometryReader { geometry in
+                        let now = Date()
+                        let comps = Calendar.current.dateComponents([.hour, .minute], from: now)
+                        if let currentHour = comps.hour, let currentMinute = comps.minute {
+                            let hoursSinceStart = currentHour - viewModel.visibleHours.first!
+                            let minuteOffset = Double(currentMinute) / 60.0
+                            let totalHourOffset = Double(hoursSinceStart) + minuteOffset
+                            let rowHeight: CGFloat = 44 // approximate list row height
+                            let yPosition = CGFloat(totalHourOffset) * rowHeight
+                            
+                            HStack(spacing: 0) {
+                                Circle()
+                                    .fill(.red)
+                                    .frame(width: 8, height: 8)
+                                
+                                Rectangle()
+                                    .fill(.red)
+                                    .frame(height: 2)
+                            }
+                            .offset(y: yPosition)
+                        }
+                    }
+                }
+            }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -138,6 +189,15 @@ struct DayScheduleView: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+    
+    private func shiftDay(by delta: Int) {
+        let cal = Calendar.current
+        if let newDate = cal.date(byAdding: .day, value: delta, to: viewModel.selectedDate) {
+            withAnimation(.easeInOut) {
+                viewModel.selectedDate = newDate
+            }
+        }
     }
     
     private func handleSlotTap(_ slot: TrainerScheduleSlot) {

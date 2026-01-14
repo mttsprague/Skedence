@@ -147,6 +147,12 @@ struct MoreView: View {
     @EnvironmentObject private var auth: AuthManager
     @State private var isSignUp: Bool = true
     @State private var isBusy: Bool = false
+    @State private var showingEditProfile = false
+    @State private var editFirstName = ""
+    @State private var editLastName = ""
+    @State private var editEmail = ""
+    @State private var isSavingProfile = false
+    @State private var profileError: String?
 
     var body: some View {
         NavigationView {
@@ -203,9 +209,24 @@ struct MoreView: View {
                         // Account Info Card
                         CardView {
                             VStack(alignment: .leading, spacing: Spacing.md) {
-                                Text("Account Information")
-                                    .font(.headingSmall)
-                                    .foregroundStyle(AppTheme.textPrimary)
+                                HStack {
+                                    Text("Account Information")
+                                        .font(.headingSmall)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    
+                                    Spacer()
+                                    
+                                    Button {
+                                        editFirstName = auth.firstNameInput
+                                        editLastName = auth.lastNameInput
+                                        editEmail = auth.userEmail ?? ""
+                                        showingEditProfile = true
+                                    } label: {
+                                        Text("Edit")
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.primary)
+                                    }
+                                }
                                 
                                 VStack(spacing: Spacing.sm) {
                                     InfoRow(label: "Name", value: trainerName)
@@ -340,8 +361,107 @@ struct MoreView: View {
             .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showingEditProfile) {
+                NavigationStack {
+                    Form {
+                        Section {
+                            TextField("First Name", text: $editFirstName)
+                                .textContentType(.givenName)
+                                .autocapitalization(.words)
+                            
+                            TextField("Last Name", text: $editLastName)
+                                .textContentType(.familyName)
+                                .autocapitalization(.words)
+                            
+                            TextField("Email", text: $editEmail)
+                                .textContentType(.emailAddress)
+                                .keyboardType(.emailAddress)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                        } header: {
+                            Text("Profile Information")
+                        } footer: {
+                            Text("Changes to your email will require re-authentication")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        if let error = profileError {
+                            Section {
+                                Text(error)
+                                    .foregroundStyle(.red)
+                                    .font(.caption)
+                            }
+                        }
+                    }
+                    .navigationTitle("Edit Profile")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                showingEditProfile = false
+                                profileError = nil
+                            }
+                        }
+                        
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Save") {
+                                Task { await saveProfile() }
+                            }
+                            .disabled(isSavingProfile || editFirstName.isEmpty || editLastName.isEmpty || editEmail.isEmpty)
+                        }
+                    }
+                }
+            }
         }
         .navigationViewStyle(.stack)
+    }
+    
+    private func saveProfile() async {
+        isSavingProfile = true
+        profileError = nil
+        
+        do {
+            guard let userId = auth.userId else {
+                profileError = "No user ID found"
+                isSavingProfile = false
+                return
+            }
+            
+            // Update trainer document in Firestore
+            try await Firestore.firestore()
+                .collection("trainers")
+                .document(userId)
+                .updateData([
+                    "firstName": editFirstName,
+                    "lastName": editLastName,
+                    "email": editEmail
+                ])
+            
+            // Update email in Firebase Auth if changed
+            if editEmail != auth.userEmail {
+                if let user = Auth.auth().currentUser {
+                    try await user.updateEmail(to: editEmail)
+                }
+            }
+            
+            // Update auth manager state
+            await MainActor.run {
+                auth.firstNameInput = editFirstName
+                auth.lastNameInput = editLastName
+                auth.userFirstName = editFirstName
+                auth.userLastName = editLastName
+                auth.userEmail = editEmail
+                isSavingProfile = false
+                showingEditProfile = false
+            }
+            
+        } catch {
+            await MainActor.run {
+                profileError = error.localizedDescription
+                isSavingProfile = false
+            }
+        }
     }
     
     private var initials: String {

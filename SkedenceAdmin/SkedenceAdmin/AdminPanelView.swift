@@ -864,6 +864,7 @@ struct CreateClassView: View {
     @State private var selectedTrainer: Trainer?
     @State private var isCreating = false
     @State private var errorMessage: String?
+    @State private var showLocationError = false
     
     var body: some View {
         NavigationView {
@@ -922,10 +923,19 @@ struct CreateClassView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
-                        Task { await createClass() }
+                        if locationsService.locations.isEmpty {
+                            showLocationError = true
+                        } else {
+                            Task { await createClass() }
+                        }
                     }
                     .disabled(isCreating || title.isEmpty || description.isEmpty || selectedTrainer == nil || selectedLocation == nil)
                 }
+            }
+            .alert("No Locations Available", isPresented: $showLocationError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("You need to create at least one location before creating a class. Please go to Settings and add a location first.")
             }
             .task {
                 if let orgId = auth.currentOrgId {

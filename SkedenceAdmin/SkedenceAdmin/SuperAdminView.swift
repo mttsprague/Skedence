@@ -212,7 +212,10 @@ struct SuperAdminView: View {
                 }
                 
                 // Stripe Settings
-                NavigationLink(destination: OnboardingStripeView().environmentObject(auth).environmentObject(onboardingCoordinator)) {
+                NavigationLink(destination: OnboardingStripeView()
+                    .environmentObject(auth)
+                    .environmentObject(configureCoordinatorForStripe())
+                ) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Stripe Settings")
@@ -420,6 +423,22 @@ struct SuperAdminView: View {
         await viewModel.loadTrainers(orgId: auth.currentOrgId)
         await viewModel.loadAllUsers()
     }
+    
+    private func configureCoordinatorForStripe() -> OnboardingCoordinator {
+        let coordinator = OnboardingCoordinator()
+        coordinator.orgId = auth.currentOrgId
+        coordinator.userId = auth.userId
+        if let orgId = auth.currentOrgId {
+            // Fetch organization data to populate coordinator
+            Task {
+                if let org = viewModel.organizations.first(where: { $0.id == orgId }) {
+                    coordinator.organizationData["name"] = org.name
+                    coordinator.organizationData["stripeComplete"] = org.stripeAccountId != nil
+                }
+            }
+        }
+        return coordinator
+    }
 }
 
 // MARK: - Organization Card
@@ -427,6 +446,10 @@ struct SuperAdminView: View {
 struct OrganizationCard: View {
     let organization: Organization
     let onTap: () -> Void
+    @State private var showingEditName = false
+    @State private var editedName = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -442,6 +465,16 @@ struct OrganizationCard: View {
                 }
                 
                 Spacer()
+                
+                Button {
+                    editedName = organization.name
+                    showingEditName = true
+                } label: {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppTheme.primary)
+                }
+                .buttonStyle(.plain)
                 
                 StatusBadge(
                     text: organization.subscriptionStatus ?? "unknown",
@@ -460,6 +493,46 @@ struct OrganizationCard: View {
         .cornerRadius(CornerRadius.md)
         .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
         .onTapGesture(perform: onTap)
+        .alert("Edit Organization Name", isPresented: $showingEditName) {
+            TextField("Organization Name", text: $editedName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") {
+                Task {
+                    await saveOrganizationName()
+                }
+            }
+            .disabled(editedName.isEmpty)
+        } message: {
+            if let error = errorMessage {
+                Text(error)
+            } else {
+                Text("Enter a new name for your organization")
+            }
+        }
+    }
+    
+    private func saveOrganizationName() async {
+        guard !editedName.isEmpty, editedName != organization.name else { return }
+        
+        isSaving = true
+        errorMessage = nil
+        
+        do {
+            try await Firestore.firestore()
+                .collection("organizations")
+                .document(organization.id)
+                .updateData(["name": editedName])
+            
+            await MainActor.run {
+                isSaving = false
+                showingEditName = false
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isSaving = false
+            }
+        }
     }
 }
 

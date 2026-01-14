@@ -104,16 +104,35 @@ struct AllTrainersDayView: View {
                 // Header avatar + name (current user)
                 header
 
-                // Week strip (selected day controls which day to load)
-                WeekStrip(
-                    title: scheduleViewModel.weekTitle,
-                    weekDays: scheduleViewModel.weekDays,
-                    selectedDate: $scheduleViewModel.selectedDate,
-                    onPrevWeek: { shiftWeek(by: -1) },
-                    onNextWeek: { shiftWeek(by: 1) }
-                )
-                .padding(.top, 2)
-                .padding(.bottom, 4)
+                // Day navigation controls
+                HStack {
+                    Button {
+                        shiftDay(by: -1)
+                    } label: {
+                        Image(systemName: "chevron.left.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                    
+                    Text(scheduleViewModel.selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    Button {
+                        shiftDay(by: 1)
+                    } label: {
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
 
                 let headerRowHeight = 56.0 // trainer avatar+name header height
                 
@@ -195,6 +214,30 @@ struct AllTrainersDayView: View {
                                         scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
                                     }
                                 }
+                            }
+                        }
+                        
+                        // Current time red line indicator
+                        if Calendar.current.isDateInToday(scheduleViewModel.selectedDate) {
+                            let now = Date()
+                            let comps = Calendar.current.dateComponents([.hour, .minute], from: now)
+                            if let currentHour = comps.hour, let currentMinute = comps.minute,
+                               scheduleViewModel.visibleHours.contains(currentHour) {
+                                let hoursSinceStart = currentHour - scheduleViewModel.visibleHours.first!
+                                let minuteOffset = Double(currentMinute) / 60.0
+                                let totalHourOffset = Double(hoursSinceStart) + minuteOffset
+                                let yPosition = timeColWidth + (headerRowHeight + gridHeaderVPad * 2) + CGFloat(totalHourOffset) * (rowHeight + rowVerticalPadding * 2)
+                                
+                                HStack(spacing: 0) {
+                                    Circle()
+                                        .fill(.red)
+                                        .frame(width: 10, height: 10)
+                                    
+                                    Rectangle()
+                                        .fill(.red)
+                                        .frame(height: 2)
+                                }
+                                .offset(x: timeColWidth, y: yPosition)
                             }
                         }
                     }
@@ -393,6 +436,15 @@ struct AllTrainersDayView: View {
     private func shiftWeek(by delta: Int) {
         let cal = Calendar.current
         if let newDate = cal.date(byAdding: .day, value: 7 * delta, to: scheduleViewModel.selectedDate) {
+            withAnimation(.easeInOut) {
+                scheduleViewModel.selectedDate = newDate
+            }
+        }
+    }
+    
+    private func shiftDay(by delta: Int) {
+        let cal = Calendar.current
+        if let newDate = cal.date(byAdding: .day, value: delta, to: scheduleViewModel.selectedDate) {
             withAnimation(.easeInOut) {
                 scheduleViewModel.selectedDate = newDate
             }
