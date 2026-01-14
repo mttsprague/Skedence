@@ -214,25 +214,26 @@ struct AllTrainersDayView: View {
                                         scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
                                     }
                                 }
+                            } // Close HStack
+                        } // Close ScrollView
+                        } // Close ScrollViewReader
+
+                        // Current time bar positioned by vertical offset
+                        TimelineView(.everyMinute) { context in
+                            if let y = currentTimeYOffset(
+                                for: context.date,
+                                firstHour: scheduleViewModel.visibleHours.first,
+                                rowHeight: rowHeight,
+                                rowVerticalPadding: rowVerticalPadding
+                            ) {
+                                Rectangle()
+                                    .fill(Color.red)
+                                    .frame(height: 2)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .offset(x: 0, y: (headerRowHeight + gridHeaderVPad * 2) + y)
+                                    .accessibilityHidden(true)
                             }
                         }
-
-                    // Current time bar positioned by vertical offset
-                    TimelineView(.everyMinute) { context in
-                        if let y = currentTimeYOffset(
-                            for: context.date,
-                            firstHour: scheduleViewModel.visibleHours.first,
-                            rowHeight: rowHeight,
-                            rowVerticalPadding: rowVerticalPadding
-                        ) {
-                            Rectangle()
-                                .fill(Color.red)
-                                .frame(height: 2)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .offset(x: 0, y: (headerRowHeight + gridHeaderVPad * 2) + y)
-                                .accessibilityHidden(true)
-                        }
-                    }
                     }
                 }
             }
@@ -253,6 +254,9 @@ struct AllTrainersDayView: View {
                         classTitle: className,
                         preloadedParticipants: preloadedParticipants
                     )
+                } else {
+                    // Always return a view to satisfy the ViewBuilder's opaque return type
+                    EmptyView()
                 }
             }
             .task {
