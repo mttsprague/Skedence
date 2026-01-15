@@ -86,6 +86,14 @@ struct AllTrainersDayView: View {
     @State private var selectedClassName: String?
     @State private var preloadedParticipants: [ClassParticipant]?
     @State private var classParticipantsShown: Bool = false
+    
+    // Availability editor for admins
+    private struct EditorContext: Identifiable {
+        let id = UUID()
+        let trainerId: String
+        let hour: Int
+    }
+    @State private var editorContext: EditorContext?
 
     // Layout constants (matching ScheduleView)
     private let rowHeight: CGFloat = 56
@@ -212,6 +220,16 @@ struct AllTrainersDayView: View {
                                                     }
                                                     .frame(width: calculatedTrainerWidth, height: rowHeight)
                                                     .padding(.horizontal, horizontalPaddingPerCell)
+                                                    .contentShape(Rectangle())
+                                                    .onTapGesture {
+                                                        // Allow admins/owners to create availability for any trainer
+                                                        if auth.isAdmin, let trainerId = trainer.id {
+                                                            let slot = viewModel.slotFor(trainerId: trainerId, atHour: hour)
+                                                            if slot == nil {
+                                                                editorContext = EditorContext(trainerId: trainerId, hour: hour)
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                             .padding(.vertical, rowVerticalPadding)
@@ -232,7 +250,7 @@ struct AllTrainersDayView: View {
                         } // Close ScrollView
                         } // Close ScrollViewReader
 
-                        // Current time bar positioned by vertical offset
+                        // Current time bar - uses offset to scroll with content
                         if Calendar.current.isDateInToday(scheduleViewModel.selectedDate) {
                             TimelineView(.everyMinute) { context in
                                 if let y = currentTimeYOffset(
@@ -250,9 +268,8 @@ struct AllTrainersDayView: View {
                                             .frame(height: 2)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .position(x: geometry.size.width / 2 + timeColWidth / 2, y: (headerRowHeight + gridHeaderVPad * 2) + y)
+                                    .offset(x: 0, y: y)
                                     .allowsHitTesting(false)
-                                    .zIndex(999)
                                 }
                             }
                         }
@@ -268,6 +285,23 @@ struct AllTrainersDayView: View {
             }
             .sheet(item: $clientCardContext) { context in
                 ClientCardView(client: context.client, selectedBooking: context.booking)
+            }
+            .sheet(item: $editorContext) { context in
+                // Admin can create availability for any trainer
+                if let orgId = auth.currentOrgId {
+                    let startDate = Calendar.current.date(bySettingHour: context.hour, minute: 0, second: 0, of: scheduleViewModel.selectedDate) ?? scheduleViewModel.selectedDate
+                    AvailabilityEditorSheet(
+                        orgId: orgId,
+                        trainerId: context.trainerId,
+                        initialStart: startDate,
+                        initialEnd: Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate,
+                        onSave: {
+                            Task {
+                                await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
+                            }
+                        }
+                    )
+                }
             }
             .sheet(isPresented: $classParticipantsShown) {
                 if let classId = selectedClassId, let className = selectedClassName {

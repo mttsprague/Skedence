@@ -30,6 +30,14 @@ struct TrainerWeekView: View {
     @State private var preloadedParticipants: [ClassParticipant]?
     @State private var classParticipantsShown: Bool = false
     
+    // Availability editor for admins
+    private struct EditorContext: Identifiable {
+        let id = UUID()
+        let day: Date
+        let hour: Int
+    }
+    @State private var editorContext: EditorContext?
+    
     // Layout constants (matching ScheduleView)
     private let rowHeight: CGFloat = 56
     private let rowVerticalPadding: CGFloat = 1
@@ -96,12 +104,31 @@ struct TrainerWeekView: View {
                                                     rowHeight: rowHeight,
                                                     horizontalPadding: 2,
                                                     isToday: isToday,
-                                                    onEmptyTap: {},
+                                                    onEmptyTap: {
+                                                        // Allow admins to create availability for this trainer
+                                                        if auth.isAdmin {
+                                                            editorContext = EditorContext(day: day, hour: hour)
+                                                        }
+                                                    },
                                                     onSlotTap: { slot in
                                                         handleSlotTap(slot, defaultDay: day, defaultHour: hour)
                                                     },
-                                                    onSetStatus: { _ in },
-                                                    onClear: {}
+                                                    onSetStatus: { status in
+                                                        // Allow admins to set status for this trainer's slots
+                                                        if auth.isAdmin {
+                                                            Task {
+                                                                await setSlotStatus(on: day, hour: hour, status: status)
+                                                            }
+                                                        }
+                                                    },
+                                                    onClear: {
+                                                        // Allow admins to clear slots for this trainer
+                                                        if auth.isAdmin {
+                                                            Task {
+                                                                await clearSlot(on: day, hour: hour)
+                                                            }
+                                                        }
+                                                    }
                                                 )
                                                 .padding(.vertical, rowVerticalPadding)
                                             }
@@ -149,6 +176,25 @@ struct TrainerWeekView: View {
         }
         .sheet(item: $clientCardContext) { context in
             ClientCardView(client: context.client, selectedBooking: context.booking)
+        }
+        .sheet(item: $editorContext) { context in
+            // Admin can create availability for this trainer
+            if let orgId = auth.currentOrgId {
+                let startDate = Calendar.current.date(bySettingHour: context.hour, minute: 0, second: 0, of: context.day) ?? context.day
+                AvailabilityEditorSheet(
+                    orgId: orgId,
+                    trainerId: trainerId,
+                    initialStart: startDate,
+                    initialEnd: Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate,
+                    onSave: {
+                        Task {
+                            if let orgId = auth.currentOrgId {
+                                await trainerViewModel.loadWeek(weekDays: viewModel.weekDays, trainerId: trainerId, orgId: orgId)
+                            }
+                        }
+                    }
+                )
+            }
         }
         .sheet(isPresented: $classParticipantsShown) {
             if let classId = selectedClassId, let className = selectedClassName {
@@ -269,6 +315,56 @@ struct TrainerWeekView: View {
         if let orgId = auth.currentOrgId {
             await trainerViewModel.loadWeek(weekDays: viewModel.weekDays, trainerId: trainerId, orgId: orgId)
         }
+    }
+    
+    // Admin methods for managing other trainer's schedule
+    private func setSlotStatus(on day: Date, hour: Int, status: TrainerScheduleSlot.Status) async {
+        guard auth.isAdmin, let orgId = auth.currentOrgId else { return }
+        
+        let scheduleRepo = ScheduleRepository()
+        let cal = Calendar.current
+        guard let start = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
+              let end = cal.date(byAdding: .hour, value: 1, to: start) else { return }
+        
+        do {
+            try await scheduleRepo.createScheduleSlot(
+                trainerId: trainerId,
+                orgId: orgId,
+                startTime: start,
+                endTime: end,
+                status: status,
+                clientId: nil,
+                clientName: nil,
+                packageType: nil,
+                notes: nil,
+                location: nil
+            )
+            await refreshSchedule()
+        } catch {
+            print("❌ Error setting slot status: \\(error)")
+        }
+    }
+    
+    private func clearSlot(on day: Date, hour: Int) async {
+        guard auth.isAdmin, let orgId = auth.currentOrgId else { return }
+        
+        let scheduleRepo = ScheduleRepository()
+        let cal = Calendar.current
+        guard let cellStart = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
+              let cellEnd = cal.date(byAdding: .hour, value: 1, to: cellStart) else { return }
+        
+        let slots = trainerViewModel.slotsByDay[DateOnly(day)] ?? []
+        let matching = slots.filter { $0.startTime < cellEnd && $0.endTime > cellStart }
+        
+        for slot in matching {
+            do {
+                try await scheduleRepo.deleteScheduleSlot(slotId: slot.id, trainerId: trainerId, orgId: orgId)
+            } catch {
+                print("❌ Error clearing slot: \\(error)")
+            }
+        }
+        
+        await refreshSchedule()
     }
     
     private func scrollToCurrentTime(verticalScrollProxy: ScrollViewProxy) {
