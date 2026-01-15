@@ -71,8 +71,8 @@ struct SetupChecklistView: View {
                 // Checklist Items
                 VStack(spacing: 12) {
                     ChecklistItem(
-                        title: "Connect Stripe",
-                        description: "Required to accept payments",
+                        title: "Add Stripe Keys",
+                        description: "Enter your API keys to accept payments",
                         isComplete: viewModel.progress.hasConnectedStripe,
                         action: { viewModel.navigateToStripeSetup() }
                     )

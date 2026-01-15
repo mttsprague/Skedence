@@ -52,7 +52,7 @@ struct TrialBannerView: View {
                             .font(.headline)
                         
                         if isOwner {
-                            Text("Connect Stripe + publish your booking link to go live")
+                            Text("Add Stripe keys + publish your booking link to go live")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         } else {

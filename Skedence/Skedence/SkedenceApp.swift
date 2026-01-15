@@ -34,7 +34,9 @@ struct SkedenceApp: App {
         #endif
 
         // Stripe publishable key is now loaded dynamically per organization
-        // via the backend (e.g., organization.stripe.publishableKey).
+        // from organizations/{orgId}/stripe/config via direct API key integration.
+        // Each organization provides their own Stripe keys during setup.
+        // The key is set dynamically when creating payment intents.
         // Do not set a global default key here.
         // StripeAPI.defaultPublishableKey = ...
     }

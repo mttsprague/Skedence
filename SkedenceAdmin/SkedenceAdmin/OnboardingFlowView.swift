@@ -47,7 +47,7 @@ struct OnboardingFlowView: View {
                             case .location:
                                 OnboardingLocationView()
                             case .stripeConnect:
-                                OnboardingStripeView()
+                                OnboardingStripeViewDirect()
                             case .packages:
                                 OnboardingPackagesView()
                             case .complete:

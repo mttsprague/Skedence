@@ -32,8 +32,8 @@ final class StripeService: ObservableObject {
         var data: [String: Any]
         
         if let orgId = orgId {
-            // Use Stripe Connect function - routes payment to trainer's account
-            callable = functions.httpsCallable("createPaymentIntentConnect")
+            // Use Stripe Direct function - uses organization's own Stripe keys
+            callable = functions.httpsCallable("createPaymentIntentDirect")
             data = [
                 "orgId": orgId,
                 "packageType": packageType,
@@ -55,11 +55,18 @@ final class StripeService: ObservableObject {
         do {
             let result = try await callable.call(data)
             guard let resultData = result.data as? [String: Any],
-                  let clientSecret = resultData["clientSecret"] as? String,
-                  let paymentIntentId = resultData["paymentIntentId"] as? String else {
+                  let clientSecret = resultData["clientSecret"] as? String else {
                 throw StripeError.invalidResponse
             }
-            self.lastPaymentIntentId = paymentIntentId
+            
+            // Store publishable key if provided (for direct Stripe integration)
+            if let publishableKey = resultData["publishableKey"] as? String {
+                // Use the organization's publishable key for this payment
+                StripeAPI.defaultPublishableKey = publishableKey
+            }
+            
+            // Payment intent ID not returned in direct mode, use client secret
+            self.lastPaymentIntentId = clientSecret.components(separatedBy: "_secret_").first ?? ""
             return clientSecret
         } catch {
             print("Error creating payment intent: \(error)")

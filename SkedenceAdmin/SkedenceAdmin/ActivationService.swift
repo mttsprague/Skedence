@@ -25,7 +25,7 @@ class ActivationService: ObservableObject {
         
         var missingItems: [String] {
             var items: [String] = []
-            if !hasStripe { items.append("Connect Stripe account") }
+            if !hasStripe { items.append("Add your Stripe API keys") }
             if !hasPackages { items.append("Create at least one package") }
             if !hasAvailability { items.append("Set your availability") }
             return items

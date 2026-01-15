@@ -17,6 +17,9 @@ export * from "./stripe";
 // Export Stripe Connect functions (multi-tenant)
 export * from "./stripe-connect";
 
+// Export Stripe Direct functions (organization's own keys)
+export * from "./stripe-direct";
+
 // Export billing/subscription functions
 export * from "./billing";
 

@@ -59,7 +59,7 @@ struct ActivationRequiredView: View {
                     .padding(.bottom, 4)
                 
                 ActivationCheckItem(
-                    title: "Connect Stripe",
+                    title: "Add Stripe Keys",
                     isComplete: activationStatus.hasStripe,
                     icon: "creditcard.fill"
                 )

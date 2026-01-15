@@ -212,7 +212,7 @@ struct SuperAdminView: View {
                 }
                 
                 // Stripe Settings
-                NavigationLink(destination: StripeSettingsView()
+                NavigationLink(destination: StripeSettingsViewDirect()
                     .environmentObject(auth)
                 ) {
                     HStack {

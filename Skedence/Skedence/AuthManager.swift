@@ -252,9 +252,17 @@ final class AuthManager: ObservableObject {
                 }
             }
             
-            // Load Stripe publishable key
-            if let stripe = orgData["stripe"] as? [String: Any],
-               let pubKey = stripe["publishableKey"] as? String, !pubKey.isEmpty {
+            // Load Stripe publishable key from new direct integration structure
+            // Keys are now stored at organizations/{orgId}/stripe/config
+            let stripeDoc = try await Firestore.firestore()
+                .collection("organizations")
+                .document(orgId)
+                .collection("stripe")
+                .document("config")
+                .getDocument()
+            
+            if let stripeData = stripeDoc.data(),
+               let pubKey = stripeData["publishableKey"] as? String, !pubKey.isEmpty {
                 stripePublishableKey = pubKey
                 print("AuthManager: Loaded Stripe publishable key")
             }
