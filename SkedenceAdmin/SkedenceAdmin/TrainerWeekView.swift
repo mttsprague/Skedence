@@ -69,102 +69,40 @@ struct TrainerWeekView: View {
                 let availableWidth = geometry.size.width - timeColWidth - totalHorizontalPadding
                 let calculatedDayWidth = max(10, availableWidth / 7)
                 
-                ZStack(alignment: .topLeading) {
-                    ScrollViewReader { verticalScrollProxy in
-                        ScrollView(.vertical, showsIndicators: true) {
-                            HStack(spacing: 0) {
-                                // Time column
-                                VStack(spacing: 0) {
-                                    ForEach(viewModel.visibleHours, id: \.self) { hour in
-                                        Text(hourLabel(hour))
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                            .frame(maxWidth: .infinity, alignment: .trailing)
-                                            .padding(.trailing, 6)
-                                            .frame(height: rowHeight)
-                                            .background(Color(UIColor.systemGray6))
-                                            .padding(.vertical, rowVerticalPadding)
-                                            .id("hour-\(hour)")
-                                    }
-                                }
-                                .frame(width: timeColWidth)
-                                .background(Color(UIColor.systemGray6))
-                                
-                                // Days grid
-                                HStack(spacing: columnSpacing) {
-                                    ForEach(viewModel.weekDays, id: \.self) { day in
-                                        let isToday = Calendar.current.isDateInToday(day)
-                                        VStack(spacing: 0) {
-                                            ForEach(viewModel.visibleHours, id: \.self) { hour in
-                                                HourDayCell(
-                                                    day: day,
-                                                    hour: hour,
-                                                    slotsForDay: trainerViewModel.slotsByDay[DateOnly(day)] ?? [],
-                                                    dayColumnWidth: calculatedDayWidth,
-                                                    rowHeight: rowHeight,
-                                                    horizontalPadding: 2,
-                                                    isToday: isToday,
-                                                    onEmptyTap: {
-                                                        // Allow admins to create availability for this trainer
-                                                        if auth.isAdmin {
-                                                            editorContext = EditorContext(day: day, hour: hour)
-                                                        }
-                                                    },
-                                                    onSlotTap: { slot in
-                                                        handleSlotTap(slot, defaultDay: day, defaultHour: hour)
-                                                    },
-                                                    onSetStatus: { status in
-                                                        // Allow admins to set status for this trainer's slots
-                                                        if auth.isAdmin {
-                                                            Task {
-                                                                await setSlotStatus(on: day, hour: hour, status: status)
-                                                            }
-                                                        }
-                                                    },
-                                                    onClear: {
-                                                        // Allow admins to clear slots for this trainer
-                                                        if auth.isAdmin {
-                                                            Task {
-                                                                await clearSlot(on: day, hour: hour)
-                                                            }
-                                                        }
-                                                    }
-                                                )
-                                                .padding(.vertical, rowVerticalPadding)
-                                            }
-                                        }
-                                        .background(isToday ? Color.blue.opacity(0.08) : Color.clear)
-                                    }
-                                }
-                                .padding(.bottom, 8)
+                ScheduleGridView(
+                    weekDays: viewModel.weekDays,
+                    visibleHours: viewModel.visibleHours,
+                    slotsByDay: trainerViewModel.slotsByDay,
+                    isAdmin: auth.isAdmin,
+                    timeColWidth: timeColWidth,
+                    rowHeight: rowHeight,
+                    rowVerticalPadding: rowVerticalPadding,
+                    columnSpacing: columnSpacing,
+                    dayColumnWidth: calculatedDayWidth,
+                    hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
+                    onEmptyTap: { day, hour in
+                        if auth.isAdmin {
+                            editorContext = EditorContext(day: day, hour: hour)
+                        }
+                    },
+                    onSlotTap: { slot, day, hour in
+                        handleSlotTap(slot, defaultDay: day, defaultHour: hour)
+                    },
+                    onSetStatus: { day, hour, status in
+                        if auth.isAdmin {
+                            Task {
+                                await setSlotStatus(on: day, hour: hour, status: status)
                             }
                         }
-                        .background(Color(UIColor.systemGray6))
-                        .onAppear {
-                            scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
-                        }
-                        .onChange(of: hasScrolledToCurrentTime) { _, newValue in
-                            if !newValue {
-                                scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
+                    },
+                    onClear: { day, hour in
+                        if auth.isAdmin {
+                            Task {
+                                await clearSlot(on: day, hour: hour)
                             }
                         }
                     }
-                    
-                    // Current time indicator
-                    TimelineView(.everyMinute) { context in
-                        if let y = currentTimeYOffset(for: context.date,
-                                                      firstHour: viewModel.visibleHours.first,
-                                                      rowHeight: rowHeight,
-                                                      rowVerticalPadding: rowVerticalPadding) {
-                            Rectangle()
-                                .fill(Color.red)
-                                .frame(height: 2)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .offset(x: 0, y: y)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                }
+                )
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -179,22 +117,73 @@ struct TrainerWeekView: View {
         }
         .sheet(item: $editorContext) { context in
             // Admin can create availability for this trainer
-            if let orgId = auth.currentOrgId {
-                let startDate = Calendar.current.date(bySettingHour: context.hour, minute: 0, second: 0, of: context.day) ?? context.day
-                AvailabilityEditorSheet(
-                    orgId: orgId,
-                    trainerId: trainerId,
-                    initialStart: startDate,
-                    initialEnd: Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate,
-                    onSave: {
-                        Task {
-                            if let orgId = auth.currentOrgId {
-                                await trainerViewModel.loadWeek(weekDays: viewModel.weekDays, trainerId: trainerId, orgId: orgId)
+            AvailabilityEditorSheet(
+                defaultDay: context.day,
+                defaultHour: context.hour,
+                isAdmin: auth.isAdmin,
+                editingTrainerId: trainerId,
+                orgId: auth.currentOrgId,
+                onSaveSingle: { day, start, end, status, applyToAll, location in
+                    Task {
+                        if applyToAll && status == .unavailable {
+                            await viewModel.setCustomSlotForAllTrainers(on: day, startTime: start, endTime: end, status: status, location: location)
+                        } else {
+                            guard let orgId = auth.currentOrgId else { return }
+                            do {
+                                try await ScheduleRepository().upsertSlot(
+                                    trainerId: trainerId,
+                                    orgId: orgId,
+                                    startTime: start,
+                                    endTime: end,
+                                    status: status,
+                                    location: location
+                                )
+                            } catch {
+                                print("❌ Error upserting slot: \(error)")
                             }
                         }
+                        await refreshSchedule()
                     }
-                )
-            }
+                },
+                onSaveOngoing: { startDate, endDate, dailyStartHour, dailyEndHour, slotDurationMinutes, daysOfWeek, status, applyToAll, location in
+                    Task {
+                        if applyToAll && status == .unavailable {
+                            await viewModel.openAvailabilityForAllTrainers(
+                                start: startDate,
+                                end: endDate,
+                                dailyStartHour: dailyStartHour,
+                                dailyEndHour: dailyEndHour,
+                                slotDurationMinutes: slotDurationMinutes,
+                                selectedDaysOfWeek: daysOfWeek,
+                                status: status,
+                                location: location
+                            )
+                        } else {
+                            await viewModel.openAvailability(
+                                start: startDate,
+                                end: endDate,
+                                dailyStartHour: dailyStartHour,
+                                dailyEndHour: dailyEndHour,
+                                slotDurationMinutes: slotDurationMinutes,
+                                selectedDaysOfWeek: daysOfWeek,
+                                status: status,
+                                location: location
+                            )
+                        }
+                        await refreshSchedule()
+                    }
+                },
+                onBookLesson: { clientId, startInterval, endInterval, packageId in
+                    Task {
+                        let start = Date(timeIntervalSinceReferenceDate: startInterval)
+                        let end = Date(timeIntervalSinceReferenceDate: endInterval)
+                        let ok = await viewModel.bookLessonForClient(clientId: clientId, startTime: start, endTime: end, packageId: packageId)
+                        if ok {
+                            await refreshSchedule()
+                        }
+                    }
+                }
+            )
         }
         .sheet(isPresented: $classParticipantsShown) {
             if let classId = selectedClassId, let className = selectedClassName {
@@ -327,26 +316,22 @@ struct TrainerWeekView: View {
               let end = cal.date(byAdding: .hour, value: 1, to: start) else { return }
         
         do {
-            try await scheduleRepo.createScheduleSlot(
+            try await scheduleRepo.upsertSlot(
                 trainerId: trainerId,
                 orgId: orgId,
                 startTime: start,
                 endTime: end,
                 status: status,
-                clientId: nil,
-                clientName: nil,
-                packageType: nil,
-                notes: nil,
                 location: nil
             )
             await refreshSchedule()
         } catch {
-            print("❌ Error setting slot status: \\(error)")
+            print("❌ Error setting slot status: \(error)")
         }
     }
     
     private func clearSlot(on day: Date, hour: Int) async {
-        guard auth.isAdmin, let orgId = auth.currentOrgId else { return }
+        guard auth.isAdmin, auth.currentOrgId != nil else { return }
         
         let scheduleRepo = ScheduleRepository()
         let cal = Calendar.current
@@ -358,47 +343,13 @@ struct TrainerWeekView: View {
         
         for slot in matching {
             do {
-                try await scheduleRepo.deleteScheduleSlot(slotId: slot.id, trainerId: trainerId, orgId: orgId)
+                try await scheduleRepo.deleteSlot(trainerId: trainerId, startTime: slot.startTime)
             } catch {
-                print("❌ Error clearing slot: \\(error)")
+                print("❌ Error clearing slot: \(error)")
             }
         }
         
         await refreshSchedule()
-    }
-    
-    private func scrollToCurrentTime(verticalScrollProxy: ScrollViewProxy) {
-        guard !hasScrolledToCurrentTime else { return }
-        
-        let now = Date()
-        let comps = Calendar.current.dateComponents([.hour], from: now)
-        guard let currentHour = comps.hour else { return }
-        
-        // Scroll to the current hour, centered
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.easeInOut(duration: 0.5)) {
-                verticalScrollProxy.scrollTo("hour-\(currentHour)", anchor: .center)
-            }
-            hasScrolledToCurrentTime = true
-        }
-    }
-    
-    private func hourLabel(_ hour: Int) -> String {
-        let h = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour)
-        let suffix = (hour < 12 || hour == 24) ? "am" : "pm"
-        return "\(h)\(suffix)"
-    }
-    
-    private func currentTimeYOffset(for now: Date, firstHour: Int?, rowHeight: CGFloat, rowVerticalPadding: CGFloat) -> CGFloat? {
-        guard let firstHour = firstHour else { return nil }
-        let cal = Calendar.current
-        let hour = cal.component(.hour, from: now)
-        let minute = cal.component(.minute, from: now)
-        let hoursFromStart = hour - firstHour
-        guard hoursFromStart >= 0 else { return nil }
-        let totalRowHeight = rowHeight + rowVerticalPadding * 2
-        let fractionOfHour = CGFloat(minute) / 60.0
-        return CGFloat(hoursFromStart) * totalRowHeight + fractionOfHour * totalRowHeight
     }
     
     private func handleSlotTap(_ slot: TrainerScheduleSlot, defaultDay: Date, defaultHour: Int) {
@@ -521,6 +472,146 @@ struct TrainerWeekView: View {
                 registeredAt: timestamp.dateValue()
             )
         }
+    }
+}
+
+// Extracted grid view to reduce type-checking complexity.
+private struct ScheduleGridView: View {
+    let weekDays: [Date]
+    let visibleHours: [Int]
+    let slotsByDay: [DateOnly: [TrainerScheduleSlot]]
+    let isAdmin: Bool
+    let timeColWidth: CGFloat
+    let rowHeight: CGFloat
+    let rowVerticalPadding: CGFloat
+    let columnSpacing: CGFloat
+    let dayColumnWidth: CGFloat
+    @Binding var hasScrolledToCurrentTime: Bool
+    
+    let onEmptyTap: (Date, Int) -> Void
+    let onSlotTap: (TrainerScheduleSlot, Date, Int) -> Void
+    let onSetStatus: (Date, Int, TrainerScheduleSlot.Status) -> Void
+    let onClear: (Date, Int) -> Void
+    
+    var body: some View {
+        ScrollViewReader { verticalScrollProxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                ZStack(alignment: .topLeading) {
+                    HStack(spacing: 0) {
+                        // Time column
+                        VStack(spacing: 0) {
+                            ForEach(visibleHours, id: \.self) { hour in
+                                Text(hourLabel(hour))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .padding(.trailing, 6)
+                                    .frame(height: rowHeight)
+                                    .background(Color(UIColor.systemGray6))
+                                    .padding(.vertical, rowVerticalPadding)
+                                    .id("hour-\(hour)")
+                            }
+                        }
+                        .frame(width: timeColWidth)
+                        .background(Color(UIColor.systemGray6))
+                        
+                        // Days grid
+                        HStack(spacing: columnSpacing) {
+                            ForEach(weekDays, id: \.self) { day in
+                                let isToday = Calendar.current.isDateInToday(day)
+                                VStack(spacing: 0) {
+                                    ForEach(visibleHours, id: \.self) { hour in
+                                        HourDayCell(
+                                            day: day,
+                                            hour: hour,
+                                            slotsForDay: slotsByDay[DateOnly(day)] ?? [],
+                                            dayColumnWidth: dayColumnWidth,
+                                            rowHeight: rowHeight,
+                                            horizontalPadding: 2,
+                                            isToday: isToday,
+                                            onEmptyTap: {
+                                                onEmptyTap(day, hour)
+                                            },
+                                            onSlotTap: { slot in
+                                                onSlotTap(slot, day, hour)
+                                            },
+                                            onSetStatus: { status in
+                                                if isAdmin {
+                                                    onSetStatus(day, hour, status)
+                                                }
+                                            },
+                                            onClear: {
+                                                if isAdmin {
+                                                    onClear(day, hour)
+                                                }
+                                            }
+                                        )
+                                        .padding(.vertical, rowVerticalPadding)
+                                    }
+                                }
+                                .background(isToday ? Color.blue.opacity(0.08) : Color.clear)
+                            }
+                        }
+                        .padding(.bottom, 8)
+                    }
+                    
+                    // Current time indicator - scrolls WITH content at the time position
+                    TimelineView(.everyMinute) { context in
+                        if let y = currentTimeYOffset(for: context.date,
+                                                      firstHour: visibleHours.first,
+                                                      rowHeight: rowHeight,
+                                                      rowVerticalPadding: rowVerticalPadding) {
+                            Rectangle()
+                                .fill(Color.red)
+                                .frame(height: 2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .offset(x: 0, y: y)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                }
+            }
+            .background(Color(UIColor.systemGray6))
+            .onAppear {
+                scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
+            }
+            .onChange(of: hasScrolledToCurrentTime) { _, newValue in
+                if !newValue {
+                    scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
+                }
+            }
+        }
+    }
+    
+    private func hourLabel(_ hour: Int) -> String {
+        let h = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour)
+        let suffix = (hour < 12 || hour == 24) ? "am" : "pm"
+        return "\(h)\(suffix)"
+    }
+    
+    private func scrollToCurrentTime(verticalScrollProxy: ScrollViewProxy) {
+        guard !hasScrolledToCurrentTime else { return }
+        let now = Date()
+        let comps = Calendar.current.dateComponents([.hour], from: now)
+        guard let currentHour = comps.hour else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                verticalScrollProxy.scrollTo("hour-\(currentHour)", anchor: .center)
+            }
+            hasScrolledToCurrentTime = true
+        }
+    }
+    
+    private func currentTimeYOffset(for now: Date, firstHour: Int?, rowHeight: CGFloat, rowVerticalPadding: CGFloat) -> CGFloat? {
+        guard let firstHour = firstHour else { return nil }
+        let cal = Calendar.current
+        let hour = cal.component(.hour, from: now)
+        let minute = cal.component(.minute, from: now)
+        let hoursFromStart = hour - firstHour
+        guard hoursFromStart >= 0 else { return nil }
+        let totalRowHeight = rowHeight + rowVerticalPadding * 2
+        let fractionOfHour = CGFloat(minute) / 60.0
+        return CGFloat(hoursFromStart) * totalRowHeight + fractionOfHour * totalRowHeight
     }
 }
 

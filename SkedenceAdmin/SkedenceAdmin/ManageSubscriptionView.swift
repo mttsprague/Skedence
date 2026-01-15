@@ -9,6 +9,7 @@
 import SwiftUI
 import FirebaseFunctions
 import FirebaseFirestore
+import Combine
 
 struct ManageSubscriptionView: View {
     @EnvironmentObject var auth: AuthManager

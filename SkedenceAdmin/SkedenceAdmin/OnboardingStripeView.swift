@@ -380,6 +380,14 @@ struct OnboardingStripeView: View {
     func startStripeConnection() {
         guard let orgId = coordinator.orgId else { return }
         
+        // Verify Firebase is configured
+        #if canImport(FirebaseCore)
+        if FirebaseApp.app() == nil {
+            errorMessage = "Firebase is not configured. Please restart the app."
+            return
+        }
+        #endif
+        
         isLoading = true
         errorMessage = nil
         onboardingStep = .connecting
@@ -409,7 +417,13 @@ struct OnboardingStripeView: View {
                 
                 isLoading = false
             } catch {
-                errorMessage = "Failed to connect Stripe: \(error.localizedDescription)"
+                let errorString = error.localizedDescription
+                if errorString.contains("internal") {
+                    errorMessage = "Failed to connect Stripe. Please try again. If the problem persists, check your internet connection."
+                } else {
+                    errorMessage = "Failed to connect Stripe: \(errorString)"
+                }
+                print("❌ Stripe connection error: \(error)")
                 isLoading = false
                 onboardingStep = .intro
             }

@@ -48,5 +48,18 @@
 	<string>UIStatusBarStyleDefault</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Save QR codes to your photo library for easy sharing with clients</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.skedence.admin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>skedenceadmin</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
