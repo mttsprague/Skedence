@@ -8,6 +8,7 @@
 
 import SwiftUI
 import FirebaseFunctions
+import FirebaseFirestore
 
 struct ManageSubscriptionView: View {
     @EnvironmentObject var auth: AuthManager
@@ -27,6 +28,7 @@ struct ManageSubscriptionView: View {
     @State private var isProcessing = false
     @State private var selectedPlanForUpgrade: String?
     @StateObject private var enforcement = SubscriptionEnforcementService()
+    @StateObject private var billingListener = BillingListener()
     
     var body: some View {
         NavigationStack {
@@ -198,9 +200,27 @@ struct ManageSubscriptionView: View {
             }
             .task {
                 await loadBillingStatus()
+                billingListener.startListening(orgId: orgId) { billing in
+                    if let plan = billing["plan"] as? String {
+                        currentPlan = plan
+                    }
+                    if let billingStatus = billing["status"] as? String {
+                        status = billingStatus
+                    }
+                    if let cancel = billing["cancelAtPeriodEnd"] as? Bool {
+                        cancelAtPeriodEnd = cancel
+                    }
+                    if let timestamp = billing["currentPeriodEnd"] as? Timestamp {
+                        currentPeriodEnd = timestamp.dateValue()
+                    }
+                    print("🔄 Subscription updated in realtime: plan=\(currentPlan), status=\(status)")
+                }
             }
             .refreshable {
                 await loadBillingStatus()
+            }
+            .onDisappear {
+                billingListener.stopListening()
             }
         }
     }
@@ -543,4 +563,35 @@ private struct PlanCard: View {
 #Preview {
     ManageSubscriptionView(orgId: "test_org_123")
         .environmentObject(AuthManager())
+}
+
+// MARK: - Billing Listener
+
+class BillingListener: ObservableObject {
+    private var listener: ListenerRegistration?
+    
+    func startListening(orgId: String, onChange: @escaping ([String: Any]) -> Void) {
+        let db = Firestore.firestore()
+        
+        listener = db.collection("organizations").document(orgId).addSnapshotListener { snapshot, error in
+            guard let data = snapshot?.data(),
+                  let billing = data["billing"] as? [String: Any] else {
+                print("⚠️ No billing data in realtime update")
+                return
+            }
+            
+            DispatchQueue.main.async {
+                onChange(billing)
+            }
+        }
+    }
+    
+    func stopListening() {
+        listener?.remove()
+        listener = nil
+    }
+    
+    deinit {
+        stopListening()
+    }
 }
