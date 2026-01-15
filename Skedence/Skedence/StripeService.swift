@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import FirebaseAuth
 import FirebaseFunctions
+import Stripe
 
 @MainActor
 final class StripeService: ObservableObject {
@@ -62,7 +63,7 @@ final class StripeService: ObservableObject {
             // Store publishable key if provided (for direct Stripe integration)
             if let publishableKey = resultData["publishableKey"] as? String {
                 // Use the organization's publishable key for this payment
-                StripeAPI.defaultPublishableKey = publishableKey
+                STPAPIClient.shared.publishableKey = publishableKey
             }
             
             // Payment intent ID not returned in direct mode, use client secret
