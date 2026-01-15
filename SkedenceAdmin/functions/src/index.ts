@@ -20,6 +20,9 @@ export * from "./stripe-connect";
 // Export billing/subscription functions
 export * from "./billing";
 
+// Export Stripe Connect webhook
+export * from "./stripe-connect-webhook";
+
 // Export quota and rate limiting functions
 export * from "./quotas";
 
