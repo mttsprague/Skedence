@@ -39,43 +39,42 @@ struct SkedenceAdminApp: App {
 
     var body: some Scene {
         WindowGroup {
-            // Show onboarding if not authenticated OR if authenticated but onboarding not complete
-            if !auth.isAuthenticated {
-                OnboardingLandingView()
-                    .environmentObject(auth)
-                    .environmentObject(onboardingCoordinator)
-                    .onAppear {
-                        // Reset coordinator when returning to landing (logged out state)
-                        onboardingCoordinator.currentStep = .account
-                        onboardingCoordinator.orgId = nil
-                        onboardingCoordinator.userId = nil
-                        onboardingCoordinator.organizationData = [:]
-                    }
-            } else if auth.isAuthenticated && !auth.onboardingComplete {
-                // User is authenticated but hasn't finished onboarding
-                // Show the onboarding flow which will handle both new and returning incomplete users
-                OnboardingFlowView()
-                    .environmentObject(auth)
-                    .environmentObject(onboardingCoordinator)
-            } else {
-                ContentViewWrapper()
-                    .environmentObject(auth)
-                    .environmentObject(subscriptionStatus)
-                    .task {
-                        // Monitor subscription status after auth
-                        if let orgId = auth.currentOrgId {
-                            subscriptionStatus.monitorOrgStatus(organizationId: orgId)
+            Group {
+                // Show onboarding if not authenticated OR if authenticated but onboarding not complete
+                if !auth.isAuthenticated {
+                    OnboardingLandingView()
+                        .environmentObject(auth)
+                        .environmentObject(onboardingCoordinator)
+                        .onAppear {
+                            // Reset coordinator when returning to landing (logged out state)
+                            onboardingCoordinator.currentStep = .account
+                            onboardingCoordinator.orgId = nil
+                            onboardingCoordinator.userId = nil
+                            onboardingCoordinator.organizationData = [:]
                         }
-                    }
-                    .onOpenURL { url in
-                        handleDeepLink(url)
-                    }
+                } else if auth.isAuthenticated && !auth.onboardingComplete {
+                    // User is authenticated but hasn't finished onboarding
+                    // Show the onboarding flow which will handle both new and returning incomplete users
+                    OnboardingFlowView()
+                        .environmentObject(auth)
+                        .environmentObject(onboardingCoordinator)
+                } else {
+                    ContentViewWrapper()
+                        .environmentObject(auth)
+                        .environmentObject(subscriptionStatus)
+                        .task {
+                            // Monitor subscription status after auth
+                            if let orgId = auth.currentOrgId {
+                                subscriptionStatus.monitorOrgStatus(organizationId: orgId)
+                            }
+                        }
+                }
+            }
+            .onOpenURL { url in
+                handleDeepLink(url)
             }
         }
         .modelContainer(sharedModelContainer)
-        .onOpenURL { url in
-            handleDeepLink(url)
-        }
     }
     
     private func handleDeepLink(_ url: URL) {

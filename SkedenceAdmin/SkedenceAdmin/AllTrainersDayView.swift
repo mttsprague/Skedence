@@ -679,7 +679,7 @@ private struct ScrollableGridContent: View {
                                     .frame(height: rowHeight)
                                     .background(Color(UIColor.systemGray6))
                                     .padding(.vertical, rowVerticalPadding)
-                                    .id(\"hour-\\(hour)\")
+                                    .id("hour-\(hour)")
                             }
                         }
                         .frame(width: timeColWidth)
