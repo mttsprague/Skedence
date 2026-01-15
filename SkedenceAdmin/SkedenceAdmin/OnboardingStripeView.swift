@@ -78,6 +78,16 @@ struct OnboardingStripeView: View {
             .padding(Spacing.lg)
         }
         .background(Color(UIColor.systemBackground))
+        .onAppear {
+            // If we're in the waiting state when view appears, check status
+            // This handles the case where user returns from Stripe via deep link
+            if onboardingStep == .waiting {
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
+                    checkStatus()
+                }
+            }
+        }
     }
     
     // MARK: - Intro Content

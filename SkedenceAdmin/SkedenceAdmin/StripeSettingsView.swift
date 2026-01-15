@@ -79,6 +79,12 @@ struct StripeSettingsView: View {
             .task {
                 await loadStripeConnectStatus()
             }
+            .onAppear {
+                // Refresh status when view appears (handles return from Stripe via deep link)
+                Task {
+                    await loadStripeConnectStatus()
+                }
+            }
         }
     }
     

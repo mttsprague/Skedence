@@ -10,6 +10,7 @@ import SwiftData
 
 #if canImport(FirebaseCore)
 import FirebaseCore
+import FirebaseFunctions
 #endif
 
 @main
@@ -17,6 +18,7 @@ struct SkedenceAdminApp: App {
     @StateObject private var auth = AuthManager()
     @StateObject private var subscriptionStatus = SubscriptionStatusService.shared
     @StateObject private var onboardingCoordinator = OnboardingCoordinator()
+    @State private var stripeConnectCompleted = false
 
     init() {
         configureFirebaseIfAvailable()
@@ -65,9 +67,41 @@ struct SkedenceAdminApp: App {
                             subscriptionStatus.monitorOrgStatus(organizationId: orgId)
                         }
                     }
+                    .onOpenURL { url in
+                        handleDeepLink(url)
+                    }
             }
         }
         .modelContainer(sharedModelContainer)
+        .onOpenURL { url in
+            handleDeepLink(url)
+        }
+    }
+    
+    private func handleDeepLink(_ url: URL) {
+        // Handle Stripe Connect completion
+        if url.scheme == "skedenceadmin" && url.host == "stripe-connect" {
+            if url.pathComponents.contains("complete") {
+                // Notify that Stripe Connect was completed
+                stripeConnectCompleted = true
+                
+                // Trigger a refresh of Stripe status
+                if let orgId = auth.currentOrgId {
+                    Task {
+                        do {
+                            #if canImport(FirebaseCore)
+                            let functions = Functions.functions()
+                            let callable = functions.httpsCallable("refreshConnectAccountStatus")
+                            _ = try await callable.call(["orgId": orgId])
+                            print("✅ Stripe Connect status refreshed after return")
+                            #endif
+                        } catch {
+                            print("⚠️ Failed to refresh Stripe status: \(error)")
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

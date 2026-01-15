@@ -37,6 +37,10 @@
       {
         "source": "/checkout-cancel",
         "destination": "/checkout-cancel.html"
+      },
+      {
+        "source": "/stripe-redirect",
+        "destination": "/stripe-redirect.html"
       }
     ]
   }

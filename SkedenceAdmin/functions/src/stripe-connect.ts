@@ -173,12 +173,13 @@ export const createConnectAccountLink = functions.https.onCall(
       }
 
       // Create account link for onboarding
-      // Note: Stripe requires HTTPS URLs, not custom URL schemes
-      // Using placeholder URLs - mobile app should handle refreshing on return
+      // After completing onboarding, Stripe redirects to our hosted page
+      // which then redirects to the deep link to return to the app
+      const redirectUrl = `https://polyface-ae6d3.web.app/stripe-redirect?orgId=${orgId}`;
       const accountLink = await stripe.accountLinks.create({
         account: connectAccountId,
-        refresh_url: "https://stripe.com/docs/connect",
-        return_url: "https://stripe.com/docs/connect",
+        refresh_url: redirectUrl,
+        return_url: redirectUrl,
         type: "account_onboarding",
       });
 
