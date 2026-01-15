@@ -173,11 +173,12 @@ export const createConnectAccountLink = functions.https.onCall(
       }
 
       // Create account link for onboarding
-      // Uses deep link scheme to return to iOS app after Stripe onboarding
+      // Note: Stripe requires HTTPS URLs, not custom URL schemes
+      // Using placeholder URLs - mobile app should handle refreshing on return
       const accountLink = await stripe.accountLinks.create({
         account: connectAccountId,
-        refresh_url: `skedenceadmin://stripe-connect/refresh?orgId=${orgId}`,
-        return_url: `skedenceadmin://stripe-connect/complete?orgId=${orgId}`,
+        refresh_url: "https://stripe.com/docs/connect",
+        return_url: "https://stripe.com/docs/connect",
         type: "account_onboarding",
       });
 

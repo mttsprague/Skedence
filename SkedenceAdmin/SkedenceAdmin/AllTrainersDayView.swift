@@ -602,49 +602,23 @@ private struct AllTrainersDayGrid: View {
             let availableWidth = geometry.size.width - timeColWidth - totalHorizontalPadding
             let calculatedTrainerWidth = max(40, availableWidth / trainerCount)
 
-            ZStack(alignment: .topLeading) {
-                ScrollableGridContent(
-                    trainers: trainers,
-                    visibleHours: visibleHours,
-                    rowHeight: rowHeight,
-                    rowVerticalPadding: rowVerticalPadding,
-                    timeColWidth: timeColWidth,
-                    columnSpacing: columnSpacing,
-                    gridHeaderVPad: gridHeaderVPad,
-                    headerRowHeight: headerRowHeight,
-                    calculatedTrainerWidth: calculatedTrainerWidth,
-                    horizontalPaddingPerCell: horizontalPaddingPerCell,
-                    hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
-                    slotFor: slotFor,
-                    onSlotTap: onSlotTap,
-                    onEmptyCellTap: onEmptyCellTap
-                )
-
-                // Timeline scrolls WITH content and stays at the current time position (e.g., 5pm line stays at 5pm)
-                if Calendar.current.isDateInToday(selectedDate) {
-                    TimelineView(.everyMinute) { context in
-                        if let y = currentTimeYOffset(
-                            for: context.date,
-                            firstHour: visibleHours.first,
-                            rowHeight: rowHeight,
-                            rowVerticalPadding: rowVerticalPadding,
-                            visibleHours: visibleHours
-                        ) {
-                            HStack(spacing: 0) {
-                                Circle()
-                                    .fill(.red)
-                                    .frame(width: 10, height: 10)
-                                Rectangle()
-                                    .fill(Color.red)
-                                    .frame(height: 2)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .offset(x: 0, y: y + headerRowHeight + gridHeaderVPad)
-                            .allowsHitTesting(false)
-                        }
-                    }
-                }
-            }
+            ScrollableGridContent(
+                trainers: trainers,
+                visibleHours: visibleHours,
+                rowHeight: rowHeight,
+                rowVerticalPadding: rowVerticalPadding,
+                timeColWidth: timeColWidth,
+                columnSpacing: columnSpacing,
+                gridHeaderVPad: gridHeaderVPad,
+                headerRowHeight: headerRowHeight,
+                calculatedTrainerWidth: calculatedTrainerWidth,
+                horizontalPaddingPerCell: horizontalPaddingPerCell,
+                selectedDate: selectedDate,
+                hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
+                slotFor: slotFor,
+                onSlotTap: onSlotTap,
+                onEmptyCellTap: onEmptyCellTap
+            )
         }
     }
 
@@ -679,6 +653,7 @@ private struct ScrollableGridContent: View {
     let headerRowHeight: CGFloat
     let calculatedTrainerWidth: CGFloat
     let horizontalPaddingPerCell: CGFloat
+    let selectedDate: Date
 
     @Binding var hasScrolledToCurrentTime: Bool
 
@@ -689,28 +664,29 @@ private struct ScrollableGridContent: View {
     var body: some View {
         ScrollViewReader { verticalScrollProxy in
             ScrollView(.vertical, showsIndicators: true) {
-                HStack(spacing: 0) {
-                    // Fixed left time column
-                    VStack(spacing: 0) {
-                        Color.clear
-                            .frame(height: headerRowHeight + gridHeaderVPad * 2)
+                ZStack(alignment: .topLeading) {
+                    HStack(spacing: 0) {
+                        // Fixed left time column
+                        VStack(spacing: 0) {
+                            Color.clear
+                                .frame(height: headerRowHeight + gridHeaderVPad * 2)
 
-                        ForEach(visibleHours, id: \.self) { hour in
-                            Text(hourLabel(hour))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .frame(height: rowHeight)
-                                .background(Color(UIColor.systemGray6))
-                                .padding(.vertical, rowVerticalPadding)
-                                .id("hour-\(hour)")
+                            ForEach(visibleHours, id: \.self) { hour in
+                                Text(hourLabel(hour))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .frame(height: rowHeight)
+                                    .background(Color(UIColor.systemGray6))
+                                    .padding(.vertical, rowVerticalPadding)
+                                    .id(\"hour-\\(hour)\")
+                            }
                         }
-                    }
-                    .frame(width: timeColWidth)
-                    .background(Color(UIColor.systemGray6))
+                        .frame(width: timeColWidth)
+                        .background(Color(UIColor.systemGray6))
 
-                    // Right: trainers header + grid
-                    VStack(spacing: 0) {
+                        // Right: trainers header + grid
+                        VStack(spacing: 0) {
                         // Trainer headers
                         HStack(spacing: columnSpacing) {
                             ForEach(trainers) { trainer in
@@ -757,18 +733,57 @@ private struct ScrollableGridContent: View {
                         }
                         .padding(.bottom, 8)
                     }
-                    .background(Color(UIColor.systemGray6))
-                    .onAppear {
-                        scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
-                    }
-                    .onChange(of: hasScrolledToCurrentTime) { _, newValue in
-                        if !newValue {
-                            scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
+                } // Close HStack
+                    
+                // Timeline scrolls WITH content and stays at the current time position (e.g., 5pm line stays at 5pm)
+                if Calendar.current.isDateInToday(selectedDate) {
+                    TimelineView(.everyMinute) { context in
+                        if let y = currentTimeYOffset(
+                            for: context.date,
+                            firstHour: visibleHours.first,
+                            rowHeight: rowHeight,
+                            rowVerticalPadding: rowVerticalPadding,
+                            visibleHours: visibleHours
+                        ) {
+                            HStack(spacing: 0) {
+                                Circle()
+                                    .fill(.red)
+                                    .frame(width: 10, height: 10)
+                                Rectangle()
+                                    .fill(Color.red)
+                                    .frame(height: 2)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .offset(x: 0, y: y + headerRowHeight + gridHeaderVPad)
+                            .allowsHitTesting(false)
                         }
                     }
-                } // Close HStack
+                }
+                } // Close ZStack
+                .background(Color(UIColor.systemGray6))
+                .onAppear {
+                    scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
+                }
+                .onChange(of: hasScrolledToCurrentTime) { _, newValue in
+                    if !newValue {
+                        scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
+                    }
+                }
             } // Close ScrollView
         } // Close ScrollViewReader
+    }
+    
+    private func currentTimeYOffset(for date: Date, firstHour: Int?, rowHeight: CGFloat, rowVerticalPadding: CGFloat, visibleHours: [Int]) -> CGFloat? {
+        guard let firstHour, let lastHour = visibleHours.last else { return nil }
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
+        guard let hour = comps.hour, let minute = comps.minute else { return nil }
+        if hour < firstHour || hour > lastHour + 1 { return nil }
+
+        let perHourHeight = rowHeight + (rowVerticalPadding * 2)
+        let initialTopPadding: CGFloat = rowVerticalPadding
+        let wholeHours = CGFloat(max(0, hour - firstHour))
+        let fraction = CGFloat(min(max(minute, 0), 59)) / 60.0
+        return initialTopPadding + (wholeHours + fraction) * perHourHeight
     }
 
     private func hourLabel(_ hour: Int) -> String {

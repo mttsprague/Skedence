@@ -8,6 +8,7 @@
 import SwiftUI
 import FirebaseFirestore
 import FirebaseFunctions
+import FirebaseCore
 
 struct OnboardingStripeView: View {
     @EnvironmentObject var auth: AuthManager
