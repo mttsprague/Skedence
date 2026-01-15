@@ -20,6 +20,7 @@ module.exports = {
   ignorePatterns: [
     "/lib/**/*", // Ignore built files.
     "/generated/**/*", // Ignore generated files.
+    "/scripts/**/*", // Ignore helper scripts
     "migrate.js", // Ignore migration scripts
     "update-stripe-publishable-key.js", // Ignore Stripe key update script
   ],
