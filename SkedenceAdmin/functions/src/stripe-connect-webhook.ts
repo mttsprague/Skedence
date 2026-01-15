@@ -66,8 +66,11 @@ export const stripeConnectWebhook = functions.https.onRequest(
       }
 
       case "account.application.deauthorized": {
-        const account = event.data.object as Stripe.Account;
-        await handleAccountDeauthorized(account);
+        // The account ID is in previous_attributes for this event
+        const accountId = (event.account as string) || "";
+        if (accountId) {
+          await handleAccountDeauthorized(accountId);
+        }
         break;
       }
 
@@ -95,6 +98,7 @@ export const stripeConnectWebhook = functions.https.onRequest(
 /**
  * Handle account.updated event
  * Updates organization's Stripe Connect status in Firestore
+ * @param {Stripe.Account} account - The Stripe account object
  */
 async function handleAccountUpdated(account: Stripe.Account) {
   console.log(`🔄 Processing account.updated for ${account.id}`);
@@ -134,18 +138,19 @@ async function handleAccountUpdated(account: Stripe.Account) {
 /**
  * Handle account.application.deauthorized event
  * Organization has disconnected their Stripe account
+ * @param {string} accountId - The Stripe account ID
  */
-async function handleAccountDeauthorized(account: Stripe.Account) {
-  console.log(`🔌 Processing account.application.deauthorized for ${account.id}`);
+async function handleAccountDeauthorized(accountId: string) {
+  console.log(`🔌 Processing account.application.deauthorized for ${accountId}`);
 
   // Find organization with this Stripe Connect account ID
   const orgsSnapshot = await db.collection("organizations")
-    .where("stripe.connectAccountId", "==", account.id)
+    .where("stripe.connectAccountId", "==", accountId)
     .limit(1)
     .get();
 
   if (orgsSnapshot.empty) {
-    console.warn(`⚠️ No organization found for account ${account.id}`);
+    console.warn(`⚠️ No organization found for account ${accountId}`);
     return;
   }
 

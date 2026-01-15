@@ -1,6 +1,12 @@
 /**
  * Script to update Stripe publishable key in all organizations
- * Run with: node update-stripe-publishable-key.js
+ * 
+ * SECURITY NOTE: Publishable keys (pk_*) are safe to expose publicly.
+ * They are meant to be embedded in client apps and websites.
+ * Only SECRET keys (sk_*) must be kept private.
+ * 
+ * Usage:
+ *   STRIPE_PUBLISHABLE_KEY="pk_live_..." node update-stripe-publishable-key.js
  */
 
 const admin = require('firebase-admin');
@@ -12,8 +18,14 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-// Your LIVE publishable key
-const LIVE_PUBLISHABLE_KEY = 'pk_live_51SnNeOFIh2MhEffNF7SS0liDja5jF9tha3SnJVAO42OcVDkBVIiTralDrcZplXU7JO4E3lijrDIA31RwIrh2oq2r00HBWB8fTD';
+// Your LIVE publishable key - set via environment variable
+const LIVE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY;
+
+if (!LIVE_PUBLISHABLE_KEY) {
+  console.error('❌ Error: STRIPE_PUBLISHABLE_KEY environment variable not set');
+  console.log('Usage: STRIPE_PUBLISHABLE_KEY="pk_live_..." node update-stripe-publishable-key.js');
+  process.exit(1);
+}
 
 async function updateStripePublishableKey() {
   try {

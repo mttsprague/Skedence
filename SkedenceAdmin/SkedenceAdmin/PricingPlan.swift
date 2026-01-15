@@ -87,7 +87,7 @@ struct PricingPlan: Identifiable, Codable {
             "Client invite links"
         ],
         isPopular: false,
-        stripePriceId: "price_1SnO1V2XPese4Q6CGv0X0Td1"
+        stripePriceId: "price_1SpKItFIh2MhEffNfsBy4HyT"
     )
     
     static let studio = PricingPlan(
@@ -107,7 +107,7 @@ struct PricingPlan: Identifiable, Codable {
             "Branded booking link"
         ],
         isPopular: true,
-        stripePriceId: "price_1SnO4O2XPese4Q6Cxsz7EIsw"
+        stripePriceId: "price_1SpKMkFIh2MhEffNgGdbgMr5"
     )
     
     static let academy = PricingPlan(
@@ -127,7 +127,7 @@ struct PricingPlan: Identifiable, Codable {
             "Priority onboarding support"
         ],
         isPopular: false,
-        stripePriceId: "price_1SnO5p2XPese4Q6C76TJaivf"
+        stripePriceId: "price_1SpKNrFIh2MhEffNqZf64sPA"
     )
     
     static let enterprise = PricingPlan(
@@ -147,7 +147,7 @@ struct PricingPlan: Identifiable, Codable {
             "SLA guarantees"
         ],
         isPopular: false,
-        stripePriceId: "price_1SnO712XPese4Q6CZLdPS2VU"
+        stripePriceId: "price_1SpKOrFIh2MhEffNjU5v5X4P"
     )
     
     static let allPlans = [starter, studio, academy, enterprise]

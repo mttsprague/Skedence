@@ -284,12 +284,12 @@ struct ManageSubscriptionView: View {
         isProcessing = true
         errorMessage = nil
         
-        // Map plan names to Stripe price IDs (TEST MODE)
+        // Map plan names to Stripe price IDs (LIVE MODE)
         let priceIds: [String: String] = [
-            "starter": "price_1SnO1V2XPese4Q6CGv0X0Td1",     // $29/month
-            "studio": "price_1SnO4O2XPese4Q6Cxsz7EIsw",      // $99/month
-            "academy": "price_1SnO5p2XPese4Q6C76TJaivf",     // $249/month
-            "enterprise": "price_1SnO712XPese4Q6CZLdPS2VU"  // $499/month
+            "starter": "price_1SpKItFIh2MhEffNfsBy4HyT",     // $29/month
+            "studio": "price_1SpKMkFIh2MhEffNgGdbgMr5",      // $99/month
+            "academy": "price_1SpKNrFIh2MhEffNqZf64sPA",     // $249/month
+            "enterprise": "price_1SpKOrFIh2MhEffNjU5v5X4P"  // $499/month
         ]
         
         guard let priceId = priceIds[plan] else {

@@ -53,7 +53,8 @@ firebase functions:config:set \
   stripe.academy_price_id="price_LIVE_ACADEMY_ID" \
   stripe.enterprise_price_id="price_LIVE_ENTERPRISE_ID"
 
-# Webhook secret already set (whsec_3VsIYUMlbh9NEAOLSJdQrhjlLduPgHs1)
+# Webhook secret should already be set (obtain from Stripe Dashboard)
+# firebase functions:config:set stripe.webhook_secret="whsec_YOUR_LIVE_WEBHOOK_SECRET"
 
 # Verify configuration
 firebase functions:config:get
