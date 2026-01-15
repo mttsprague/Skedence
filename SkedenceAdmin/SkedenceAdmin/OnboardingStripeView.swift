@@ -278,31 +278,31 @@ struct OnboardingStripeView: View {
                     .padding(.bottom, 4)
                 
                 VStack(alignment: .leading, spacing: 10) {
-                    InstructionStep(
+                    OnboardingInstructionStep(
                         number: 1,
                         text: "Choose one:\n   • \"Sign in\" - if you already have a Stripe account\n   • \"Create account\" - if you're new to Stripe"
                     )
-                    InstructionStep(
+                    OnboardingInstructionStep(
                         number: 2,
                         text: "Enter your business details:\n   • Business name and address\n   • Tax ID (EIN) or SSN\n   • Phone number"
                     )
-                    InstructionStep(
+                    OnboardingInstructionStep(
                         number: 3,
                         text: "Add your bank account:\n   • Account number and routing number\n   • This is where you'll receive payments"
                     )
-                    InstructionStep(
+                    OnboardingInstructionStep(
                         number: 4,
                         text: "Verify your identity:\n   • Upload photo ID if requested\n   • Answer security questions"
                     )
-                    InstructionStep(
+                    OnboardingInstructionStep(
                         number: 5,
                         text: "Review and agree to Stripe's terms"
                     )
-                    InstructionStep(
+                    OnboardingInstructionStep(
                         number: 6,
                         text: "Click \"Done\" or \"Submit\" in Stripe"
                     )
-                    InstructionStep(
+                    OnboardingInstructionStep(
                         number: 7,
                         text: "Come back here and tap \"I've Completed Setup\" below"
                     )
@@ -510,7 +510,7 @@ private struct BenefitRow: View {
 
 // MARK: - Instruction Step
 
-private struct InstructionStep: View {
+private struct OnboardingInstructionStep: View {
     let number: Int
     let text: String
     

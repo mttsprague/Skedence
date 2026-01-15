@@ -127,6 +127,12 @@ service cloud.firestore {
         // Owners and admins can read and update onboarding progress
         allow read, write: if isOrgAdmin(orgId);
       }
+      
+      // Stripe configuration subcollection
+      match /stripe/{docId} {
+        // Only owners and admins can read and update Stripe keys
+        allow read, write: if isOrgAdmin(orgId);
+      }
     }
 
     // =========================================================================
