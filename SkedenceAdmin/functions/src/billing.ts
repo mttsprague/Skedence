@@ -318,20 +318,66 @@ export const stripeWebhook = functions.https.onRequest(
 
     try {
       switch (event.type) {
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const orgId = subscription.metadata.orgId;
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const subscriptionId = session.subscription as string;
+        const orgId = session.metadata?.orgId;
 
-        if (orgId) {
+        if (orgId && subscriptionId) {
+          // Fetch full subscription details
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+          // Map price ID to plan name
+          const priceId = subscription.items.data[0]?.price.id;
+          let planName = "starter";
+          if (priceId === process.env.STRIPE_STUDIO_PRICE_ID) planName = "studio";
+          else if (priceId === process.env.STRIPE_ACADEMY_PRICE_ID) planName = "academy";
+          else if (priceId === process.env.STRIPE_ENTERPRISE_PRICE_ID) planName = "enterprise";
+
           await db.collection("organizations").doc(orgId).update({
+            "billing.subscriptionId": subscriptionId,
+            "billing.customerId": subscription.customer as string,
             "billing.status": subscription.status,
+            "billing.plan": planName,
+            "billing.isActive": subscription.status === "active" || subscription.status === "trialing",
             "billing.currentPeriodEnd": admin.firestore.Timestamp.fromDate(
               new Date(subscription.current_period_end * 1000)
             ),
             "billing.cancelAtPeriodEnd": subscription.cancel_at_period_end,
             "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
           });
+
+          console.log(`✅ Subscription ${subscriptionId} activated for org ${orgId} - Plan: ${planName}`);
+        }
+        break;
+      }
+
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const orgId = subscription.metadata.orgId;
+
+        if (orgId) {
+          // Map price ID to plan name
+          const priceId = subscription.items.data[0]?.price.id;
+          let planName = "starter";
+          if (priceId === process.env.STRIPE_STUDIO_PRICE_ID) planName = "studio";
+          else if (priceId === process.env.STRIPE_ACADEMY_PRICE_ID) planName = "academy";
+          else if (priceId === process.env.STRIPE_ENTERPRISE_PRICE_ID) planName = "enterprise";
+
+          await db.collection("organizations").doc(orgId).update({
+            "billing.status": subscription.status,
+            "billing.plan": planName,
+            "billing.isActive": subscription.status === "active" || subscription.status === "trialing",
+            "billing.currentPeriodEnd": admin.firestore.Timestamp.fromDate(
+              new Date(subscription.current_period_end * 1000)
+            ),
+            "billing.cancelAtPeriodEnd": subscription.cancel_at_period_end,
+            "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          console.log(`✅ Subscription ${subscription.id} ${event.type} for org ${orgId} - Status: ${subscription.status}, Plan: ${planName}`);
         }
         break;
       }
