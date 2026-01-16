@@ -44,21 +44,30 @@ export const adminProcessPayment = functions.https.onCall(
     }
 
     try {
-      // Verify admin access
-      const adminUserDoc = await db
+      // Verify admin access - check orgMembers collection (source of truth)
+      const memberDoc = await db
         .collection("organizations")
         .doc(orgId)
-        .collection("users")
+        .collection("orgMembers")
         .doc(request.auth.uid)
         .get();
 
-      const adminUserData = adminUserDoc.data();
-      if (!adminUserData || (adminUserData.role !== "owner" && adminUserData.role !== "admin")) {
+      const memberData = memberDoc.data();
+      console.log(`🔍 Checking permissions for user ${request.auth.uid} in org ${orgId}:`, {
+        exists: memberDoc.exists,
+        role: memberData?.role,
+        email: memberData?.email,
+      });
+
+      if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
+        console.log(`❌ Permission denied - role: ${memberData?.role || "none"}`);
         throw new functions.https.HttpsError(
           "permission-denied",
           "Only owners and admins can process payments"
         );
       }
+
+      console.log(`✅ Permission granted - user is ${memberData.role}`);
 
       // Get organization's Stripe keys
       const stripeDoc = await db
