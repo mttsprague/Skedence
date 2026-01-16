@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 import FirebaseFirestore
 
 @MainActor
@@ -29,8 +30,20 @@ final class SettingsService: ObservableObject {
                 .document(orgId)
                 .getDocument()
             
-            if doc.exists {
-                self.settings = try doc.data(as: OrgSettings.self)
+            if let data = doc.data() {
+                // Manual decode without FirebaseFirestoreSwift
+                let minBookingHours = data["minBookingHours"] as? Int ?? 4
+                let minCancellationHours = data["minCancellationHours"] as? Int ?? 24
+                let updatedAt = data["updatedAt"] as? Timestamp
+                let storedOrgId = data["orgId"] as? String ?? orgId
+                
+                self.settings = OrgSettings(
+                    id: doc.documentID,
+                    orgId: storedOrgId,
+                    minBookingHours: minBookingHours,
+                    minCancellationHours: minCancellationHours,
+                    updatedAt: updatedAt
+                )
             } else {
                 // Use default settings if none exist
                 self.settings = OrgSettings(orgId: orgId)
@@ -57,3 +70,4 @@ final class SettingsService: ObservableObject {
         return hoursUntilLesson <= Double(settings.minCancellationHours)
     }
 }
+

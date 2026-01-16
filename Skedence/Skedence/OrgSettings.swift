@@ -8,8 +8,8 @@
 import Foundation
 import FirebaseFirestore
 
-struct OrgSettings: Codable, Identifiable {
-    @DocumentID var id: String?
+struct OrgSettings: Identifiable {
+    var id: String?
     var orgId: String
     var minBookingHours: Int  // Minimum hours before lesson that client can book
     var minCancellationHours: Int  // Minimum hours before lesson that client can cancel
@@ -19,12 +19,14 @@ struct OrgSettings: Codable, Identifiable {
         id: String? = nil,
         orgId: String,
         minBookingHours: Int = 4,
-        minCancellationHours: Int = 24
+        minCancellationHours: Int = 24,
+        updatedAt: Timestamp? = Timestamp()
     ) {
         self.id = id
         self.orgId = orgId
         self.minBookingHours = minBookingHours
         self.minCancellationHours = minCancellationHours
-        self.updatedAt = Timestamp()
+        self.updatedAt = updatedAt
     }
 }
+
