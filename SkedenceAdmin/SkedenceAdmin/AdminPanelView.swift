@@ -175,7 +175,7 @@ struct AdminPanelView: View {
                     Text("Settings").tag(AdminTab.settings)
                 }
                 .pickerStyle(.segmented)
-                .padding(.horizontal, Spacing.lg)
+                .padding(.horizontal, Spacing.sm)
                 .padding(.top, Spacing.md)
                 
                 // Content based on tab
