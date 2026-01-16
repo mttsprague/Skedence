@@ -250,12 +250,15 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       }
 
       // Validate amount against organization's pricing
-      const validPackages: { [key: string]: number } = {};
+      const validPackages: { [key: string]: {price: number; lessons: number} } = {};
 
       if (orgData.pricingStructure?.tiers) {
         for (const tier of orgData.pricingStructure.tiers) {
           for (const pkg of tier.packages) {
-            validPackages[pkg.packageType] = pkg.priceInCents;
+            validPackages[pkg.packageType] = {
+              price: pkg.priceInCents,
+              lessons: pkg.lessonCount || 1,
+            };
           }
         }
       } else {
@@ -267,7 +270,10 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
 
         packagesSnapshot.docs.forEach((doc) => {
           const data = doc.data();
-          validPackages[data.packageType] = data.priceInCents;
+          validPackages[data.packageType] = {
+            price: data.priceInCents,
+            lessons: data.lessonCount || 1,
+          };
         });
       }
 
@@ -278,10 +284,10 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         );
       }
 
-      if (amount !== validPackages[packageType]) {
+      if (amount !== validPackages[packageType].price) {
         throw new functions.https.HttpsError(
           "invalid-argument",
-          `Amount mismatch. Expected ${validPackages[packageType]}, got ${amount}`
+          `Amount mismatch. Expected ${validPackages[packageType].price}, got ${amount}`
         );
       }
 
@@ -320,18 +326,8 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       });
 
       if (paymentIntent.status === "succeeded") {
-        // Determine lesson count based on package type
-        const lessonCounts: { [key: string]: number } = {
-          single: 1,
-          five_pack: 5,
-          ten_pack: 10,
-          twenty_pack: 20,
-          two_athlete: 1,
-          three_athlete: 1,
-          class_pass: 1,
-        };
-
-        const totalLessons = lessonCounts[packageType] || 1;
+        // Get lesson count from package definition
+        const totalLessons = validPackages[packageType].lessons;
 
         // Create the lesson package
         const expirationDate = new Date();
@@ -478,18 +474,36 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
         );
       }
 
-      // Determine lesson count based on package type
-      const lessonCounts: { [key: string]: number } = {
-        single: 1,
-        five_pack: 5,
-        ten_pack: 10,
-        twenty_pack: 20,
-        two_athlete: 1,
-        three_athlete: 1,
-        class_pass: 1,
-      };
+      // Fetch organization's package definition to get lesson count
+      const orgDoc = await db.collection("organizations").doc(orgId).get();
+      const orgData = orgDoc.data();
 
-      const totalLessons = lessonCounts[packageType] || 1;
+      let totalLessons = 1; // Default fallback
+
+      if (orgData?.pricingStructure?.tiers) {
+        // Look for the package in pricing structure
+        for (const tier of orgData.pricingStructure.tiers) {
+          const pkg = tier.packages.find((p: any) => p.packageType === packageType);
+          if (pkg) {
+            totalLessons = pkg.lessonCount || 1;
+            break;
+          }
+        }
+      } else {
+        // Fallback: check packages subcollection
+        const packagesSnapshot = await db
+          .collection("organizations")
+          .doc(orgId)
+          .collection("packages")
+          .where("packageType", "==", packageType)
+          .limit(1)
+          .get();
+
+        if (!packagesSnapshot.empty) {
+          const pkgData = packagesSnapshot.docs[0].data();
+          totalLessons = pkgData.lessonCount || 1;
+        }
+      }
 
       // Create the lesson package
       const expirationDate = new Date();

@@ -13,6 +13,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
     var title: String // e.g., "1 Athlete", "2 Athletes", "Small Group"
     var priceInCents: Int // e.g., 8000 = $80.00
     var packageType: String // e.g., "private", "2_athlete", "3_athlete", "class_pass"
+    var lessonCount: Int = 1 // Number of lessons/units in this package (e.g., 1, 5, 10)
     
     /// Formatted price for display (e.g., "$80.00")
     var formattedPrice: String {
@@ -34,7 +35,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, title, priceInCents, packageType
+        case id, title, priceInCents, packageType, lessonCount
     }
 }
 
