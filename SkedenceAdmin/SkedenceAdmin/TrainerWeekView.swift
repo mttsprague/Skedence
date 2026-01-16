@@ -79,6 +79,7 @@ struct TrainerWeekView: View {
                     rowVerticalPadding: rowVerticalPadding,
                     columnSpacing: columnSpacing,
                     dayColumnWidth: calculatedDayWidth,
+                    viewingTrainerId: trainerId,
                     hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
                     onEmptyTap: { day, hour in
                         if auth.isAdmin {
@@ -494,6 +495,7 @@ private struct ScheduleGridView: View {
     let rowVerticalPadding: CGFloat
     let columnSpacing: CGFloat
     let dayColumnWidth: CGFloat
+    let viewingTrainerId: String?
     @Binding var hasScrolledToCurrentTime: Bool
     
     let onEmptyTap: (Date, Int) -> Void
@@ -537,6 +539,7 @@ private struct ScheduleGridView: View {
                                             rowHeight: rowHeight,
                                             horizontalPadding: 2,
                                             isToday: isToday,
+                                            viewingTrainerId: viewingTrainerId,
                                             onEmptyTap: {
                                                 onEmptyTap(day, hour)
                                             },
@@ -632,6 +635,7 @@ private struct HourDayCell: View {
     let rowHeight: CGFloat
     let horizontalPadding: CGFloat
     let isToday: Bool
+    let viewingTrainerId: String?
     let onEmptyTap: () -> Void
     let onSlotTap: (TrainerScheduleSlot) -> Void
     let onSetStatus: (TrainerScheduleSlot.Status) -> Void
@@ -655,7 +659,7 @@ private struct HourDayCell: View {
                 .stroke(Color(UIColor.systemGray3), lineWidth: 0.5)
 
             ForEach(matching) { slot in
-                EventCell(slot: slot)
+                EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onSlotTap(slot)
@@ -693,6 +697,7 @@ private struct HourDayCell: View {
 
 private struct EventCell: View {
     let slot: TrainerScheduleSlot
+    let viewingTrainerId: String?
 
     var body: some View {
         VStack(spacing: 2) {
@@ -705,7 +710,7 @@ private struct EventCell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(slot.visualColor)
+                .fill(slot.visualColor(viewingTrainerId: viewingTrainerId))
         )
     }
 }

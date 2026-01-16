@@ -40,6 +40,12 @@ struct ProcessAvailabilityResult: Decodable {
     let slotsAdded: Int?
 }
 
+struct AdminPaymentResult: Decodable {
+    let clientSecret: String
+    let publishableKey: String
+    let paymentIntentId: String
+}
+
 final class FunctionsService {
     static let shared = FunctionsService()
 
@@ -136,6 +142,50 @@ final class FunctionsService {
             }
             let slotsAdded = dict["slotsAdded"] as? Int
             return ProcessAvailabilityResult(message: message, slotsAdded: slotsAdded)
+        } catch let error as NSError {
+            if error.domain == FunctionsErrorDomain {
+                let code = error.code
+                let message = error.localizedDescription
+                throw FunctionsServiceError.server(code: code, message: message)
+            }
+            throw error
+        }
+        #else
+        throw FunctionsServiceError.notAvailable
+        #endif
+    }
+    
+    func adminProcessPayment(
+        orgId: String,
+        userId: String,
+        amount: Int,
+        description: String,
+        saveCard: Bool
+    ) async throws -> AdminPaymentResult {
+        #if canImport(FirebaseFunctions)
+        guard Auth.auth().currentUser != nil else { throw FunctionsServiceError.unauthenticated }
+        
+        let payload: [String: Any] = [
+            "orgId": orgId,
+            "userId": userId,
+            "amount": amount,
+            "description": description,
+            "saveCard": saveCard
+        ]
+        
+        do {
+            let result = try await functions.httpsCallable("adminProcessPayment").call(payload)
+            guard let dict = result.data as? [String: Any],
+                  let clientSecret = dict["clientSecret"] as? String,
+                  let publishableKey = dict["publishableKey"] as? String,
+                  let paymentIntentId = dict["paymentIntentId"] as? String else {
+                throw FunctionsServiceError.invalidResponse
+            }
+            return AdminPaymentResult(
+                clientSecret: clientSecret,
+                publishableKey: publishableKey,
+                paymentIntentId: paymentIntentId
+            )
         } catch let error as NSError {
             if error.domain == FunctionsErrorDomain {
                 let code = error.code

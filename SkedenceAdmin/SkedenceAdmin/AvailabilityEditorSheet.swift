@@ -110,7 +110,7 @@ struct AvailabilityEditorSheet: View {
                 // Content based on selected main tab
                 if mainTab == .editAvailability {
                     editAvailabilityContent
-                } else {
+                } else if isAdmin {
                     bookLessonContent
                 }
             }

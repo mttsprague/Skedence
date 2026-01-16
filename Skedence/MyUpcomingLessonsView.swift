@@ -14,6 +14,7 @@ struct MyUpcomingLessonsView: View {
     @StateObject private var classesService = ClassesService()
     @StateObject private var cancellationService = CancellationService()
     @StateObject private var packagesService = PackagesService()
+    @StateObject private var settingsService = SettingsService()
     
     @State private var itemToCancel: ScheduleItem?
     @State private var showCancelAlert = false
@@ -60,9 +61,11 @@ struct MyUpcomingLessonsView: View {
         return items.sorted { $0.date < $1.date }
     }    
     private func canCancelItem(_ item: ScheduleItem) -> Bool {
+        // Use org settings for minimum cancellation hours
+        let minHours = settingsService.settings?.minCancellationHours ?? 24
         let now = Date()
-        let twentyFourHoursFromNow = now.addingTimeInterval(24 * 60 * 60)
-        return item.date > twentyFourHoursFromNow
+        let cancellationDeadline = now.addingTimeInterval(Double(minHours) * 60 * 60)
+        return item.date > cancellationDeadline
     }
     var body: some View {
         List {
@@ -84,7 +87,8 @@ struct MyUpcomingLessonsView: View {
                                           itemToCancel = item
                                           showCancelAlert = true
                                       } else {
-                                          cancelError = "Lessons cannot be cancelled within 24 hours of the start time."
+                                          let hours = settingsService.settings?.minCancellationHours ?? 24
+                                          cancelError = "Lessons cannot be cancelled within \(hours) hours of the start time."
                                       }
                                   })
                             .listRowSeparator(.hidden)
@@ -108,7 +112,8 @@ struct MyUpcomingLessonsView: View {
                                           itemToCancel = item
                                           showCancelAlert = true
                                       } else {
-                                          cancelError = "Classes cannot be cancelled within 24 hours of the start time."
+                                          let hours = settingsService.settings?.minCancellationHours ?? 24
+                                          cancelError = "Classes cannot be cancelled within \(hours) hours of the start time."
                                       }
                                   })
                             .listRowSeparator(.hidden)
@@ -132,6 +137,10 @@ struct MyUpcomingLessonsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             guard let orgId = auth.currentOrgId else { return }
+            
+            // Load settings
+            await settingsService.loadSettings(orgId: orgId)
+            
             if trainersService.trainers.isEmpty {
                 await trainersService.loadAll(orgId: orgId)
             }

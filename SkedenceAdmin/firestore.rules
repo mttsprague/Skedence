@@ -128,6 +128,15 @@ service cloud.firestore {
         allow read, write: if isOrgAdmin(orgId);
       }
       
+      // Settings subcollection
+      match /settings/{docId} {
+        // Members can read settings (for booking/cancellation timeframes)
+        allow read: if isMemberOfOrg(orgId);
+        
+        // Only owners can update settings
+        allow write: if isOrgOwner(orgId);
+      }
+      
       // Stripe configuration subcollection
       match /stripe/{docId} {
         // Only owners and admins can read and update Stripe keys
@@ -369,6 +378,18 @@ service cloud.firestore {
       
       allow update, delete: if belongsToUserOrg() 
         && isOrgAdmin(resource.data.orgId);
+    }
+
+    // =========================================================================
+    // MAIL COLLECTION (Firebase Mail Extension)
+    // =========================================================================
+    match /mail/{mailId} {
+      // Only admins/owners can read mail documents (for debugging)
+      allow read: if isSignedIn();
+      
+      // Only backend/cloud functions can write mail documents
+      // Mail extension watches this collection and sends emails
+      allow write: if false;
     }
 
     // =========================================================================

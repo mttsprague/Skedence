@@ -102,21 +102,23 @@ export const sendTrainerInvitation = onDocumentCreated(
         to: emailAddress,
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
-        subject: `You have been invited to ${orgData.name || "Skedence"} by ${ownerName}!`,
-        text: generateInvitationText(
-          fullName,
-          orgData.name || "the organization",
-          role,
-          emailAddress,
-          ownerName
-        ),
-        html: generateInvitationHTML(
-          fullName,
-          orgData.name || "the organization",
-          role,
-          emailAddress,
-          ownerName
-        ),
+        message: {
+          subject: `You have been invited to ${orgData.name || "Skedence"} by ${ownerName}!`,
+          text: generateInvitationText(
+            fullName,
+            orgData.name || "the organization",
+            role,
+            emailAddress,
+            ownerName
+          ),
+          html: generateInvitationHTML(
+            fullName,
+            orgData.name || "the organization",
+            role,
+            emailAddress,
+            ownerName
+          ),
+        },
       };
 
       // Add to mail collection for Firebase email extension
@@ -540,9 +542,11 @@ export const sendOwnerWelcomeEmail = onDocumentCreated(
         to: emailAddress,
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
-        subject: `Welcome to Skedence! 🎉`,
-        text: generateOwnerWelcomeEmailText(fullName, orgName),
-        html: generateOwnerWelcomeEmail(fullName, orgName),
+        message: {
+          subject: `Welcome to Skedence! 🎉`,
+          text: generateOwnerWelcomeEmailText(fullName, orgName),
+          html: generateOwnerWelcomeEmail(fullName, orgName),
+        },
       });
 
       console.log(`✅ Welcome email queued for ${emailAddress}`);

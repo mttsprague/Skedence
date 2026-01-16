@@ -709,7 +709,7 @@ private struct ScrollableGridContent: View {
 
                                             if let trainerId = trainer.id,
                                                let slot = slotFor(trainerId, hour) {
-                                                EventCell(slot: slot)
+                                                EventCell(slot: slot, viewingTrainerId: trainerId)
                                                     .contentShape(Rectangle())
                                                     .onTapGesture {
                                                         onSlotTap(slot)
@@ -858,6 +858,7 @@ private struct TrainerAvatar: View {
 // Local EventCell matching ScheduleView style
 private struct EventCell: View {
     let slot: TrainerScheduleSlot
+    let viewingTrainerId: String?
 
     var body: some View {
         VStack(spacing: 2) {
@@ -870,7 +871,7 @@ private struct EventCell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(slot.visualColor)
+                .fill(slot.visualColor(viewingTrainerId: viewingTrainerId))
         )
     }
 }

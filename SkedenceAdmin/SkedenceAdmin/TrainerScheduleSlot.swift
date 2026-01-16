@@ -57,5 +57,25 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
         case .booked: return .blue
         }
     }
+    
+    // Get visual color with context about which trainer is viewing
+    // For classes, dim the color if the viewing trainer is not running the class
+    func visualColor(viewingTrainerId: String?) -> Color {
+        if isClass {
+            // If viewing trainer is the one running the class, show bright orange
+            // Otherwise, show dimmer orange
+            if let viewingId = viewingTrainerId, viewingId == trainerId {
+                return .orange
+            } else {
+                return .orange.opacity(0.5)
+            }
+        }
+        if isBooked { return .blue }
+        switch status {
+        case .open: return .green
+        case .unavailable: return .red
+        case .booked: return .blue
+        }
+    }
 }
 

@@ -146,21 +146,25 @@ async function sendBookingConfirmation(bookingId: string, booking: any) {
 
   const emailData = {
     to: clientData?.email,
-    subject: EMAIL_TEMPLATES.confirmation.subject
-      .replace("{{trainerName}}", trainerData?.name || "Your Trainer")
-      .replace("{{date}}", formatDate(booking.startTime.toDate())),
-    html: renderTemplate(EMAIL_TEMPLATES.confirmation.body, {
-      clientName: clientData?.name || "there",
-      trainerName: trainerData?.name || "Your Trainer",
-      trainerEmail: trainerData?.email,
-      date: formatDate(booking.startTime.toDate()),
-      time: formatTime(booking.startTime.toDate()),
-      duration: booking.durationMinutes,
-      packageName: booking.lessonPackage,
-      location: booking.location,
-      calendarLink,
-      orgName: orgData?.name || "Skedence",
-    }),
+    from: "Skedence <no-reply@skedence.com>",
+    replyTo: "matt.sprague@skedence.com",
+    message: {
+      subject: EMAIL_TEMPLATES.confirmation.subject
+        .replace("{{trainerName}}", trainerData?.name || "Your Trainer")
+        .replace("{{date}}", formatDate(booking.startTime.toDate())),
+      html: renderTemplate(EMAIL_TEMPLATES.confirmation.body, {
+        clientName: clientData?.name || "there",
+        trainerName: trainerData?.name || "Your Trainer",
+        trainerEmail: trainerData?.email,
+        date: formatDate(booking.startTime.toDate()),
+        time: formatTime(booking.startTime.toDate()),
+        duration: booking.durationMinutes,
+        packageName: booking.lessonPackage,
+        location: booking.location,
+        calendarLink,
+        orgName: orgData?.name || "Skedence",
+      }),
+    },
   };
 
   // Send via your email service (SendGrid, etc.)
@@ -271,25 +275,29 @@ async function sendEmailFromTemplate(bookingId: string, booking: any, template: 
 
   const emailData = {
     to: clientData?.email,
-    subject: renderTemplate(template.subject, {
-      trainerName: trainerData?.name || "Your Trainer",
-      date: formatDate(booking.startTime.toDate()),
-    }),
-    html: renderTemplate(template.body, {
-      clientName: clientData?.name || "there",
-      trainerName: trainerData?.name || "Your Trainer",
-      trainerEmail: trainerData?.email,
-      date: formatDate(booking.startTime.toDate()),
-      time: formatTime(booking.startTime.toDate()),
-      duration: booking.durationMinutes,
-      packageName: booking.lessonPackage,
-      location: booking.location,
-      calendarLink: `https://skedence.app/calendar/${bookingId}.ics`,
-      bookingLink: `https://skedence.app/book/${booking.orgId}`,
-      feedbackLink: `https://skedence.app/feedback/${bookingId}`,
-      orgName: orgData?.name || "Skedence",
-      cancellationHours: orgData?.cancellationPolicy?.hours || 24,
-    }),
+    from: "Skedence <no-reply@skedence.com>",
+    replyTo: "matt.sprague@skedence.com",
+    message: {
+      subject: renderTemplate(template.subject, {
+        trainerName: trainerData?.name || "Your Trainer",
+        date: formatDate(booking.startTime.toDate()),
+      }),
+      html: renderTemplate(template.body, {
+        clientName: clientData?.name || "there",
+        trainerName: trainerData?.name || "Your Trainer",
+        trainerEmail: trainerData?.email,
+        date: formatDate(booking.startTime.toDate()),
+        time: formatTime(booking.startTime.toDate()),
+        duration: booking.durationMinutes,
+        packageName: booking.lessonPackage,
+        location: booking.location,
+        calendarLink: `https://skedence.app/calendar/${bookingId}.ics`,
+        bookingLink: `https://skedence.app/book/${booking.orgId}`,
+        feedbackLink: `https://skedence.app/feedback/${bookingId}`,
+        orgName: orgData?.name || "Skedence",
+        cancellationHours: orgData?.cancellationPolicy?.hours || 24,
+      }),
+    },
   };
 
   await admin.firestore().collection("mail").add(emailData);

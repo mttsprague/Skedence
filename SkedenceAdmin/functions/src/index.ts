@@ -41,6 +41,9 @@ export * from "./deleteTrainer";
 // Export confirmation email functions
 export * from "./confirmationEmails";
 
+// Export admin payment functions
+export * from "./admin-payment";
+
 const db = admin.firestore();
 
 /**

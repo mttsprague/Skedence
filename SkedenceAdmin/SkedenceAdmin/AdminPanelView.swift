@@ -38,6 +38,7 @@ struct AdminPanelView: View {
     @State private var locationToEdit: Location?
     @State private var organizationBilling: OrganizationBilling?
     @State private var showingManageSubscription = false
+    @State private var showingProcessPayment = false
     
     enum AdminTab: String, CaseIterable {
         case passes = "Passes"
@@ -45,6 +46,7 @@ struct AdminPanelView: View {
         case locations = "Locations"
         case wallet = "Wallet"
         case pricingStructure = "Pricing Structure"
+        case settings = "Settings"
     }
     
     enum PassAction: String, CaseIterable {
@@ -121,6 +123,12 @@ struct AdminPanelView: View {
                 ManageSubscriptionView(orgId: auth.currentOrgId ?? "")
                     .environmentObject(auth)
             }
+            .sheet(isPresented: $showingProcessPayment) {
+                if let client = selectedClient {
+                    ProcessPaymentView(client: client)
+                        .environmentObject(auth)
+                }
+            }
             .onChangeCompat(of: showingAddLocation) { newValue in
                 if !newValue {
                     locationToEdit = nil
@@ -164,6 +172,7 @@ struct AdminPanelView: View {
                     Text("Locations").tag(AdminTab.locations)
                     Text("Wallet").tag(AdminTab.wallet)
                     Text("Pricing").tag(AdminTab.pricingStructure)
+                    Text("Settings").tag(AdminTab.settings)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, Spacing.lg)
@@ -178,6 +187,8 @@ struct AdminPanelView: View {
                     walletContent
                 } else if tabSelection == .pricingStructure {
                     pricingStructureContent
+                } else if tabSelection == .settings {
+                    settingsContent
                 } else {
                     classesContent
                 }
@@ -546,8 +557,6 @@ struct AdminPanelView: View {
     
     // MARK: - Helper Functions
     
-    // passTypeName function removed - now using dynamic titles directly
-    
     private func addPassToClient() async {
         guard let client = selectedClient else { return }
         
@@ -560,19 +569,16 @@ struct AdminPanelView: View {
                 totalLessons: passQuantity
             )
             
-            // Show success alert
             alertItem = AlertItem(
                 title: "Pass Added",
                 message: "Successfully added \(passQuantity) \(selectedPassTitle)\(passQuantity == 1 ? "" : "s") to \(client.firstName) \(client.lastName)'s account."
             )
             
-            // Reset selections
             selectedClient = nil
             selectedPassType = ""
             selectedPassTitle = ""
             passQuantity = 1
             
-            // Refresh data
             if let orgId = auth.currentOrgId {
                 await adminService.loadAllUsers(orgId: orgId)
             }
@@ -600,20 +606,17 @@ struct AdminPanelView: View {
                 lessonsToRemove: passQuantity
             )
             
-            // Show success alert
             alertItem = AlertItem(
                 title: "Pass Removed",
                 message: "Successfully removed \(passQuantity) pass\(passQuantity == 1 ? "" : "es") from \(client.firstName) \(client.lastName)'s account."
             )
             
-            // Reset selections
             selectedClient = nil
             selectedPassType = ""
             selectedPassTitle = ""
             passQuantity = 1
             passAction = .add
             
-            // Refresh data
             if let orgId = auth.currentOrgId {
                 await adminService.loadAllUsers(orgId: orgId)
             }
@@ -646,7 +649,6 @@ struct AdminPanelView: View {
             
             CardView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
-                    // Client selection
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text("Select Client")
                             .font(.labelMedium)
@@ -687,20 +689,36 @@ struct AdminPanelView: View {
                     if selectedClient != nil {
                         Divider()
                         
-                        Text("Payment processing will be available in the next update.")
-                            .font(.bodyMedium)
-                            .foregroundStyle(AppTheme.textSecondary)
+                        Button {
+                            showingProcessPayment = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Image(systemName: "creditcard.fill")
+                                Text("Process Payment")
+                                    .font(.headingSmall)
+                                    .fontWeight(.semibold)
+                                Spacer()
+                            }
+                            .foregroundStyle(.white)
                             .padding(Spacing.md)
-                            .frame(maxWidth: .infinity, alignment: .center)
                             .background(
-                                RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
-                                    .fill(AppTheme.warning.opacity(0.1))
+                                RoundedRectangle(cornerRadius: CornerRadius.sm, style: .continuous)
+                                    .fill(AppTheme.primary)
                             )
+                        }
                     }
                 }
             }
             .padding(.horizontal, Spacing.lg)
         }
+    }
+    
+    // MARK: - Settings Content
+    
+    private var settingsContent: some View {
+        SettingsView()
+            .environmentObject(auth)
     }
 }
 
@@ -871,7 +889,6 @@ struct CreateClassView: View {
             Form {
                 Section("Class Details") {
                     TextField("Title", text: $title)
-                    // iOS 15-compatible multiline input
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Description")
                             .font(.callout)
@@ -955,7 +972,6 @@ struct CreateClassView: View {
             errorMessage = "Please select a location"
             return
         }
-        // Validate required trainer fields
         guard let trainerId = trainer.id, !trainerId.isEmpty else {
             errorMessage = "Selected trainer is missing ID."
             return
@@ -967,7 +983,6 @@ struct CreateClassView: View {
             return
         }
         
-        // Validate that end time is after start time
         if endDate <= startDate {
             errorMessage = "End time must be after start time"
             return
@@ -1082,7 +1097,6 @@ struct EditClassView: View {
         }
         .navigationViewStyle(.stack)
         .onAppear {
-            // Initialize state with existing class data
             title = classItem.title
             description = classItem.description
             startDate = classItem.startTime
@@ -1090,7 +1104,6 @@ struct EditClassView: View {
             maxParticipants = classItem.maxParticipants
             location = classItem.location
             
-            // Find and select the current trainer
             if let trainer = trainersService.trainers.first(where: { $0.id == classItem.trainerId }) {
                 selectedTrainer = trainer
             }
@@ -1192,7 +1205,6 @@ extension AdminPanelView {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else {
-                // Display current pricing info
                 if let structure = pricingService.pricingStructure {
                     HStack(spacing: Spacing.xs) {
                         Image(systemName: "checkmark.circle.fill")
@@ -1207,7 +1219,6 @@ extension AdminPanelView {
                 
                 tiersEditor
                 
-                // Save button
                 Button {
                     savePricingStructure()
                 } label: {
@@ -1233,16 +1244,11 @@ extension AdminPanelView {
         }
         .task {
             guard let orgId = auth.currentOrgId else { return }
-            print("📋 Loading pricing structure for org: \(orgId)")
             await pricingService.loadPricingStructure(for: orgId)
-            // Initialize editing state
             if let structure = pricingService.pricingStructure {
                 editingTiers = structure.tiers
-                print("✅ Loaded \(structure.tiers.count) tiers with \(structure.allPackages.count) packages")
             } else {
-                // Start with one empty tier
                 editingTiers = [PricingTier(tierName: "", packages: [])]
-                print("⚠️ Starting with empty pricing structure")
             }
         }
     }
@@ -1254,7 +1260,6 @@ extension AdminPanelView {
                     tierCard(tierIndex: tierIndex)
                 }
                 
-                // Add Tier button
                 Button {
                     addTier()
                 } label: {
@@ -1277,7 +1282,6 @@ extension AdminPanelView {
     
     private func tierCard(tierIndex: Int) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            // Tier header with delete button
             HStack {
                 TextField("Tier Name (e.g., Master, Elite, Pro)", text: $editingTiers[tierIndex].tierName)
                     .font(.headline)
@@ -1297,12 +1301,10 @@ extension AdminPanelView {
                 }
             }
             
-            // Packages in this tier
             ForEach(editingTiers[tierIndex].packages.indices, id: \.self) { packageIndex in
                 packageRow(tierIndex: tierIndex, packageIndex: packageIndex)
             }
             
-            // Add Package button
             Button {
                 addPackage(to: tierIndex)
             } label: {
@@ -1327,7 +1329,6 @@ extension AdminPanelView {
     
     private func packageRow(tierIndex: Int, packageIndex: Int) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            // Title label and delete button
             HStack {
                 Text("Package \(packageIndex + 1)")
                     .font(.caption.weight(.semibold))
@@ -1342,7 +1343,6 @@ extension AdminPanelView {
                 }
             }
             
-            // Package title (full width)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Title")
                     .font(.caption2)
@@ -1355,7 +1355,6 @@ extension AdminPanelView {
                     .cornerRadius(CornerRadius.sm)
             }
             
-            // Package Type and Price (side by side)
             HStack(spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Type (use_underscores)")
@@ -1420,7 +1419,6 @@ extension AdminPanelView {
             return
         }
         
-        // Validate
         for (tierIndex, tier) in editingTiers.enumerated() {
             if tier.tierName.isEmpty {
                 alertItem = AlertItem(title: "Validation Error", message: "Tier \(tierIndex + 1) must have a name")
@@ -1439,7 +1437,6 @@ extension AdminPanelView {
                     alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have a package type")
                     return
                 }
-                // Check for spaces in packageType
                 if package.packageType.contains(" ") {
                     alertItem = AlertItem(title: "Validation Error", message: "Package type '\(package.packageType)' cannot contain spaces. Use underscores (_) instead.")
                     return
@@ -1447,22 +1444,16 @@ extension AdminPanelView {
             }
         }
         
-        print("🔄 Saving pricing structure with \(editingTiers.count) tiers to org: \(orgId)")
-        
         isSavingPricing = true
         
         Task {
             do {
                 let structure = PricingStructure(tiers: editingTiers, lastUpdated: Date())
                 try await pricingService.savePricingStructure(structure, for: orgId)
-                
-                print("✅ Pricing structure saved successfully")
                 alertItem = AlertItem(title: "Success ✓", message: "Pricing structure saved successfully. \(editingTiers.flatMap(\.packages).count) packages across \(editingTiers.count) tiers.")
             } catch {
-                print("❌ Error saving pricing structure: \(error)")
                 alertItem = AlertItem(title: "Save Failed", message: "Failed to save: \(error.localizedDescription)")
             }
-            
             isSavingPricing = false
         }
     }
@@ -1471,7 +1462,6 @@ extension AdminPanelView {
     
     private var locationsContent: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
-            // Locations list
             ForEach(Array(locationsService.locations.enumerated()), id: \.element.id) { index, location in
                 LocationCard(
                     location: location,
@@ -1492,7 +1482,6 @@ extension AdminPanelView {
                 .padding(.horizontal, Spacing.lg)
             }
             
-            // Add Location button or upgrade prompt
             if canAddMoreLocations {
                 Button {
                     locationToEdit = nil
@@ -1615,12 +1604,10 @@ private extension View {
                 action(newValue)
             }
         } else {
-            // Route through a helper that is deprecated on iOS 17 to avoid deprecation errors.
             self.onChangePreiOS17(of: value, perform: action)
         }
     }
     
-    // This wrapper is only used to call the pre–iOS 17 signature without surfacing deprecation errors on iOS 17+.
     @available(iOS, introduced: 13.0, deprecated: 17.0)
     func onChangePreiOS17<Value: Equatable>(of value: Value, perform action: @escaping (Value) -> Void) -> some View {
         self.onChange(of: value, perform: action)

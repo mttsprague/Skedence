@@ -169,8 +169,9 @@ async function sendSubscriptionEmail(orgId: string, isTrial: boolean) {
       to: ownerEmail,
       from: "Skedence <no-reply@skedence.com>",
       replyTo: "matt.sprague@skedence.com",
-      subject: subjectText,
-      html: `
+      message: {
+        subject: subjectText,
+        html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #35b3af;">${isTrial ? "Welcome to Your Free Trial!" : "Subscription Confirmed!"}</h2>
           <p>Hi ${ownerName},</p>
@@ -206,6 +207,7 @@ async function sendSubscriptionEmail(orgId: string, isTrial: boolean) {
           <p>Best,<br>The Skedence Team</p>
         </div>
       `,
+      },
     });
 
     console.log(`✅ Subscription confirmation sent to ${ownerEmail}`);

@@ -42,8 +42,9 @@ export const sendBookingConfirmation = onDocumentCreated(
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
-        subject: `✅ Lesson Confirmed with ${trainerName}`,
-        text: `Your Lesson is Confirmed!
+        message: {
+          subject: `✅ Lesson Confirmed with ${trainerName}`,
+          text: `Your Lesson is Confirmed!
 
 Hi ${clientName},
 
@@ -59,7 +60,7 @@ Need to reschedule or cancel? Please contact us at least 24 hours in advance.
 
 See you soon!
 The ${orgName} Team`,
-        html: `
+          html: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -222,6 +223,7 @@ The ${orgName} Team`,
 </body>
 </html>
         `,
+        },
       });
 
       console.log(`✅ Booking confirmation sent to ${clientEmail}`);
@@ -273,8 +275,9 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
-        subject: `✅ Registered for ${className}`,
-        text: `You're Registered!
+        message: {
+          subject: `✅ Registered for ${className}`,
+          text: `You're Registered!
 
 Hi ${clientName},
 
@@ -292,7 +295,7 @@ We're looking forward to seeing you there!
 
 Best,
 The ${orgName} Team`,
-        html: `
+          html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #35b3af;">You're Registered!</h2>
             <p>Hi ${clientName},</p>
@@ -313,6 +316,7 @@ The ${orgName} Team`,
             <p>Best,<br>The ${orgName} Team</p>
           </div>
         `,
+        },
       });
 
       console.log(`✅ Class registration confirmation sent to ${clientEmail}`);
@@ -371,8 +375,9 @@ export const sendSubscriptionConfirmation = onDocumentCreated(
         to: ownerEmail,
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
-        subject,
-        text: `${isTrial ? "Welcome to Your Free Trial!" : "Subscription Confirmed!"}
+        message: {
+          subject,
+          text: `${isTrial ? "Welcome to Your Free Trial!" : "Subscription Confirmed!"}
 
 Hi ${ownerName},
 
@@ -398,7 +403,7 @@ Need help getting started? Reply to this email and we'll be happy to assist!
 
 Best,
 The Skedence Team`,
-        html: `
+          html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #35b3af;">${isTrial ? "Welcome to Your Free Trial!" : "Subscription Confirmed!"}</h2>
             <p>Hi ${ownerName},</p>
@@ -434,6 +439,7 @@ The Skedence Team`,
             <p>Best,<br>The Skedence Team</p>
           </div>
         `,
+        },
       });
 
       console.log(`✅ Subscription confirmation sent to ${ownerEmail}`);

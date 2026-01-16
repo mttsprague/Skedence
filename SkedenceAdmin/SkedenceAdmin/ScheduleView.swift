@@ -506,6 +506,7 @@ struct ScheduleView: View {
                             rowHeight: rowHeight,
                             horizontalPadding: 2,
                             isToday: isToday,
+                            viewingTrainerId: viewModel.editingTrainerId ?? auth.userId,
                             onEmptyTap: {
                                 // Check subscription status before allowing slot creation
                                 if subscriptionStatus.canPerformAction(.createAvailability) {
@@ -556,6 +557,7 @@ struct ScheduleView: View {
         let rowHeight: CGFloat
         let horizontalPadding: CGFloat
         let isToday: Bool
+        let viewingTrainerId: String?
         let onEmptyTap: () -> Void
         let onSlotTap: (TrainerScheduleSlot) -> Void
         let onSetStatus: (TrainerScheduleSlot.Status) -> Void
@@ -580,7 +582,7 @@ struct ScheduleView: View {
                     .stroke(Color(UIColor.systemGray3), lineWidth: 0.5)
 
                 ForEach(matching) { slot in
-                    EventCell(slot: slot)
+                    EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             onSlotTap(slot)
@@ -618,6 +620,7 @@ struct ScheduleView: View {
 
     private struct EventCell: View {
         let slot: TrainerScheduleSlot
+        let viewingTrainerId: String?
 
         var body: some View {
             VStack(spacing: 2) {
@@ -630,7 +633,7 @@ struct ScheduleView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(slot.visualColor)
+                    .fill(slot.visualColor(viewingTrainerId: viewingTrainerId))
             )
         }
     }

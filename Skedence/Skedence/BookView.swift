@@ -19,6 +19,7 @@ struct BookView: View {
     @ObservedObject var usersService: UsersService
     @StateObject private var bookingManager = BookingManager()
     @StateObject private var classesService = ClassesService()
+    @StateObject private var settingsService = SettingsService()
     
     @Binding var initialMode: Int
 
@@ -161,6 +162,10 @@ struct BookView: View {
     
     private func loadInitialData() async {
         guard let orgId = auth.currentOrgId else { return }
+        
+        // Load settings first
+        await settingsService.loadSettings(orgId: orgId)
+        
         if trainersService.trainers.isEmpty {
             await trainersService.loadAll(orgId: orgId)
         }
@@ -508,9 +513,11 @@ struct BookView: View {
     }
     
     private func canBookSlot(_ slot: AvailabilitySlot) -> Bool {
+        // Use org settings for minimum booking hours
+        let minHours = settingsService.settings?.minBookingHours ?? 4
         let now = Date()
-        let fiveHoursFromNow = now.addingTimeInterval(5 * 60 * 60)
-        return slot.startTime > fiveHoursFromNow
+        let minimumBookingTime = now.addingTimeInterval(Double(minHours) * 60 * 60)
+        return slot.startTime > minimumBookingTime
     }
     
     private var bookButtonText: String {
