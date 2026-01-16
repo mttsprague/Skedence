@@ -76,12 +76,14 @@ final class StripeService: ObservableObject {
     }
     
     // Confirm payment and create lesson package
-    func confirmPayment(paymentIntentId: String) async throws {
+    func confirmPayment(paymentIntentId: String, isDirect: Bool = true) async throws {
         guard let userId = Auth.auth().currentUser?.uid else {
             throw StripeError.notAuthenticated
         }
         
-        let callable = functions.httpsCallable("confirmPaymentAndCreatePackage")
+        // Use the appropriate function based on payment type
+        let functionName = isDirect ? "confirmPaymentAndCreatePackageDirect" : "confirmPaymentAndCreatePackage"
+        let callable = functions.httpsCallable(functionName)
         let data: [String: Any] = [
             "paymentIntentId": paymentIntentId,
             "userId": userId

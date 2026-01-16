@@ -466,7 +466,8 @@ struct PurchaseLessonsView: View {
                 
                 do {
                     // Call backend to confirm payment and create package
-                    try await stripeService.confirmPayment(paymentIntentId: paymentIntentId)
+                    // Using direct mode (orgId-based) - set isDirect to true
+                    try await stripeService.confirmPayment(paymentIntentId: paymentIntentId, isDirect: true)
                     
                     // Track package purchase event
                     AnalyticsService.shared.logPackagePurchased(

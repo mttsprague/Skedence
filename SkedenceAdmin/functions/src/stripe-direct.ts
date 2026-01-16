@@ -369,3 +369,138 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
     }
   }
 );
+
+/**
+ * Confirm an existing payment intent and create lesson package
+ * Used after Payment Sheet completes a payment created with createPaymentIntentDirect
+ */
+export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
+  async (
+    request: functions.https.CallableRequest<{paymentIntentId: string; userId: string}>
+  ) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {paymentIntentId, userId} = request.data;
+
+    if (!paymentIntentId || !userId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing paymentIntentId or userId"
+      );
+    }
+
+    if (request.auth.uid !== userId) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "User ID does not match authenticated user"
+      );
+    }
+
+    try {
+      // First, get the payment intent metadata to find the orgId
+      // We need to try different orgs to find which one created this payment intent
+      const orgsSnapshot = await db.collection("organizations").get();
+
+      let stripe: Stripe | null = null;
+      let paymentIntent: Stripe.PaymentIntent | null = null;
+      let orgId: string | null = null;
+
+      // Try to retrieve the payment intent from each organization's Stripe account
+      for (const orgDoc of orgsSnapshot.docs) {
+        try {
+          const stripeDoc = await db
+            .collection("organizations")
+            .doc(orgDoc.id)
+            .collection("stripe")
+            .doc("config")
+            .get();
+
+          const stripeData = stripeDoc.data();
+          if (!stripeData?.secretKey) continue;
+
+          const orgStripe = new Stripe(stripeData.secretKey, {
+            apiVersion: "2025-02-24.acacia",
+          });
+
+          const pi = await orgStripe.paymentIntents.retrieve(paymentIntentId);
+
+          // Found it!
+          stripe = orgStripe;
+          paymentIntent = pi;
+          orgId = orgDoc.id;
+          break;
+        } catch (err) {
+          // Payment intent not in this org's Stripe account, continue
+          continue;
+        }
+      }
+
+      if (!stripe || !paymentIntent || !orgId) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Payment intent not found in any organization"
+        );
+      }
+
+      if (paymentIntent.status !== "succeeded") {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          `Payment has not succeeded. Status: ${paymentIntent.status}`
+        );
+      }
+
+      const packageType = paymentIntent.metadata.packageType;
+      const trainerId = paymentIntent.metadata.trainerId;
+
+      if (!packageType || !trainerId) {
+        throw new functions.https.HttpsError(
+          "internal",
+          "Payment intent is missing required metadata"
+        );
+      }
+
+      // Create the lesson package
+      const expirationDate = new Date();
+      expirationDate.setMonth(expirationDate.getMonth() + 12);
+
+      await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("users")
+        .doc(userId)
+        .collection("packages")
+        .add({
+          packageType: packageType,
+          trainerId: trainerId,
+          remainingLessons: 1,
+          purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
+          expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
+          paymentIntentId: paymentIntent.id,
+          amountPaid: paymentIntent.amount,
+          status: "active",
+        });
+
+      console.log(
+        `✅ Package created for payment: ${paymentIntent.id} for ${paymentIntent.amount / 100} USD`
+      );
+
+      return {success: true, packageId: paymentIntent.id};
+    } catch (error: unknown) {
+      console.error("❌ Error confirming payment:", error);
+
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to confirm payment: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);
