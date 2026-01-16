@@ -95,6 +95,44 @@ final class StripeService: ObservableObject {
         }
     }
     
+    // Create and confirm payment using saved card
+    func createAndConfirmPaymentWithSavedCard(
+        packageType: String,
+        amount: Int,
+        trainerId: String,
+        orgId: String,
+        paymentMethodId: String
+    ) async throws -> (paymentIntentId: String, clientSecret: String) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw StripeError.notAuthenticated
+        }
+        
+        let callable = functions.httpsCallable("createAndConfirmPaymentDirect")
+        let data: [String: Any] = [
+            "orgId": orgId,
+            "packageType": packageType,
+            "amount": amount,
+            "trainerId": trainerId,
+            "userId": userId,
+            "paymentMethodId": paymentMethodId
+        ]
+        
+        do {
+            let result = try await callable.call(data)
+            guard let resultData = result.data as? [String: Any],
+                  let paymentIntentId = resultData["paymentIntentId"] as? String,
+                  let clientSecret = resultData["clientSecret"] as? String else {
+                throw StripeError.invalidResponse
+            }
+            
+            self.lastPaymentIntentId = paymentIntentId
+            return (paymentIntentId, clientSecret)
+        } catch {
+            print("Error creating payment with saved card: \(error)")
+            throw StripeError.paymentFailed(error.localizedDescription)
+        }
+    }
+    
     enum StripeError: LocalizedError {
         case notAuthenticated
         case invalidResponse

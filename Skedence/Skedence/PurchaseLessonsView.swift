@@ -18,6 +18,7 @@ struct PurchaseLessonsView: View {
     @State private var isPurchasing = false
     @State private var alert: AlertItem?
     @State private var paymentSheet: PaymentSheet?
+    @State private var showPaymentMethodSheet = false
 
     // Default expiration policy
     private let expirationMonths = 12
@@ -167,6 +168,38 @@ struct PurchaseLessonsView: View {
             get: { paymentSheet != nil },
             set: { if !$0 { paymentSheet = nil } }
         ), paymentSheet: $paymentSheet, onCompletion: handlePaymentCompletion)
+        .sheet(isPresented: $showPaymentMethodSheet) {
+            PaymentMethodSelectionSheet(
+                customerService: customerService,
+                onSelectExistingCard: { paymentMethodId in
+                    showPaymentMethodSheet = false
+                    Task {
+                        guard let trainerId = selectedTrainer?.id,
+                              let orgId = auth.currentOrgId else { return }
+                        let packages = pricingService.allPackageOptions
+                        guard packages.indices.contains(selectedPackageIndex) else { return }
+                        let selectedPackage = packages[selectedPackageIndex]
+                        await processPurchaseWithSavedCard(
+                            paymentMethodId: paymentMethodId,
+                            trainerId: trainerId,
+                            orgId: orgId,
+                            selectedPackage: selectedPackage
+                        )
+                    }
+                },
+                onAddNewCard: {
+                    showPaymentMethodSheet = false
+                    Task {
+                        guard let trainerId = selectedTrainer?.id,
+                              let orgId = auth.currentOrgId else { return }
+                        let packages = pricingService.allPackageOptions
+                        guard packages.indices.contains(selectedPackageIndex) else { return }
+                        let selectedPackage = packages[selectedPackageIndex]
+                        await processPurchase(trainerId: trainerId, orgId: orgId, selectedPackage: selectedPackage)
+                    }
+                }
+            )
+        }
     }
 
     // MARK: - Package Card (Dynamic)
@@ -327,6 +360,24 @@ struct PurchaseLessonsView: View {
         let selectedPackage = packages[selectedPackageIndex]
 
         isPurchasing = true
+        
+        // Check if user has saved payment methods
+        await customerService.loadPaymentMethods()
+        
+        isPurchasing = false
+        
+        // If no saved payment methods, show payment method selection sheet
+        if customerService.paymentMethods.isEmpty {
+            showPaymentMethodSheet = true
+            return
+        }
+        
+        // Otherwise, proceed with existing flow
+        await processPurchase(trainerId: trainerId, orgId: orgId, selectedPackage: selectedPackage)
+    }
+    
+    private func processPurchase(trainerId: String, orgId: String, selectedPackage: PackageOption) async {
+        isPurchasing = true
         defer { isPurchasing = false }
 
         do {
@@ -357,6 +408,41 @@ struct PurchaseLessonsView: View {
             self.paymentSheet = paymentSheet
         } catch {
             alert = .init(title: "Payment Failed", message: error.localizedDescription)
+        }
+    }
+    
+    private func processPurchaseWithSavedCard(paymentMethodId: String, trainerId: String, orgId: String, selectedPackage: PackageOption) async {
+        isPurchasing = true
+        defer { isPurchasing = false }
+        
+        do {
+            // Create and confirm payment intent with saved card
+            let result = try await stripeService.createAndConfirmPaymentWithSavedCard(
+                packageType: selectedPackage.packageType,
+                amount: selectedPackage.priceInCents,
+                trainerId: trainerId,
+                orgId: orgId,
+                paymentMethodId: paymentMethodId
+            )
+            
+            // Track purchase
+            AnalyticsService.shared.logPackagePurchased(
+                packageId: result.paymentIntentId,
+                price: Double(selectedPackage.priceInCents) / 100.0,
+                method: "stripe_saved_card"
+            )
+            
+            // Reload packages
+            await packagesService.loadMyPackages()
+            
+            // Success
+            alert = .init(
+                title: "Purchase Successful! 🎉",
+                message: "Your \(selectedPackage.title) has been added to your account. You can now book sessions!"
+            )
+        } catch {
+            alert = .init(title: "Payment Failed", message: error.localizedDescription)
+            CrashlyticsService.shared.logPaymentError(error, amount: Double(selectedPackage.priceInCents) / 100.0, method: "stripe_saved_card")
         }
     }
     
@@ -472,3 +558,191 @@ private struct TrainerAvatarView: View {
         }
     }
 }
+
+// MARK: - Payment Method Selection Sheet
+
+private struct PaymentMethodSelectionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var customerService: StripeCustomerService
+    let onSelectExistingCard: (String) -> Void
+    let onAddNewCard: () -> Void
+    
+    @State private var selectedPaymentMethodId: String?
+    @State private var isConfirmed = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Choose Payment Method")
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(Brand.primary)
+                        
+                        Text("Select a saved card or add a new one")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Saved Cards Section
+                    if !customerService.paymentMethods.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Saved Cards")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal)
+                            
+                            ForEach(customerService.paymentMethods) { method in
+                                SavedCardRow(
+                                    method: method,
+                                    isSelected: selectedPaymentMethodId == method.id
+                                ) {
+                                    selectedPaymentMethodId = method.id
+                                }
+                            }
+                        }
+                        
+                        Divider()
+                            .padding(.horizontal)
+                    }
+                    
+                    // Add New Card Button
+                    Button {
+                        onAddNewCard()
+                    } label: {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Brand.primary.opacity(0.15))
+                                    .frame(width: 48, height: 48)
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(Brand.primary)
+                                    .font(.system(size: 20))
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Add New Card")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text("Enter card details")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.platformBackground)
+                                .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+                        )
+                    }
+                    .padding(.horizontal)
+                    
+                    // Confirmation section (only show if card selected)
+                    if selectedPaymentMethodId != nil {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Toggle(isOn: $isConfirmed) {
+                                Text("I confirm this purchase")
+                                    .font(.subheadline)
+                            }
+                            .tint(Brand.primary)
+                            .padding(.horizontal)
+                            
+                            Button {
+                                if let paymentMethodId = selectedPaymentMethodId {
+                                    onSelectExistingCard(paymentMethodId)
+                                }
+                            } label: {
+                                Text("Complete Purchase")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(Brand.primary)
+                                    .clipShape(Capsule())
+                            }
+                            .disabled(!isConfirmed)
+                            .opacity(isConfirmed ? 1.0 : 0.5)
+                            .padding(.horizontal)
+                        }
+                        .padding(.top, 8)
+                    }
+                }
+                .padding(.vertical)
+            }
+            .background(Color.platformGroupedBackground)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct SavedCardRow: View {
+    let method: PaymentMethodInfo
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.blue.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "creditcard.fill")
+                        .foregroundStyle(.blue)
+                        .font(.system(size: 18))
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(method.brand.capitalized) •••• \(method.last4)")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("Expires \(method.expMonth)/\(method.expYear)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                ZStack {
+                    Circle()
+                        .stroke(Brand.primary, lineWidth: 2)
+                        .frame(width: 24, height: 24)
+                    if isSelected {
+                        Circle()
+                            .fill(Brand.primary)
+                            .frame(width: 20, height: 20)
+                            .overlay(
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                            )
+                    }
+                }
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.platformBackground)
+                    .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+    }
+}
+
