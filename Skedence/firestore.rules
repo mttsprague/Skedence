@@ -142,6 +142,25 @@ service cloud.firestore {
         // Only owners and admins can read and update Stripe keys
         allow read, write: if isOrgAdmin(orgId);
       }
+      
+      // Users subcollection (organization members/clients)
+      match /users/{memberId} {
+        // Owners and admins can read user info
+        // Users can read their own info
+        allow read: if isOrgAdmin(orgId) || request.auth.uid == memberId;
+        
+        // Owners and admins can write user info
+        allow write: if isOrgAdmin(orgId);
+        
+        // Payment packages subcollection
+        match /packages/{packageId} {
+          // Owners, admins, and the user can read their packages
+          allow read: if isOrgAdmin(orgId) || request.auth.uid == memberId;
+          
+          // Owners and admins can create/update packages
+          allow write: if isOrgAdmin(orgId);
+        }
+      }
     }
 
     // =========================================================================
