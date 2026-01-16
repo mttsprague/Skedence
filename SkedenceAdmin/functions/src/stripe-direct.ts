@@ -320,6 +320,19 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       });
 
       if (paymentIntent.status === "succeeded") {
+        // Determine lesson count based on package type
+        const lessonCounts: { [key: string]: number } = {
+          single: 1,
+          five_pack: 5,
+          ten_pack: 10,
+          twenty_pack: 20,
+          two_athlete: 1,
+          three_athlete: 1,
+          class_pass: 1,
+        };
+
+        const totalLessons = lessonCounts[packageType] || 1;
+
         // Create the lesson package
         const expirationDate = new Date();
         expirationDate.setMonth(expirationDate.getMonth() + 12);
@@ -333,7 +346,8 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
           .add({
             packageType: packageType,
             trainerId: trainerId,
-            remainingLessons: 1,
+            remainingLessons: totalLessons,
+            totalLessons: totalLessons,
             purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
             expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
             paymentIntentId: paymentIntent.id,
@@ -464,6 +478,19 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
         );
       }
 
+      // Determine lesson count based on package type
+      const lessonCounts: { [key: string]: number } = {
+        single: 1,
+        five_pack: 5,
+        ten_pack: 10,
+        twenty_pack: 20,
+        two_athlete: 1,
+        three_athlete: 1,
+        class_pass: 1,
+      };
+
+      const totalLessons = lessonCounts[packageType] || 1;
+
       // Create the lesson package
       const expirationDate = new Date();
       expirationDate.setMonth(expirationDate.getMonth() + 12);
@@ -477,7 +504,8 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
         .add({
           packageType: packageType,
           trainerId: trainerId,
-          remainingLessons: 1,
+          remainingLessons: totalLessons,
+          totalLessons: totalLessons,
           purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
           expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
           paymentIntentId: paymentIntent.id,
