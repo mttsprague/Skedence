@@ -48,6 +48,8 @@
 	<string>UIStatusBarStyleDefault</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Save QR codes to your photo library for easy sharing with clients</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Skedence Coach needs camera access to scan QR codes and capture photos for your training business</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
