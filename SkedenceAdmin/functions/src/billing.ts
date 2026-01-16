@@ -594,6 +594,16 @@ export const createStripeCheckout = functions.https.onRequest(
       // Get or create Stripe customer
       let customerId = orgData.billing?.stripeCustomerId;
 
+      // Verify customer exists in Stripe, create new one if not
+      if (customerId) {
+        try {
+          await stripe.customers.retrieve(customerId);
+        } catch (error) {
+          console.log(`Customer ${customerId} not found in Stripe, creating new one`);
+          customerId = undefined; // Force creation of new customer
+        }
+      }
+
       if (!customerId) {
         // Get user email
         const userDoc = await db.collection("users").doc(userId).get();
