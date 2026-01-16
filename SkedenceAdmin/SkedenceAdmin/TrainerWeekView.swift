@@ -159,6 +159,11 @@ struct TrainerWeekView: View {
                                 location: location
                             )
                         } else {
+                            // IMPORTANT: Temporarily set editingTrainerId to ensure recurring schedule
+                            // is created for this trainer, not the admin
+                            let originalEditingTrainerId = viewModel.editingTrainerId
+                            viewModel.editingTrainerId = trainerId
+                            
                             await viewModel.openAvailability(
                                 start: startDate,
                                 end: endDate,
@@ -169,6 +174,9 @@ struct TrainerWeekView: View {
                                 status: status,
                                 location: location
                             )
+                            
+                            // Restore original editingTrainerId
+                            viewModel.editingTrainerId = originalEditingTrainerId
                         }
                         await refreshSchedule()
                     }

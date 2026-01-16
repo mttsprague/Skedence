@@ -29,7 +29,6 @@ struct AvailabilityEditorSheet: View {
 
     // Recurring toggle and inputs
     @State private var recurringEnabled: Bool = false
-    @State private var recurringOngoing: Bool = false
     @State private var bulkStartDate: Date? = nil
     @State private var bulkEndDate: Date? = nil
 
@@ -38,6 +37,7 @@ struct AvailabilityEditorSheet: View {
     @State private var selectedWeekdays: Set<Int> = []
     @State private var recurringStartHour: Int
     @State private var recurringEndHour: Int
+    @State private var recurringLocation: Location?
     
     // Admin: apply unavailability to all trainers
     @State private var applyToAllTrainers: Bool = false
@@ -122,8 +122,14 @@ struct AvailabilityEditorSheet: View {
                 }
                 if mainTab == .editAvailability {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") { saveSingle() }
-                            .disabled(singleSaveDisabled)
+                        Button("Save") { 
+                            if recurringEnabled {
+                                applyRecurring()
+                            } else {
+                                saveSingle()
+                            }
+                        }
+                        .disabled(recurringEnabled ? recurringDisabled : singleSaveDisabled)
                     }
                 }
             }
@@ -390,49 +396,39 @@ struct AvailabilityEditorSheet: View {
                                 }
                             }
 
-                        // Date range with "Ongoing"
+                        // Date range
                         DatePicker("Start Date", selection: Binding<Date>(
                             get: { bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay) },
                             set: { bulkStartDate = $0 }
                         ), displayedComponents: .date)
 
-                        Toggle("Ongoing", isOn: $recurringOngoing)
-                            .onChange(of: recurringOngoing) { _, on in
-                                if on { bulkEndDate = nil }
+                        DatePicker("End Date", selection: Binding<Date>(
+                            get: {
+                                if let d = bulkEndDate { return d }
+                                // Default to one month after start
+                                let start = bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay)
+                                return Calendar.current.date(byAdding: .month, value: 1, to: start) ?? start
+                            },
+                            set: { bulkEndDate = $0 }
+                        ), displayedComponents: .date)
+                        
+                        // Location picker for recurring
+                        Picker("Location", selection: $recurringLocation) {
+                            Text("Select Location").tag(nil as Location?)
+                            ForEach(locationsService.locations) { location in
+                                Text(location.name).tag(location as Location?)
                             }
-
-                        if !recurringOngoing {
-                            DatePicker("End Date", selection: Binding<Date>(
-                                get: {
-                                    if let d = bulkEndDate { return d }
-                                    // Default to one month after start
-                                    let start = bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay)
-                                    return Calendar.current.date(byAdding: .month, value: 1, to: start) ?? start
-                                },
-                                set: { bulkEndDate = $0 }
-                            ), displayedComponents: .date)
                         }
-
-                        // Action button for recurring
-                        Button {
-                            applyRecurring()
-                        } label: {
-                            Text("Apply Recurring")
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        }
-                        .disabled(recurringDisabled)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
             } header: {
                 Text("Recurring")
-            }
-
-            if recurringEnabled {
-                Section {
-                    Text("Recurring creates 60-minute slots on selected weekdays between the start and end dates with the chosen status (Availability or Unavailability).")
+            } footer: {
+                if recurringEnabled && recurringLocation == nil {
+                    Text("⚠️ Location is required for recurring availability")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.red)
                 }
             }
         }
@@ -560,14 +556,15 @@ struct AvailabilityEditorSheet: View {
     private var recurringDisabled: Bool {
         guard recurringEnabled else { return false }
         // Require location selection
-        if selectedLocation == nil { return true }
+        if recurringLocation == nil { return true }
         // Need at least one day selected
         if selectedWeekdays.isEmpty { return true }
         // Validate daily window
         if recurringEndHour <= recurringStartHour { return true }
-        // Validate date range
+        // Validate date range - end date is now required (no "ongoing" option)
         let start = bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay)
-        if let end = bulkEndDate, end < start { return true }
+        guard let end = bulkEndDate else { return true } // End date is required
+        if end < start { return true }
         return false
     }
 
@@ -601,20 +598,15 @@ struct AvailabilityEditorSheet: View {
         // Send to Cloud Function with 60-minute duration and selected weekdays
         let startDateToUse = bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay)
         
-        // If not ongoing and no end date set, default to 1 month after start
-        let endDateToUse: Date?
-        if recurringOngoing {
-            endDateToUse = nil
-        } else if let end = bulkEndDate {
-            endDateToUse = end
-        } else {
-            // Default to 1 month after start if user never explicitly set an end date
-            endDateToUse = Calendar.current.date(byAdding: .month, value: 1, to: startDateToUse)
+        // End date is now required (no ongoing option)
+        guard let endDateToUse = bulkEndDate else {
+            print("⚠️ applyRecurring called without end date")
+            return
         }
         
         let daysArray = selectedWeekdays.isEmpty ? nil : Array(selectedWeekdays).sorted()
 
-        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, selectedLocation?.name)
+        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, recurringLocation?.name)
         dismiss()
     }
 
