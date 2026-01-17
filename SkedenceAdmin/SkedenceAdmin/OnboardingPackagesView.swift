@@ -51,34 +51,33 @@ struct OnboardingPackagesView: View {
                     Text("Package Details")
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
-                        
-                        FormField(
-                            icon: "tag",
-                            placeholder: "Package Name",
-                            text: $packageName
-                        )
-                        
-                        FormField(
-                            icon: "number",
-                            placeholder: "Number of Sessions",
-                            text: $sessions,
-                            keyboardType: .numberPad
-                        )
-                        
-                        FormField(
-                            icon: "dollarsign.circle",
-                            placeholder: "Price",
-                            text: $price,
-                            keyboardType: .decimalPad
-                        )
-                        
-                        FormField(
-                            icon: "calendar",
-                            placeholder: "Expiration (days)",
-                            text: $expirationDays,
-                            keyboardType: .numberPad
-                        )
-                    }
+                    
+                    FormField(
+                        icon: "tag",
+                        placeholder: "Package Name",
+                        text: $packageName
+                    )
+                    
+                    FormField(
+                        icon: "number",
+                        placeholder: "Number of Sessions",
+                        text: $sessions,
+                        keyboardType: .numberPad
+                    )
+                    
+                    FormField(
+                        icon: "dollarsign.circle",
+                        placeholder: "Price",
+                        text: $price,
+                        keyboardType: .decimalPad
+                    )
+                    
+                    FormField(
+                        icon: "calendar",
+                        placeholder: "Expiration (days)",
+                        text: $expirationDays,
+                        keyboardType: .numberPad
+                    )
                 }
                 
                 // Helper text

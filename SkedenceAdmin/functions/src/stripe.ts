@@ -359,6 +359,128 @@ export const getPaymentMethodsForUser = functions.https.onCall(
   }
 );
 
+// Confirm admin payment and optionally save payment method
+export const confirmAdminPayment = functions.https.onCall(
+  async (request: functions.https.CallableRequest<{
+    orgId: string;
+    userId: string;
+    paymentIntentId: string;
+    saveCard: boolean;
+  }>) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {orgId, userId, paymentIntentId, saveCard} = request.data;
+
+    if (!orgId || !userId || !paymentIntentId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields"
+      );
+    }
+
+    try {
+      // Verify admin access
+      const memberDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("orgMembers")
+        .doc(request.auth.uid)
+        .get();
+
+      const memberData = memberDoc.data();
+      if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only owners and admins can confirm payments"
+        );
+      }
+
+      // Get organization's Stripe key
+      const stripeDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("stripe")
+        .doc("config")
+        .get();
+
+      const stripeData = stripeDoc.data();
+      if (!stripeData || !stripeData.secretKey) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Organization has not configured Stripe keys"
+        );
+      }
+
+      // Initialize Stripe with organization's secret key
+      const orgStripe = new Stripe(stripeData.secretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
+
+      // Retrieve the payment intent
+      const paymentIntent = await orgStripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status !== "succeeded") {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          `Payment has not succeeded. Status: ${paymentIntent.status}`
+        );
+      }
+
+      // If saveCard is true and payment has a payment method, save it to user's wallet
+      if (saveCard && paymentIntent.payment_method) {
+        const paymentMethodId = typeof paymentIntent.payment_method === "string" ?
+          paymentIntent.payment_method :
+          paymentIntent.payment_method.id;
+
+        // Check if user has stripeCustomerId
+        const userDoc = await db
+          .collection("organizations")
+          .doc(orgId)
+          .collection("users")
+          .doc(userId)
+          .get();
+
+        const userData = userDoc.data();
+        const customerId = userData?.stripeCustomerId;
+
+        if (customerId) {
+          // Attach payment method to customer (this saves it to their wallet)
+          await orgStripe.paymentMethods.attach(paymentMethodId, {
+            customer: customerId,
+          });
+
+          console.log(`✅ Payment method ${paymentMethodId} saved to customer ${customerId}`);
+        } else {
+          console.log(`⚠️ User ${userId} doesn't have a Stripe customer ID yet`);
+        }
+      }
+
+      console.log(`✅ Admin payment confirmed: ${paymentIntentId}`);
+
+      return {
+        success: true,
+        paymentIntentId: paymentIntentId,
+      };
+    } catch (error: unknown) {
+      console.error("❌ Error confirming admin payment:", error);
+
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to confirm payment: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);
+
 // Detach (remove) a payment method
 export const detachPaymentMethod = functions.https.onCall(
   async (request: functions.https.CallableRequest<{

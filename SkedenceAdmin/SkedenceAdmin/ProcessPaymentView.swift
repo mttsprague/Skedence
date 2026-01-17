@@ -22,6 +22,7 @@ struct ProcessPaymentView: View {
     @State private var showingPaymentSheet = false
     @State private var paymentSheet: PaymentSheet?
     @State private var paymentResult: PaymentSheetResult?
+    @State private var paymentIntentId: String?
     
     // Card selection
     @StateObject private var customerService = StripeCustomerService()
@@ -349,6 +350,11 @@ struct ProcessPaymentView: View {
                     saveCard: saveCard
                 )
                 
+                // Store payment intent ID for confirmation later
+                await MainActor.run {
+                    paymentIntentId = result.paymentIntentId
+                }
+                
                 // If using StripePaymentSheet directly, ensure the publishable key is set
                 // StripeAPI.defaultPublishableKey = result.publishableKey
                 
@@ -378,6 +384,23 @@ struct ProcessPaymentView: View {
     private func handlePaymentResult(_ result: PaymentSheetResult) {
         switch result {
         case .completed:
+            // Confirm payment and save card if needed
+            if let intentId = paymentIntentId, let orgId = auth.currentOrgId {
+                Task {
+                    do {
+                        try await FunctionsService.shared.confirmAdminPayment(
+                            orgId: orgId,
+                            userId: client.id,
+                            paymentIntentId: intentId,
+                            saveCard: saveCard
+                        )
+                        print("✅ Payment confirmed and card saved successfully")
+                    } catch {
+                        print("⚠️ Payment succeeded but confirmation failed: \(error.localizedDescription)")
+                        // Don't show error to user since payment succeeded
+                    }
+                }
+            }
             dismiss()
         case .failed(let error):
             errorMessage = "Payment failed: \(error.localizedDescription)"
