@@ -144,7 +144,7 @@ private struct SignedInProfileScreen: View {
                 profileTab = nil
             }
         }
-        .onChangeCompat(of: profileTab) { _, newTab in
+        .onChangeCompat(of: profileTab) { newTab in
             if let tabString = newTab, let targetTab = Tab(rawValue: tabString) {
                 tab = targetTab
                 profileTab = nil // Reset after navigating

@@ -23,14 +23,49 @@ struct ProcessPaymentView: View {
     @State private var paymentSheet: PaymentSheet?
     @State private var paymentResult: PaymentSheetResult?
     
+    // Card selection
+    @StateObject private var customerService = StripeCustomerService()
+    @State private var selectedPaymentMethodId: String?
+    @State private var useNewCard: Bool = false
+    
+    // New card input
+    @State private var cardNumber: String = ""
+    @State private var expiryDate: String = ""
+    @State private var cvv: String = ""
+    @State private var cardholderName: String = ""
+    
     private var amountInCents: Int? {
         guard let doubleAmount = Double(amount) else { return nil }
         return Int(doubleAmount * 100)
     }
     
-    private var isValid: Bool {
+    private var isAmountValid: Bool {
         guard let cents = amountInCents else { return false }
         return cents >= 50 && !description.isEmpty
+    }
+    
+    private var isCardInfoComplete: Bool {
+        if useNewCard {
+            let hasBasicInfo = !cardNumber.isEmpty && !expiryDate.isEmpty && !cvv.isEmpty
+            // If saving card, require cardholder name
+            if saveCard {
+                return hasBasicInfo && !cardholderName.isEmpty
+            }
+            return hasBasicInfo
+        }
+        return true
+    }
+    
+    private var hasSelectedPaymentMethod: Bool {
+        if useNewCard {
+            return isCardInfoComplete
+        } else {
+            return selectedPaymentMethodId != nil
+        }
+    }
+    
+    private var isValid: Bool {
+        return isAmountValid && hasSelectedPaymentMethod
     }
     
     var body: some View {
@@ -86,18 +121,157 @@ struct ProcessPaymentView: View {
                     Text("Description")
                 }
                 
+                // MARK: - Card Information Section
+                Section {
+                    if customerService.isLoading {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                    } else if customerService.paymentMethods.isEmpty && !useNewCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundColor(.orange)
+                                Text("No cards on file")
+                                    .font(.subheadline)
+                                    .foregroundColor(.orange)
+                            }
+                            
+                            Button {
+                                useNewCard = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Add New Card")
+                                }
+                                .font(.subheadline)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        // Saved cards section
+                        if !useNewCard && !customerService.paymentMethods.isEmpty {
+                            ForEach(customerService.paymentMethods) { method in
+                                Button {
+                                    selectedPaymentMethodId = method.id
+                                } label: {
+                                    HStack {
+                                        Image(systemName: selectedPaymentMethodId == method.id ? "checkmark.circle.fill" : "circle")
+                                            .foregroundColor(selectedPaymentMethodId == method.id ? .blue : .gray)
+                                        
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("\(method.displayBrand) •••• \(method.last4)")
+                                                .font(.body)
+                                                .foregroundColor(.primary)
+                                            Text("Expires \(method.expirationDisplay)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        Spacer()
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            
+                            Button {
+                                useNewCard = true
+                                selectedPaymentMethodId = nil
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Use Different Card")
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
+                            }
+                        }
+                        
+                        // New card input
+                        if useNewCard {
+                            VStack(alignment: .leading, spacing: 12) {
+                                if !customerService.paymentMethods.isEmpty {
+                                    Button {
+                                        useNewCard = false
+                                        clearNewCardFields()
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "arrow.left.circle.fill")
+                                            Text("Use Saved Card")
+                                        }
+                                        .font(.subheadline)
+                                        .foregroundColor(.blue)
+                                    }
+                                    .padding(.bottom, 4)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Card Number")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    TextField("1234 5678 9012 3456", text: $cardNumber)
+                                        .keyboardType(.numberPad)
+                                        .textContentType(.creditCardNumber)
+                                }
+                                
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Expiry")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        TextField("MM/YY", text: $expiryDate)
+                                            .keyboardType(.numberPad)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("CVV")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        TextField("123", text: $cvv)
+                                            .keyboardType(.numberPad)
+                                            .textContentType(.creditCardSecurityCode)
+                                    }
+                                }
+                                
+                                if saveCard {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Cardholder Name")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        TextField("Name on card", text: $cardholderName)
+                                            .textContentType(.name)
+                                            .autocapitalization(.words)
+                                    }
+                                }
+                                
+                                if !isCardInfoComplete && (saveCard || !cardNumber.isEmpty) {
+                                    Text(saveCard ? "Complete all fields to save card" : "Complete card information")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                } header: {
+                    Text("Card Information")
+                }
+                
                 Section {
                     Toggle(isOn: $saveCard) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Save card to wallet")
                                 .font(.body)
-                            Text("Allow future payments without re-entering card details")
+                            Text(saveCard ? "Card will be saved for future payments" : "Card will not be saved")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
+                    .disabled(!useNewCard)
                 } header: {
-                    Text("Payment Method")
+                    Text("Save Payment Method")
                 }
                 
                 if let error = errorMessage {
@@ -121,6 +295,7 @@ struct ProcessPaymentView: View {
                             }
                             Text(isProcessing ? "Processing..." : "Continue to Payment")
                                 .font(.headline)
+                                .fontWeight(isValid ? .bold : .regular)
                             Spacer()
                         }
                     }
@@ -136,11 +311,21 @@ struct ProcessPaymentView: View {
                     }
                 }
             }
+            .task {
+                await customerService.loadPaymentMethodsForUser(userId: client.id)
+            }
             .paymentSheet(isPresented: $showingPaymentSheet, paymentSheet: $paymentSheet) { result in
                 paymentResult = result
                 handlePaymentResult(result)
             }
         }
+    }
+    
+    private func clearNewCardFields() {
+        cardNumber = ""
+        expiryDate = ""
+        cvv = ""
+        cardholderName = ""
     }
     
     private func processPayment() {

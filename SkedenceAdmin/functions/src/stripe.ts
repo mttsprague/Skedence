@@ -299,6 +299,66 @@ export const getPaymentMethods = functions.https.onCall(
   }
 );
 
+// Get payment methods for any user (admin only)
+export const getPaymentMethodsForUser = functions.https.onCall(
+  async (request: functions.https.CallableRequest<{ userId: string }>) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {userId} = request.data;
+
+    if (!userId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "User ID is required"
+      );
+    }
+
+    try {
+      // Check if caller is admin
+      const callerDoc = await db.collection("users").doc(request.auth.uid).get();
+      const callerData = callerDoc.data();
+      
+      if (!callerData?.isAdmin && !callerData?.isOwner) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only admins can view other users' payment methods"
+        );
+      }
+
+      const userDoc = await db.collection("users").doc(userId).get();
+      const userData = userDoc.data();
+
+      if (!userData?.stripeCustomerId) {
+        return {paymentMethods: []};
+      }
+
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: userData.stripeCustomerId,
+        type: "card",
+      });
+
+      return {
+        paymentMethods: paymentMethods.data.map((pm) => ({
+          id: pm.id,
+          brand: pm.card?.brand,
+          last4: pm.card?.last4,
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year,
+        })),
+      };
+    } catch (error: unknown) {
+      console.error("Error getting payment methods for user:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new functions.https.HttpsError("internal", message);
+    }
+  }
+);
+
 // Detach (remove) a payment method
 export const detachPaymentMethod = functions.https.onCall(
   async (request: functions.https.CallableRequest<{
