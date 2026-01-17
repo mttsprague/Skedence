@@ -15,6 +15,7 @@ struct ProfileView: View {
     @ObservedObject var packagesService: PackagesService
     @ObservedObject var bookingsService: BookingsService
     @ObservedObject var scheduleService: ScheduleService
+    @Binding var showPurchaseLessons: Bool
 
     @State private var authMode: AuthMode = .createAccount
     enum AuthMode: String, CaseIterable { case createAccount = "Create Account", signIn = "Sign In" }
@@ -29,7 +30,8 @@ struct ProfileView: View {
                     SignedInProfileScreen(usersService: usersService,
                                           packagesService: packagesService,
                                           bookingsService: bookingsService,
-                                          scheduleService: scheduleService)
+                                          scheduleService: scheduleService,
+                                          showPurchaseLessons: $showPurchaseLessons)
                         .toolbar {
                             #if os(iOS)
                             ToolbarItem(placement: .navigationBarTrailing) {
@@ -91,6 +93,7 @@ private struct SignedInProfileScreen: View {
     @StateObject private var classesService = ClassesService()
     @StateObject private var customerService = StripeCustomerService()
     @StateObject private var pricingService = PricingStructureService()
+    @Binding var showPurchaseLessons: Bool
 
     @State private var tab: Tab = .schedule
     enum Tab: String { case schedule = "SCHEDULE", passes = "PASSES", wallet = "WALLET" }
@@ -498,7 +501,7 @@ private struct SignedInProfileScreen: View {
                 }
 
                 // Bottom Buy button
-                NavigationLink {
+                NavigationLink(isActive: $showPurchaseLessons) {
                     PurchaseLessonsView(packagesService: packagesService)
                 } label: {
                     HStack(spacing: 10) {
