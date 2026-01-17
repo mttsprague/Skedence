@@ -322,7 +322,7 @@ export const getPaymentMethodsForUser = functions.https.onCall(
       // Check if caller is admin
       const callerDoc = await db.collection("users").doc(request.auth.uid).get();
       const callerData = callerDoc.data();
-      
+
       if (!callerData?.isAdmin && !callerData?.isOwner) {
         throw new functions.https.HttpsError(
           "permission-denied",
