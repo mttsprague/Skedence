@@ -20,7 +20,7 @@ struct HomeView: View {
     
     @Binding var selectedTab: Int
     @Binding var bookViewMode: Int
-    @Binding var showPurchaseLessons: Bool
+    @Binding var profileTab: String?
 
     private var isAuthenticated: Bool {
         Auth.auth().currentUser != nil
@@ -142,7 +142,7 @@ struct HomeView: View {
                             // Step 1: Purchase Lessons
                             Button {
                                 selectedTab = 2 // Navigate to Profile tab
-                                showPurchaseLessons = true // Trigger navigation to purchase view
+                                profileTab = "PASSES" // Show passes tab
                             } label: {
                                 CardView(padding: Spacing.md) {
                                     HStack(spacing: Spacing.md) {

@@ -15,7 +15,7 @@ struct ProfileView: View {
     @ObservedObject var packagesService: PackagesService
     @ObservedObject var bookingsService: BookingsService
     @ObservedObject var scheduleService: ScheduleService
-    @Binding var showPurchaseLessons: Bool
+    @Binding var profileTab: String?
 
     @State private var authMode: AuthMode = .createAccount
     enum AuthMode: String, CaseIterable { case createAccount = "Create Account", signIn = "Sign In" }
@@ -24,14 +24,14 @@ struct ProfileView: View {
     private var isSignedIn: Bool { Auth.auth().currentUser != nil }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if isSignedIn {
                     SignedInProfileScreen(usersService: usersService,
                                           packagesService: packagesService,
                                           bookingsService: bookingsService,
                                           scheduleService: scheduleService,
-                                          showPurchaseLessons: $showPurchaseLessons)
+                                          profileTab: $profileTab)
                         .toolbar {
                             #if os(iOS)
                             ToolbarItem(placement: .navigationBarTrailing) {
@@ -77,7 +77,6 @@ struct ProfileView: View {
                 }
             }
         }
-        .navigationViewStyle(.stack)
     }
 }
 
@@ -93,7 +92,7 @@ private struct SignedInProfileScreen: View {
     @StateObject private var classesService = ClassesService()
     @StateObject private var customerService = StripeCustomerService()
     @StateObject private var pricingService = PricingStructureService()
-    @Binding var showPurchaseLessons: Bool
+    @Binding var profileTab: String?
 
     @State private var tab: Tab = .schedule
     enum Tab: String { case schedule = "SCHEDULE", passes = "PASSES", wallet = "WALLET" }
@@ -136,6 +135,12 @@ private struct SignedInProfileScreen: View {
             await bookingsService.loadMyBookings(orgId: orgId)
             await classesService.loadMyRegisteredClasses(orgId: orgId)
             await customerService.loadPaymentMethods()
+        }
+        .onChange(of: profileTab) { newTab in
+            if let tabString = newTab, let targetTab = Tab(rawValue: tabString) {
+                tab = targetTab
+                profileTab = nil // Reset after navigating
+            }
         }
     }
 
@@ -500,9 +505,9 @@ private struct SignedInProfileScreen: View {
                     }
                 }
 
-                // Bottom Buy button
-                NavigationLink(isActive: $showPurchaseLessons) {
-                    PurchaseLessonsView(packagesService: packagesService)
+                // Bottom Buy button (replaces deprecated NavigationLink isActive:)
+                Button {
+                    showPurchaseLessons = true
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "cart.fill")

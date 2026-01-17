@@ -21,7 +21,7 @@ struct AppRootView: View {
     
     @State private var selectedTab = 0
     @State private var bookViewMode = 0
-    @State private var showPurchaseLessons = false
+    @State private var profileTab: String? = nil
     @State private var organizationIsActive = true
     @State private var hasSetInitialTab = false
 
@@ -34,7 +34,7 @@ struct AppRootView: View {
                              classesService: classesService,
                              selectedTab: $selectedTab,
                              bookViewMode: $bookViewMode,
-                             showPurchaseLessons: $showPurchaseLessons)
+                             profileTab: $profileTab)
                         .tabItem {
                             Label("Home", systemImage: "house.fill")
                         }
@@ -56,7 +56,7 @@ struct AppRootView: View {
                                 packagesService: packagesService,
                                 bookingsService: bookingsService,
                                 scheduleService: scheduleService,
-                                showPurchaseLessons: $showPurchaseLessons)
+                                profileTab: $profileTab)
                         .environmentObject(auth)
                         .tabItem {
                             Label("Profile", systemImage: "person.crop.circle")
