@@ -179,6 +179,16 @@ final class AdminService: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Unauthorized"])
         }
         
+        // Delete all participants subcollection documents first
+        let participantsSnapshot = try await db.collection("classes")
+            .document(classId)
+            .collection("participants")
+            .getDocuments()
+        
+        for participantDoc in participantsSnapshot.documents {
+            try await participantDoc.reference.delete()
+        }
+        
         // Delete the class document
         try await db.collection("classes").document(classId).delete()
         
