@@ -23,13 +23,36 @@ final class PackagesService: ObservableObject {
         guard let uid = Auth.auth().currentUser?.uid else { packages = []; return }
         isLoading = true
         errorMessage = nil
+        
         do {
-            let snap = try await db.collection("users").document(uid)
-                .collection("lessonPackages")
-                .order(by: "purchaseDate", descending: true)
+            // First try to find the user's organization
+            let orgSnapshot = try await db.collection("organizations")
+                .whereField("members", arrayContains: uid)
+                .limit(1)
                 .getDocuments()
-            packages = snap.documents.compactMap { doc in
-                decodePackage(id: doc.documentID, data: doc.data())
+            
+            if let orgDoc = orgSnapshot.documents.first {
+                // New path: organizations/{orgId}/users/{userId}/packages
+                let orgId = orgDoc.documentID
+                let snap = try await db.collection("organizations").document(orgId)
+                    .collection("users").document(uid)
+                    .collection("packages")
+                    .order(by: "purchaseDate", descending: true)
+                    .getDocuments()
+                
+                packages = snap.documents.compactMap { doc in
+                    decodePackage(id: doc.documentID, data: doc.data())
+                }
+            } else {
+                // Fallback to old path: users/{uid}/lessonPackages
+                let snap = try await db.collection("users").document(uid)
+                    .collection("lessonPackages")
+                    .order(by: "purchaseDate", descending: true)
+                    .getDocuments()
+                
+                packages = snap.documents.compactMap { doc in
+                    decodePackage(id: doc.documentID, data: doc.data())
+                }
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -82,13 +105,29 @@ final class PackagesService: ObservableObject {
     private func decodePackage(id: String, data: [String: Any]) -> LessonPackage? {
         guard
             let packageType = data["packageType"] as? String,
-            let totalLessons = data["totalLessons"] as? Int,
-            let lessonsUsed = data["lessonsUsed"] as? Int,
             let purchaseDate = Self.date(from: data["purchaseDate"]),
             let expirationDate = Self.date(from: data["expirationDate"])
         else {
             return nil
         }
+        
+        // Handle both old and new package formats
+        let totalLessons: Int
+        let lessonsUsed: Int
+        
+        if let remaining = data["remainingLessons"] as? Int {
+            // New format: has remainingLessons and totalLessons
+            totalLessons = data["totalLessons"] as? Int ?? remaining
+            lessonsUsed = max(0, totalLessons - remaining)
+        } else if let total = data["totalLessons"] as? Int,
+                  let used = data["lessonsUsed"] as? Int {
+            // Old format: has totalLessons and lessonsUsed
+            totalLessons = total
+            lessonsUsed = used
+        } else {
+            return nil
+        }
+        
         return LessonPackage(
             id: id,
             packageType: packageType,
@@ -96,7 +135,7 @@ final class PackagesService: ObservableObject {
             lessonsUsed: lessonsUsed,
             purchaseDate: purchaseDate,
             expirationDate: expirationDate,
-            transactionId: data["transactionId"] as? String
+            transactionId: data["transactionId"] as? String ?? data["paymentIntentId"] as? String
         )
     }
 

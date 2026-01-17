@@ -137,7 +137,14 @@ private struct SignedInProfileScreen: View {
             await classesService.loadMyRegisteredClasses(orgId: orgId)
             await customerService.loadPaymentMethods()
         }
-        .onChange(of: profileTab) { newTab in
+        .onAppear {
+            // Handle initial navigation from binding
+            if let tabString = profileTab, let targetTab = Tab(rawValue: tabString) {
+                tab = targetTab
+                profileTab = nil
+            }
+        }
+        .onChangeCompat(of: profileTab) { _, newTab in
             if let tabString = newTab, let targetTab = Tab(rawValue: tabString) {
                 tab = targetTab
                 profileTab = nil // Reset after navigating
@@ -1516,4 +1523,3 @@ private extension View {
         }
     }
 }
-
