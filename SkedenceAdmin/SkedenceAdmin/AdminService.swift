@@ -104,7 +104,8 @@ final class AdminService: ObservableObject {
         maxParticipants: Int,
         location: String,
         trainerId: String,
-        trainerName: String
+        trainerName: String,
+        priceInCents: Int
     ) async throws {
         guard let uid = Auth.auth().currentUser?.uid else {
             throw NSError(domain: "AdminService", code: -1,
@@ -129,7 +130,8 @@ final class AdminService: ObservableObject {
             "trainerId": trainerId,
             "trainerName": trainerName,
             "createdBy": uid,
-            "createdAt": Timestamp(date: Date())
+            "createdAt": Timestamp(date: Date()),
+            "priceInCents": priceInCents
         ]
         
         let classRef = try await db.collection("classes").addDocument(data: classData)
@@ -210,7 +212,8 @@ final class AdminService: ObservableObject {
         maxParticipants: Int,
         location: String,
         trainerId: String,
-        trainerName: String
+        trainerName: String,
+        priceInCents: Int
     ) async throws {
         guard isAdmin else {
             throw NSError(domain: "AdminService", code: -1,
@@ -226,7 +229,8 @@ final class AdminService: ObservableObject {
             "maxParticipants": maxParticipants,
             "location": location,
             "trainerId": trainerId,
-            "trainerName": trainerName
+            "trainerName": trainerName,
+            "priceInCents": priceInCents
         ])
         
         // Remove old bookings from all trainers' schedules

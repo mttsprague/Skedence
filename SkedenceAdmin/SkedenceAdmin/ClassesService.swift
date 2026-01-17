@@ -229,6 +229,9 @@ final class ClassesService: ObservableObject {
             return nil
         }
         
+        // Price defaults to 2000 cents ($20) for backward compatibility with existing classes
+        let priceInCents = data["priceInCents"] as? Int ?? 2000
+        
         return GroupClass(
             id: id,
             title: title,
@@ -242,7 +245,8 @@ final class ClassesService: ObservableObject {
             trainerId: trainerId,
             trainerName: trainerName,
             createdBy: createdBy,
-            createdAt: createdAt
+            createdAt: createdAt,
+            priceInCents: priceInCents
         )
     }
 }

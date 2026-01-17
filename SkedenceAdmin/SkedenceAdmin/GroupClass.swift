@@ -21,6 +21,7 @@ struct GroupClass: Identifiable, Codable, Hashable {
     let trainerName: String
     let createdBy: String // Admin user ID
     let createdAt: Date
+    let priceInCents: Int // Registration price in cents (e.g., 2000 = $20.00)
     
     var isFull: Bool {
         currentParticipants >= maxParticipants
@@ -32,5 +33,10 @@ struct GroupClass: Identifiable, Codable, Hashable {
     
     var isUpcoming: Bool {
         startTime > Date()
+    }
+    
+    var formattedPrice: String {
+        let dollars = Double(priceInCents) / 100.0
+        return String(format: "$%.2f", dollars)
     }
 }
