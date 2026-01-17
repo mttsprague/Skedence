@@ -28,9 +28,9 @@ class PricingStructureService: ObservableObject {
             let document = try await docRef.getDocument()
             
             guard document.exists else {
-                // No pricing structure set yet, use default
-                print("⚠️ No pricing structure found for org \(orgId), using default")
-                pricingStructure = PricingStructure.default
+                // No pricing structure set yet, return empty
+                print("⚠️ No pricing structure found for org \(orgId)")
+                pricingStructure = PricingStructure(tiers: [], lastUpdated: Date())
                 isLoading = false
                 return
             }
@@ -38,9 +38,9 @@ class PricingStructureService: ObservableObject {
             // Check if pricingStructure field exists
             guard let data = document.data(),
                   let pricingData = data["pricingStructure"] as? [String: Any] else {
-                // No pricing structure field, use default
-                print("⚠️ No pricingStructure field found, using default")
-                pricingStructure = PricingStructure.default
+                // No pricing structure field, return empty
+                print("⚠️ No pricingStructure field found for org \(orgId)")
+                pricingStructure = PricingStructure(tiers: [], lastUpdated: Date())
                 isLoading = false
                 return
             }
@@ -58,8 +58,8 @@ class PricingStructureService: ObservableObject {
         } catch {
             self.error = "Failed to load pricing: \(error.localizedDescription)"
             print("❌ Error loading pricing structure: \(error)")
-            // Fallback to default on error
-            pricingStructure = PricingStructure.default
+            // Return empty structure on error
+            pricingStructure = PricingStructure(tiers: [], lastUpdated: Date())
         }
         
         isLoading = false

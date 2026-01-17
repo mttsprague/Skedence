@@ -96,6 +96,7 @@ private struct SignedInProfileScreen: View {
 
     @State private var tab: Tab = .schedule
     enum Tab: String { case schedule = "SCHEDULE", passes = "PASSES", wallet = "WALLET" }
+    @State private var showPurchaseLessons = false
 
     // Location is now dynamic from booking data - no hardcoded venue
 
@@ -141,6 +142,9 @@ private struct SignedInProfileScreen: View {
                 tab = targetTab
                 profileTab = nil // Reset after navigating
             }
+        }
+        .navigationDestination(isPresented: $showPurchaseLessons) {
+            PurchaseLessonsView(packagesService: packagesService)
         }
     }
 
@@ -1512,3 +1516,4 @@ private extension View {
         }
     }
 }
+

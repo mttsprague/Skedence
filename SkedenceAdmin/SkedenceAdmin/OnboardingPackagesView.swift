@@ -38,7 +38,7 @@ struct OnboardingPackagesView: View {
                         .foregroundStyle(AppTheme.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .center)
                     
-                    Text("Choose a template or create your own")
+                    Text("Create a custom package to get started")
                         .font(.bodyLarge)
                         .foregroundStyle(AppTheme.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -46,50 +46,11 @@ struct OnboardingPackagesView: View {
                 }
                 .padding(.bottom, Spacing.md)
                 
-                // Quick Templates
-                if !showCustomPackage {
-                    VStack(alignment: .leading, spacing: Spacing.md) {
-                        Text("Quick Templates")
-                            .font(.headingSmall)
-                            .foregroundStyle(AppTheme.textPrimary)
-                        
-                        ForEach(OnboardingPackageTemplate.templates) { template in
-                            OnboardingTemplateCard(
-                                template: template,
-                                isSelected: selectedTemplate?.id == template.id,
-                                onSelect: { selectedTemplate = template }
-                            )
-                        }
-                        
-                        Button(action: { showCustomPackage = true }) {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Create Custom Package")
-                            }
-                            .font(.bodyMedium)
-                            .foregroundStyle(AppTheme.primary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, Spacing.md)
-                            .background(AppTheme.primary.opacity(0.1))
-                            .cornerRadius(CornerRadius.md)
-                        }
-                    }
-                } else {
-                    // Custom Package Form
-                    VStack(alignment: .leading, spacing: Spacing.md) {
-                        HStack {
-                            Text("Custom Package")
-                                .font(.headingSmall)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            
-                            Spacer()
-                            
-                            Button(action: { showCustomPackage = false }) {
-                                Text("Use Template")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.primary)
-                            }
-                        }
+                // Custom Package Form (mandatory)
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("Package Details")
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
                         
                         FormField(
                             icon: "tag",
@@ -121,13 +82,28 @@ struct OnboardingPackagesView: View {
                 }
                 
                 // Helper text
-                Text("💡 You can add more packages and customize pricing later")
-                    .font(.bodySmall)
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(AppTheme.surfaceSecondary)
-                    .cornerRadius(CornerRadius.md)
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    HStack(alignment: .top, spacing: Spacing.sm) {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundStyle(AppTheme.primary)
+                            .font(.system(size: 20))
+                        
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text("Package Management")
+                                .font(.headingSmall)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            
+                            Text("After setup, you can create, edit, and remove packages anytime in the Manage tab.")
+                                .font(.bodySmall)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(AppTheme.primary.opacity(0.1))
+                .cornerRadius(CornerRadius.md)
                 
                 // Error
                 if let error = errorMessage {
@@ -140,33 +116,23 @@ struct OnboardingPackagesView: View {
                         .cornerRadius(CornerRadius.md)
                 }
                 
-                // Buttons
-                VStack(spacing: Spacing.sm) {
-                    if canSave {
-                        Button(action: saveAndContinue) {
-                            HStack {
-                                if isSaving {
-                                    ProgressView()
-                                        .tint(.white)
-                                }
-                                Text(isSaving ? "Creating..." : "Create Package")
-                                    .font(.headingSmall)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, Spacing.md)
-                            .background(AppTheme.primary)
-                            .foregroundStyle(.white)
-                            .cornerRadius(CornerRadius.md)
+                // Continue Button
+                Button(action: saveAndContinue) {
+                    HStack {
+                        if isSaving {
+                            ProgressView()
+                                .tint(.white)
                         }
-                        .disabled(isSaving)
+                        Text(isSaving ? "Creating..." : "Create Package & Continue")
+                            .font(.headingSmall)
                     }
-                    
-                    Button(action: skipStep) {
-                        Text("Skip for Now")
-                            .font(.bodyMedium)
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(canSave ? AppTheme.primary : AppTheme.textTertiary)
+                    .foregroundStyle(.white)
+                    .cornerRadius(CornerRadius.md)
                 }
+                .disabled(!canSave || isSaving)
             }
             .padding(Spacing.lg)
         }
@@ -174,14 +140,10 @@ struct OnboardingPackagesView: View {
     }
     
     var canSave: Bool {
-        if showCustomPackage {
-            return !packageName.isEmpty && 
-                   Int(sessions) != nil && 
-                   Double(price) != nil && 
-                   Int(expirationDays) != nil
-        } else {
-            return selectedTemplate != nil
-        }
+        return !packageName.isEmpty && 
+               Int(sessions) != nil && 
+               Double(price) != nil && 
+               Int(expirationDays) != nil
     }
     
     func saveAndContinue() {
@@ -194,23 +156,16 @@ struct OnboardingPackagesView: View {
             do {
                 let db = Firestore.firestore()
                 
-                // Create package option
-                let packageOption: PackageOption
+                // Create package option from custom input
+                let priceValue = Double(price) ?? 250
+                let sessionsValue = Int(sessions) ?? 1
                 
-                if let template = selectedTemplate {
-                    packageOption = PackageOption(
-                        title: template.name,
-                        priceInCents: Int(template.price * 100),
-                        packageType: template.name.lowercased().replacingOccurrences(of: " ", with: "_")
-                    )
-                } else {
-                    let priceValue = Double(price) ?? 250
-                    packageOption = PackageOption(
-                        title: packageName,
-                        priceInCents: Int(priceValue * 100),
-                        packageType: packageName.lowercased().replacingOccurrences(of: " ", with: "_")
-                    )
-                }
+                let packageOption = PackageOption(
+                    title: packageName,
+                    priceInCents: Int(priceValue * 100),
+                    packageType: packageName.lowercased().replacingOccurrences(of: " ", with: "_"),
+                    lessonCount: sessionsValue
+                )
                 
                 // Create pricing structure with the new package
                 let pricingStructure = PricingStructure(
@@ -251,10 +206,7 @@ struct OnboardingPackagesView: View {
             }
         }
     }
-    
-    func skipStep() {
-        coordinator.moveToNextStep()
-    }
+
 }
 
 // MARK: - Package Template
