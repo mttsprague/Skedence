@@ -132,6 +132,139 @@ struct HomeView: View {
                         }
                     }
 
+                    // MARK: - Getting Started Instructions
+                    
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        SectionHeaderView(title: "Getting Started")
+                        
+                        VStack(spacing: Spacing.md) {
+                            // Step 1: Purchase Lessons
+                            Button {
+                                selectedTab = 2 // Navigate to Profile tab
+                            } label: {
+                                CardView(padding: Spacing.md) {
+                                    HStack(spacing: Spacing.md) {
+                                        // Step number badge
+                                        ZStack {
+                                            Circle()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [AppTheme.primary, AppTheme.primaryLight],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    )
+                                                )
+                                                .frame(width: 44, height: 44)
+                                            
+                                            Text("1")
+                                                .font(.system(size: 20, weight: .bold))
+                                                .foregroundStyle(.white)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Purchase Lessons")
+                                                .font(.headingSmall)
+                                                .foregroundStyle(AppTheme.textPrimary)
+                                            
+                                            Text("Get your lesson packages to start")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundStyle(AppTheme.primary)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            
+                            // Step 2: View Availability
+                            Button {
+                                selectedTab = 1 // Navigate to Book tab
+                                bookViewMode = 0 // Set to lessons mode
+                            } label: {
+                                CardView(padding: Spacing.md) {
+                                    HStack(spacing: Spacing.md) {
+                                        // Step number badge
+                                        ZStack {
+                                            Circle()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [AppTheme.secondary, AppTheme.secondaryLight],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    )
+                                                )
+                                                .frame(width: 44, height: 44)
+                                            
+                                            Text("2")
+                                                .font(.system(size: 20, weight: .bold))
+                                                .foregroundStyle(.white)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("View Trainer Availability")
+                                                .font(.headingSmall)
+                                                .foregroundStyle(AppTheme.textPrimary)
+                                            
+                                            Text("Check schedules and pick your time")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundStyle(AppTheme.secondary)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            
+                            // Step 3: Book Your Session
+                            CardView(padding: Spacing.md) {
+                                HStack(spacing: Spacing.md) {
+                                    // Step number badge
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [AppTheme.success, AppTheme.success.opacity(0.7)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 44, height: 44)
+                                        
+                                        Text("3")
+                                            .font(.system(size: 20, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                        Text("Book Your Session!")
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        
+                                        Text("Confirm your booking and you're all set")
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundStyle(AppTheme.success)
+                                }
+                            }
+                        }
+                    }
+
                     // Coming Up Section
                     VStack(alignment: .leading, spacing: Spacing.md) {
                         SectionHeaderView(title: "Upcoming Classes")
