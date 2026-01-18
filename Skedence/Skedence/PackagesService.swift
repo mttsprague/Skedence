@@ -28,7 +28,7 @@ final class PackagesService: ObservableObject {
             // First try to find the user's organization
             let orgSnapshot = try await db.collection("organizations")
                 .whereField("members", arrayContains: uid)
-                .limit(1)
+                .limit(to: 1)
                 .getDocuments()
             
             if let orgDoc = orgSnapshot.documents.first {
@@ -148,4 +148,3 @@ final class PackagesService: ObservableObject {
         return nil
     }
 }
-

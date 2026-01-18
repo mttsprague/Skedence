@@ -136,6 +136,7 @@ private struct SignedInProfileScreen: View {
             await bookingsService.loadMyBookings(orgId: orgId)
             await classesService.loadMyRegisteredClasses(orgId: orgId)
             await customerService.loadPaymentMethods()
+            await pricingService.loadPricingStructure(for: orgId)
         }
         .onAppear {
             // Handle initial navigation from binding
@@ -152,6 +153,14 @@ private struct SignedInProfileScreen: View {
         }
         .navigationDestination(isPresented: $showPurchaseLessons) {
             PurchaseLessonsView(packagesService: packagesService)
+        }
+        .onChangeCompat(of: showPurchaseLessons) { isPresentingPurchase in
+            // Reload packages when returning from purchase view
+            if !isPresentingPurchase && tab == .passes {
+                Task {
+                    await packagesService.loadMyPackages()
+                }
+            }
         }
     }
 
@@ -510,6 +519,7 @@ private struct SignedInProfileScreen: View {
                         let count = remainingPasses(forType: packageOption.packageType)
                         passTypeCard(
                             title: packageOption.title,
+                            description: packageOption.description,
                             count: count,
                             icon: iconForPackageType(packageOption.packageType)
                         )
@@ -563,7 +573,7 @@ private struct SignedInProfileScreen: View {
         }
     }
     
-    private func passTypeCard(title: String, count: Int, icon: String) -> some View {
+    private func passTypeCard(title: String, description: String, count: Int, icon: String) -> some View {
         return card {
             HStack(spacing: 16) {
                 ZStack {
@@ -579,9 +589,12 @@ private struct SignedInProfileScreen: View {
                     Text(title)
                         .font(.headline)
                         .foregroundStyle(.primary)
-                    Text("\(count) remaining")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    if !description.isEmpty {
+                        Text(description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
                 
                 Spacer()
@@ -1519,7 +1532,21 @@ private extension View {
                 action(newValue)
             }
         } else {
-            self.onChange(of: value, perform: action)
+            // Call into a helper that is marked deprecated on newer OSes so the deprecated API isn't seen by the iOS 17 compiler as unavailable.
+            onChangeCompatPre17(of: value, perform: action)
         }
+    }
+
+    // This helper is compiled for older OSes and marked deprecated on iOS 17/macOS 14/etc.,
+    // which prevents unavailability errors when building with newer SDKs.
+    @available(iOS, introduced: 13.0, deprecated: 17.0)
+    @available(macOS, introduced: 11.0, deprecated: 14.0)
+    @available(tvOS, introduced: 13.0, deprecated: 17.0)
+    @available(watchOS, introduced: 6.0, deprecated: 10.0)
+    // visionOS launched with the new two-parameter API; never use the old one there.
+    @available(visionOS, unavailable)
+    @ViewBuilder
+    private func onChangeCompatPre17<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
+        self.onChange(of: value, perform: action)
     }
 }

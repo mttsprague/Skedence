@@ -128,6 +128,9 @@ export const createPaymentIntentDirect = functions.https.onCall(
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: userData?.email || undefined,
+          name: userData?.firstName && userData?.lastName ?
+            `${userData.firstName} ${userData.lastName}` :
+            undefined,
           metadata: {
             userId: userId,
             orgId: orgId,
@@ -148,10 +151,15 @@ export const createPaymentIntentDirect = functions.https.onCall(
       }
 
       // Create payment intent
+      const customerName = userData?.firstName && userData?.lastName ?
+        `${userData.firstName} ${userData.lastName}` :
+        "Customer";
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
         customer: customerId,
+        description: `Skedence: ${customerName}`,
         automatic_payment_methods: {
           enabled: true,
         },
@@ -310,6 +318,10 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       }
 
       // Create and confirm payment intent with saved payment method
+      const customerName = userData?.firstName && userData?.lastName ?
+        `${userData.firstName} ${userData.lastName}` :
+        "Customer";
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
@@ -317,6 +329,7 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         payment_method: paymentMethodId,
         confirm: true,
         return_url: "https://skedence.app/payment-complete",
+        description: `Skedence: ${customerName}`,
         metadata: {
           orgId: orgId,
           trainerId: trainerId,

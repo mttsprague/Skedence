@@ -133,11 +133,12 @@ export const adminProcessPayment = functions.https.onCall(
       }
 
       // Create payment intent
+      const customerName = `${userData.firstName} ${userData.lastName}`;
       const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
         amount: amount,
         currency: "usd",
         customer: customerId,
-        description: description,
+        description: `Skedence: ${customerName} - ${description}`,
         automatic_payment_methods: {
           enabled: true,
         },

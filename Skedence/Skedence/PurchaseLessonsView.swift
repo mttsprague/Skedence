@@ -224,6 +224,12 @@ struct PurchaseLessonsView: View {
                     Text(package.title)
                         .foregroundStyle(.primary)
                         .font(.headline)
+                    if !package.description.isEmpty {
+                        Text(package.description)
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                            .lineLimit(2)
+                    }
                 }
 
                 Spacer()

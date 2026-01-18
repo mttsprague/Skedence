@@ -14,6 +14,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
     var priceInCents: Int // e.g., 8000 = $80.00
     var packageType: String // e.g., "private", "2_athlete", "3_athlete", "class_pass"
     var lessonCount: Int = 1 // Number of lessons/units in this package (e.g., 1, 5, 10)
+    var description: String = "" // Package description
     
     /// Formatted price for display (e.g., "$80.00")
     var formattedPrice: String {
@@ -34,8 +35,36 @@ struct PackageOption: Codable, Identifiable, Hashable {
         }
     }
     
+    /// Explicit memberwise initializer (needed because we implement a custom `init(from:)`)
+    init(
+        id: String = UUID().uuidString,
+        title: String,
+        priceInCents: Int,
+        packageType: String,
+        lessonCount: Int = 1,
+        description: String = ""
+    ) {
+        self.id = id
+        self.title = title
+        self.priceInCents = priceInCents
+        self.packageType = packageType
+        self.lessonCount = lessonCount
+        self.description = description
+    }
+    
+    // Custom decoding to handle missing description field for backward compatibility
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        priceInCents = try container.decode(Int.self, forKey: .priceInCents)
+        packageType = try container.decode(String.self, forKey: .packageType)
+        lessonCount = try container.decodeIfPresent(Int.self, forKey: .lessonCount) ?? 1
+        description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
+    }
+    
     enum CodingKeys: String, CodingKey {
-        case id, title, priceInCents, packageType, lessonCount
+        case id, title, priceInCents, packageType, lessonCount, description
     }
 }
 

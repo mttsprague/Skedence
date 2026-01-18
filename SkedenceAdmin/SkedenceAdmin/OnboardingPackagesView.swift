@@ -18,6 +18,7 @@ struct OnboardingPackagesView: View {
     
     // Custom package fields
     @State private var packageName: String = ""
+    @State private var packageDescription: String = ""
     @State private var sessions: String = ""
     @State private var price: String = ""
     @State private var expirationDays: String = ""
@@ -57,6 +58,26 @@ struct OnboardingPackagesView: View {
                         placeholder: "Package Name",
                         text: $packageName
                     )
+                    
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "text.alignleft")
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .frame(width: 24)
+                            Text("Description")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        TextEditor(text: $packageDescription)
+                            .frame(height: 80)
+                            .padding(Spacing.xs)
+                            .background(Color(uiColor: .secondarySystemGroupedBackground))
+                            .cornerRadius(CornerRadius.sm)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CornerRadius.sm)
+                                    .stroke(Color(uiColor: .separator), lineWidth: 0.5)
+                            )
+                    }
                     
                     FormField(
                         icon: "number",
@@ -163,7 +184,8 @@ struct OnboardingPackagesView: View {
                     title: packageName,
                     priceInCents: Int(priceValue * 100),
                     packageType: packageName.lowercased().replacingOccurrences(of: " ", with: "_"),
-                    lessonCount: sessionsValue
+                    lessonCount: sessionsValue,
+                    description: packageDescription
                 )
                 
                 // Create pricing structure with the new package

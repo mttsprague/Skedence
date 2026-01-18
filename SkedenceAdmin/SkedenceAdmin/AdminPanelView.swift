@@ -1386,6 +1386,17 @@ extension AdminPanelView {
                     .cornerRadius(CornerRadius.sm)
             }
             
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Description")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.textSecondary)
+                TextEditor(text: $editingTiers[tierIndex].packages[packageIndex].description)
+                    .frame(height: 60)
+                    .padding(4)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(CornerRadius.sm)
+            }
+            
             HStack(spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Type (use_underscores)")
