@@ -160,6 +160,7 @@ export const createPaymentIntentDirect = functions.https.onCall(
         currency: "usd",
         customer: customerId,
         description: `Skedence: ${customerName}`,
+        setup_future_usage: "off_session", // Save payment method for future use
         automatic_payment_methods: {
           enabled: true,
         },

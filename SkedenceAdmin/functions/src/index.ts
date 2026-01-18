@@ -44,6 +44,9 @@ export * from "./confirmationEmails";
 // Export admin payment functions
 export * from "./admin-payment";
 
+// Export wallet functions
+export * from "./wallet";
+
 const db = admin.firestore();
 
 /**

@@ -95,6 +95,42 @@ struct OnboardingStripeViewDirect: View {
             .background(AppTheme.surfaceSecondary)
             .cornerRadius(CornerRadius.md)
             
+            // Web Portal Option
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack(spacing: 8) {
+                    Image(systemName: "globe")
+                        .foregroundStyle(AppTheme.primary)
+                    Text("Easier Option: Use Our Web Portal")
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+                
+                Text("Configure your Stripe keys from your computer browser for easier copy/paste")
+                    .font(.bodySmall)
+                    .foregroundStyle(AppTheme.textSecondary)
+                
+                Button(action: {
+                    if let url = URL(string: "https://skedence.com/stripe-keys.html") {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.up.right.square")
+                        Text("Open Stripe Configuration Portal")
+                    }
+                    .font(.bodyMedium)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.sm)
+                    .background(AppTheme.primary)
+                    .cornerRadius(CornerRadius.md)
+                }
+                .padding(.top, Spacing.xs)
+            }
+            .padding()
+            .background(AppTheme.primary.opacity(0.08))
+            .cornerRadius(CornerRadius.md)
+            
             // Warning about live mode
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack(spacing: 8) {

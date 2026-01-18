@@ -8,6 +8,8 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseFunctions
+import StripePaymentSheet
 
 struct ProfileView: View {
     @EnvironmentObject var auth: AuthManager
@@ -621,7 +623,7 @@ private struct SignedInProfileScreen: View {
                         Text("No Saved Cards")
                             .font(.headline)
                             .foregroundStyle(.primary)
-                        Text("Your saved payment methods will appear here after you make a purchase with the 'Save for future use' option.")
+                        Text("Your saved payment methods will appear here. Add a card to your wallet for faster checkout.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -646,6 +648,36 @@ private struct SignedInProfileScreen: View {
                     )
                 }
             }
+            
+            // Add Card to Wallet Button
+            Button {
+                Task {
+                    await addCardToWallet()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(Brand.primary)
+                    
+                    Text("Add Card to Wallet")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.platformBackground)
+                        .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
+                )
+            }
+            .padding(.horizontal, 16)
             
             if let error = customerService.errorMessage {
                 card {
@@ -704,6 +736,58 @@ private struct SignedInProfileScreen: View {
 
     private func trainerName(for trainerId: String) -> String {
         trainersService.trainers.first(where: { $0.id == trainerId })?.name ?? "Trainer"
+    }
+    
+    private func addCardToWallet() async {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let orgId = auth.currentOrgId else {
+            return
+        }
+        
+        do {
+            // Create setup intent
+            let functions = Functions.functions()
+            let callable = functions.httpsCallable("createSetupIntentDirect")
+            let result = try await callable.call(["orgId": orgId, "userId": userId])
+            
+            guard let data = result.data as? [String: Any],
+                  let clientSecret = data["clientSecret"] as? String,
+                  let publishableKey = data["publishableKey"] as? String else {
+                return
+            }
+            
+            // Configure Stripe with org's key
+            STPAPIClient.shared.publishableKey = publishableKey
+            
+            // Create and configure payment sheet for card setup
+            var configuration = PaymentSheet.Configuration()
+            configuration.merchantDisplayName = "Skedence"
+            configuration.allowsDelayedPaymentMethods = false
+            
+            let paymentSheet = PaymentSheet(setupIntentClientSecret: clientSecret, configuration: configuration)
+            
+            // Present the payment sheet
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let rootViewController = windowScene.windows.first?.rootViewController else {
+                return
+            }
+            
+            paymentSheet.present(from: rootViewController) { result in
+                Task { @MainActor in
+                    switch result {
+                    case .completed:
+                        // Card was successfully added - reload payment methods
+                        await self.customerService.loadPaymentMethods()
+                    case .canceled:
+                        print("Setup canceled")
+                    case .failed(let error):
+                        print("Setup failed: \(error.localizedDescription)")
+                    }
+                }
+            }
+        } catch {
+            print("Error creating setup intent: \(error)")
+        }
     }
 
     private func nextUpcomingBooking() -> Booking? {
