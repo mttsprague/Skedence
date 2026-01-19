@@ -256,9 +256,8 @@ final class FunctionsService {
             print("🎫 Token preview: \(token.prefix(20))...")
         }
         
-        // Create a fresh Functions instance to ensure it uses the refreshed token
-        let freshFunctions = Functions.functions(region: "us-central1")
-        print("📞 Created fresh Functions instance for region us-central1")
+        // Use the default Functions instance (uses default Firebase app with Auth)
+        print("📞 Using Functions instance for region us-central1")
         
         let payload: [String: Any] = [
             "orgId": orgId,
@@ -276,7 +275,7 @@ final class FunctionsService {
         
         do {
             print("🚀 Making function call...")
-            let result = try await freshFunctions.httpsCallable("adminChargeWithSavedCard").call(payload)
+            let result = try await functions.httpsCallable("adminChargeWithSavedCard").call(payload)
             print("✅ Function call succeeded")
             
             guard let dict = result.data as? [String: Any],
