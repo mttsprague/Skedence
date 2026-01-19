@@ -238,7 +238,10 @@ final class FunctionsService {
         description: String
     ) async throws -> (paymentIntentId: String, status: String) {
         #if canImport(FirebaseFunctions)
-        guard Auth.auth().currentUser != nil else { throw FunctionsServiceError.unauthenticated }
+        guard let currentUser = Auth.auth().currentUser else { throw FunctionsServiceError.unauthenticated }
+        
+        // Force token refresh to ensure we have a valid auth token
+        _ = try await currentUser.getIDTokenForcingRefresh(true)
         
         let payload: [String: Any] = [
             "orgId": orgId,
