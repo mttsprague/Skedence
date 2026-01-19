@@ -481,6 +481,8 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
       const packageType = paymentIntent.metadata.packageType;
       const trainerId = paymentIntent.metadata.trainerId;
 
+      console.log(`🔍 Payment metadata - packageType: ${packageType}, trainerId: ${trainerId}`);
+
       if (!packageType || !trainerId) {
         throw new functions.https.HttpsError(
           "internal",
@@ -494,16 +496,29 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
 
       let totalLessons = 1; // Default fallback
 
+      console.log(`🔍 Checking pricing structure for package: ${packageType}`);
+
       if (orgData?.pricingStructure?.tiers) {
+        console.log(`📋 Found ${orgData.pricingStructure.tiers.length} pricing tiers`);
+
         // Look for the package in pricing structure
         for (const tier of orgData.pricingStructure.tiers) {
+          console.log(`📋 Tier "${tier.name}" has ${tier.packages?.length || 0} packages`);
+
           const pkg = tier.packages.find((p: any) => p.packageType === packageType);
           if (pkg) {
             totalLessons = pkg.lessonCount || 1;
+            console.log(`✅ Found matching package! lessonCount: ${totalLessons}`);
             break;
           }
         }
+
+        if (totalLessons === 1) {
+          console.log("⚠️ No matching package found in pricing structure, using default: 1");
+        }
       } else {
+        console.log("⚠️ No pricing structure found, checking packages subcollection");
+
         // Fallback: check packages subcollection
         const packagesSnapshot = await db
           .collection("organizations")
@@ -516,6 +531,9 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
         if (!packagesSnapshot.empty) {
           const pkgData = packagesSnapshot.docs[0].data();
           totalLessons = pkgData.lessonCount || 1;
+          console.log("✅ Found package in subcollection! lessonCount: ${totalLessons}");
+        } else {
+          console.log("⚠️ No package found in subcollection either, using default: 1");
         }
       }
 

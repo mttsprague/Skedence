@@ -487,7 +487,7 @@ struct PurchaseLessonsView: View {
                     // Reload packages to show the new one
                     print("📦 Reloading packages...")
                     await packagesService.loadMyPackages()
-                    print("✅ Packages reloaded, count: \(packagesService.myPackages.count)")
+                    print("✅ Packages reloaded, count: \(packagesService.packages.count)")
                 } catch {
                     print("❌ confirmPayment failed: \(error.localizedDescription)")
                     alert = .init(title: "Error", message: "Payment succeeded but package creation failed. Please contact support. \(error.localizedDescription)")
@@ -757,4 +757,3 @@ private struct SavedCardRow: View {
         .padding(.horizontal)
     }
 }
-
