@@ -63,19 +63,32 @@ class StripeCustomerService: ObservableObject {
             return
         }
         
+        // Get orgId from AuthManager
+        guard let orgId = AuthManager.shared.currentOrgId else {
+            paymentMethods = []
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         
+        print("🔄 Loading payment methods for userId: \(userId), orgId: \(orgId)")
+        
         do {
-            let callable = functions.httpsCallable("getPaymentMethods")
-            let result = try await callable.call(["userId": userId])
+            let callable = functions.httpsCallable("getPaymentMethodsDirect")
+            let result = try await callable.call(["userId": userId, "orgId": orgId])
+            
+            print("✅ getPaymentMethodsDirect call succeeded")
             
             guard let data = result.data as? [String: Any],
                   let methodsData = data["paymentMethods"] as? [[String: Any]] else {
+                print("⚠️ No payment methods data in response")
                 paymentMethods = []
                 isLoading = false
                 return
             }
+            
+            print("📋 Found \(methodsData.count) payment methods")
             
             paymentMethods = methodsData.compactMap { methodData in
                 guard let id = methodData["id"] as? String,
