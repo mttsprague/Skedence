@@ -257,26 +257,33 @@ function renderTrainers() {
     // Calculate booking stats for each trainer
     const now = new Date();
     const trainerStats = allData.trainers.map(trainer => {
-        const trainerBookings = allData.bookings.filter(b => 
-            b.trainerId === trainer.id || b.trainerUID === trainer.id
-        );
+        // Match bookings by trainerId OR trainerName
+        const trainerBookings = allData.bookings.filter(b => {
+            const matchesId = b.trainerId === trainer.id || b.trainerUID === trainer.id;
+            const matchesName = b.trainerName === trainer.name;
+            return matchesId || matchesName;
+        });
         
+        console.log(`Trainer ${trainer.name}: Found ${trainerBookings.length} bookings`);
+        
+        // Completed: bookings where endTime is in the past
         const completed = trainerBookings.filter(b => {
-            if (!b.scheduledTime) return false;
-            const status = getBookingStatus(b, b.scheduledTime);
-            return status === 'complete';
+            if (!b.endTime && !b.startTime) return false;
+            const endTime = b.endTime || (b.startTime ? new Date(b.startTime.getTime() + 60 * 60000) : null);
+            return endTime && endTime < now && b.status !== 'cancelled';
         }).length;
         
-        const upcoming = trainerBookings.filter(b => 
-            b.scheduledTime && b.scheduledTime > now && 
-            (b.status !== 'cancelled' && b.status !== 'complete')
-        ).length;
+        // Upcoming: bookings where startTime is in the future
+        const upcoming = trainerBookings.filter(b => {
+            if (!b.startTime) return false;
+            return b.startTime > now && b.status !== 'cancelled';
+        }).length;
         
         return {
             ...trainer,
             completed,
             upcoming,
-            total: trainerBookings.length
+            total: completed + upcoming
         };
     });
     
@@ -425,6 +432,7 @@ async function loadBookings() {
         console.log('Loaded bookings:', allData.bookings.length);
         renderBookings();
         renderRecentBookings();
+        renderTrainers(); // Re-render trainers to update booking stats
     } catch (error) {
         console.error('Error loading bookings:', error);
         // Show error in UI
