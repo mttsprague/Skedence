@@ -35,20 +35,29 @@ class StripeCustomerService: ObservableObject {
     private let functions = Functions.functions()
     
     // Load saved payment methods for a specific user (used by admin)
-    func loadPaymentMethodsForUser(userId: String) async {
+    func loadPaymentMethodsForUser(userId: String, orgId: String) async {
         isLoading = true
         errorMessage = nil
         
+        print("🔄 Admin loading payment methods for userId: \(userId), orgId: \(orgId)")
+        
         do {
-            let callable = functions.httpsCallable("getPaymentMethodsForUser")
-            let result = try await callable.call(["userId": userId])
+            // Use the same function as client app (getPaymentMethodsDirect)
+            // which uses organization-specific Stripe accounts
+            let callable = functions.httpsCallable("getPaymentMethodsDirect")
+            let result = try await callable.call(["userId": userId, "orgId": orgId])
+            
+            print("✅ getPaymentMethodsDirect call succeeded")
             
             guard let data = result.data as? [String: Any],
                   let methodsData = data["paymentMethods"] as? [[String: Any]] else {
+                print("⚠️ No payment methods data in response")
                 paymentMethods = []
                 isLoading = false
                 return
             }
+            
+            print("📋 Found \(methodsData.count) payment methods for user")
             
             paymentMethods = methodsData.compactMap { methodData in
                 guard let id = methodData["id"] as? String,
@@ -68,6 +77,11 @@ class StripeCustomerService: ObservableObject {
                 )
             }
         } catch {
+            print("❌ Error loading payment methods: \(error)")
+            if let nsError = error as NSError? {
+                print("❌ Error domain: \(nsError.domain)")
+                print("❌ Error code: \(nsError.code)")
+            }
             errorMessage = error.localizedDescription
             paymentMethods = []
         }

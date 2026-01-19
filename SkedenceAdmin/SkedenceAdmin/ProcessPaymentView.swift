@@ -313,7 +313,8 @@ struct ProcessPaymentView: View {
                 }
             }
             .task {
-                await customerService.loadPaymentMethodsForUser(userId: client.id)
+                guard let orgId = auth.currentOrgId else { return }
+                await customerService.loadPaymentMethodsForUser(userId: client.id, orgId: orgId)
             }
             .paymentSheet(isPresented: $showingPaymentSheet, paymentSheet: $paymentSheet) { result in
                 paymentResult = result

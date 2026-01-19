@@ -449,7 +449,31 @@ export const confirmAdminPayment = functions.https.onCall(
         const customerId = userData?.stripeCustomerId;
 
         if (customerId) {
-          // Attach payment method to customer (this saves it to their wallet)
+          // Remove all existing payment methods before adding the new one
+          // This ensures only one card is kept on file per user
+          try {
+            const existingMethods = await orgStripe.paymentMethods.list({
+              customer: customerId,
+              type: "card",
+            });
+
+            console.log(`🗑️ Removing ${existingMethods.data.length} existing payment method(s) for customer ${customerId}`);
+
+            for (const method of existingMethods.data) {
+              try {
+                await orgStripe.paymentMethods.detach(method.id);
+                console.log(`✅ Detached payment method ${method.id}`);
+              } catch (detachError) {
+                console.error(`⚠️ Failed to detach payment method ${method.id}:`, detachError);
+                // Continue removing others even if one fails
+              }
+            }
+          } catch (listError) {
+            console.error("⚠️ Failed to list existing payment methods:", listError);
+            // Continue with attaching new card even if removal fails
+          }
+
+          // Attach new payment method to customer (this saves it to their wallet)
           await orgStripe.paymentMethods.attach(paymentMethodId, {
             customer: customerId,
           });

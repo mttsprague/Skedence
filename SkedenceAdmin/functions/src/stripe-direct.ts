@@ -526,6 +526,43 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
         );
       }
 
+      // If payment method was saved (setup_future_usage was set), remove old cards
+      if (paymentIntent.setup_future_usage && paymentIntent.payment_method && paymentIntent.customer) {
+        const customerId = typeof paymentIntent.customer === "string" ?
+          paymentIntent.customer :
+          paymentIntent.customer.id;
+
+        const newPaymentMethodId = typeof paymentIntent.payment_method === "string" ?
+          paymentIntent.payment_method :
+          paymentIntent.payment_method.id;
+
+        try {
+          // Get all existing payment methods for this customer
+          const existingMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: "card",
+          });
+
+          console.log(`🗑️ Checking for old cards to remove. Found ${existingMethods.data.length} total card(s)`);
+
+          // Remove all cards except the new one
+          for (const method of existingMethods.data) {
+            if (method.id !== newPaymentMethodId) {
+              try {
+                await stripe.paymentMethods.detach(method.id);
+                console.log(`✅ Removed old payment method ${method.id}`);
+              } catch (detachError) {
+                console.error(`⚠️ Failed to detach payment method ${method.id}:`, detachError);
+                // Continue removing others even if one fails
+              }
+            }
+          }
+        } catch (listError) {
+          console.error("⚠️ Failed to list/remove old payment methods:", listError);
+          // Continue with package creation even if card removal fails
+        }
+      }
+
       const packageType = paymentIntent.metadata.packageType;
       const trainerId = paymentIntent.metadata.trainerId;
 
