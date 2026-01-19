@@ -1413,7 +1413,7 @@ extension AdminPanelView {
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Lessons")
+                    Text("Passes")
                         .font(.caption2)
                         .foregroundStyle(AppTheme.textSecondary)
                     TextField("1", value: $editingTiers[tierIndex].packages[packageIndex].lessonCount, format: .number)
@@ -1491,7 +1491,7 @@ extension AdminPanelView {
                     return
                 }
                 if package.lessonCount <= 0 {
-                    alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have at least 1 lesson")
+                    alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have at least 1 pass")
                     return
                 }
                 if package.packageType.isEmpty {
