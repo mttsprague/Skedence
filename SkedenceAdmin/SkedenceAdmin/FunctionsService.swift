@@ -241,7 +241,10 @@ final class FunctionsService {
         guard let currentUser = Auth.auth().currentUser else { throw FunctionsServiceError.unauthenticated }
         
         // Force token refresh to ensure we have a valid auth token
-        _ = try await currentUser.getIDTokenForcingRefresh(true)
+        try await forceRefreshIDToken(for: currentUser)
+        
+        // Create a fresh Functions instance to ensure it uses the refreshed token
+        let freshFunctions = Functions.functions(region: "us-central1")
         
         let payload: [String: Any] = [
             "orgId": orgId,
@@ -252,7 +255,7 @@ final class FunctionsService {
         ]
         
         do {
-            let result = try await functions.httpsCallable("adminChargeWithSavedCard").call(payload)
+            let result = try await freshFunctions.httpsCallable("adminChargeWithSavedCard").call(payload)
             guard let dict = result.data as? [String: Any],
                   let paymentIntentId = dict["paymentIntentId"] as? String,
                   let status = dict["status"] as? String else {
@@ -271,4 +274,19 @@ final class FunctionsService {
         throw FunctionsServiceError.notAvailable
         #endif
     }
+    
+    #if canImport(FirebaseAuth)
+    // Bridge the completion-handler API to async/await
+    private func forceRefreshIDToken(for user: User) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            user.getIDTokenForcingRefresh(true) { _, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+    #endif
 }
