@@ -161,6 +161,8 @@ export const getPaymentMethodsDirect = functions.https.onCall(
     }
 
     try {
+      console.log(`🔍 Getting payment methods for user ${userId} in org ${orgId}`);
+
       // Get organization's Stripe keys
       const stripeDoc = await db
         .collection("organizations")
@@ -169,14 +171,26 @@ export const getPaymentMethodsDirect = functions.https.onCall(
         .doc("config")
         .get();
 
-      const stripeData = stripeDoc.data();
-
-      if (!stripeData?.secretKey || !stripeData?.publishableKey) {
+      if (!stripeDoc.exists) {
+        console.error(`❌ No Stripe config found for org ${orgId}`);
         throw new functions.https.HttpsError(
           "failed-precondition",
-          "Organization Stripe keys not configured"
+          "Organization Stripe keys not configured - please configure in admin app"
         );
       }
+
+      const stripeData = stripeDoc.data();
+      console.log(`✅ Found Stripe config for org ${orgId}`);
+
+      if (!stripeData?.secretKey || !stripeData?.publishableKey) {
+        console.error(`❌ Stripe keys missing: secretKey=${!!stripeData?.secretKey}, publishableKey=${!!stripeData?.publishableKey}`);
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Organization Stripe keys not configured properly"
+        );
+      }
+
+      console.log(`✅ Stripe keys valid for org ${orgId}`);
 
       // Initialize Stripe with organization's key
       const stripe = new Stripe(stripeData.secretKey, {
@@ -197,10 +211,15 @@ export const getPaymentMethodsDirect = functions.https.onCall(
       const userData = usersSnapshot.docs[0].data();
       let customerId = userData.stripeCustomerId;
 
+      console.log(`📋 User data found, stripeCustomerId: ${customerId || "none"}`);
+
       // If no customer ID, create one
       if (!customerId) {
+        console.log(`🔧 Creating new Stripe customer for user ${userId}`);
         const email = userData.email || request.auth.token.email;
         const name = userData.name || userData.firstName || "Customer";
+
+        console.log(`📧 Customer email: ${email}, name: ${name}`);
 
         const customer = await stripe.customers.create({
           email: email,
@@ -210,13 +229,18 @@ export const getPaymentMethodsDirect = functions.https.onCall(
 
         customerId = customer.id;
 
+        console.log(`✅ Created Stripe customer: ${customerId}`);
+
         // Save customer ID
         await db.collection("users").doc(userId).update({
           stripeCustomerId: customerId,
         });
+
+        console.log("✅ Saved customer ID to user document");
       }
 
       // Get payment methods
+      console.log(`🔍 Listing payment methods for customer: ${customerId}`);
       const paymentMethods = await stripe.paymentMethods.list({
         customer: customerId,
         type: "card",
