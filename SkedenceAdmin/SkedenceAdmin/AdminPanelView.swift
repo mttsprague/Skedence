@@ -1413,6 +1413,21 @@ extension AdminPanelView {
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
+                    Text("Lessons")
+                        .font(.caption2)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    TextField("1", value: $editingTiers[tierIndex].packages[packageIndex].lessonCount, format: .number)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(.plain)
+                        .frame(width: 50)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground))
+                        .cornerRadius(CornerRadius.sm)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Price")
                         .font(.caption2)
                         .foregroundStyle(AppTheme.textSecondary)
@@ -1448,7 +1463,7 @@ extension AdminPanelView {
     }
     
     private func addPackage(to tierIndex: Int) {
-        editingTiers[tierIndex].packages.append(PackageOption(title: "", priceInCents: 0, packageType: ""))
+        editingTiers[tierIndex].packages.append(PackageOption(title: "", priceInCents: 0, packageType: "", lessonCount: 1))
     }
     
     private func deletePackage(at packageIndex: Int, from tierIndex: Int) {
@@ -1473,6 +1488,10 @@ extension AdminPanelView {
                 }
                 if package.priceInCents <= 0 {
                     alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have a price greater than $0")
+                    return
+                }
+                if package.lessonCount <= 0 {
+                    alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have at least 1 lesson")
                     return
                 }
                 if package.packageType.isEmpty {
