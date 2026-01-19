@@ -229,4 +229,43 @@ final class FunctionsService {
         throw FunctionsServiceError.notAvailable
         #endif
     }
+    
+    func adminChargeWithSavedCard(
+        orgId: String,
+        userId: String,
+        paymentMethodId: String,
+        amount: Int,
+        description: String
+    ) async throws -> (paymentIntentId: String, status: String) {
+        #if canImport(FirebaseFunctions)
+        guard Auth.auth().currentUser != nil else { throw FunctionsServiceError.unauthenticated }
+        
+        let payload: [String: Any] = [
+            "orgId": orgId,
+            "userId": userId,
+            "paymentMethodId": paymentMethodId,
+            "amount": amount,
+            "description": description
+        ]
+        
+        do {
+            let result = try await functions.httpsCallable("adminChargeWithSavedCard").call(payload)
+            guard let dict = result.data as? [String: Any],
+                  let paymentIntentId = dict["paymentIntentId"] as? String,
+                  let status = dict["status"] as? String else {
+                throw FunctionsServiceError.invalidResponse
+            }
+            return (paymentIntentId, status)
+        } catch let error as NSError {
+            if error.domain == FunctionsErrorDomain {
+                let code = error.code
+                let message = error.localizedDescription
+                throw FunctionsServiceError.server(code: code, message: message)
+            }
+            throw error
+        }
+        #else
+        throw FunctionsServiceError.notAvailable
+        #endif
+    }
 }

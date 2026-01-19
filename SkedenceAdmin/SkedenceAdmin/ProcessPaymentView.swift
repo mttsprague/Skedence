@@ -334,6 +334,13 @@ struct ProcessPaymentView: View {
         guard !description.isEmpty else { return }
         guard let orgId = auth.currentOrgId else { return }
         
+        // If using saved card, process directly
+        if !useNewCard, let paymentMethodId = selectedPaymentMethodId {
+            chargeWithSavedCard(orgId: orgId, paymentMethodId: paymentMethodId, amount: cents)
+            return
+        }
+        
+        // Otherwise, show payment sheet for new card
         // Capture values from @EnvironmentObject on the main actor before hopping threads
         let merchantName = auth.organizationName ?? "Organization"
         
@@ -371,6 +378,35 @@ struct ProcessPaymentView: View {
                 await MainActor.run {
                     showingPaymentSheet = true
                     isProcessing = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    isProcessing = false
+                }
+            }
+        }
+    }
+    
+    private func chargeWithSavedCard(orgId: String, paymentMethodId: String, amount: Int) {
+        isProcessing = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                let result = try await FunctionsService.shared.adminChargeWithSavedCard(
+                    orgId: orgId,
+                    userId: client.id,
+                    paymentMethodId: paymentMethodId,
+                    amount: amount,
+                    description: description
+                )
+                
+                print("✅ Payment with saved card succeeded: \(result.paymentIntentId)")
+                
+                await MainActor.run {
+                    isProcessing = false
+                    dismiss()
                 }
             } catch {
                 await MainActor.run {

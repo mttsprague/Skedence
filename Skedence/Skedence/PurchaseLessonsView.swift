@@ -19,6 +19,8 @@ struct PurchaseLessonsView: View {
     @State private var alert: AlertItem?
     @State private var paymentSheet: PaymentSheet?
     @State private var showPaymentMethodSheet = false
+    @State private var useCardOnFile = false
+    @State private var selectedPaymentMethodId: String?
 
     // Default expiration policy
     private let expirationMonths = 12
@@ -116,6 +118,34 @@ struct PurchaseLessonsView: View {
                     }
                 }
 
+                // Saved Cards Section (if available)
+                if !customerService.paymentMethods.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(isOn: $useCardOnFile) {
+                            Text("Use card on file")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                        }
+                        .tint(Brand.primary)
+                        .padding(.horizontal)
+                        
+                        if useCardOnFile {
+                            VStack(spacing: 8) {
+                                ForEach(customerService.paymentMethods) { method in
+                                    SavedCardRow(
+                                        method: method,
+                                        isSelected: selectedPaymentMethodId == method.id
+                                    ) {
+                                        selectedPaymentMethodId = method.id
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
                 // Bottom Purchase button
                 Button {
                     Task { await purchaseSelectedOption() }
@@ -159,6 +189,12 @@ struct PurchaseLessonsView: View {
             // Load pricing structure
             if let orgId = auth.currentOrgId {
                 await pricingService.loadPricingStructure(for: orgId)
+                // Load saved payment methods
+                await customerService.loadPaymentMethods(orgId: orgId)
+                // Auto-select first payment method if available
+                if let firstMethod = customerService.paymentMethods.first {
+                    selectedPaymentMethodId = firstMethod.id
+                }
             }
         }
         .alert(item: $alert) { a in
@@ -365,20 +401,25 @@ struct PurchaseLessonsView: View {
         }
         let selectedPackage = packages[selectedPackageIndex]
 
-        isPurchasing = true
-        
-        // Check if user has saved payment methods
-        await customerService.loadPaymentMethods(orgId: orgId)
-        
-        isPurchasing = false
-        
-        // If no saved payment methods, show payment method selection sheet
-        if customerService.paymentMethods.isEmpty {
-            showPaymentMethodSheet = true
+        // If user wants to use card on file and has selected one
+        if useCardOnFile {
+            guard let paymentMethodId = selectedPaymentMethodId else {
+                alert = .init(title: "Error", message: "Please select a card to use.")
+                return
+            }
+            
+            isPurchasing = true
+            await processPurchaseWithSavedCard(
+                paymentMethodId: paymentMethodId,
+                trainerId: trainerId,
+                orgId: orgId,
+                selectedPackage: selectedPackage
+            )
+            isPurchasing = false
             return
         }
         
-        // Otherwise, proceed with existing flow
+        // Otherwise, proceed with regular payment sheet flow
         await processPurchase(trainerId: trainerId, orgId: orgId, selectedPackage: selectedPackage)
     }
     

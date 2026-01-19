@@ -60,10 +60,10 @@ export const createSetupIntentDirect = functions.https.onCall(
         apiVersion: "2025-02-24.acacia",
       });
 
-      // Get or create Stripe customer
+      console.log(`🔍 Setting up payment method for user ${userId}`);
+
+      // Get user data from correct location
       const userDoc = await db
-        .collection("organizations")
-        .doc(orgId)
         .collection("users")
         .doc(userId)
         .get();
@@ -71,7 +71,11 @@ export const createSetupIntentDirect = functions.https.onCall(
       const userData = userDoc.data();
       let customerId = userData?.stripeCustomerId;
 
+      console.log(`📋 User data found, stripeCustomerId: ${customerId || "none"}`);
+
+      // Get or create Stripe customer
       if (!customerId) {
+        console.log("🆕 No customer ID, creating new customer");
         const customer = await stripe.customers.create({
           email: userData?.email || undefined,
           name: userData?.firstName && userData?.lastName ?
@@ -84,19 +88,54 @@ export const createSetupIntentDirect = functions.https.onCall(
         });
 
         customerId = customer.id;
+        console.log(`✅ Created new Stripe customer: ${customerId}`);
 
         // Save customer ID
         await db
-          .collection("organizations")
-          .doc(orgId)
           .collection("users")
           .doc(userId)
-          .set({
+          .update({
             stripeCustomerId: customerId,
-          }, {merge: true});
+          });
+        console.log("✅ Saved new customer ID to user document");
+      } else {
+        // Verify customer exists in this Stripe account
+        try {
+          await stripe.customers.retrieve(customerId);
+          console.log(`✅ Verified customer ${customerId} exists in Stripe account`);
+        } catch (error: any) {
+          if (error.code === "resource_missing") {
+            console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
+            const customer = await stripe.customers.create({
+              email: userData?.email || undefined,
+              name: userData?.firstName && userData?.lastName ?
+                `${userData.firstName} ${userData.lastName}` :
+                undefined,
+              metadata: {
+                userId: userId,
+                orgId: orgId,
+              },
+            });
+
+            customerId = customer.id;
+            console.log(`✅ Created new Stripe customer: ${customerId}`);
+
+            // Update with new customer ID
+            await db
+              .collection("users")
+              .doc(userId)
+              .update({
+                stripeCustomerId: customerId,
+              });
+            console.log("✅ Updated customer ID in user document");
+          } else {
+            throw error;
+          }
+        }
       }
 
       // Create setup intent
+      console.log(`🔧 Creating setup intent for customer ${customerId}`);
       const setupIntent = await stripe.setupIntents.create({
         customer: customerId,
         payment_method_types: ["card"],
@@ -239,12 +278,47 @@ export const getPaymentMethodsDirect = functions.https.onCall(
         console.log("✅ Saved customer ID to user document");
       }
 
-      // Get payment methods
+      // Get payment methods - handle case where customer doesn't exist
       console.log(`🔍 Listing payment methods for customer: ${customerId}`);
-      const paymentMethods = await stripe.paymentMethods.list({
-        customer: customerId,
-        type: "card",
-      });
+      let paymentMethods;
+      try {
+        paymentMethods = await stripe.paymentMethods.list({
+          customer: customerId,
+          type: "card",
+        });
+      } catch (error: any) {
+        // If customer doesn't exist in this Stripe account, create a new one
+        if (error.code === "resource_missing" && customerId) {
+          console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
+
+          const email = userData.email || request.auth.token.email;
+          const name = userData.name || userData.firstName || "Customer";
+
+          const customer = await stripe.customers.create({
+            email: email,
+            name: name,
+            metadata: {orgId, userId},
+          });
+
+          customerId = customer.id;
+          console.log(`✅ Created new Stripe customer: ${customerId}`);
+
+          // Save new customer ID
+          await db.collection("users").doc(userId).update({
+            stripeCustomerId: customerId,
+          });
+
+          console.log("✅ Saved new customer ID to user document");
+
+          // Try listing payment methods again with new customer
+          paymentMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: "card",
+          });
+        } else {
+          throw error;
+        }
+      }
 
       console.log(
         `✅ Found ${paymentMethods.data.length} payment methods for customer ${customerId}`

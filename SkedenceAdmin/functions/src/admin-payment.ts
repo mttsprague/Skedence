@@ -180,3 +180,160 @@ export const adminProcessPayment = functions.https.onCall(
     }
   }
 );
+
+interface AdminChargeWithSavedCardData {
+  orgId: string;
+  userId: string; // Client being charged
+  paymentMethodId: string; // Saved payment method ID
+  amount: number; // Amount in cents
+  description: string;
+}
+
+/**
+ * Admin-initiated payment with saved card
+ * Allows admins to charge clients using their saved payment methods
+ */
+export const adminChargeWithSavedCard = functions.https.onCall(
+  async (
+    request: functions.https.CallableRequest<AdminChargeWithSavedCardData>
+  ) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in to process payments"
+      );
+    }
+
+    const {orgId, userId, paymentMethodId, amount, description} = request.data;
+
+    if (!orgId || !userId || !paymentMethodId || !amount || !description) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields: orgId, userId, paymentMethodId, amount, description"
+      );
+    }
+
+    if (amount < 50) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Amount must be at least $0.50"
+      );
+    }
+
+    try {
+      // Verify admin access
+      const memberDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("orgMembers")
+        .doc(request.auth.uid)
+        .get();
+
+      const memberData = memberDoc.data();
+      console.log(`🔍 Checking permissions for user ${request.auth.uid} in org ${orgId}:`, {
+        exists: memberDoc.exists,
+        role: memberData?.role,
+      });
+
+      if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
+        console.log(`❌ Permission denied - role: ${memberData?.role || "none"}`);
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only owners and admins can process payments"
+        );
+      }
+
+      console.log(`✅ Permission granted - user is ${memberData.role}`);
+
+      // Get organization's Stripe keys
+      const stripeDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("stripe")
+        .doc("config")
+        .get();
+
+      const stripeData = stripeDoc.data();
+      if (!stripeData || !stripeData.secretKey) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Organization has not configured Stripe keys"
+        );
+      }
+
+      // Initialize Stripe with organization's secret key
+      const stripe = new Stripe(stripeData.secretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
+
+      // Get user data
+      const userDoc = await db
+        .collection("users")
+        .doc(userId)
+        .get();
+
+      const userData = userDoc.data();
+
+      if (!userData) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Client not found"
+        );
+      }
+
+      const customerId = userData.stripeCustomerId;
+
+      if (!customerId) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Client has no Stripe customer ID"
+        );
+      }
+
+      // Create and confirm payment intent with saved card
+      const customerName = `${userData.firstName} ${userData.lastName}`;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        customer: customerId,
+        payment_method: paymentMethodId,
+        confirm: true,
+        return_url: "https://skedence.app/payment-complete",
+        description: `Skedence: ${customerName} - ${description}`,
+        metadata: {
+          orgId: orgId,
+          userId: userId,
+          processedBy: request.auth.uid,
+          adminInitiated: "true",
+        },
+      });
+
+      if (paymentIntent.status === "succeeded") {
+        console.log(
+          `✅ Admin payment with saved card succeeded: ${paymentIntent.id} for ${amount / 100} USD (Client: ${userId})`
+        );
+
+        return {
+          paymentIntentId: paymentIntent.id,
+          status: paymentIntent.status,
+        };
+      } else {
+        throw new functions.https.HttpsError(
+          "aborted",
+          `Payment not completed. Status: ${paymentIntent.status}`
+        );
+      }
+    } catch (error: unknown) {
+      console.error("❌ Error charging with saved card:", error);
+
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to charge card: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);
