@@ -10,6 +10,8 @@ import Foundation
 struct LessonPackage: Identifiable, Codable {
     var id: String
     var packageType: String
+    var packageName: String? // Custom package name from pricing
+    var trainerId: String? // Trainer-specific package
     var totalLessons: Int
     var lessonsUsed: Int
     var purchaseDate: Date
@@ -26,6 +28,12 @@ struct LessonPackage: Identifiable, Codable {
     }
     
     var packageDisplayName: String {
+        // Use custom package name if available
+        if let customName = packageName, !customName.isEmpty {
+            return customName
+        }
+        
+        // Fallback to packageType mapping
         switch packageType {
         case "single": return "Single Lesson"
         case "private": return "Private Lesson"

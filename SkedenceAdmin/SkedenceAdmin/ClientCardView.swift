@@ -489,7 +489,7 @@ struct ClientCardView: View {
         CardView {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack {
-                    Text("Wallet")
+                    Text("Saved Cards")
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
                     
@@ -501,41 +501,56 @@ struct ClientCardView: View {
                     }
                 }
                 
-                if let paymentMethod = viewModel.paymentMethodInfo {
-                    HStack(spacing: Spacing.md) {
-                        Image(systemName: "creditcard.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(AppTheme.primary)
-                        
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text("Card on file")
-                                .font(.labelMedium)
-                                .foregroundStyle(AppTheme.textSecondary)
-                            Text("•••• \(paymentMethod)")
-                                .font(.bodyMedium)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(AppTheme.textPrimary)
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.vertical, Spacing.xs)
-                } else if !viewModel.isLoadingPaymentMethod {
+                if viewModel.paymentMethods.isEmpty && !viewModel.isLoadingPaymentMethod {
                     HStack(spacing: Spacing.md) {
                         Image(systemName: "creditcard")
                             .font(.system(size: 24))
                             .foregroundStyle(AppTheme.textTertiary)
                         
-                        Text("No card saved")
+                        Text("No cards saved")
                             .font(.bodyMedium)
                             .foregroundStyle(AppTheme.textSecondary)
                         
                         Spacer()
                     }
                     .padding(.vertical, Spacing.xs)
+                } else {
+                    VStack(spacing: Spacing.sm) {
+                        ForEach(viewModel.paymentMethods) { card in
+                            savedCardRow(card)
+                            if card.id != viewModel.paymentMethods.last?.id {
+                                Divider()
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+    
+    private func savedCardRow(_ card: PaymentMethodInfo) -> some View {
+        HStack(spacing: Spacing.md) {
+            Image(systemName: "creditcard.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(AppTheme.primary)
+            
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("\(card.brand.capitalized)")
+                    .font(.labelMedium)
+                    .foregroundStyle(AppTheme.textSecondary)
+                Text("•••• \(card.last4)")
+                    .font(.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
+            
+            Spacer()
+            
+            Text("\(card.expMonth)/\(card.expYear)")
+                .font(.bodySmall)
+                .foregroundStyle(AppTheme.textSecondary)
+        }
+        .padding(.vertical, Spacing.xs)
     }
     
     // MARK: - Account Section
@@ -555,9 +570,9 @@ struct ClientCardView: View {
                     }
                 }
                 
-                if viewModel.aggregatedPackages.isEmpty && !viewModel.isLoadingPackages {
+                if viewModel.packages.isEmpty && !viewModel.isLoadingPackages {
                     VStack(spacing: Spacing.sm) {
-                        Image(systemName: "creditcard")
+                        Image(systemName: "ticket")
                             .font(.system(size: 32))
                             .foregroundStyle(AppTheme.textTertiary)
                         Text("No lesson packages")
@@ -568,9 +583,9 @@ struct ClientCardView: View {
                     .padding(.vertical, Spacing.lg)
                 } else {
                     VStack(spacing: Spacing.sm) {
-                        ForEach(viewModel.aggregatedPackages) { package in
-                            aggregatedPackageRow(package)
-                            if package.id != viewModel.aggregatedPackages.last?.id {
+                        ForEach(viewModel.packages.filter { $0.lessonsRemaining > 0 }) { package in
+                            packageRow(package)
+                            if package.id != viewModel.packages.filter({ $0.lessonsRemaining > 0 }).last?.id {
                                 Divider()
                             }
                         }
@@ -580,41 +595,39 @@ struct ClientCardView: View {
         }
     }
     
-    private func aggregatedPackageRow(_ package: AggregatedPackage) -> some View {
+    private func packageRow(_ package: LessonPackage) -> some View {
         HStack(spacing: Spacing.md) {
-            Text(package.packageDisplayName)
-                .font(.bodyMedium)
-                .fontWeight(.semibold)
-                .foregroundStyle(AppTheme.textPrimary)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(package.packageDisplayName)
+                    .font(.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(AppTheme.textPrimary)
+                
+                if package.isExpired {
+                    Text("Expired")
+                        .font(.labelSmall)
+                        .foregroundStyle(Color.red)
+                } else {
+                    Text(package.statusText)
+                        .font(.labelSmall)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
             
             Spacer()
             
-            if package.totalRemaining > 0 {
+            if package.lessonsRemaining > 0 {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(package.totalRemaining)")
+                    Text("\(package.lessonsRemaining)")
                         .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(AppTheme.primary)
+                        .foregroundStyle(package.isExpired ? Color.red : AppTheme.primary)
                     Text("left")
                         .font(.labelSmall)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
-            } else {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(AppTheme.textTertiary)
             }
         }
         .padding(.vertical, Spacing.xs)
-    }
-    
-    private func aggregatedPackageStatusColor(_ package: AggregatedPackage) -> Color {
-        if package.totalRemaining == 0 {
-            return AppTheme.textTertiary
-        } else if package.totalRemaining <= 1 {
-            return Color.orange
-        } else {
-            return AppTheme.success
-        }
     }
     
     // MARK: - Schedule Section
@@ -802,6 +815,7 @@ class ClientCardViewModel: ObservableObject {
     @Published var documents: [ClientDocument] = []
     @Published var displayedLesson: ClientBooking?
     @Published var paymentMethodInfo: String? = nil
+    @Published var paymentMethods: [PaymentMethodInfo] = []
     @Published var isAdmin = false
     
     @Published var isLoadingPackages = false
@@ -833,9 +847,9 @@ class ClientCardViewModel: ObservableObject {
         await bookingsTask
         await documentsTask
         
-        // Load payment method if admin
-        if isAdmin {
-            await loadPaymentMethod(clientId: clientId)
+        // Load payment methods if admin
+        if isAdmin, let orgId = orgId {
+            await loadPaymentMethods(clientId: clientId, orgId: orgId)
         }
         
         // Set displayed lesson - match with fetched booking to get packageType
@@ -937,27 +951,18 @@ class ClientCardViewModel: ObservableObject {
         #endif
     }
     
-    private func loadPaymentMethod(clientId: String) async {
+    private func loadPaymentMethods(clientId: String, orgId: String) async {
         isLoadingPaymentMethod = true
         defer { isLoadingPaymentMethod = false }
         
-        #if canImport(FirebaseFirestore)
         do {
-            let userDoc = try await Firestore.firestore().collection("users").document(clientId).getDocument()
-            
-            if let stripeCustomerId = userDoc.data()?["stripeCustomerId"] as? String,
-               !stripeCustomerId.isEmpty,
-               let last4 = userDoc.data()?["paymentMethodLast4"] as? String {
-                paymentMethodInfo = last4
-            } else {
-                paymentMethodInfo = nil
-            }
+            paymentMethods = try await StripeCustomerService.shared.loadPaymentMethodsForUser(userId: clientId, orgId: orgId)
+            // Set paymentMethodInfo for backwards compatibility
+            paymentMethodInfo = paymentMethods.first?.last4
         } catch {
-            print("Error loading payment method: \(error)")
+            print("❌ Error loading payment methods: \(error)")
+            paymentMethods = []
             paymentMethodInfo = nil
         }
-        #else
-        paymentMethodInfo = nil
-        #endif
     }
 }
