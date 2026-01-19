@@ -254,6 +254,32 @@ function renderTrainers() {
         return;
     }
     
+    // Calculate booking stats for each trainer
+    const now = new Date();
+    const trainerStats = allData.trainers.map(trainer => {
+        const trainerBookings = allData.bookings.filter(b => 
+            b.trainerId === trainer.id || b.trainerUID === trainer.id
+        );
+        
+        const completed = trainerBookings.filter(b => {
+            if (!b.scheduledTime) return false;
+            const status = getBookingStatus(b, b.scheduledTime);
+            return status === 'complete';
+        }).length;
+        
+        const upcoming = trainerBookings.filter(b => 
+            b.scheduledTime && b.scheduledTime > now && 
+            (b.status !== 'cancelled' && b.status !== 'complete')
+        ).length;
+        
+        return {
+            ...trainer,
+            completed,
+            upcoming,
+            total: trainerBookings.length
+        };
+    });
+    
     const html = `
         <table class="data-table">
             <thead>
@@ -262,15 +288,21 @@ function renderTrainers() {
                     <th>Email</th>
                     <th>Specialties</th>
                     <th>Status</th>
+                    <th>Completed</th>
+                    <th>Upcoming</th>
+                    <th>Total</th>
                 </tr>
             </thead>
             <tbody>
-                ${allData.trainers.map(trainer => `
+                ${trainerStats.map(trainer => `
                     <tr>
                         <td><strong>${trainer.name}</strong></td>
                         <td>${trainer.email}</td>
                         <td>${trainer.specialties.join(', ') || 'None'}</td>
                         <td><span class="badge ${trainer.isActive ? 'badge-success' : 'badge-danger'}">${trainer.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td><strong>${trainer.completed}</strong></td>
+                        <td><strong>${trainer.upcoming}</strong></td>
+                        <td><strong>${trainer.total}</strong></td>
                     </tr>
                 `).join('')}
             </tbody>
