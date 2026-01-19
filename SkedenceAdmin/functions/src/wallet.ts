@@ -375,13 +375,13 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
 
     try {
       // Verify admin access
-      console.log(`🔍 Checking admin permissions for ${request.auth.uid} in org ${orgId}`);
+      // Note: orgMembers uses a flat structure with composite key: {uid}_{orgId}
+      const membershipId = `${request.auth.uid}_${orgId}`;
+      console.log(`🔍 Checking admin permissions for membership: ${membershipId}`);
 
       const memberDoc = await db
-        .collection("organizations")
-        .doc(orgId)
         .collection("orgMembers")
-        .doc(request.auth.uid)
+        .doc(membershipId)
         .get();
 
       const memberData = memberDoc.data();
