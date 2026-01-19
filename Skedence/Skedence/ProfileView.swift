@@ -741,20 +741,35 @@ private struct SignedInProfileScreen: View {
     private func addCardToWallet() async {
         guard let userId = Auth.auth().currentUser?.uid,
               let orgId = auth.currentOrgId else {
+            print("❌ Missing userId or orgId")
             return
         }
+        
+        print("🔄 Creating setup intent for userId: \(userId), orgId: \(orgId)")
         
         do {
             // Create setup intent
             let functions = Functions.functions()
             let callable = functions.httpsCallable("createSetupIntentDirect")
-            let result = try await callable.call(["orgId": orgId, "userId": userId])
             
-            guard let data = result.data as? [String: Any],
-                  let clientSecret = data["clientSecret"] as? String,
-                  let publishableKey = data["publishableKey"] as? String else {
+            print("🔧 Calling createSetupIntentDirect...")
+            let result = try await callable.call(["orgId": orgId, "userId": userId])
+            print("✅ Function call succeeded")
+            
+            guard let data = result.data as? [String: Any] else {
+                print("❌ Invalid response data type")
                 return
             }
+            
+            print("📋 Response data: \(data)")
+            
+            guard let clientSecret = data["clientSecret"] as? String,
+                  let publishableKey = data["publishableKey"] as? String else {
+                print("❌ Missing clientSecret or publishableKey in response")
+                return
+            }
+            
+            print("✅ Got clientSecret and publishableKey")
             
             // Configure Stripe with org's key
             STPAPIClient.shared.publishableKey = publishableKey
@@ -769,24 +784,32 @@ private struct SignedInProfileScreen: View {
             // Present the payment sheet
             guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                   let rootViewController = windowScene.windows.first?.rootViewController else {
+                print("❌ Could not find root view controller")
                 return
             }
             
+            print("📱 Presenting payment sheet...")
             paymentSheet.present(from: rootViewController) { result in
                 Task { @MainActor in
                     switch result {
                     case .completed:
+                        print("✅ Card added successfully")
                         // Card was successfully added - reload payment methods
                         await self.customerService.loadPaymentMethods()
                     case .canceled:
-                        print("Setup canceled")
+                        print("⚠️ Setup canceled by user")
                     case .failed(let error):
-                        print("Setup failed: \(error.localizedDescription)")
+                        print("❌ Setup failed: \(error.localizedDescription)")
                     }
                 }
             }
         } catch {
-            print("Error creating setup intent: \(error)")
+            print("❌ Error creating setup intent: \(error)")
+            if let nsError = error as NSError? {
+                print("   Error domain: \(nsError.domain)")
+                print("   Error code: \(nsError.code)")
+                print("   Error userInfo: \(nsError.userInfo)")
+            }
         }
     }
 
