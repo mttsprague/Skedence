@@ -375,6 +375,8 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
 
     try {
       // Verify admin access
+      console.log(`🔍 Checking admin permissions for ${request.auth.uid} in org ${orgId}`);
+
       const memberDoc = await db
         .collection("organizations")
         .doc(orgId)
@@ -383,14 +385,20 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
         .get();
 
       const memberData = memberDoc.data();
+
+      console.log(`📋 Member doc exists: ${memberDoc.exists}`);
+      console.log("📋 Member data:", memberData);
+      console.log(`📋 Member role: ${memberData?.role}`);
+
       if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
+        console.error(`❌ Permission denied - exists: ${memberDoc.exists}, role: ${memberData?.role || "none"}`);
         throw new functions.https.HttpsError(
           "permission-denied",
           "Only owners and admins can view client payment methods"
         );
       }
 
-      console.log(`🔍 Admin ${request.auth.uid} getting payment methods for user ${userId} in org ${orgId}`);
+      console.log(`✅ Admin ${request.auth.uid} (${memberData.role}) getting payment methods for user ${userId} in org ${orgId}`);
 
       // Get organization's Stripe keys
       const stripeDoc = await db
