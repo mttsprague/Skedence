@@ -51,6 +51,11 @@ class StripeCustomerService: ObservableObject {
         return customerId
     }
     
+    // Get existing Stripe Customer ID (returns nil if doesn't exist)
+    func getStripeCustomerId() async throws -> String? {
+        return try await getOrCreateCustomer()
+    }
+    
     // Load saved payment methods
     func loadPaymentMethods() async {
         guard let userId = Auth.auth().currentUser?.uid else {

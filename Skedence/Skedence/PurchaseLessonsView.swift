@@ -471,9 +471,11 @@ struct PurchaseLessonsView: View {
                 let selectedPackage = packages[selectedPackageIndex]
                 
                 do {
+                    print("🔄 Calling confirmPayment for paymentIntentId: \(paymentIntentId)")
                     // Call backend to confirm payment and create package
                     // Using direct mode (orgId-based) - set isDirect to true
                     try await stripeService.confirmPayment(paymentIntentId: paymentIntentId, isDirect: true)
+                    print("✅ confirmPayment succeeded, package should be allocated")
                     
                     // Track package purchase event
                     AnalyticsService.shared.logPackagePurchased(
@@ -483,8 +485,11 @@ struct PurchaseLessonsView: View {
                     )
                     
                     // Reload packages to show the new one
+                    print("📦 Reloading packages...")
                     await packagesService.loadMyPackages()
+                    print("✅ Packages reloaded, count: \(packagesService.myPackages.count)")
                 } catch {
+                    print("❌ confirmPayment failed: \(error.localizedDescription)")
                     alert = .init(title: "Error", message: "Payment succeeded but package creation failed. Please contact support. \(error.localizedDescription)")
                     CrashlyticsService.shared.logPaymentError(error, amount: Double(selectedPackage.priceInCents) / 100.0, method: "stripe")
                     return

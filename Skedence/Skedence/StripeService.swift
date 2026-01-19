@@ -78,11 +78,15 @@ final class StripeService: ObservableObject {
     // Confirm payment and create lesson package
     func confirmPayment(paymentIntentId: String, isDirect: Bool = true) async throws {
         guard let userId = Auth.auth().currentUser?.uid else {
+            print("❌ ConfirmPayment: User not authenticated")
             throw StripeError.notAuthenticated
         }
         
         // Use the appropriate function based on payment type
         let functionName = isDirect ? "confirmPaymentAndCreatePackageDirect" : "confirmPaymentAndCreatePackage"
+        print("🔧 Calling Firebase function: \(functionName)")
+        print("📋 Data: paymentIntentId=\(paymentIntentId), userId=\(userId)")
+        
         let callable = functions.httpsCallable(functionName)
         let data: [String: Any] = [
             "paymentIntentId": paymentIntentId,
@@ -90,9 +94,11 @@ final class StripeService: ObservableObject {
         ]
         
         do {
-            _ = try await callable.call(data)
+            let result = try await callable.call(data)
+            print("✅ Firebase function succeeded: \(result.data)")
         } catch {
-            print("Error confirming payment: \(error)")
+            print("❌ Error confirming payment: \(error)")
+            print("   Error details: \((error as NSError).userInfo)")
             throw StripeError.paymentFailed(error.localizedDescription)
         }
     }
