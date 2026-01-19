@@ -102,6 +102,13 @@ class StripeCustomerService: ObservableObject {
                 )
             }
         } catch {
+            print("❌ Error loading payment methods: \(error)")
+            print("❌ Error localized description: \(error.localizedDescription)")
+            if let nsError = error as NSError? {
+                print("❌ Error domain: \(nsError.domain)")
+                print("❌ Error code: \(nsError.code)")
+                print("❌ Error userInfo: \(nsError.userInfo)")
+            }
             errorMessage = error.localizedDescription
             paymentMethods = []
         }
