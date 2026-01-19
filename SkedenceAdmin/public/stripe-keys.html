@@ -319,6 +319,14 @@
         // Auth state observer
         auth.onAuthStateChanged(async (user) => {
             if (user) {
+                // Check if we should redirect after login
+                const shouldRedirect = sessionStorage.getItem('redirectAfterLogin');
+                if (shouldRedirect === 'true') {
+                    sessionStorage.removeItem('redirectAfterLogin');
+                    window.location.href = 'admin-dashboard.html';
+                    return;
+                }
+                
                 currentUser = user;
                 document.getElementById('userEmail').textContent = user.email;
                 
@@ -423,8 +431,10 @@
             loginBtn.textContent = 'Signing in...';
 
             try {
+                // Set flag to redirect after login
+                sessionStorage.setItem('redirectAfterLogin', 'true');
                 await auth.signInWithEmailAndPassword(email, password);
-                // Auth state observer will handle the rest
+                // Auth state observer will handle redirect
             } catch (error) {
                 console.error('Login error:', error);
                 showMessage('authMessage', 'error', 'Login failed: ' + error.message);

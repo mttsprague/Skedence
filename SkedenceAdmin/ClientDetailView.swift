@@ -154,17 +154,17 @@ struct ClientDetailView: View {
     private func lessonEventView(booking: ClientBooking, showDivider: Bool) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.xs) {
-                Image(systemName: "person.fill")
+                Image(systemName: booking.status == "complete" ? "checkmark.circle.fill" : "person.fill")
                     .font(.labelSmall)
-                    .foregroundStyle(AppTheme.textSecondary)
+                    .foregroundStyle(booking.status == "complete" ? .green : AppTheme.textSecondary)
                 Text("Lesson")
                     .font(.labelMedium)
                     .fontWeight(.semibold)
-                    .foregroundStyle(AppTheme.textPrimary)
+                    .foregroundStyle(booking.status == "complete" ? .secondary : AppTheme.textPrimary)
                 if !booking.status.isEmpty {
                     Text("• \(booking.status.capitalized)")
                         .font(.labelSmall)
-                        .foregroundStyle(AppTheme.textSecondary)
+                        .foregroundStyle(booking.status == "complete" ? .green : AppTheme.textSecondary)
                 }
             }
             
@@ -687,7 +687,12 @@ class ClientScheduleLoader: ObservableObject {
                 
                 let startTime = startTs.dateValue()
                 let endTime = endTs.dateValue()
-                let status = data["status"] as? String ?? "confirmed"
+                var status = data["status"] as? String ?? "confirmed"
+                
+                // Auto-mark past bookings as complete
+                if endTime < now && status != "cancelled" {
+                    status = "complete"
+                }
                 
                 // Determine trainer id/name
                 let trainerId = (data["trainerUID"] as? String) ?? (data["trainerId"] as? String) ?? ""
