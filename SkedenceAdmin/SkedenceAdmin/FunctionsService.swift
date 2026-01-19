@@ -238,13 +238,27 @@ final class FunctionsService {
         description: String
     ) async throws -> (paymentIntentId: String, status: String) {
         #if canImport(FirebaseFunctions)
-        guard let currentUser = Auth.auth().currentUser else { throw FunctionsServiceError.unauthenticated }
+        guard let currentUser = Auth.auth().currentUser else {
+            print("❌ No current user in Auth")
+            throw FunctionsServiceError.unauthenticated
+        }
+        
+        print("🔐 Current user UID: \(currentUser.uid)")
         
         // Force token refresh to ensure we have a valid auth token
+        print("🔄 Refreshing auth token...")
         try await forceRefreshIDToken(for: currentUser)
+        print("✅ Token refreshed successfully")
+        
+        // Get and log the token for debugging
+        if let token = try? await currentUser.getIDToken() {
+            print("🎫 Token length: \(token.count) characters")
+            print("🎫 Token preview: \(token.prefix(20))...")
+        }
         
         // Create a fresh Functions instance to ensure it uses the refreshed token
         let freshFunctions = Functions.functions(region: "us-central1")
+        print("📞 Created fresh Functions instance for region us-central1")
         
         let payload: [String: Any] = [
             "orgId": orgId,
@@ -254,15 +268,33 @@ final class FunctionsService {
             "description": description
         ]
         
+        print("📦 Calling adminChargeWithSavedCard with payload:")
+        print("   orgId: \(orgId)")
+        print("   userId: \(userId)")
+        print("   paymentMethodId: \(paymentMethodId)")
+        print("   amount: \(amount)")
+        
         do {
+            print("🚀 Making function call...")
             let result = try await freshFunctions.httpsCallable("adminChargeWithSavedCard").call(payload)
+            print("✅ Function call succeeded")
+            
             guard let dict = result.data as? [String: Any],
                   let paymentIntentId = dict["paymentIntentId"] as? String,
                   let status = dict["status"] as? String else {
+                print("❌ Invalid response structure")
                 throw FunctionsServiceError.invalidResponse
             }
+            
+            print("✅ Payment successful - Status: \(status), Intent: \(paymentIntentId)")
             return (paymentIntentId, status)
         } catch let error as NSError {
+            print("❌ Function call error:")
+            print("   Domain: \(error.domain)")
+            print("   Code: \(error.code)")
+            print("   Message: \(error.localizedDescription)")
+            print("   UserInfo: \(error.userInfo)")
+            
             if error.domain == FunctionsErrorDomain {
                 let code = error.code
                 let message = error.localizedDescription
