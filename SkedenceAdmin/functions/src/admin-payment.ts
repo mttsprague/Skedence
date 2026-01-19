@@ -198,7 +198,14 @@ export const adminChargeWithSavedCard = functions.https.onCall(
   async (
     request: functions.https.CallableRequest<AdminChargeWithSavedCardData>
   ) => {
+    console.log("🔵 adminChargeWithSavedCard called");
+    console.log("🔵 request.auth:", request.auth ? "present" : "MISSING");
+    if (request.auth) {
+      console.log("🔵 request.auth.uid:", request.auth.uid);
+    }
+
     if (!request.auth) {
+      console.log("❌ No auth in request - throwing unauthenticated error");
       throw new functions.https.HttpsError(
         "unauthenticated",
         "You must be signed in to process payments"
