@@ -348,3 +348,193 @@ export const getPaymentMethodsDirect = functions.https.onCall(
     }
   }
 );
+
+/**
+ * Get payment methods for any user (admin only)
+ * Allows admins to view client payment methods for processing payments
+ */
+export const getPaymentMethodsDirectAdmin = functions.https.onCall(
+  async (
+    request: functions.https.CallableRequest<{orgId: string; userId: string}>
+  ) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {orgId, userId} = request.data;
+
+    if (!orgId || !userId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing orgId or userId"
+      );
+    }
+
+    try {
+      // Verify admin access
+      const memberDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("orgMembers")
+        .doc(request.auth.uid)
+        .get();
+
+      const memberData = memberDoc.data();
+      if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only owners and admins can view client payment methods"
+        );
+      }
+
+      console.log(`🔍 Admin ${request.auth.uid} getting payment methods for user ${userId} in org ${orgId}`);
+
+      // Get organization's Stripe keys
+      const stripeDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("stripe")
+        .doc("config")
+        .get();
+
+      if (!stripeDoc.exists) {
+        console.error(`❌ No Stripe config found for org ${orgId}`);
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Organization Stripe keys not configured - please configure in admin app"
+        );
+      }
+
+      const stripeData = stripeDoc.data();
+      console.log(`✅ Found Stripe config for org ${orgId}`);
+
+      if (!stripeData?.secretKey || !stripeData?.publishableKey) {
+        console.error(`❌ Stripe keys missing: secretKey=${!!stripeData?.secretKey}, publishableKey=${!!stripeData?.publishableKey}`);
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Organization Stripe keys not configured properly"
+        );
+      }
+
+      console.log(`✅ Stripe keys valid for org ${orgId}`);
+
+      // Initialize Stripe with organization's key
+      const stripe = new Stripe(stripeData.secretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
+
+      // Get user data from root users collection
+      const userDoc = await db.collection("users").doc(userId).get();
+
+      if (!userDoc.exists) {
+        throw new functions.https.HttpsError("not-found", "User not found");
+      }
+
+      const userData = userDoc.data();
+      let customerId = userData?.stripeCustomerId;
+
+      console.log(`📋 User data found, stripeCustomerId: ${customerId || "none"}`);
+
+      // If no customer ID, create one
+      if (!customerId) {
+        console.log(`🔧 Creating new Stripe customer for user ${userId}`);
+        const email = userData?.email;
+        const name = userData?.firstName && userData?.lastName ?
+          `${userData.firstName} ${userData.lastName}` :
+          userData?.firstName || "Customer";
+
+        console.log(`📧 Customer email: ${email}, name: ${name}`);
+
+        const customer = await stripe.customers.create({
+          email: email || undefined,
+          name: name,
+          metadata: {orgId, userId},
+        });
+
+        customerId = customer.id;
+
+        console.log(`✅ Created Stripe customer: ${customerId}`);
+
+        // Save customer ID
+        await db.collection("users").doc(userId).set({
+          stripeCustomerId: customerId,
+        }, {merge: true});
+
+        console.log("✅ Saved customer ID to user document");
+      }
+
+      // Get payment methods - handle case where customer doesn't exist
+      console.log(`🔍 Listing payment methods for customer: ${customerId}`);
+      let paymentMethods;
+      try {
+        paymentMethods = await stripe.paymentMethods.list({
+          customer: customerId,
+          type: "card",
+        });
+      } catch (error: any) {
+        // If customer doesn't exist in this Stripe account, create a new one
+        if (error.code === "resource_missing" && customerId) {
+          console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
+
+          const email = userData?.email;
+          const name = userData?.firstName && userData?.lastName ?
+            `${userData.firstName} ${userData.lastName}` :
+            userData?.firstName || "Customer";
+
+          const customer = await stripe.customers.create({
+            email: email || undefined,
+            name: name,
+            metadata: {orgId, userId},
+          });
+
+          customerId = customer.id;
+          console.log(`✅ Created new Stripe customer: ${customerId}`);
+
+          // Save new customer ID
+          await db.collection("users").doc(userId).set({
+            stripeCustomerId: customerId,
+          }, {merge: true});
+
+          console.log("✅ Saved new customer ID to user document");
+
+          // Try listing payment methods again with new customer
+          paymentMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: "card",
+          });
+        } else {
+          throw error;
+        }
+      }
+
+      console.log(
+        `✅ Found ${paymentMethods.data.length} payment methods for customer ${customerId}`
+      );
+
+      // Format payment methods for response
+      const formattedMethods = paymentMethods.data.map((pm) => ({
+        id: pm.id,
+        brand: pm.card?.brand || "unknown",
+        last4: pm.card?.last4 || "0000",
+        expMonth: pm.card?.exp_month || 0,
+        expYear: pm.card?.exp_year || 0,
+      }));
+
+      return {paymentMethods: formattedMethods};
+    } catch (error: unknown) {
+      console.error("❌ Error getting payment methods (admin):", error);
+
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to get payment methods: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);

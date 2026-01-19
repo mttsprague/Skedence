@@ -42,12 +42,11 @@ class StripeCustomerService: ObservableObject {
         print("🔄 Admin loading payment methods for userId: \(userId), orgId: \(orgId)")
         
         do {
-            // Use the same function as client app (getPaymentMethodsDirect)
-            // which uses organization-specific Stripe accounts
-            let callable = functions.httpsCallable("getPaymentMethodsDirect")
+            // Use admin-specific function that allows viewing other users' payment methods
+            let callable = functions.httpsCallable("getPaymentMethodsDirectAdmin")
             let result = try await callable.call(["userId": userId, "orgId": orgId])
             
-            print("✅ getPaymentMethodsDirect call succeeded")
+            print("✅ getPaymentMethodsDirectAdmin call succeeded")
             
             guard let data = result.data as? [String: Any],
                   let methodsData = data["paymentMethods"] as? [[String: Any]] else {
