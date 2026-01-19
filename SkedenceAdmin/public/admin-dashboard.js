@@ -413,7 +413,10 @@ async function loadBookings() {
                 id: doc.id,
                 clientName,
                 trainerName,
+                trainerId: data.trainerId || data.trainerUID,
                 scheduledTime: scheduledTime,
+                startTime: data.startTime ? new Date(data.startTime.toMillis()) : scheduledTime,
+                endTime: data.endTime ? new Date(data.endTime.toMillis()) : null,
                 status: bookingStatus,
                 duration: data.duration || 60,
                 notes: data.notes || ''
