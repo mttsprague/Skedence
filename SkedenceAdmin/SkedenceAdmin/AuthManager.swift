@@ -261,7 +261,12 @@ final class AuthManager: ObservableObject {
                let orgId = doc.data()["orgId"] as? String {
                 currentOrgId = orgId
                 currentOrgRole = doc.data()["role"] as? String
+                
+                // Set isAdmin based on role (owner or admin)
+                isAdmin = (currentOrgRole == "owner" || currentOrgRole == "admin")
+                
                 print("AuthManager: Loaded orgId: \(orgId), role: \(currentOrgRole ?? "unknown") for user: \(userId)")
+                print("AuthManager: isAdmin set to: \(isAdmin)")
                 
                 // Load organization branding
                 await loadOrgBranding(orgId: orgId)
@@ -269,6 +274,7 @@ final class AuthManager: ObservableObject {
                 print("AuthManager: ⚠️ No active orgMember found for user: \(userId)")
                 currentOrgId = nil
                 currentOrgRole = nil
+                isAdmin = false
             }
         } catch {
             print("AuthManager: ❌ Failed to load orgId: \(error.localizedDescription)")

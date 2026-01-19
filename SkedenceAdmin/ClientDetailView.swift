@@ -9,6 +9,10 @@ struct ClientDetailView: View {
     @EnvironmentObject private var auth: AuthManager
     @StateObject private var loader = ClientScheduleLoader()
     @State private var selectedTab: ClientTab = .info
+    @State private var bookingToCancel: String?
+    @State private var showCancelConfirmation = false
+    @State private var isCancelling = false
+    @State private var cancelError: String?
     
     var body: some View {
         ScrollView {
@@ -36,6 +40,36 @@ struct ClientDetailView: View {
         .refreshable {
             if let orgId = auth.currentOrgId {
                 await loader.loadClientSchedule(clientId: client.id, orgId: orgId)
+            }
+        }
+        .alert("Cancel Lesson", isPresented: $showCancelConfirmation, presenting: bookingToCancel) { bookingId in
+            Button("Cancel Lesson", role: .destructive) {
+                Task {
+                    await cancelLesson(bookingId: bookingId)
+                }
+            }
+            Button("Keep Lesson", role: .cancel) {}
+        } message: { _ in
+            Text("This will restore the client's lesson credit and reopen the time slot.")
+        }
+        .alert("Error", isPresented: .constant(cancelError != nil), presenting: cancelError) { _ in
+            Button("OK") {
+                cancelError = nil
+            }
+        } message: { error in
+            Text(error)
+        }
+        .overlay {
+            if isCancelling {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    
+                    ProgressView("Cancelling...")
+                        .padding()
+                        .background(Color(UIColor.systemBackground))
+                        .cornerRadius(10)
+                }
             }
         }
     }
@@ -149,6 +183,29 @@ struct ClientDetailView: View {
                 }
             }
             
+            // Cancel button for admins/owners for upcoming bookings
+            if auth.isAdmin && booking.startTime > Date() {
+                Button(action: {
+                    bookingToCancel = booking.id
+                    showCancelConfirmation = true
+                }) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.labelSmall)
+                        Text("Cancel Lesson")
+                            .font(.labelMedium)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(.red)
+                    .padding(.vertical, Spacing.xs)
+                    .padding(.horizontal, Spacing.sm)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, Spacing.xs)
+            }
+            
             if showDivider {
                 Divider()
                     .opacity(0.2)
@@ -237,6 +294,45 @@ struct ClientDetailView: View {
         formatter.dateStyle = .none
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+    
+    // MARK: - Cancel Lesson
+    
+    private func cancelLesson(bookingId: String) async {
+        guard let orgId = auth.currentOrgId else {
+            cancelError = "Organization ID not found"
+            return
+        }
+        
+        isCancelling = true
+        cancelError = nil
+        
+        do {
+            try await FunctionsService.shared.adminCancelLesson(
+                bookingId: bookingId,
+                orgId: orgId,
+                clientId: client.id
+            )
+            
+            // Reload the schedule after successful cancellation
+            await loader.loadClientSchedule(clientId: client.id, orgId: orgId)
+            
+        } catch {
+            print("❌ Error cancelling lesson: \(error)")
+            if let functionsError = error as? FunctionsServiceError {
+                switch functionsError {
+                case .server(_, let message):
+                    cancelError = message
+                default:
+                    cancelError = "Failed to cancel lesson: \(error.localizedDescription)"
+                }
+            } else {
+                cancelError = "Failed to cancel lesson: \(error.localizedDescription)"
+            }
+        }
+        
+        isCancelling = false
+        bookingToCancel = nil
     }
     
     // MARK: - Header

@@ -572,7 +572,7 @@ struct ClientCardView: View {
         CardView {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack {
-                    Text("Lesson Packages")
+                    Text("Passes")
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
                     
@@ -584,12 +584,12 @@ struct ClientCardView: View {
                     }
                 }
                 
-                if viewModel.packages.isEmpty && !viewModel.isLoadingPackages {
+                if viewModel.aggregatedPackages.isEmpty && !viewModel.isLoadingPackages {
                     VStack(spacing: Spacing.sm) {
                         Image(systemName: "ticket")
                             .font(.system(size: 32))
                             .foregroundStyle(AppTheme.textTertiary)
-                        Text("No lesson packages")
+                        Text("No passes")
                             .font(.bodyMedium)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -597,9 +597,9 @@ struct ClientCardView: View {
                     .padding(.vertical, Spacing.lg)
                 } else {
                     VStack(spacing: Spacing.sm) {
-                        ForEach(viewModel.packages.filter { $0.lessonsRemaining > 0 }) { package in
-                            packageRow(package)
-                            if package.id != viewModel.packages.filter({ $0.lessonsRemaining > 0 }).last?.id {
+                        ForEach(viewModel.aggregatedPackages) { aggregated in
+                            aggregatedPackageRow(aggregated)
+                            if aggregated.id != viewModel.aggregatedPackages.last?.id {
                                 Divider()
                             }
                         }
@@ -609,20 +609,34 @@ struct ClientCardView: View {
         }
     }
     
-    private func packageRow(_ package: LessonPackage) -> some View {
+    private func aggregatedPackageRow(_ aggregated: AggregatedPackage) -> some View {
         HStack(spacing: Spacing.md) {
+            // Icon
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(AppTheme.primary.opacity(0.15))
+                Image(systemName: iconForPackageType(aggregated.packageType))
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(AppTheme.primary)
+            }
+            .frame(width: 48, height: 48)
+            
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(package.packageDisplayName)
+                Text(aggregated.packageDisplayName)
                     .font(.bodyMedium)
                     .fontWeight(.semibold)
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                if package.isExpired {
-                    Text("Expired")
+                if aggregated.hasExpired {
+                    Text("Some expired")
                         .font(.labelSmall)
-                        .foregroundStyle(Color.red)
+                        .foregroundStyle(Color.orange)
+                } else if aggregated.totalRemaining == 0 {
+                    Text("All used")
+                        .font(.labelSmall)
+                        .foregroundStyle(AppTheme.textSecondary)
                 } else {
-                    Text(package.statusText)
+                    Text("\(aggregated.totalRemaining) of \(aggregated.totalLessons) remaining")
                         .font(.labelSmall)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -630,18 +644,28 @@ struct ClientCardView: View {
             
             Spacer()
             
-            if package.lessonsRemaining > 0 {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(package.lessonsRemaining)")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(package.isExpired ? Color.red : AppTheme.primary)
-                    Text("left")
-                        .font(.labelSmall)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
+            if aggregated.totalRemaining > 0 {
+                Text("\(aggregated.totalRemaining)")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(aggregated.hasExpired ? Color.orange : AppTheme.primary)
             }
         }
         .padding(.vertical, Spacing.xs)
+    }
+    
+    private func iconForPackageType(_ packageType: String) -> String {
+        switch packageType {
+        case "private", "1_athlete", "single":
+            return "person.fill"
+        case "2_athlete", "two_athlete":
+            return "person.2.fill"
+        case "3_athlete", "three_athlete":
+            return "person.3.fill"
+        case "class_pass", "class":
+            return "sportscourt.fill"
+        default:
+            return "ticket.fill"
+        }
     }
     
     // MARK: - Schedule Section
@@ -969,14 +993,11 @@ class ClientCardViewModel: ObservableObject {
         isLoadingPaymentMethod = true
         defer { isLoadingPaymentMethod = false }
         
-        do {
-            paymentMethods = try await StripeCustomerService.shared.loadPaymentMethodsForUser(userId: clientId, orgId: orgId)
-            // Set paymentMethodInfo for backwards compatibility
-            paymentMethodInfo = paymentMethods.first?.last4
-        } catch {
-            print("❌ Error loading payment methods: \(error)")
-            paymentMethods = []
-            paymentMethodInfo = nil
-        }
+        // Instantiate the service (no shared singleton)
+        let service = StripeCustomerService()
+        await service.loadPaymentMethodsForUser(userId: clientId, orgId: orgId)
+        // Copy results into our view model
+        self.paymentMethods = service.paymentMethods
+        self.paymentMethodInfo = self.paymentMethods.first?.last4
     }
 }

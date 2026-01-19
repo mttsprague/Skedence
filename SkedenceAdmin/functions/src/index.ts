@@ -600,6 +600,143 @@ export const cancelLesson = functions.https.onCall(
 );
 
 /**
+ * Admin cancel lesson - allows admins/owners to cancel any client's booking
+ */
+interface AdminCancelLessonData {
+  bookingId: string;
+  orgId: string;
+  clientId: string;
+}
+
+export const adminCancelLesson = functions.https.onCall(
+  async (request: functions.https.CallableRequest<AdminCancelLessonData>) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in to cancel a lesson."
+      );
+    }
+    const adminUid = request.auth.uid;
+    const {bookingId, orgId, clientId} = request.data;
+
+    if (!bookingId || !orgId || !clientId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields: bookingId, orgId, clientId"
+      );
+    }
+
+    try {
+      // Verify admin/owner access using flat orgMembers collection
+      const membershipId = `${adminUid}_${orgId}`;
+      const memberDoc = await db
+        .collection("orgMembers")
+        .doc(membershipId)
+        .get();
+
+      if (!memberDoc.exists) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "You are not a member of this organization"
+        );
+      }
+
+      const memberData = memberDoc.data();
+      const role = memberData?.role;
+
+      if (role !== "admin" && role !== "owner") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only admins and owners can cancel client bookings"
+        );
+      }
+
+      const bookingRef = db.collection("bookings").doc(bookingId);
+
+      await db.runTransaction(async (transaction) => {
+        const bookingDoc = await transaction.get(bookingRef);
+
+        if (!bookingDoc.exists) {
+          throw new functions.https.HttpsError(
+            "not-found",
+            "Booking not found."
+          );
+        }
+
+        const bookingData = bookingDoc.data();
+        if (!bookingData) {
+          throw new functions.https.HttpsError(
+            "internal",
+            "Booking data is missing."
+          );
+        }
+
+        // Verify booking belongs to specified client
+        if (bookingData.clientUID !== clientId) {
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            "Booking does not belong to specified client"
+          );
+        }
+
+        // Get the lesson package and decrement lessonsUsed
+        if (bookingData.packageId) {
+          const packageRef = db
+            .collection("users")
+            .doc(clientId)
+            .collection("lessonPackages")
+            .doc(bookingData.packageId);
+
+          const packageDoc = await transaction.get(packageRef);
+          if (packageDoc.exists) {
+            transaction.update(packageRef, {
+              lessonsUsed: admin.firestore.FieldValue.increment(-1),
+            });
+          }
+        }
+
+        // Update trainer's schedule slot back to open
+        if (bookingData.trainerId && bookingData.slotId) {
+          const trainerSlotRef = db
+            .collection("trainers")
+            .doc(bookingData.trainerId)
+            .collection("schedules")
+            .doc(bookingData.slotId);
+
+          const slotDoc = await transaction.get(trainerSlotRef);
+          if (slotDoc.exists) {
+            transaction.update(trainerSlotRef, {
+              status: "open",
+              clientId: null,
+              clientName: null,
+              bookedAt: null,
+            });
+          }
+        }
+
+        // Delete the booking
+        transaction.delete(bookingRef);
+      });
+
+      functions.logger.info(
+        `Admin ${adminUid} (${role}) cancelled booking ${bookingId} for client ${clientId} in org ${orgId}`
+      );
+      return {message: "Lesson cancelled successfully!"};
+    } catch (error) {
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      functions.logger.error("Error cancelling lesson:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "An unexpected error occurred while cancelling the lesson.",
+        (error as Error).message
+      );
+    }
+  }
+);
+
+/**
  * Cancel a class registration
  */
 interface CancelClassRegistrationData {

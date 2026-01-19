@@ -194,9 +194,11 @@ service cloud.firestore {
 
       // Lesson Packages subcollection
       match /lessonPackages/{packageId} {
-        // Owner, or trainers/admins in the same org can read packages
+        // Owner can read their own packages
+        // Trainers/admins in ANY org the user belongs to can read packages
         allow read: if isSignedIn() && (
           request.auth.uid == userId 
+          || exists(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + get(/databases/$(database)/documents/users/$(userId)).data.orgId))
           || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
         );
 
@@ -216,9 +218,11 @@ service cloud.firestore {
 
       // Documents subcollection
       match /documents/{documentId} {
-        // Owner, or trainers in same org can read documents
+        // Owner can read their own documents
+        // Trainers in ANY org the user belongs to can read documents
         allow read: if isSignedIn() && (
           request.auth.uid == userId 
+          || exists(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + get(/databases/$(database)/documents/users/$(userId)).data.orgId))
           || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
         );
         
