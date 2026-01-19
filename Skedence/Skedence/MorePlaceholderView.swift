@@ -30,33 +30,67 @@ struct MorePlaceholderView: View {
                         SectionHeaderView(title: "Profile")
                         
                         CardView {
-                            NavigationLink(destination: EditProfileView()) {
-                                HStack(spacing: Spacing.md) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
-                                            .fill(AppTheme.primary.opacity(0.15))
-                                            .frame(width: 48, height: 48)
+                            VStack(spacing: Spacing.md) {
+                                NavigationLink(destination: EditProfileView()) {
+                                    HStack(spacing: Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(AppTheme.primary.opacity(0.15))
+                                                .frame(width: 48, height: 48)
+                                            
+                                            Image(systemName: "person.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(AppTheme.primary)
+                                        }
                                         
-                                        Image(systemName: "person.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(AppTheme.primary)
-                                    }
-                                    
-                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                        Text("Edit Profile")
-                                            .font(.bodyMedium)
-                                            .foregroundStyle(AppTheme.primary)
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Edit Profile")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.primary)
+                                            
+                                            Text("Update your information")
+                                                .font(.labelMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
                                         
-                                        Text("Update your information")
-                                            .font(.labelMedium)
-                                            .foregroundStyle(AppTheme.textSecondary)
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
                                     }
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(AppTheme.textTertiary)
+                                }
+                                
+                                Divider()
+                                
+                                NavigationLink(destination: StripeConfigView()) {
+                                    HStack(spacing: Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(AppTheme.secondary.opacity(0.15))
+                                                .frame(width: 48, height: 48)
+                                            
+                                            Image(systemName: "creditcard.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(AppTheme.secondary)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Stripe Configuration")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.primary)
+                                            
+                                            Text("Configure payment keys")
+                                                .font(.labelMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                    }
                                 }
                             }
                         }
