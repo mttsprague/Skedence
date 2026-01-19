@@ -101,6 +101,10 @@ struct ClientCardView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var auth: AuthManager
     @State private var selectedTab: ClientCardTab = .profile
+    @State private var bookingToCancel: String?
+    @State private var showCancelConfirmation = false
+    @State private var isCancelling = false
+    @State private var cancelError: String?
     
     private var availableTabs: [ClientCardTab] {
         if viewModel.isAdmin {
@@ -152,6 +156,36 @@ struct ClientCardView: View {
                 selectedBooking: selectedBooking,
                 orgId: auth.currentOrgId
             )
+        }
+        .alert("Cancel Lesson", isPresented: $showCancelConfirmation, presenting: bookingToCancel) { bookingId in
+            Button("Cancel Lesson", role: .destructive) {
+                Task {
+                    await cancelLesson(bookingId: bookingId)
+                }
+            }
+            Button("Keep Lesson", role: .cancel) {}
+        } message: { _ in
+            Text("This will restore the client's lesson credit and reopen the time slot.")
+        }
+        .alert("Error", isPresented: .constant(cancelError != nil), presenting: cancelError) { _ in
+            Button("OK") {
+                cancelError = nil
+            }
+        } message: { error in
+            Text(error)
+        }
+        .overlay {
+            if isCancelling {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    
+                    ProgressView("Cancelling...")
+                        .padding()
+                        .background(Color(UIColor.systemBackground))
+                        .cornerRadius(10)
+                }
+            }
         }
     }
     
@@ -701,7 +735,7 @@ struct ClientCardView: View {
                     } else {
                         VStack(spacing: Spacing.xs) {
                             ForEach(viewModel.upcomingBookings) { booking in
-                                bookingRow(booking)
+                                upcomingBookingRow(booking)
                             }
                         }
                     }
@@ -763,6 +797,100 @@ struct ClientCardView: View {
                 .foregroundStyle(AppTheme.textTertiary)
         }
         .padding(.vertical, Spacing.xxs)
+    }
+    
+    private func upcomingBookingRow(_ booking: ClientBooking) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "figure.volleyball")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppTheme.primary)
+                    .frame(width: 24)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(booking.trainerName)
+                        .font(.bodyMedium)
+                        .fontWeight(.medium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    
+                    Text(booking.formattedDate)
+                        .font(.labelSmall)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+                
+                Spacer()
+                
+                Text(booking.duration)
+                    .font(.labelMedium)
+                    .foregroundStyle(AppTheme.textTertiary)
+            }
+            
+            // Cancel button for admins/owners
+            if auth.isAdmin {
+                Button(action: {
+                    bookingToCancel = booking.id
+                    showCancelConfirmation = true
+                }) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.labelSmall)
+                        Text("Cancel Lesson")
+                            .font(.labelMedium)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(.red)
+                    .padding(.vertical, Spacing.xs)
+                    .padding(.horizontal, Spacing.sm)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, Spacing.xxs)
+    }
+    
+    // MARK: - Cancel Lesson
+    
+    private func cancelLesson(bookingId: String) async {
+        guard let orgId = auth.currentOrgId else {
+            cancelError = "Organization ID not found"
+            return
+        }
+        
+        isCancelling = true
+        cancelError = nil
+        
+        do {
+            try await FunctionsService.shared.adminCancelLesson(
+                bookingId: bookingId,
+                orgId: orgId,
+                clientId: client.id
+            )
+            
+            // Reload the client data after successful cancellation
+            await viewModel.loadClientData(
+                clientId: client.id,
+                selectedBooking: nil,
+                orgId: orgId
+            )
+            
+        } catch {
+            print("❌ Error cancelling lesson: \(error)")
+            if let functionsError = error as? FunctionsServiceError {
+                switch functionsError {
+                case .server(_, let message):
+                    cancelError = message
+                default:
+                    cancelError = "Failed to cancel lesson: \(error.localizedDescription)"
+                }
+            } else {
+                cancelError = "Failed to cancel lesson: \(error.localizedDescription)"
+            }
+        }
+        
+        isCancelling = false
+        bookingToCancel = nil
     }
     
     // MARK: - Documents Section
