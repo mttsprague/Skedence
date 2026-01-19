@@ -57,14 +57,8 @@ class StripeCustomerService: ObservableObject {
     }
     
     // Load saved payment methods
-    func loadPaymentMethods() async {
+    func loadPaymentMethods(orgId: String) async {
         guard let userId = Auth.auth().currentUser?.uid else {
-            paymentMethods = []
-            return
-        }
-        
-        // Get orgId from AuthManager
-        guard let orgId = AuthManager.shared.currentOrgId else {
             paymentMethods = []
             return
         }
@@ -127,8 +121,7 @@ class StripeCustomerService: ObservableObject {
             "paymentMethodId": paymentMethodId
         ])
         
-        // Refresh the list
-        await loadPaymentMethods()
+        // Note: caller should refresh the list with the correct orgId
     }
 }
 

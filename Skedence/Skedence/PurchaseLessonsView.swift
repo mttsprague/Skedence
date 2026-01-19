@@ -368,7 +368,7 @@ struct PurchaseLessonsView: View {
         isPurchasing = true
         
         // Check if user has saved payment methods
-        await customerService.loadPaymentMethods()
+        await customerService.loadPaymentMethods(orgId: orgId)
         
         isPurchasing = false
         

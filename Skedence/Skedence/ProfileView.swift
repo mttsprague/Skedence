@@ -126,7 +126,7 @@ private struct SignedInProfileScreen: View {
                 await classesService.loadMyRegisteredClasses(orgId: orgId)
             }
             if customerService.paymentMethods.isEmpty {
-                await customerService.loadPaymentMethods()
+                await customerService.loadPaymentMethods(orgId: orgId)
             }
             // Load pricing structure for dynamic pass display
             await pricingService.loadPricingStructure(for: orgId)
@@ -137,7 +137,7 @@ private struct SignedInProfileScreen: View {
             await packagesService.loadMyPackages()
             await bookingsService.loadMyBookings(orgId: orgId)
             await classesService.loadMyRegisteredClasses(orgId: orgId)
-            await customerService.loadPaymentMethods()
+            await customerService.loadPaymentMethods(orgId: orgId)
             await pricingService.loadPricingStructure(for: orgId)
         }
         .onAppear {
@@ -528,21 +528,38 @@ private struct SignedInProfileScreen: View {
                     }
                 }
 
-                // Bottom Buy button (replaces deprecated NavigationLink isActive:)
-                Button {
-                    showPurchaseLessons = true
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "cart.fill")
+                // Bottom buttons: Refresh and Buy
+                HStack(spacing: 12) {
+                    // Refresh button
+                    Button {
+                        Task {
+                            await packagesService.loadMyPackages()
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
                             .font(.system(size: 18, weight: .semibold))
-                        Text("Buy Lessons")
-                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(width: 48, height: 48)
+                            .background(Brand.primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Brand.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    
+                    // Buy Lessons button
+                    Button {
+                        showPurchaseLessons = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "cart.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                            Text("Buy Lessons")
+                                .font(.headline)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Brand.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
                 }
                 .padding(.top, 8)
             }
@@ -639,6 +656,10 @@ private struct SignedInProfileScreen: View {
                             Task {
                                 do {
                                     try await customerService.removePaymentMethod(method.id)
+                                    // Refresh the list with the current orgId
+                                    if let orgId = auth.currentOrgId {
+                                        await customerService.loadPaymentMethods(orgId: orgId)
+                                    }
                                 } catch {
                                     // Handle error - could show alert
                                     print("Failed to remove card: \(error)")
@@ -795,7 +816,7 @@ private struct SignedInProfileScreen: View {
                     case .completed:
                         print("✅ Card added successfully")
                         // Card was successfully added - reload payment methods
-                        await self.customerService.loadPaymentMethods()
+                        await self.customerService.loadPaymentMethods(orgId: orgId)
                     case .canceled:
                         print("⚠️ Setup canceled by user")
                     case .failed(let error):
