@@ -139,7 +139,7 @@ struct HomeView: View {
                         SectionHeaderView(title: "Getting Started")
                         
                         VStack(spacing: Spacing.md) {
-                            // Step 1: Purchase Lessons
+                            // Step 1: Purchase Passes
                             Button {
                                 selectedTab = 2 // Navigate to Profile tab
                                 profileTab = "PASSES" // Show passes tab
@@ -164,11 +164,11 @@ struct HomeView: View {
                                         }
                                         
                                         VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                            Text("Purchase Lessons")
+                                            Text("Purchase Passes")
                                                 .font(.headingSmall)
                                                 .foregroundStyle(AppTheme.textPrimary)
                                             
-                                            Text("Get your lesson packages to start")
+                                            Text("Get your pass packages to start")
                                                 .font(.bodyMedium)
                                                 .foregroundStyle(AppTheme.textSecondary)
                                         }

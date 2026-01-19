@@ -394,7 +394,7 @@ struct BookView: View {
                                     HStack(spacing: Spacing.sm) {
                                         Text(formatPackageName(package))
                                             .font(.bodyMedium)
-                                        Text("(\(package.lessonsRemaining) left)")
+                                        Text("- \(package.lessonsRemaining) left")
                                             .font(.bodySmall)
                                             .foregroundStyle(AppTheme.textSecondary)
                                     }
@@ -415,7 +415,7 @@ struct BookView: View {
                                     Text(selectedPackage != nil ? formatPackageName(selectedPackage!) : "Choose a pass")
                                         .font(.headingSmall)
                                         .foregroundStyle(AppTheme.textPrimary)
-                                    Text(selectedPackage != nil ? "\(selectedPackage!.lessonsRemaining) lessons remaining" : "Select which pass to use")
+                                    Text(selectedPackage != nil ? "\(selectedPackage!.lessonsRemaining) passes remaining" : "Select which pass to use")
                                         .font(.bodySmall)
                                         .foregroundStyle(AppTheme.textSecondary)
                                 }
@@ -506,18 +506,20 @@ struct BookView: View {
     }
     
     private func formatPackageName(_ package: LessonPackage) -> String {
+        let baseName: String
         switch package.packageType {
         case "private":
-            return "Private Lesson Pass"
+            baseName = "Private Lesson Pass"
         case "2_athlete":
-            return "2-Athlete Pass"
+            baseName = "2-Athlete Pass"
         case "3_athlete":
-            return "3-Athlete Pass"
+            baseName = "3-Athlete Pass"
         case "class_pass":
-            return "Class Pass"
+            baseName = "Class Pass"
         default:
-            return "\(package.totalLessons)-Lesson Pass"
+            baseName = "\(package.totalLessons)-Lesson Pass"
         }
+        return "\(baseName) (\(package.totalLessons))"
     }
 
     private var isBookEnabled: Bool {
