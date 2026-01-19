@@ -393,16 +393,14 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         // Get lesson count from package definition
         const totalLessons = validPackages[packageType].lessons;
 
-        // Create the lesson package
+        // Create the lesson package in the correct location: users/{userId}/lessonPackages
         const expirationDate = new Date();
         expirationDate.setMonth(expirationDate.getMonth() + 12);
 
         await db
-          .collection("organizations")
-          .doc(orgId)
           .collection("users")
           .doc(userId)
-          .collection("packages")
+          .collection("lessonPackages")
           .add({
             packageType: packageType,
             trainerId: trainerId,
@@ -416,7 +414,7 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
           });
 
         console.log(
-          `✅ Payment confirmed and package created: ${paymentIntent.id} for ${amount / 100} USD`
+          `✅ Payment confirmed and package created at users/${userId}/lessonPackages: ${paymentIntent.id} for ${amount / 100} USD, ${totalLessons} lessons`
         );
 
         return {
