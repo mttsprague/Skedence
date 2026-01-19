@@ -541,26 +541,26 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
       const expirationDate = new Date();
       expirationDate.setMonth(expirationDate.getMonth() + 12);
 
+      // Store package in users/{userId}/lessonPackages to match existing structure
       await db
-        .collection("organizations")
-        .doc(orgId)
         .collection("users")
         .doc(userId)
-        .collection("packages")
+        .collection("lessonPackages")
         .add({
           packageType: packageType,
           trainerId: trainerId,
-          remainingLessons: totalLessons,
           totalLessons: totalLessons,
+          lessonsUsed: 0,
+          orgId: orgId,
           purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
           expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
-          paymentIntentId: paymentIntent.id,
+          transactionId: paymentIntent.id,
           amountPaid: paymentIntent.amount,
           status: "active",
         });
 
       console.log(
-        `✅ Package created for payment: ${paymentIntent.id} for ${paymentIntent.amount / 100} USD`
+        `✅ Package created for payment: ${paymentIntent.id} for ${paymentIntent.amount / 100} USD at users/${userId}/lessonPackages`
       );
 
       return {success: true, packageId: paymentIntent.id};
