@@ -45,15 +45,16 @@ export const adminProcessPayment = functions.https.onCall(
 
     try {
       // Verify admin access - check orgMembers collection (source of truth)
+      // Note: orgMembers uses flat structure with composite key: {uid}_{orgId}
+      const membershipId = `${request.auth.uid}_${orgId}`;
       const memberDoc = await db
-        .collection("organizations")
-        .doc(orgId)
         .collection("orgMembers")
-        .doc(request.auth.uid)
+        .doc(membershipId)
         .get();
 
       const memberData = memberDoc.data();
       console.log(`🔍 Checking permissions for user ${request.auth.uid} in org ${orgId}:`, {
+        membershipId: membershipId,
         exists: memberDoc.exists,
         role: memberData?.role,
         email: memberData?.email,
@@ -222,15 +223,16 @@ export const adminChargeWithSavedCard = functions.https.onCall(
 
     try {
       // Verify admin access
+      // Note: orgMembers uses flat structure with composite key: {uid}_{orgId}
+      const membershipId = `${request.auth.uid}_${orgId}`;
       const memberDoc = await db
-        .collection("organizations")
-        .doc(orgId)
         .collection("orgMembers")
-        .doc(request.auth.uid)
+        .doc(membershipId)
         .get();
 
       const memberData = memberDoc.data();
       console.log(`🔍 Checking permissions for user ${request.auth.uid} in org ${orgId}:`, {
+        membershipId: membershipId,
         exists: memberDoc.exists,
         role: memberData?.role,
       });
