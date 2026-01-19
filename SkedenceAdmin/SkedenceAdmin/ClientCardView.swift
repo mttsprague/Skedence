@@ -102,6 +102,15 @@ struct ClientCardView: View {
     @EnvironmentObject private var auth: AuthManager
     @State private var selectedTab: ClientCardTab = .profile
     
+    private var availableTabs: [ClientCardTab] {
+        if viewModel.isAdmin {
+            return ClientCardTab.allCases
+        } else {
+            // Trainers can't see account tab
+            return ClientCardTab.allCases.filter { $0 != .account }
+        }
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -215,7 +224,7 @@ struct ClientCardView: View {
     // MARK: - Bubble Tabs
     private var bubbleTabs: some View {
         HStack(spacing: Spacing.xs) {
-            ForEach(ClientCardTab.allCases) { tab in
+            ForEach(availableTabs) { tab in
                 BubbleTab(
                     title: tab.rawValue,
                     icon: tab.icon,
@@ -236,7 +245,12 @@ struct ClientCardView: View {
         case .profile:
             profileContent
         case .account:
-            accountContent
+            if viewModel.isAdmin {
+                accountContent
+            } else {
+                // Trainers shouldn't see account tab - show profile instead
+                profileContent
+            }
         case .schedule:
             scheduleContent
         case .documents:
