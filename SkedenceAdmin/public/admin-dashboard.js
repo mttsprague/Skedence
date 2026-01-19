@@ -102,7 +102,7 @@ function showDashboard() {
 }
 
 // Show section
-function showSection(sectionName) {
+window.showSection = function(sectionName) {
     // Hide all sections
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.add('hidden');
@@ -120,7 +120,39 @@ function showSection(sectionName) {
     }
     
     // Add active class to clicked menu item
-    event.target.closest('.sidebar-item').classList.add('active');
+    if (event && event.target) {
+        const item = event.target.closest('.sidebar-item');
+        if (item) item.classList.add('active');
+    }
+    
+    // Close mobile menu after selection
+    if (window.closeMobileMenu) {
+        window.closeMobileMenu();
+    }
+}
+
+// Mobile menu functions
+window.toggleMobileMenu = function() {
+    console.log('Toggle mobile menu called');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('mobileOverlay');
+    if (sidebar && overlay) {
+        sidebar.classList.toggle('mobile-open');
+        overlay.classList.toggle('active');
+        console.log('Sidebar classes:', sidebar.className);
+    } else {
+        console.error('Sidebar or overlay not found');
+    }
+}
+
+window.closeMobileMenu = function() {
+    console.log('Close mobile menu called');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('mobileOverlay');
+    if (sidebar && overlay) {
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('active');
+    }
 }
 
 // Load all data
