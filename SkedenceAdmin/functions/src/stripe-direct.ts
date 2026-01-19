@@ -300,22 +300,72 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         );
       }
 
-      // Get customer ID
+      // Get customer ID from root users collection
       const userDoc = await db
-        .collection("organizations")
-        .doc(orgId)
         .collection("users")
         .doc(userId)
         .get();
 
       const userData = userDoc.data();
-      const customerId = userData?.stripeCustomerId;
+      let customerId = userData?.stripeCustomerId;
 
+      // If no customer ID exists, or customer doesn't exist in this org's Stripe account, create one
       if (!customerId) {
-        throw new functions.https.HttpsError(
-          "failed-precondition",
-          "No Stripe customer found for user"
-        );
+        console.log("⚠️ No Stripe customer ID found, creating new customer");
+        const customer = await stripe.customers.create({
+          email: userData?.email || undefined,
+          name: userData?.firstName && userData?.lastName ?
+            `${userData.firstName} ${userData.lastName}` :
+            undefined,
+          metadata: {
+            userId: userId,
+            orgId: orgId,
+          },
+        });
+        customerId = customer.id;
+
+        // Save customer ID to user document
+        await db
+          .collection("users")
+          .doc(userId)
+          .set({
+            stripeCustomerId: customerId,
+          }, {merge: true});
+
+        console.log(`✅ Created new Stripe customer: ${customerId}`);
+      } else {
+        // Verify customer exists in this org's Stripe account
+        try {
+          await stripe.customers.retrieve(customerId);
+          console.log(`✅ Verified customer exists: ${customerId}`);
+        } catch (error: any) {
+          if (error.code === "resource_missing") {
+            console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
+            const customer = await stripe.customers.create({
+              email: userData?.email || undefined,
+              name: userData?.firstName && userData?.lastName ?
+                `${userData.firstName} ${userData.lastName}` :
+                undefined,
+              metadata: {
+                userId: userId,
+                orgId: orgId,
+              },
+            });
+            customerId = customer.id;
+
+            // Update customer ID in user document
+            await db
+              .collection("users")
+              .doc(userId)
+              .set({
+                stripeCustomerId: customerId,
+              }, {merge: true});
+
+            console.log(`✅ Created new Stripe customer: ${customerId}`);
+          } else {
+            throw error;
+          }
+        }
       }
 
       // Create and confirm payment intent with saved payment method
