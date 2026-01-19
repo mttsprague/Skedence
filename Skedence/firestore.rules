@@ -167,14 +167,8 @@ service cloud.firestore {
     // USERS COLLECTION (Client Profiles)
     // =========================================================================
     match /users/{userId} {
-      // Anyone authenticated can list/query users (for checking invited accounts)
-      allow list: if isSignedIn();
-      
-      // User can read their own profile, or any trainer/admin in their org can read it
-      allow get: if isSignedIn() && (
-        request.auth.uid == userId 
-        || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
-      );
+      // Anyone authenticated can read/query users (for admin dashboards and booking lookups)
+      allow read: if isSignedIn();
       
       // Users can create their own user document during registration
       // OR owners/admins can create user documents for new trainers in their org

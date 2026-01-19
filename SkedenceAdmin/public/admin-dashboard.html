@@ -419,6 +419,37 @@
             border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 1.5rem !important;
+        }
+        
+        .sortable-header:hover {
+            background: rgba(99, 102, 241, 0.05);
+        }
+        
+        .sortable-header::after {
+            content: '⇅';
+            position: absolute;
+            right: 0.5rem;
+            opacity: 0.3;
+            font-size: 0.875rem;
+        }
+        
+        .sortable-header.sorted-asc::after {
+            content: '▲';
+            opacity: 1;
+            color: var(--primary);
+        }
+        
+        .sortable-header.sorted-desc::after {
+            content: '▼';
+            opacity: 1;
+            color: var(--primary);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .sidebar {
@@ -643,6 +674,12 @@
                     <div class="data-card">
                         <div class="data-card-header">
                             <h2 class="data-card-title">Active Packages</h2>
+                            <div style="display: flex; gap: 1rem; align-items: center;">
+                                <select id="packageClientFilter" class="search-box" style="max-width: 200px;">
+                                    <option value="all">All Clients</option>
+                                </select>
+                                <input type="text" id="packageSearch" class="search-box" placeholder="Search by client name..." style="min-width: 250px;">
+                            </div>
                         </div>
                         <div id="packagesList"></div>
                     </div>
@@ -655,15 +692,59 @@
                         <button onclick="exportData('revenue')" class="btn btn-primary">📥 Export to Excel</button>
                     </div>
                     
+                    <!-- Revenue Stats -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-title">Total Revenue</span>
+                                <div class="stat-icon success">💰</div>
+                            </div>
+                            <div class="stat-value" id="totalRevenue">$0.00</div>
+                            <div class="stat-change">All time</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-title">This Month</span>
+                                <div class="stat-icon primary">📅</div>
+                            </div>
+                            <div class="stat-value" id="monthRevenue">$0.00</div>
+                            <div class="stat-change" id="monthChange">Current month</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-title">Average Package</span>
+                                <div class="stat-icon warning">📊</div>
+                            </div>
+                            <div class="stat-value" id="avgPackageRevenue">$0.00</div>
+                            <div class="stat-change">Per package</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-title">Active Packages</span>
+                                <div class="stat-icon secondary">🎫</div>
+                            </div>
+                            <div class="stat-value" id="activePackagesCount">0</div>
+                            <div class="stat-change">Currently active</div>
+                        </div>
+                    </div>
+
+                    <!-- Revenue by Package Type -->
                     <div class="data-card">
                         <div class="data-card-header">
-                            <h2 class="data-card-title">Coming Soon</h2>
+                            <h2 class="data-card-title">Revenue by Package Type</h2>
                         </div>
-                        <div class="empty-state">
-                            <div class="empty-icon">💰</div>
-                            <h3>Revenue Analytics</h3>
-                            <p>Financial reporting and analytics will be available soon.</p>
+                        <div id="revenueByType"></div>
+                    </div>
+
+                    <!-- Recent Packages -->
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h2 class="data-card-title">Recent Package Purchases</h2>
                         </div>
+                        <div id="recentPackages"></div>
                     </div>
                 </div>
             </main>

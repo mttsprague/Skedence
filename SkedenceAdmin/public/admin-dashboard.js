@@ -17,6 +17,8 @@ const auth = firebase.auth();
 let currentUser = null;
 let currentOrgId = null;
 let currentBookingFilter = 'all';
+let currentPackageSort = { column: null, direction: 'asc' };
+let currentPackageClientFilter = 'all';
 let allData = {
     clients: [],
     trainers: [],
@@ -305,20 +307,34 @@ async function loadBookings() {
         
         const bookingPromises = bookingsSnapshot.docs.map(async (doc) => {
             const data = doc.data();
+            console.log('Raw booking data:', doc.id, 'Fields:', Object.keys(data), 'Data:', data);
             
-            // Get client name
+            // Get client name - try multiple field names
             let clientName = 'Unknown';
+            const clientId = data.clientId || data.userId || data.clientUID || data.user_id;
+            console.log('Looking for client with ID:', clientId);
+            
             try {
-                const userDoc = await db.collection('users').doc(data.clientId).get();
-                if (userDoc.exists) {
-                    const userData = userDoc.data();
-                    console.log('Client data for booking:', data.clientId, userData);
-                    const firstName = userData.firstName || '';
-                    const lastName = userData.lastName || '';
-                    clientName = `${firstName} ${lastName}`.trim() || userData.name || 'Unknown';
+                if (clientId) {
+                    const userDoc = await db.collection('users').doc(clientId).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        console.log('Client data for booking:', clientId, userData);
+                        const firstName = userData.firstName || '';
+                        const lastName = userData.lastName || '';
+                        const fullName = `${firstName} ${lastName}`.trim();
+                        clientName = fullName || userData.name || 'Unknown';
+                        console.log('Resolved client name:', clientName);
+                    } else {
+                        console.log('User document not found for clientId:', clientId);
+                    }
+                } else {
+                    console.log('No clientId found in booking data. Available fields:', Object.keys(data));
                 }
             } catch (err) {
-                console.error('Error fetching client:', err);
+                console.error('Error fetching client:', err.message);
+                // Use clientName from booking if available
+                clientName = data.clientName || 'Unknown';
             }
             
             // Get trainer name
@@ -330,18 +346,36 @@ async function loadBookings() {
                     console.log('Trainer data for booking:', data.trainerId, trainerData);
                     const firstName = trainerData.firstName || '';
                     const lastName = trainerData.lastName || '';
-                    trainerName = `${firstName} ${lastName}`.trim() || trainerData.name || 'Unknown';
+                    const fullName = `${firstName} ${lastName}`.trim();
+                    trainerName = fullName || trainerData.name || 'Unknown';
+                    console.log('Resolved trainer name:', trainerName);
+                } else {
+                    console.log('Trainer document not found for trainerId:', data.trainerId);
                 }
             } catch (err) {
                 console.error('Error fetching trainer:', err);
             }
             
+            // Try multiple field names for scheduled time
+            const scheduledTimeField = data.scheduledTime || data.startTime || data.start_time || data.bookingTime;
+            const scheduledTime = scheduledTimeField ? new Date(scheduledTimeField.toMillis()) : null;
+            const bookingStatus = getBookingStatus(data, scheduledTime);
+            
+            console.log('Booking processed:', {
+                id: doc.id,
+                clientName,
+                trainerName,
+                scheduledTime,
+                status: bookingStatus,
+                rawFields: Object.keys(data)
+            });
+            
             return {
                 id: doc.id,
                 clientName,
                 trainerName,
-                scheduledTime: data.scheduledTime ? new Date(data.scheduledTime.toMillis()) : null,
-                status: getBookingStatus(data, new Date(data.scheduledTime ? data.scheduledTime.toMillis() : Date.now())),
+                scheduledTime: scheduledTime,
+                status: bookingStatus,
                 duration: data.duration || 60,
                 notes: data.notes || ''
             };
@@ -477,25 +511,40 @@ async function loadPackages() {
             const userPackages = [];
             for (const pkgDoc of packagesSnapshot.docs) {
                 const pkgData = pkgDoc.data();
+                console.log('Package data:', pkgDoc.id, pkgData);
                 
                 // Get user name
                 let userName = 'Unknown';
                 try {
                     const userDoc = await db.collection('users').doc(userId).get();
                     if (userDoc.exists) {
-                        userName = userDoc.data().name || 'Unknown';
+                        const userData = userDoc.data();
+                        const firstName = userData.firstName || '';
+                        const lastName = userData.lastName || '';
+                        const fullName = `${firstName} ${lastName}`.trim();
+                        userName = fullName || userData.name || 'Unknown';
                     }
                 } catch (err) {
                     console.error('Error fetching user:', err);
                 }
                 
+                // Calculate remaining lessons
+                const total = pkgData.totalLessons || pkgData.total || 0;
+                const used = pkgData.lessonsUsed || pkgData.used || 0;
+                const remaining = pkgData.remainingLessons !== undefined 
+                    ? pkgData.remainingLessons 
+                    : (total - used);
+                
+                console.log('Package:', pkgDoc.id, 'Total:', total, 'Used:', used, 'Remaining:', remaining);
+                
                 userPackages.push({
                     id: pkgDoc.id,
                     userId,
                     userName,
-                    type: pkgData.packageType || 'Unknown',
-                    total: pkgData.totalLessons || 0,
-                    remaining: pkgData.remainingLessons || 0,
+                    type: pkgData.packageType || pkgData.type || 'Unknown',
+                    total: total,
+                    remaining: remaining,
+                    amountPaid: pkgData.amountPaid || pkgData.amount || pkgData.price || 0,
                     purchaseDate: pkgData.purchaseDate ? new Date(pkgData.purchaseDate.toMillis()) : null,
                     expiryDate: pkgData.expiryDate ? new Date(pkgData.expiryDate.toMillis()) : null
                 });
@@ -507,17 +556,43 @@ async function loadPackages() {
         const allPackages = await Promise.all(packagePromises);
         allData.packages = allPackages.flat();
         renderPackages();
+        renderRevenue();
     } catch (error) {
         console.error('Error loading packages:', error);
     }
 }
 
 // Render packages
-function renderPackages() {
+function renderPackages(packagesToRender = null) {
     const container = document.getElementById('packagesList');
+    let packages = packagesToRender || allData.packages;
     
-    if (allData.packages.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🎫</div><h3>No Packages</h3><p>No lesson packages found.</p></div>';
+    // Apply client filter
+    if (currentPackageClientFilter !== 'all') {
+        packages = packages.filter(pkg => pkg.userId === currentPackageClientFilter);
+    }
+    
+    // Apply sorting
+    if (currentPackageSort.column) {
+        packages = [...packages].sort((a, b) => {
+            let aVal, bVal;
+            
+            if (currentPackageSort.column === 'client') {
+                aVal = a.userName.toLowerCase();
+                bVal = b.userName.toLowerCase();
+            } else if (currentPackageSort.column === 'date') {
+                aVal = a.purchaseDate ? a.purchaseDate.getTime() : 0;
+                bVal = b.purchaseDate ? b.purchaseDate.getTime() : 0;
+            }
+            
+            if (aVal < bVal) return currentPackageSort.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return currentPackageSort.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+    
+    if (packages.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🎫</div><h3>No Packages</h3><p>No packages match your filters.</p></div>';
         return;
     }
     
@@ -525,22 +600,24 @@ function renderPackages() {
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Client</th>
+                    <th class="sortable-header ${currentPackageSort.column === 'client' ? 'sorted-' + currentPackageSort.direction : ''}" onclick="sortPackages('client')">Client</th>
                     <th>Package Type</th>
                     <th>Total Lessons</th>
                     <th>Remaining</th>
-                    <th>Purchase Date</th>
+                    <th class="sortable-header ${currentPackageSort.column === 'date' ? 'sorted-' + currentPackageSort.direction : ''}" onclick="sortPackages('date')">Purchase Date</th>
+                    <th>Revenue</th>
                     <th>Status</th>
                 </tr>
             </thead>
             <tbody>
-                ${allData.packages.map(pkg => `
+                ${packages.map(pkg => `
                     <tr>
                         <td><strong>${pkg.userName}</strong></td>
                         <td>${pkg.type}</td>
                         <td>${pkg.total}</td>
                         <td><strong>${pkg.remaining}</strong></td>
                         <td>${pkg.purchaseDate ? pkg.purchaseDate.toLocaleDateString() : 'N/A'}</td>
+                        <td><strong>$${((pkg.amountPaid || 0) / 100).toFixed(2)}</strong></td>
                         <td><span class="badge ${getPackageStatusBadge(pkg)}">${getPackageStatus(pkg)}</span></td>
                     </tr>
                 `).join('')}
@@ -549,6 +626,98 @@ function renderPackages() {
     `;
     
     container.innerHTML = html;
+}
+
+// Render revenue section
+function renderRevenue() {
+    // Calculate total revenue (convert from cents to dollars)
+    const totalRevenue = allData.packages.reduce((sum, pkg) => sum + (pkg.amountPaid || 0), 0) / 100;
+    
+    // Calculate this month's revenue
+    const now = new Date();
+    const thisMonthPackages = allData.packages.filter(pkg => {
+        if (!pkg.purchaseDate) return false;
+        return pkg.purchaseDate.getMonth() === now.getMonth() && 
+               pkg.purchaseDate.getFullYear() === now.getFullYear();
+    });
+    const monthRevenue = thisMonthPackages.reduce((sum, pkg) => sum + (pkg.amountPaid || 0), 0) / 100;
+    
+    // Calculate average package value
+    const avgRevenue = allData.packages.length > 0 ? totalRevenue / allData.packages.length : 0;
+    
+    // Active packages count
+    const activePackages = allData.packages.filter(p => p.remaining > 0);
+    
+    // Update stats
+    document.getElementById('totalRevenue').textContent = `$${totalRevenue.toFixed(2)}`;
+    document.getElementById('monthRevenue').textContent = `$${monthRevenue.toFixed(2)}`;
+    document.getElementById('avgPackageRevenue').textContent = `$${avgRevenue.toFixed(2)}`;
+    document.getElementById('activePackagesCount').textContent = activePackages.length;
+    
+    // Revenue by package type
+    const revenueByType = {};
+    allData.packages.forEach(pkg => {
+        const type = pkg.type;
+        if (!revenueByType[type]) {
+            revenueByType[type] = { count: 0, revenue: 0 };
+        }
+        revenueByType[type].count++;
+        revenueByType[type].revenue += pkg.amountPaid || 0;
+    });
+    
+    const revenueByTypeHtml = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Package Type</th>
+                    <th>Packages Sold</th>
+                    <th>Total Revenue</th>
+                    <th>Avg. Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${Object.entries(revenueByType).map(([type, data]) => `
+                    <tr>
+                        <td><strong>${type}</strong></td>
+                        <td>${data.count}</td>
+                        <td><strong>$${(data.revenue / 100).toFixed(2)}</strong></td>
+                        <td>$${(data.revenue / data.count / 100).toFixed(2)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    document.getElementById('revenueByType').innerHTML = revenueByTypeHtml;
+    
+    // Recent packages (last 10)
+    const recentPackages = [...allData.packages]
+        .filter(pkg => pkg.purchaseDate)
+        .sort((a, b) => b.purchaseDate - a.purchaseDate)
+        .slice(0, 10);
+    
+    const recentPackagesHtml = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Package Type</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${recentPackages.map(pkg => `
+                    <tr>
+                        <td>${pkg.purchaseDate.toLocaleDateString()}</td>
+                        <td><strong>${pkg.userName}</strong></td>
+                        <td>${pkg.type}</td>
+                        <td><strong>$${((pkg.amountPaid || 0) / 100).toFixed(2)}</strong></td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    document.getElementById('recentPackages').innerHTML = recentPackagesHtml;
 }
 
 // Update stats
@@ -573,6 +742,12 @@ function updateStats() {
 // Helper functions
 function getBookingStatus(bookingData, scheduledTime) {
     const status = bookingData.status || 'scheduled';
+    
+    // If no scheduled time, return current status
+    if (!scheduledTime) {
+        return status;
+    }
+    
     const now = new Date();
     const duration = bookingData.duration || 60;
     const endTime = new Date(scheduledTime.getTime() + duration * 60000);
@@ -763,6 +938,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 </table>
             `;
             container.innerHTML = html;
+        });
+    }
+    
+    // Package sorting function
+    window.sortPackages = function(column) {
+        if (currentPackageSort.column === column) {
+            // Toggle direction
+            currentPackageSort.direction = currentPackageSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentPackageSort.column = column;
+            currentPackageSort.direction = 'asc';
+        }
+        renderPackages();
+    };
+    
+    // Package client filter
+    const packageClientFilter = document.getElementById('packageClientFilter');
+    if (packageClientFilter) {
+        // Populate filter with unique clients
+        const uniqueClients = [...new Map(allData.packages.map(pkg => [pkg.userId, { id: pkg.userId, name: pkg.userName }])).values()];
+        uniqueClients.sort((a, b) => a.name.localeCompare(b.name));
+        
+        uniqueClients.forEach(client => {
+            const option = document.createElement('option');
+            option.value = client.id;
+            option.textContent = client.name;
+            packageClientFilter.appendChild(option);
+        });
+        
+        packageClientFilter.addEventListener('change', (e) => {
+            currentPackageClientFilter = e.target.value;
+            renderPackages();
+        });
+    }
+    
+    // Package search
+    const packageSearch = document.getElementById('packageSearch');
+    if (packageSearch) {
+        packageSearch.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            const filteredPackages = allData.packages.filter(pkg => 
+                pkg.userName.toLowerCase().includes(searchTerm)
+            );
+            
+            renderPackages(filteredPackages);
         });
     }
     
