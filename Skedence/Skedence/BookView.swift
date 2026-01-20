@@ -973,49 +973,47 @@ private struct ClassRegistrationSheet: View {
                         }
                     } else if !classItem.isFull {
                         if !availableClassPasses.isEmpty {
-                            // Show class pass selector if multiple passes available
-                            if availableClassPasses.count > 1 {
-                                VStack(alignment: .leading, spacing: Spacing.md) {
-                                    Text("Select Class Pass to Use")
-                                        .font(.headingMedium)
-                                        .foregroundStyle(AppTheme.textPrimary)
+                            // Always show class pass selector
+                            VStack(alignment: .leading, spacing: Spacing.md) {
+                                Text("Select Class Pass to Use")
+                                    .font(.headingMedium)
+                                    .foregroundStyle(AppTheme.textPrimary)
 
-                                    CardView(padding: Spacing.md) {
-                                        Menu {
-                                            ForEach(availableClassPasses) { package in
-                                                Button {
-                                                    selectedClassPass = package
-                                                } label: {
-                                                    HStack(spacing: Spacing.sm) {
-                                                        Text(formatPackageName(package))
-                                                            .font(.bodyMedium)
-                                                    }
+                                CardView(padding: Spacing.md) {
+                                    Menu {
+                                        ForEach(availableClassPasses) { package in
+                                            Button {
+                                                selectedClassPass = package
+                                            } label: {
+                                                HStack(spacing: Spacing.sm) {
+                                                    Text(formatPackageName(package))
+                                                        .font(.bodyMedium)
                                                 }
                                             }
-                                        } label: {
-                                            HStack(spacing: Spacing.md) {
-                                                ZStack {
-                                                    RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
-                                                        .fill(AppTheme.secondary.opacity(0.08))
-                                                        .frame(width: 48, height: 48)
-                                                    Image(systemName: "ticket")
-                                                        .font(.system(size: 20, weight: .semibold))
-                                                        .foregroundStyle(AppTheme.secondary)
-                                                }
-                                                
-                                                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                                    Text(selectedClassPass != nil ? formatPackageName(selectedClassPass!) : "Choose a class pass")
-                                                        .font(.headingSmall)
-                                                        .foregroundStyle(AppTheme.textPrimary)
-                                                    Text(selectedClassPass != nil ? "\(selectedClassPass!.lessonsRemaining) passes remaining" : "Select which pass to use")
-                                                        .font(.bodySmall)
-                                                        .foregroundStyle(AppTheme.textSecondary)
-                                                }
-                                                Spacer()
-                                                Image(systemName: "chevron.up.chevron.down")
-                                                    .font(.system(size: 14, weight: .semibold))
-                                                    .foregroundStyle(AppTheme.textTertiary)
+                                        }
+                                    } label: {
+                                        HStack(spacing: Spacing.md) {
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                    .fill(AppTheme.secondary.opacity(0.08))
+                                                    .frame(width: 48, height: 48)
+                                                Image(systemName: "ticket")
+                                                    .font(.system(size: 20, weight: .semibold))
+                                                    .foregroundStyle(AppTheme.secondary)
                                             }
+                                            
+                                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                                Text(selectedClassPass != nil ? formatPackageName(selectedClassPass!) : "Choose a class pass")
+                                                    .font(.headingSmall)
+                                                    .foregroundStyle(AppTheme.textPrimary)
+                                                Text(selectedClassPass != nil ? "\(selectedClassPass!.lessonsRemaining) passes remaining" : "Select which pass to use")
+                                                    .font(.bodySmall)
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                            }
+                                            Spacer()
+                                            Image(systemName: "chevron.up.chevron.down")
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundStyle(AppTheme.textTertiary)
                                         }
                                     }
                                 }
@@ -1032,7 +1030,7 @@ private struct ClassRegistrationSheet: View {
                                 }
                             }
                             .buttonStyle(PrimaryButtonStyle())
-                            .disabled(isRegistering || isAlreadyRegistered || (availableClassPasses.count > 1 && selectedClassPass == nil))
+                            .disabled(isRegistering || isAlreadyRegistered || selectedClassPass == nil)
                         } else {
                             CardView {
                                 VStack(alignment: .leading, spacing: Spacing.sm) {
