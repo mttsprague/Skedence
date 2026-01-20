@@ -1322,6 +1322,45 @@ extension AdminPanelView {
                     .cornerRadius(CornerRadius.sm)
             }
             
+            // Description field
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Description")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.textSecondary)
+                TextEditor(text: $editingTiers[tierIndex].packages[packageIndex].description)
+                    .frame(height: 60)
+                    .padding(4)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(CornerRadius.sm)
+            }
+            
+            // Pass/Class Category Selection
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Package Type *")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+                HStack(spacing: Spacing.md) {
+                    ForEach(PackageCategory.allCases, id: \.self) { category in
+                        Button {
+                            editingTiers[tierIndex].packages[packageIndex].packageCategory = category
+                        } label: {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary : AppTheme.textSecondary)
+                                Text(category.displayName)
+                                    .font(.subheadline)
+                                    .foregroundStyle(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary : AppTheme.textPrimary)
+                            }
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, Spacing.sm)
+                            .background(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary.opacity(0.1) : Color(uiColor: .secondarySystemGroupedBackground))
+                            .cornerRadius(CornerRadius.sm)
+                        }
+                    }
+                }
+            }
+            .padding(.top, Spacing.xs)
+            
             // Package Type and Price (side by side)
             HStack(spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: 2) {
