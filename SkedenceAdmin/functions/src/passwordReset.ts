@@ -13,15 +13,17 @@ export const sendPasswordResetEmail = functions.https.onCall(
       console.log("Received password reset request");
 
       // Extract email from data object
-      const email = data?.email || data;
+      const email = typeof data === "string" ? data : data?.email;
 
       if (!email || typeof email !== "string") {
-        console.error("Invalid email. Type:", typeof email);
+        console.error("Invalid email. Type:", typeof email, "Data keys:", data ? Object.keys(data) : "null");
         throw new functions.https.HttpsError(
           "invalid-argument",
           "Email is required"
         );
       }
+
+      console.log("Processing password reset for:", email);
 
       console.log("Processing password reset for:", email);
 
