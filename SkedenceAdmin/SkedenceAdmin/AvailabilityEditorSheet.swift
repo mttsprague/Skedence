@@ -616,11 +616,8 @@ struct AvailabilityEditorSheet: View {
         // Send to Cloud Function with 60-minute duration and selected weekdays
         let startDateToUse = bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay)
         
-        // End date is now required (no ongoing option)
-        guard let endDateToUse = bulkEndDate else {
-            print("⚠️ applyRecurring called without end date")
-            return
-        }
+        // Use default end date if not explicitly set (matching validation logic)
+        let endDateToUse = bulkEndDate ?? Calendar.current.date(byAdding: .month, value: 1, to: startDateToUse) ?? startDateToUse
         
         let daysArray = selectedWeekdays.isEmpty ? nil : Array(selectedWeekdays).sorted()
 
