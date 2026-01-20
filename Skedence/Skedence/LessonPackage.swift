@@ -12,6 +12,7 @@ import Foundation
 struct LessonPackage: Identifiable, Equatable {
     var id: String?
     let packageType: String
+    let packageName: String? // Display name from pricing structure (e.g., "1 athlete private", "Class Pass")
     let packageCategory: String? // "pass" or "class" - determines what can be booked
     let totalLessons: Int
     var lessonsUsed: Int

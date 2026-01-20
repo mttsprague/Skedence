@@ -521,20 +521,26 @@ struct BookView: View {
     }
     
     private func formatPackageName(_ package: LessonPackage) -> String {
+        // Use packageName if available, otherwise fall back to packageType
         let baseName: String
-        switch package.packageType {
-        case "private":
-            baseName = "Private Lesson Pass"
-        case "2_athlete":
-            baseName = "2-Athlete Pass"
-        case "3_athlete":
-            baseName = "3-Athlete Pass"
-        case "class_pass":
-            baseName = "Class Pass"
-        default:
-            baseName = "\(package.totalLessons)-Lesson Pass"
+        if let name = package.packageName, !name.isEmpty {
+            baseName = name
+        } else {
+            // Fallback for legacy packages without name
+            switch package.packageType {
+            case "private":
+                baseName = "Private Lesson Pass"
+            case "2_athlete":
+                baseName = "2-Athlete Pass"
+            case "3_athlete":
+                baseName = "3-Athlete Pass"
+            case "class_pass":
+                baseName = "Class Pass"
+            default:
+                baseName = "\(package.totalLessons)-Lesson Pass"
+            }
         }
-        return "\(baseName) (\(package.totalLessons))"
+        return "\(baseName) (\(package.lessonsRemaining) remaining)"
     }
 
     private var isBookEnabled: Bool {
@@ -810,6 +816,7 @@ private struct ClassRegistrationSheet: View {
     @State private var isAlreadyRegistered = false
     @State private var registrationSuccessful = false
     @State private var errorMessage: String?
+    @State private var selectedClassPass: LessonPackage?
     
     // Find available class pass
     private var availableClassPass: LessonPackage? {
@@ -919,7 +926,55 @@ private struct ClassRegistrationSheet: View {
                             .padding(.vertical, Spacing.md)
                         }
                     } else if !classItem.isFull {
-                        if availableClassPass != nil {
+                        if !availableClassPasses.isEmpty {
+                            // Show class pass selector if multiple passes available
+                            if availableClassPasses.count > 1 {
+                                VStack(alignment: .leading, spacing: Spacing.md) {
+                                    Text("Select Class Pass to Use")
+                                        .font(.headingMedium)
+                                        .foregroundStyle(AppTheme.textPrimary)
+
+                                    CardView(padding: Spacing.md) {
+                                        Menu {
+                                            ForEach(availableClassPasses) { package in
+                                                Button {
+                                                    selectedClassPass = package
+                                                } label: {
+                                                    HStack(spacing: Spacing.sm) {
+                                                        Text(formatPackageName(package))
+                                                            .font(.bodyMedium)
+                                                    }
+                                                }
+                                            }
+                                        } label: {
+                                            HStack(spacing: Spacing.md) {
+                                                ZStack {
+                                                    RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                        .fill(AppTheme.secondary.opacity(0.08))
+                                                        .frame(width: 48, height: 48)
+                                                    Image(systemName: "ticket")
+                                                        .font(.system(size: 20, weight: .semibold))
+                                                        .foregroundStyle(AppTheme.secondary)
+                                                }
+                                                
+                                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                                    Text(selectedClassPass != nil ? formatPackageName(selectedClassPass!) : "Choose a class pass")
+                                                        .font(.headingSmall)
+                                                        .foregroundStyle(AppTheme.textPrimary)
+                                                    Text(selectedClassPass != nil ? "\(selectedClassPass!.lessonsRemaining) passes remaining" : "Select which pass to use")
+                                                        .font(.bodySmall)
+                                                        .foregroundStyle(AppTheme.textSecondary)
+                                                }
+                                                Spacer()
+                                                Image(systemName: "chevron.up.chevron.down")
+                                                    .font(.system(size: 14, weight: .semibold))
+                                                    .foregroundStyle(AppTheme.textTertiary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
                             Button {
                                 Task { await registerWithClassPass() }
                             } label: {
@@ -931,7 +986,7 @@ private struct ClassRegistrationSheet: View {
                                 }
                             }
                             .buttonStyle(PrimaryButtonStyle())
-                            .disabled(isRegistering || isAlreadyRegistered)
+                            .disabled(isRegistering || isAlreadyRegistered || (availableClassPasses.count > 1 && selectedClassPass == nil))
                         } else {
                             CardView {
                                 VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -983,7 +1038,9 @@ private struct ClassRegistrationSheet: View {
     
     private func registerWithClassPass() async {
         guard let classId = classItem.id else { return }
-        guard let classPass = availableClassPass, let passId = classPass.id else {
+        // Use selected pass if available, otherwise use first available pass
+        let passToUse = selectedClassPass ?? availableClassPasses.first
+        guard let classPass = passToUse, let passId = classPass.id else {
             errorMessage = "No valid class pass found"
             return
         }

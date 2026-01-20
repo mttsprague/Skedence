@@ -324,11 +324,12 @@ final class AdminService: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "User organization not found"])
         }
         
-        // Load pricing structure to get packageCategory
+        // Load pricing structure to get packageCategory and packageName
         let pricingDoc = try await db.collection("organizations").document(orgId)
             .collection("pricingStructure").document("current").getDocument()
         
         var packageCategory: String = "pass" // Default to pass for backward compatibility
+        var packageName: String? = nil
         
         if let pricingData = pricingDoc.data(),
            let tiers = pricingData["tiers"] as? [[String: Any]] {
@@ -337,9 +338,13 @@ final class AdminService: ObservableObject {
                 if let packages = tier["packages"] as? [[String: Any]] {
                     for package in packages {
                         if let pkgType = package["packageType"] as? String,
-                           pkgType == passType,
-                           let category = package["packageCategory"] as? String {
-                            packageCategory = category
+                           pkgType == passType {
+                            if let category = package["packageCategory"] as? String {
+                                packageCategory = category
+                            }
+                            if let title = package["title"] as? String {
+                                packageName = title
+                            }
                             break
                         }
                     }
@@ -350,7 +355,7 @@ final class AdminService: ObservableObject {
         let now = Date()
         let expirationDate = Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now.addingTimeInterval(365 * 24 * 60 * 60)
         
-        let passData: [String: Any] = [
+        var passData: [String: Any] = [
             "packageType": passType, // This must be packageType (e.g., "private"), not title
             "packageCategory": packageCategory, // "pass" or "class"
             "totalLessons": totalLessons,
@@ -360,6 +365,11 @@ final class AdminService: ObservableObject {
             "transactionId": "ADMIN_ADDED_\(UUID().uuidString)",
             "orgId": orgId
         ]
+        
+        // Add packageName if found
+        if let packageName = packageName {
+            passData["packageName"] = packageName
+        }
         
         try await db.collection("users")
             .document(clientId)
