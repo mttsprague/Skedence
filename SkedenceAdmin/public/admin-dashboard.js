@@ -97,8 +97,43 @@ function showLogin() {
 }
 
 function showDashboard() {
+    console.log('showDashboard called');
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('dashboardScreen').classList.remove('hidden');
+    
+    // Setup mobile menu after dashboard is visible
+    setTimeout(() => {
+        setupMobileMenu();
+    }, 100);
+}
+
+// Setup mobile menu event listeners
+function setupMobileMenu() {
+    console.log('setupMobileMenu called');
+    const mobileMenuBtn = document.querySelector('.mobile-menu-toggle');
+    console.log('Button found:', mobileMenuBtn);
+    
+    if (mobileMenuBtn) {
+        console.log('Mobile menu button found, adding event listener');
+        
+        // Simple inline approach for iOS
+        mobileMenuBtn.onclick = function(e) {
+            console.log('Button onclick fired!');
+            e.preventDefault();
+            e.stopPropagation();
+            window.toggleMobileMenu();
+            return false;
+        };
+        
+        // Add touchstart for iOS (more reliable than touchend)
+        mobileMenuBtn.addEventListener('touchstart', function(e) {
+            console.log('Button touchstart fired!');
+            e.preventDefault();
+            window.toggleMobileMenu();
+        }, { passive: false });
+    } else {
+        console.log('Mobile menu button NOT found');
+    }
 }
 
 // Show section
@@ -356,27 +391,16 @@ async function loadBookings() {
     try {
         console.log('Loading bookings for org:', currentOrgId);
         
-        // Try different query approaches
-        let bookingsSnapshot;
-        try {
-            // First try with orgId and orderBy
-            bookingsSnapshot = await db.collection('bookings')
-                .where('orgId', '==', currentOrgId)
-                .orderBy('scheduledTime', 'desc')
-                .limit(100)
-                .get();
-        } catch (indexError) {
-            console.log('Index not available, trying simpler query:', indexError);
-            // If that fails, just query by orgId without ordering
-            bookingsSnapshot = await db.collection('bookings')
-                .where('orgId', '==', currentOrgId)
-                .limit(100)
-                .get();
-        }
+        // Query bookings for this organization
+        const bookingsSnapshot = await db.collection('bookings')
+            .where('orgId', '==', currentOrgId)
+            .get();
         
         console.log('Found bookings:', bookingsSnapshot.size);
         
-        const bookingPromises = bookingsSnapshot.docs.map(async (doc) => {
+        const orgBookings = bookingsSnapshot.docs;
+        
+        const bookingPromises = orgBookings.map(async (doc) => {
             const data = doc.data();
             console.log('Raw booking data:', doc.id, 'Fields:', Object.keys(data), 'Data:', data);
             
