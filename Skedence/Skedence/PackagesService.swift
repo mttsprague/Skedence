@@ -135,9 +135,13 @@ final class PackagesService: ObservableObject {
         // Read packageCategory if present; otherwise derive from packageType for compatibility
         let packageCategory: String? = (data["packageCategory"] as? String) ?? ((packageType == "class_pass") ? "class" : "pass")
         
+        // Read packageName if present
+        let packageName: String? = data["packageName"] as? String
+        
         return LessonPackage(
             id: id,
             packageType: packageType,
+            packageName: packageName,
             packageCategory: packageCategory,
             totalLessons: totalLessons,
             lessonsUsed: lessonsUsed,
