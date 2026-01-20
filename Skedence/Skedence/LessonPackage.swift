@@ -29,11 +29,21 @@ struct LessonPackage: Identifiable, Equatable {
     
     // Helper to check if this package can book lessons (not classes)
     var canBookLessons: Bool {
-        packageCategory == "pass" || packageCategory == nil // nil for backward compatibility
+        // Check packageCategory first, then fall back to packageType
+        if let category = packageCategory {
+            return category == "pass"
+        }
+        // Fallback: check packageType for backward compatibility
+        return packageType != "class" && packageType != "class_pass"
     }
     
     // Helper to check if this package can book classes
     var canBookClasses: Bool {
-        packageCategory == "class"
+        // Check packageCategory first, then fall back to packageType
+        if let category = packageCategory {
+            return category == "class"
+        }
+        // Fallback: check packageType for backward compatibility
+        return packageType == "class" || packageType == "class_pass"
     }
 }
