@@ -594,33 +594,64 @@ private struct SignedInProfileScreen: View {
     
     private func passTypeCard(title: String, description: String, count: Int, icon: String) -> some View {
         return card {
-            HStack(spacing: 16) {
+            HStack(spacing: Spacing.md) {
+                // Icon with gradient background (similar to ClassPreviewRow)
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Brand.primary.opacity(0.15))
+                    RoundedRectangle(cornerRadius: CornerRadius.sm, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Brand.primary, Brand.primary.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 56, height: 56)
+                    
                     Image(systemName: icon)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(Brand.primary)
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white)
                 }
-                .frame(width: 56, height: 56)
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    // Package title
                     Text(title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    
+                    // Description with more room to display
                     if !description.isEmpty {
                         Text(description)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    
+                    // Allotment/remaining count
+                    HStack(spacing: Spacing.xxs) {
+                        Image(systemName: "ticket.fill")
+                            .font(.labelSmall)
+                        Text("\(count) remaining")
+                            .font(.labelMedium)
+                    }
+                    .foregroundStyle(count > 0 ? AppTheme.success : AppTheme.textTertiary)
+                    .padding(.top, Spacing.xxxs)
                 }
                 
                 Spacer()
                 
-                Text("\(count)")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(Brand.primary)
+                // Large count badge
+                VStack(spacing: Spacing.xxxs) {
+                    Text("\(count)")
+                        .font(.system(size: 36, weight: .bold))
+                        .foregroundStyle(count > 0 ? Brand.primary : AppTheme.textTertiary)
+                    
+                    if count == 0 {
+                        Text("None")
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.textTertiary)
+                    }
+                }
             }
         }
     }
