@@ -9,17 +9,20 @@ import SwiftUI
 
 // MARK: - Brand Colors
 enum AppTheme {
-    // Primary: Teal/Turquoise from logo
-    static let primary = Color(red: 0.20, green: 0.70, blue: 0.68)
-    static let primaryDark = Color(red: 0.15, green: 0.55, blue: 0.53)
-    static let primaryLight = Color(red: 0.25, green: 0.80, blue: 0.78)
+    // Primary: Royal Blue (#3258A3)
+    static let primary = Color(red: 0.196, green: 0.345, blue: 0.639)
+    static let primaryDark = Color(red: 0.102, green: 0.169, blue: 0.427) // Deep Navy
+    static let primaryLight = Color(red: 0.25, green: 0.45, blue: 0.75)
     
-    // Secondary: Complementary orange/coral
-    static let secondary = Color(red: 0.98, green: 0.45, blue: 0.25)
-    static let secondaryLight = Color(red: 0.99, green: 0.65, blue: 0.45)
+    // Secondary: Vibrant Orange (#F27121)
+    static let secondary = Color(red: 0.949, green: 0.443, blue: 0.129)
+    static let secondaryLight = Color(red: 0.976, green: 0.627, blue: 0.369) // Soft Orange
     
-    // Accent: Deep blue
-    static let accent = Color(red: 0.15, green: 0.35, blue: 0.65)
+    // Accent: Deep Navy (#1A2B6D)
+    static let accent = Color(red: 0.102, green: 0.169, blue: 0.427)
+    
+    // Silver Gray (#B1B3B6)
+    static let silver = Color(red: 0.694, green: 0.702, blue: 0.714)
     
     // Neutrals - improved dark mode contrast
     static let textPrimary = Color.primary
