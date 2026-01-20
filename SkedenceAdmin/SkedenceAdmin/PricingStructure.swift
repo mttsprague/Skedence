@@ -75,12 +75,13 @@ struct PackageOption: Codable, Identifiable, Hashable {
         title = try container.decode(String.self, forKey: .title)
         priceInCents = try container.decode(Int.self, forKey: .priceInCents)
         packageType = try container.decode(String.self, forKey: .packageType)
+        packageCategory = try container.decodeIfPresent(PackageCategory.self, forKey: .packageCategory) ?? .pass
         lessonCount = try container.decodeIfPresent(Int.self, forKey: .lessonCount) ?? 1
         description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, title, priceInCents, packageType, lessonCount, description
+        case id, title, priceInCents, packageType, packageCategory, lessonCount, description
     }
 }
 
