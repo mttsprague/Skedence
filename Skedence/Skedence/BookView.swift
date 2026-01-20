@@ -928,16 +928,6 @@ private struct ClassRegistrationSheet: View {
                                 Text("\(classItem.currentParticipants) / \(classItem.maxParticipants) registered")
                                     .font(.bodyLarge)
                             }
-                            
-                            Divider()
-                            
-                            HStack(spacing: Spacing.xxs) {
-                                Image(systemName: "dollarsign.circle")
-                                Text("$45.00")
-                                    .font(.bodyLarge)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(AppTheme.primary)
-                            }
                         }
                         .foregroundStyle(AppTheme.textPrimary)
                     }

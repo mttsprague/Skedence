@@ -878,7 +878,6 @@ struct CreateClassView: View {
     @State private var startDate = Date()
     @State private var endDate = Date().addingTimeInterval(3600)
     @State private var maxParticipants = 20
-    @State private var price = "20.00" // Default class price
     @State private var selectedLocation: Location?
     @State private var selectedTrainer: Trainer?
     @State private var isCreating = false
@@ -922,14 +921,6 @@ struct CreateClassView: View {
                 
                 Section("Capacity") {
                     Stepper("Max Participants: \(maxParticipants)", value: $maxParticipants, in: 1...50)
-                }
-                
-                Section("Registration Price") {
-                    HStack {
-                        Text("$")
-                        TextField("0.00", text: $price)
-                            .keyboardType(.decimalPad)
-                    }
                 }
                 
                 if let errorMessage = errorMessage {
@@ -1007,10 +998,6 @@ struct CreateClassView: View {
                 return
             }
             
-            // Convert price string to cents
-            let priceDouble = Double(price) ?? 20.0
-            let priceInCents = Int(priceDouble * 100)
-            
             try await adminService.createClass(
                 orgId: orgId,
                 title: title,
@@ -1021,7 +1008,7 @@ struct CreateClassView: View {
                 location: location.name,
                 trainerId: trainerId,
                 trainerName: trainerName,
-                priceInCents: priceInCents
+                priceInCents: 0
             )
             onCreated()
             dismiss()
@@ -1047,7 +1034,6 @@ struct EditClassView: View {
     @State private var endDate = Date()
     @State private var maxParticipants = 20
     @State private var location = ""
-    @State private var price = "20.00"
     @State private var selectedTrainer: Trainer?
     @State private var isUpdating = false
     @State private var errorMessage: String?
@@ -1088,14 +1074,6 @@ struct EditClassView: View {
                         .foregroundStyle(AppTheme.textSecondary)
                 }
                 
-                Section("Registration Price") {
-                    HStack {
-                        Text("$")
-                        TextField("0.00", text: $price)
-                            .keyboardType(.decimalPad)
-                    }
-                }
-                
                 if let errorMessage = errorMessage {
                     Section {
                         Text(errorMessage)
@@ -1127,7 +1105,6 @@ struct EditClassView: View {
             endDate = classItem.endTime
             maxParticipants = classItem.maxParticipants
             location = classItem.location
-            price = String(format: "%.2f", Double(classItem.priceInCents) / 100.0)
             
             if let trainer = trainersService.trainers.first(where: { $0.id == classItem.trainerId }) {
                 selectedTrainer = trainer
@@ -1172,10 +1149,6 @@ struct EditClassView: View {
                 return
             }
             
-            // Convert price string to cents
-            let priceDouble = Double(price) ?? 20.0
-            let priceInCents = Int(priceDouble * 100)
-            
             try await adminService.updateClass(
                 classId: classId,
                 orgId: orgId,
@@ -1187,7 +1160,7 @@ struct EditClassView: View {
                 location: location,
                 trainerId: trainerId,
                 trainerName: trainerName,
-                priceInCents: priceInCents
+                priceInCents: 0
             )
             onUpdated()
             dismiss()
