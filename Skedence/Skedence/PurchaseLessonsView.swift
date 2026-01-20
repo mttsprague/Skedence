@@ -44,7 +44,7 @@ struct PurchaseLessonsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Big page header
-                Text("Purchase Private Lessons")
+                Text("Purchase Passes")
                     .font(.system(size: 34, weight: .bold))
                     .foregroundStyle(Brand.primary)
                     .padding(.horizontal)
@@ -171,7 +171,7 @@ struct PurchaseLessonsView: View {
             .padding(.top, 12)
         }
         .background(Color.platformGroupedBackground)
-        .navigationTitle("Purchase Private Lessons")
+        .navigationTitle("Purchase Passes")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             // Load trainers and default-select Jeff (or first)
@@ -244,42 +244,57 @@ struct PurchaseLessonsView: View {
         Button {
             withAnimation(.easeInOut(duration: 0.15)) { selectedPackageIndex = index }
         } label: {
-            HStack(spacing: 12) {
-                // Leading icon
+            HStack(spacing: Spacing.md) {
+                // Icon with gradient background (matching passes page)
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Brand.primary.opacity(0.15))
-                    Image(systemName: "briefcase.fill")
-                        .foregroundStyle(Brand.primary)
-                        .font(.system(size: 18, weight: .semibold))
+                    RoundedRectangle(cornerRadius: CornerRadius.sm, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Brand.primary, Brand.primary.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 56, height: 56)
+                    
+                    Image(systemName: iconForPackageType(package.packageType))
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white)
                 }
-                .frame(width: 48, height: 48)
 
-                // Title
-                VStack(alignment: .leading, spacing: 4) {
+                // Title and description with more room
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(package.title)
-                        .foregroundStyle(.primary)
-                        .font(.headline)
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    
                     if !package.description.isEmpty {
                         Text(package.description)
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                            .lineLimit(2)
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    
+                    // Price with icon
+                    HStack(spacing: Spacing.xxs) {
+                        Image(systemName: "dollarsign.circle.fill")
+                            .font(.labelSmall)
+                        Text(package.formattedPrice)
+                            .font(.labelMedium)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(AppTheme.success)
+                    .padding(.top, Spacing.xxxs)
                 }
 
                 Spacer()
 
-                // Price
-                Text(package.formattedPrice)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
                 // Selection indicator
                 ZStack {
                     Circle()
-                        .stroke(Brand.primary, lineWidth: 2)
-                        .frame(width: 26, height: 26)
+                        .stroke(isSelected ? Brand.primary : Color.secondary.opacity(0.3), lineWidth: 2)
+                        .frame(width: 28, height: 28)
                     if isSelected {
                         Circle()
                             .fill(Brand.primary)
@@ -290,19 +305,35 @@ struct PurchaseLessonsView: View {
                     }
                 }
             }
-            .padding(14)
+            .padding(Spacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: CornerRadius.md, style: .continuous)
                     .fill(Color.platformBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color.secondary.opacity(0.08))
-                    )
                     .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.md, style: .continuous)
+                    .stroke(isSelected ? Brand.primary : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)
+    }
+    
+    // Helper to get icon for package type
+    private func iconForPackageType(_ packageType: String) -> String {
+        switch packageType {
+        case "private", "1_athlete":
+            return "person.fill"
+        case "2_athlete":
+            return "person.2.fill"
+        case "3_athlete":
+            return "person.3.fill"
+        case "class_pass", "class":
+            return "calendar.badge.clock"
+        default:
+            return "ticket.fill"
+        }
     }
 
     // MARK: - Old Package Enum (Deprecated - kept for backward compatibility)

@@ -635,13 +635,13 @@ private struct SignedInProfileScreen: View {
                             .font(.labelMedium)
                     }
                     .foregroundStyle(count > 0 ? AppTheme.success : AppTheme.textTertiary)
-                    .padding(.top, Spacing.xxxs)
+                    .padding(.top, Spacing.xxs)
                 }
                 
                 Spacer()
                 
                 // Large count badge
-                VStack(spacing: Spacing.xxxs) {
+                VStack(spacing: Spacing.xxs) {
                     Text("\(count)")
                         .font(.system(size: 36, weight: .bold))
                         .foregroundStyle(count > 0 ? Brand.primary : AppTheme.textTertiary)
@@ -1041,7 +1041,7 @@ private struct SignInForm: View {
         let functions = Functions.functions()
         let sendPasswordReset = functions.httpsCallable("sendPasswordResetEmail")
         
-        sendPasswordReset(["email": email.trimmingCharacters(in: .whitespacesAndNewlines)]) { result, error in
+        sendPasswordReset.call(["email": email.trimmingCharacters(in: .whitespacesAndNewlines)]) { result, error in
             if let error = error {
                 resetMessage = "Error: \(error.localizedDescription)"
             } else {

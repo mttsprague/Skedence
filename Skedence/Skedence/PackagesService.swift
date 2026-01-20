@@ -84,8 +84,12 @@ final class PackagesService: ObservableObject {
             throw NSError(domain: "PackagesService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not signed in"])
         }
 
+        // Derive category for backward compatibility (write it so consumers can rely on it)
+        let derivedCategory = (packageType == "class_pass") ? "class" : "pass"
+
         let payload: [String: Any?] = [
             "packageType": packageType,        // "private" | "2_athlete" | "3_athlete" | "class_pass"
+            "packageCategory": derivedCategory, // "pass" or "class"
             "totalLessons": totalLessons,
             "lessonsUsed": 0,                  // must be 0 on create per rules
             "purchaseDate": purchaseDate,      // Firestore will store as Timestamp
@@ -127,10 +131,14 @@ final class PackagesService: ObservableObject {
         } else {
             return nil
         }
+
+        // Read packageCategory if present; otherwise derive from packageType for compatibility
+        let packageCategory: String? = (data["packageCategory"] as? String) ?? ((packageType == "class_pass") ? "class" : "pass")
         
         return LessonPackage(
             id: id,
             packageType: packageType,
+            packageCategory: packageCategory,
             totalLessons: totalLessons,
             lessonsUsed: lessonsUsed,
             purchaseDate: purchaseDate,
@@ -148,3 +156,4 @@ final class PackagesService: ObservableObject {
         return nil
     }
 }
+

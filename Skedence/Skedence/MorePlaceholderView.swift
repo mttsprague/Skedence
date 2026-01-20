@@ -408,16 +408,21 @@ struct MorePlaceholderView: View {
         }
         
         let functions = Functions.functions()
-        let sendPasswordReset = functions.httpsCallable("sendPasswordResetEmail")
+        let callable = functions.httpsCallable("sendPasswordResetEmail")
         
-        sendPasswordReset(["email": email]) { result, error in
-            if let error = error {
-                resetMessage = "Error: \(error.localizedDescription)"
-            } else {
-                resetMessage = "✅ Password reset email sent! Check your inbox."
-                // Clear message after 10 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-                    resetMessage = nil
+        Task {
+            do {
+                _ = try await callable.call(["email": email])
+                await MainActor.run {
+                    resetMessage = "✅ Password reset email sent! Check your inbox."
+                    // Clear message after 10 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                        resetMessage = nil
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    resetMessage = "Error: \(error.localizedDescription)"
                 }
             }
         }
