@@ -68,12 +68,23 @@ struct BookView: View {
     // Get available class passes (for booking classes)
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
+        
+        // Debug: Print all packages
+        print("🔍 DEBUG availableClassPasses: All packages count: \(packagesService.packages.count)")
+        for pkg in packagesService.packages {
+            print("🔍 Package: type=\(pkg.packageType), category=\(pkg.packageCategory ?? "nil"), name=\(pkg.packageName ?? "nil"), canBookClasses=\(pkg.canBookClasses), remaining=\(pkg.lessonsRemaining)")
+        }
+        
         let filtered = packagesService.packages.filter { pkg -> Bool in
             let canBook = pkg.canBookClasses // Only class packages
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
+            print("🔍 Package \(pkg.packageType): canBook=\(canBook), hasRemaining=\(hasRemaining), notExpired=\(notExpired)")
             return canBook && hasRemaining && notExpired
         }
+        
+        print("🔍 DEBUG availableClassPasses: Filtered class passes count: \(filtered.count)")
+        
         let sorted = filtered.sorted { (a, b) -> Bool in
             return a.expirationDate < b.expirationDate
         }
@@ -821,12 +832,23 @@ private struct ClassRegistrationSheet: View {
     // Get available class passes (for booking classes)
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
+        
+        // Debug: Print all packages
+        print("🔍 DEBUG ClassRegistrationSheet: All packages count: \(packagesService.packages.count)")
+        for pkg in packagesService.packages {
+            print("🔍 ClassRegistrationSheet Package: type=\(pkg.packageType), category=\(pkg.packageCategory ?? "nil"), name=\(pkg.packageName ?? "nil"), canBookClasses=\(pkg.canBookClasses), remaining=\(pkg.lessonsRemaining)")
+        }
+        
         let filtered = packagesService.packages.filter { pkg -> Bool in
             let canBook = pkg.canBookClasses // Only class packages
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
+            print("🔍 ClassRegistrationSheet Package \(pkg.packageType): canBook=\(canBook), hasRemaining=\(hasRemaining), notExpired=\(notExpired)")
             return canBook && hasRemaining && notExpired
         }
+        
+        print("🔍 DEBUG ClassRegistrationSheet: Filtered class passes count: \(filtered.count)")
+        
         let sorted = filtered.sorted { (a, b) -> Bool in
             return a.expirationDate < b.expirationDate
         }
