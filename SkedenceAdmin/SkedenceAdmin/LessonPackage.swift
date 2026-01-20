@@ -10,6 +10,7 @@ import Foundation
 struct LessonPackage: Identifiable, Codable {
     var id: String
     var packageType: String
+    var packageCategory: String? // "pass" or "class" - determines what can be booked
     var packageName: String? // Custom package name from pricing
     var trainerId: String? // Trainer-specific package
     var totalLessons: Int
@@ -25,6 +26,16 @@ struct LessonPackage: Identifiable, Codable {
     var isExpired: Bool {
         guard let expiration = expirationDate else { return false }
         return expiration < Date()
+    }
+    
+    // Helper to check if this package can book lessons (not classes)
+    var canBookLessons: Bool {
+        packageCategory == "pass" || packageCategory == nil // nil for backward compatibility
+    }
+    
+    // Helper to check if this package can book classes
+    var canBookClasses: Bool {
+        packageCategory == "class"
     }
     
     var packageDisplayName: String {

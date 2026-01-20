@@ -12,6 +12,7 @@ import Foundation
 struct LessonPackage: Identifiable, Equatable {
     var id: String?
     let packageType: String
+    let packageCategory: String? // "pass" or "class" - determines what can be booked
     let totalLessons: Int
     var lessonsUsed: Int
     let purchaseDate: Date
@@ -23,5 +24,15 @@ struct LessonPackage: Identifiable, Equatable {
     // Convenience used by some UI examples
     var isValidAndAvailable: Bool {
         lessonsRemaining > 0 && expirationDate >= Date()
+    }
+    
+    // Helper to check if this package can book lessons (not classes)
+    var canBookLessons: Bool {
+        packageCategory == "pass" || packageCategory == nil // nil for backward compatibility
+    }
+    
+    // Helper to check if this package can book classes
+    var canBookClasses: Bool {
+        packageCategory == "class"
     }
 }

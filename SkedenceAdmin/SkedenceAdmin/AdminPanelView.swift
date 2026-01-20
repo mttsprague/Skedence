@@ -1397,6 +1397,33 @@ extension AdminPanelView {
                     .cornerRadius(CornerRadius.sm)
             }
             
+            // Pass/Class Category Selection
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Package Type *")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+                HStack(spacing: Spacing.md) {
+                    ForEach(PackageCategory.allCases, id: \.self) { category in
+                        Button {
+                            editingTiers[tierIndex].packages[packageIndex].packageCategory = category
+                        } label: {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary : AppTheme.textSecondary)
+                                Text(category.displayName)
+                                    .font(.subheadline)
+                                    .foregroundStyle(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary : AppTheme.textPrimary)
+                            }
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, Spacing.sm)
+                            .background(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary.opacity(0.1) : Color(uiColor: .secondarySystemGroupedBackground))
+                            .cornerRadius(CornerRadius.sm)
+                        }
+                    }
+                }
+            }
+            .padding(.top, Spacing.xs)
+            
             HStack(spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Type (use_underscores)")

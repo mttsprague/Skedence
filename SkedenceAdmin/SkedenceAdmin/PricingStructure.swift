@@ -7,12 +7,26 @@
 
 import Foundation
 
+/// Package category - determines what this package can be used for
+enum PackageCategory: String, Codable, CaseIterable {
+    case pass = "pass"     // Can only book private lessons with trainers
+    case classPass = "class" // Can only book group classes
+    
+    var displayName: String {
+        switch self {
+        case .pass: return "Pass"
+        case .classPass: return "Class"
+        }
+    }
+}
+
 /// Represents a single package option (e.g., "1 Athlete - $80")
 struct PackageOption: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var title: String // e.g., "1 Athlete", "2 Athletes", "Small Group"
     var priceInCents: Int // e.g., 8000 = $80.00
     var packageType: String // e.g., "private", "2_athlete", "3_athlete", "class_pass"
+    var packageCategory: PackageCategory = .pass // Determines if this can be used for lessons or classes
     var lessonCount: Int = 1 // Number of lessons/units in this package (e.g., 1, 5, 10)
     var description: String = "" // Package description
     
@@ -41,6 +55,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
         title: String,
         priceInCents: Int,
         packageType: String,
+        packageCategory: PackageCategory = .pass,
         lessonCount: Int = 1,
         description: String = ""
     ) {
@@ -48,6 +63,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
         self.title = title
         self.priceInCents = priceInCents
         self.packageType = packageType
+        self.packageCategory = packageCategory
         self.lessonCount = lessonCount
         self.description = description
     }
