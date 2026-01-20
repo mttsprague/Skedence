@@ -34,6 +34,7 @@ final class SettingsService: ObservableObject {
                 // Manual decode without FirebaseFirestoreSwift
                 let minBookingHours = data["minBookingHours"] as? Int ?? 4
                 let minCancellationHours = data["minCancellationHours"] as? Int ?? 24
+                let maxBookingsPerLocation = data["maxBookingsPerLocation"] as? Int ?? 5
                 let updatedAt = data["updatedAt"] as? Timestamp
                 let storedOrgId = data["orgId"] as? String ?? orgId
                 
@@ -42,6 +43,7 @@ final class SettingsService: ObservableObject {
                     orgId: storedOrgId,
                     minBookingHours: minBookingHours,
                     minCancellationHours: minCancellationHours,
+                    maxBookingsPerLocation: maxBookingsPerLocation,
                     updatedAt: updatedAt
                 )
             } else {

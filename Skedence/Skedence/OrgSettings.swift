@@ -13,6 +13,7 @@ struct OrgSettings: Identifiable {
     var orgId: String
     var minBookingHours: Int  // Minimum hours before lesson that client can book
     var minCancellationHours: Int  // Minimum hours before lesson that client can cancel
+    var maxBookingsPerLocation: Int  // Maximum concurrent booked sessions per location
     var updatedAt: Timestamp?
     
     init(
@@ -20,12 +21,14 @@ struct OrgSettings: Identifiable {
         orgId: String,
         minBookingHours: Int = 4,
         minCancellationHours: Int = 24,
+        maxBookingsPerLocation: Int = 5,
         updatedAt: Timestamp? = Timestamp()
     ) {
         self.id = id
         self.orgId = orgId
         self.minBookingHours = minBookingHours
         self.minCancellationHours = minCancellationHours
+        self.maxBookingsPerLocation = maxBookingsPerLocation
         self.updatedAt = updatedAt
     }
 }

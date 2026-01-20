@@ -245,6 +245,38 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
+        // Check location booking limit if location is specified
+        if (orgId && trainerSlotData.location) {
+          const settingsDoc = await transaction.get(
+            db.collection("organizations")
+              .doc(orgId)
+              .collection("settings")
+              .doc(orgId)
+          );
+
+          if (settingsDoc.exists) {
+            const settings = settingsDoc.data();
+            const maxBookingsPerLocation = settings?.maxBookingsPerLocation ?? 5;
+
+            // Count current booked sessions at this location (status = 'booked', not 'open')
+            const locationBookingsQuery = await db
+              .collectionGroup("schedules")
+              .where("orgId", "==", orgId)
+              .where("location", "==", trainerSlotData.location)
+              .where("status", "==", "booked")
+              .get();
+
+            const currentBookings = locationBookingsQuery.size;
+
+            if (currentBookings >= maxBookingsPerLocation) {
+              throw new functions.https.HttpsError(
+                "resource-exhausted",
+                `This location has reached its booking capacity (${maxBookingsPerLocation} concurrent sessions). Please choose a different time or location.`
+              );
+            }
+          }
+        }
+
         // Validate package category - only 'pass' packages can book lessons
         const pkgCategory = lessonPackageData.packageCategory as string | undefined;
         if (pkgCategory === "class") {

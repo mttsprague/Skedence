@@ -13,6 +13,7 @@ struct SettingsView: View {
     
     @State private var minBookingHours: Int = 4
     @State private var minCancellationHours: Int = 24
+    @State private var maxBookingsPerLocation: Int = 5
     @State private var isSaving = false
     @State private var showSuccessAlert = false
     
@@ -25,6 +26,32 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 } header: {
                     Text("Booking & Cancellation Rules")
+                }
+                
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Booking Limit Per Location")
+                            .font(.headline)
+                        
+                        Text("Maximum number of concurrent booked sessions allowed per location. Open time slots don't count toward this limit.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        HStack {
+                            Stepper("\(maxBookingsPerLocation) sessions", value: $maxBookingsPerLocation, in: 1...20, step: 1)
+                                .onChange(of: maxBookingsPerLocation) {
+                                    saveSettings()
+                                }
+                        }
+                        
+                        Text("When a location reaches this limit, clients cannot book new sessions at that location until existing bookings complete.")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                            .italic()
+                    }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("Capacity Management")
                 }
                 
                 Section {
@@ -139,6 +166,7 @@ struct SettingsView: View {
         if let settings = settingsService.settings {
             minBookingHours = settings.minBookingHours
             minCancellationHours = settings.minCancellationHours
+            maxBookingsPerLocation = settings.maxBookingsPerLocation
         }
     }
     
@@ -151,7 +179,8 @@ struct SettingsView: View {
             let settings = OrgSettings(
                 orgId: orgId,
                 minBookingHours: minBookingHours,
-                minCancellationHours: minCancellationHours
+                minCancellationHours: minCancellationHours,
+                maxBookingsPerLocation: maxBookingsPerLocation
             )
             
             do {

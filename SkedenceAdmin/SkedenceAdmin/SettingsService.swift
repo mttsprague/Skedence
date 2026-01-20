@@ -34,12 +34,14 @@ final class SettingsService: ObservableObject {
                 // Manual mapping without FirebaseFirestoreSwift Codable helpers
                 let minBooking = data["minBookingHours"] as? Int ?? 4
                 let minCancel = data["minCancellationHours"] as? Int ?? 24
+                let maxBookings = data["maxBookingsPerLocation"] as? Int ?? 5
                 let updatedAt = data["updatedAt"] as? Timestamp
                 var mapped = OrgSettings(
                     id: doc.documentID,
                     orgId: data["orgId"] as? String ?? orgId,
                     minBookingHours: minBooking,
-                    minCancellationHours: minCancel
+                    minCancellationHours: minCancel,
+                    maxBookingsPerLocation: maxBookings
                 )
                 mapped.updatedAt = updatedAt
                 self.settings = mapped
@@ -69,6 +71,7 @@ final class SettingsService: ObservableObject {
             "orgId": settings.orgId,
             "minBookingHours": settings.minBookingHours,
             "minCancellationHours": settings.minCancellationHours,
+            "maxBookingsPerLocation": settings.maxBookingsPerLocation,
             "updatedAt": updatedSettings.updatedAt as Any
         ]
         
