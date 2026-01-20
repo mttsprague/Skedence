@@ -12,6 +12,10 @@ import Foundation
 import FirebaseAuth
 #endif
 
+#if canImport(FirebaseFunctions)
+import FirebaseFunctions
+#endif
+
 @MainActor
 final class AccountViewModel: ObservableObject {
     enum Mode { case signIn, create }
@@ -23,6 +27,7 @@ final class AccountViewModel: ObservableObject {
     @Published var lastName: String = ""
     @Published var isWorking = false
     @Published var errorMessage: String?
+    @Published var resetMessage: String?
 
     // Hooks for navigation
     var dismiss: (() -> Void)?
@@ -84,6 +89,32 @@ final class AccountViewModel: ObservableObject {
             onSignedIn?()
         } catch {
             errorMessage = "Create account failed: \(error.localizedDescription)"
+        }
+        #endif
+    }
+    
+    func sendPasswordReset() {
+        guard !email.isEmpty else {
+            resetMessage = "Please enter your email address first"
+            return
+        }
+        
+        #if canImport(FirebaseFunctions)
+        let functions = Functions.functions()
+        let sendPasswordReset = functions.httpsCallable("sendPasswordResetEmail")
+        
+        sendPasswordReset(["email": email]) { result, error in
+            Task { @MainActor in
+                if let error = error {
+                    self.resetMessage = "Error: \(error.localizedDescription)"
+                } else {
+                    self.resetMessage = "✅ Password reset email sent! Check your inbox."
+                    // Clear message after 10 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                        self.resetMessage = nil
+                    }
+                }
+            }
         }
         #endif
     }

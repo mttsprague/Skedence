@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct AccountView: View {
     @StateObject private var vm = AccountViewModel()
+    @State private var showingForgotPassword = false
 
     var body: some View {
         NavigationStack {
@@ -64,11 +66,29 @@ struct AccountView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(!vm.canSubmit || vm.isWorking)
+                    
+                    if vm.mode == .signIn {
+                        Button {
+                            showingForgotPassword = true
+                        } label: {
+                            Text("Forgot Password?")
+                                .font(.subheadline)
+                                .foregroundStyle(.blue)
+                        }
+                        .padding(.top, 4)
+                    }
 
                     if let error = vm.errorMessage {
                         Text(error)
                             .foregroundStyle(.red)
                             .font(.footnote)
+                    }
+                    
+                    if let resetMessage = vm.resetMessage {
+                        Text(resetMessage)
+                            .font(.footnote)
+                            .foregroundStyle(resetMessage.contains("sent") ? .green : .red)
+                            .multilineTextAlignment(.center)
                     }
 
                     Spacer(minLength: 40)
@@ -93,6 +113,18 @@ struct AccountView: View {
             vm.onSignedIn = {
                 // Update global session
                 AuthSession.shared.startListening()
+            }
+        }
+        .alert("Reset Password", isPresented: $showingForgotPassword) {
+            Button("Cancel", role: .cancel) { }
+            Button("Send Reset Email") {
+                vm.sendPasswordReset()
+            }
+        } message: {
+            if vm.email.isEmpty {
+                Text("Please enter your email address in the email field first, then tap 'Forgot Password?' again.")
+            } else {
+                Text("Send a password reset email to \(vm.email)?")
             }
         }
     }
