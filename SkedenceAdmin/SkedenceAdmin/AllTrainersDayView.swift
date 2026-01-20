@@ -714,19 +714,6 @@ private struct ScrollableGridContent: View {
                                                     .onTapGesture {
                                                         onSlotTap(slot)
                                                     }
-                                                    .contextMenu {
-                                                        // Only show delete option for open slots
-                                                        if slot.status == .open {
-                                                            Button(role: .destructive) {
-                                                                Task {
-                                                                    await scheduleViewModel.clearSlot(on: selectedDate, hour: hour)
-                                                                    await reload(for: selectedDate, orgId: orgId)
-                                                                }
-                                                            } label: {
-                                                                Label("Delete Availability", systemImage: "trash")
-                                                            }
-                                                        }
-                                                    }
                                             }
                                         }
                                         .frame(width: calculatedTrainerWidth, height: rowHeight)
