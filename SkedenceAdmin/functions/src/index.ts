@@ -278,18 +278,23 @@ export const bookLesson = functions.https.onCall(
         }
 
         // Validate package category - only 'pass' packages can book lessons
+        // Check packageType first as source of truth
+        const pkgType = lessonPackageData.packageType as string;
         const pkgCategory = lessonPackageData.packageCategory as string | undefined;
-        if (pkgCategory === "class") {
+
+        // Reject if it's a class package by type
+        if (pkgType === "class" || pkgType === "class_pass") {
           throw new functions.https.HttpsError(
             "invalid-argument",
             "Class packages can only be used to register for classes, not book lessons."
           );
         }
-        // Also check legacy packageType field for backward compatibility
-        if (lessonPackageData.packageType === "class_pass") {
+
+        // Also check category as secondary validation
+        if (pkgCategory === "class") {
           throw new functions.https.HttpsError(
             "invalid-argument",
-            "Class passes can only be used to register for classes, not book lessons."
+            "Class packages can only be used to register for classes, not book lessons."
           );
         }
 
@@ -450,9 +455,12 @@ export const registerForClass = functions.https.onCall(
           );
         }
 
-        // Verify it's a class pass - check both new packageCategory and legacy packageType
+        // Verify it's a class pass - check packageType first as source of truth
         const pkgCategory = classPassData.packageCategory as string | undefined;
-        const isClassPackage = pkgCategory === "class" || classPassData.packageType === "class_pass";
+        const pkgType = classPassData.packageType as string;
+
+        // Check packageType first (more reliable), then category as fallback
+        const isClassPackage = pkgType === "class" || pkgType === "class_pass" || pkgCategory === "class";
 
         if (!isClassPackage) {
           throw new functions.https.HttpsError(
