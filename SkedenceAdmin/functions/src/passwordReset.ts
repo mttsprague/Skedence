@@ -12,11 +12,18 @@ export const sendPasswordResetEmail = functions.https.onCall(
       // Log received data safely
       console.log("Received password reset request");
 
-      // Extract email from data object
-      const email = typeof data === "string" ? data : data?.email;
+      // Extract email - Firebase Functions v2 might nest data in data.data
+      let email: string | undefined;
+      if (typeof data === "string") {
+        email = data;
+      } else if (data?.data?.email) {
+        email = data.data.email;
+      } else if (data?.email) {
+        email = data.email;
+      }
 
       if (!email || typeof email !== "string") {
-        console.error("Invalid email. Type:", typeof email, "Data keys:", data ? Object.keys(data) : "null");
+        console.error("Invalid email. Type:", typeof email);
         throw new functions.https.HttpsError(
           "invalid-argument",
           "Email is required"
