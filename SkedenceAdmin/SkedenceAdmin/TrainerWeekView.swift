@@ -664,6 +664,16 @@ private struct HourDayCell: View {
                     .onTapGesture {
                         onSlotTap(slot)
                     }
+                    .contextMenu {
+                        // Only show delete option for open slots
+                        if slot.status == .open {
+                            Button(role: .destructive) {
+                                onClear()
+                            } label: {
+                                Label("Delete Availability", systemImage: "trash")
+                            }
+                        }
+                    }
             }
         }
         .frame(width: dayColumnWidth, height: rowHeight)

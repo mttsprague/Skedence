@@ -1067,38 +1067,58 @@ export const processTrainerAvailability = functions.https.onCall(
           const slotRef = trainerScheduleCollection.doc(slotDocId);
           const existingSlotDoc = await slotRef.get();
 
+          const trainerFirstName = trainerData.firstName || "";
+          const trainerLastName = trainerData.lastName || "";
+          const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
+          const orgId = trainerData.orgId || null;
+
+          const slotData: Record<string, any> = {
+            status: status,
+            startTime: slotStartTime,
+            endTime: slotEndTime,
+            clientId: null,
+            clientName: null,
+            trainerName: trainerFullName,
+          };
+
+          // Add orgId if available from trainer data
+          if (orgId) {
+            slotData.orgId = orgId;
+          }
+
+          // Add location if provided
+          if (location) {
+            slotData.location = location;
+          }
+
           if (!existingSlotDoc.exists) {
-            const trainerFirstName = trainerData.firstName || "";
-            const trainerLastName = trainerData.lastName || "";
-            const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
-            const orgId = trainerData.orgId || null;
-
-            const slotData: Record<string, any> = {
-              status: status,
-              startTime: slotStartTime,
-              endTime: slotEndTime,
-              clientId: null,
-              clientName: null,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              trainerName: trainerFullName,
-            };
-
-            // Add orgId if available from trainer data
-            if (orgId) {
-              slotData.orgId = orgId;
-            }
-
-            // Add location if provided
-            if (location) {
-              slotData.location = location;
-            }
-
+            // Create new slot
+            slotData.createdAt = admin.firestore.FieldValue.serverTimestamp();
             batch.set(slotRef, slotData);
             slotsAddedCount++;
           } else {
-            functions.logger.debug(
-              `Slot ${slotDocId} already exists for trainer ${trainerId}, skipping.`
-            );
+            // Update existing slot if it's open and we're setting to unavailable
+            // or if it's unavailable and we're setting to open
+            const existingData = existingSlotDoc.data();
+            const existingStatus = existingData?.status;
+            const isBooked = existingStatus === "booked" || existingData?.clientId;
+
+            if (!isBooked && existingStatus !== status) {
+              // Only update if not booked and status is changing
+              batch.update(slotRef, slotData);
+              slotsAddedCount++;
+              functions.logger.debug(
+                `Slot ${slotDocId} updated from ${existingStatus} to ${status} for trainer ${trainerId}.`
+              );
+            } else if (isBooked) {
+              functions.logger.debug(
+                `Slot ${slotDocId} is booked for trainer ${trainerId}, skipping.`
+              );
+            } else {
+              functions.logger.debug(
+                `Slot ${slotDocId} already has status ${status} for trainer ${trainerId}, skipping.`
+              );
+            }
           }
         }
 
