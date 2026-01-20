@@ -143,6 +143,15 @@ service cloud.firestore {
         allow read, write: if isOrgAdmin(orgId);
       }
       
+      // Pricing Structure subcollection
+      match /pricingStructure/{docId} {
+        // Members can read pricing structure (for package purchases)
+        allow read: if isMemberOfOrg(orgId);
+        
+        // Only admins can update pricing structure
+        allow write: if isOrgAdmin(orgId);
+      }
+      
       // Users subcollection (organization members/clients)
       match /users/{memberId} {
         // Owners and admins can read user info
