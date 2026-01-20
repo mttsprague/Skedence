@@ -537,7 +537,7 @@ struct PurchaseLessonsView: View {
                 }
                 
                 // Success message
-                let successMessage = "Your \(selectedPackage.title) has been added to your account. You can now book sessions!"
+                let successMessage = "Your \(selectedPackage.title) has been added to your account. You can now book!"
                 
                 alert = .init(title: "Purchase Successful! 🎉", message: successMessage)
             }

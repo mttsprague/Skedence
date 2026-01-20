@@ -337,11 +337,35 @@ final class AdminService: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "User organization not found"])
         }
         
+        // Load pricing structure to get packageCategory
+        let pricingDoc = try await db.collection("organizations").document(orgId)
+            .collection("pricingStructure").document("current").getDocument()
+        
+        var packageCategory: String = "pass" // Default to pass for backward compatibility
+        
+        if let pricingData = pricingDoc.data(),
+           let tiers = pricingData["tiers"] as? [[String: Any]] {
+            // Search for the package in all tiers
+            for tier in tiers {
+                if let packages = tier["packages"] as? [[String: Any]] {
+                    for package in packages {
+                        if let pkgType = package["packageType"] as? String,
+                           pkgType == passType,
+                           let category = package["packageCategory"] as? String {
+                            packageCategory = category
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        
         let now = Date()
         let expirationDate = Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now.addingTimeInterval(365 * 24 * 60 * 60)
         
         let passData: [String: Any] = [
             "packageType": passType, // This must be packageType (e.g., "private"), not title
+            "packageCategory": packageCategory, // "pass" or "class"
             "totalLessons": totalLessons,
             "lessonsUsed": 0,
             "purchaseDate": Timestamp(date: now),

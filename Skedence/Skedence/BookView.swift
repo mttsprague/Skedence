@@ -492,7 +492,7 @@ struct BookView: View {
                 .padding(Spacing.xl)
             } else if classesService.classes.isEmpty {
                 EmptyStateView(
-                    icon: "figure.volleyball",
+                    icon: "calendar",
                     title: "No Classes Available",
                     message: "Check back soon for upcoming group classes!"
                 )
@@ -613,7 +613,7 @@ struct BookView: View {
             let trainerName = selectedTrainer?.name ?? "your trainer"
             bookingAlert = .init(
                 title: "Booking Confirmed! 🎉",
-                message: "Your lesson with \(trainerName) has been successfully booked. See you soon!"
+                message: "You have successfully booked with \(trainerName). See you soon!"
             )
             
             // Refresh data after server writes complete

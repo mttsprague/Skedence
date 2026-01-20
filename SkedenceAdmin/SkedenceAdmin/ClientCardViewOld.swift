@@ -338,7 +338,7 @@ struct ClientCardViewOld: View {
     
     private func bookingRow(_ booking: ClientBooking) -> some View {
         HStack(spacing: Spacing.sm) {
-            Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "figure.volleyball")
+            Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "person.fill")
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textSecondary)
                 .frame(width: 20)

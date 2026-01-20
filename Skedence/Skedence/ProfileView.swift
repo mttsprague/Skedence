@@ -295,7 +295,7 @@ private struct SignedInProfileScreen: View {
                                 }
                             case .classItem(let classItem):
                                 HStack(spacing: 6) {
-                                    Image(systemName: "sportscourt.fill").foregroundStyle(Brand.secondary)
+                                    Image(systemName: "calendar.badge.clock").foregroundStyle(Brand.secondary)
                                     Text("Class")
                                         .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(Brand.secondary)
@@ -336,13 +336,13 @@ private struct SignedInProfileScreen: View {
                         // Athlete 1
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 6) {
-                                Image(systemName: "figure.volleyball").foregroundStyle(.secondary)
+                                Image(systemName: "person.fill").foregroundStyle(.secondary)
                                 Text("\(athleteFirst) \(athleteLast)")
                                     .font(.headline)
                             }
                             if let position = user.athletePosition, !position.isEmpty {
                                 HStack(spacing: 6) {
-                                    Image(systemName: "sportscourt").foregroundStyle(.secondary)
+                                    Image(systemName: "calendar").foregroundStyle(.secondary)
                                     Text(position)
                                         .foregroundStyle(.secondary)
                                 }
@@ -363,13 +363,13 @@ private struct SignedInProfileScreen: View {
                             Divider()
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack(spacing: 6) {
-                                    Image(systemName: "figure.volleyball").foregroundStyle(.secondary)
+                                    Image(systemName: "person.fill").foregroundStyle(.secondary)
                                     Text("\(athlete2First) \(athlete2Last)")
                                         .font(.headline)
                                 }
                                 if let position = user.athlete2Position, !position.isEmpty {
                                     HStack(spacing: 6) {
-                                        Image(systemName: "sportscourt").foregroundStyle(.secondary)
+                                        Image(systemName: "tag").foregroundStyle(.secondary)
                                         Text(position)
                                             .foregroundStyle(.secondary)
                                     }
@@ -391,13 +391,13 @@ private struct SignedInProfileScreen: View {
                             Divider()
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack(spacing: 6) {
-                                    Image(systemName: "figure.volleyball").foregroundStyle(.secondary)
+                                    Image(systemName: "person.fill").foregroundStyle(.secondary)
                                     Text("\(athlete3First) \(athlete3Last)")
                                         .font(.headline)
                                 }
                                 if let position = user.athlete3Position, !position.isEmpty {
                                     HStack(spacing: 6) {
-                                        Image(systemName: "sportscourt").foregroundStyle(.secondary)
+                                        Image(systemName: "tag").foregroundStyle(.secondary)
                                         Text(position)
                                             .foregroundStyle(.secondary)
                                     }
@@ -473,7 +473,7 @@ private struct SignedInProfileScreen: View {
                                     }
                                 case .classItem(let classItem):
                                     HStack(spacing: 6) {
-                                        Image(systemName: "sportscourt.fill").foregroundStyle(Brand.secondary)
+                                        Image(systemName: "calendar.badge.clock").foregroundStyle(Brand.secondary)
                                         Text("Class • \(classItem.title)")
                                             .font(.headline)
                                     }
@@ -544,14 +544,14 @@ private struct SignedInProfileScreen: View {
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     
-                    // Buy Lessons button
+                    // Buy Passes button
                     Button {
                         showPurchaseLessons = true
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "cart.fill")
                                 .font(.system(size: 18, weight: .semibold))
-                            Text("Buy Lessons")
+                            Text("Purchase Passes")
                                 .font(.headline)
                         }
                         .foregroundStyle(.white)
@@ -586,7 +586,7 @@ private struct SignedInProfileScreen: View {
         case "3_athlete":
             return "person.3.fill"
         case "class_pass", "class":
-            return "sportscourt.fill"
+            return "calendar.badge.clock"
         default:
             return "ticket.fill"
         }
@@ -1232,18 +1232,18 @@ private struct RegisterForm: View {
                 
                 // Primary Athlete Section
                 VStack(alignment: .leading, spacing: 16) {
-                    SectionHeader(icon: "figure.volleyball", title: "Primary Athlete")
+                    SectionHeader(icon: "person.fill", title: "Primary Athlete")
                     
                     HStack(spacing: 12) {
                         FormField(
-                            icon: "sportscourt.fill",
+                            icon: "calendar.badge.clock",
                             placeholder: "First Name",
                             text: $athleteFirstName,
                             textContentType: .givenName
                         )
                         
                         FormField(
-                            icon: "sportscourt.fill",
+                            icon: "calendar.badge.clock",
                             placeholder: "Last Name",
                             text: $athleteLastName,
                             textContentType: .familyName
@@ -1280,14 +1280,14 @@ private struct RegisterForm: View {
                     VStack(spacing: 12) {
                         HStack(spacing: 12) {
                             FormField(
-                                icon: "sportscourt",
+                                icon: "tag",
                                 placeholder: "Athlete 2 First Name",
                                 text: $athlete2FirstName,
                                 textContentType: .givenName
                             )
                             
                             FormField(
-                                icon: "sportscourt",
+                                icon: "tag",
                                 placeholder: "Last Name",
                                 text: $athlete2LastName,
                                 textContentType: .familyName
@@ -1317,14 +1317,14 @@ private struct RegisterForm: View {
                     VStack(spacing: 12) {
                         HStack(spacing: 12) {
                             FormField(
-                                icon: "sportscourt",
+                                icon: "tag",
                                 placeholder: "Athlete 3 First Name",
                                 text: $athlete3FirstName,
                                 textContentType: .givenName
                             )
                             
                             FormField(
-                                icon: "sportscourt",
+                                icon: "tag",
                                 placeholder: "Last Name",
                                 text: $athlete3LastName,
                                 textContentType: .familyName

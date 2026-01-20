@@ -308,7 +308,7 @@ private struct ClassRow: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Brand.secondary.opacity(0.12))
-                Image(systemName: "sportscourt.fill")
+                Image(systemName: "calendar.badge.clock")
                     .foregroundStyle(Brand.secondary)
             }
             .frame(width: 36, height: 36)

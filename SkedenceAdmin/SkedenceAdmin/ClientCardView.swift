@@ -415,7 +415,7 @@ struct ClientCardView: View {
                             if let athleteName = client.athleteFullName {
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: Spacing.xs) {
-                                        Image(systemName: "figure.volleyball")
+                                        Image(systemName: "person.fill")
                                             .font(.system(size: 14))
                                             .foregroundStyle(AppTheme.textSecondary)
                                         Text(athleteName)
@@ -447,7 +447,7 @@ struct ClientCardView: View {
                                 Divider()
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: Spacing.xs) {
-                                        Image(systemName: "figure.volleyball")
+                                        Image(systemName: "person.fill")
                                             .font(.system(size: 14))
                                             .foregroundStyle(AppTheme.textSecondary)
                                         Text(athlete2Name)
@@ -479,7 +479,7 @@ struct ClientCardView: View {
                                 Divider()
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: Spacing.xs) {
-                                        Image(systemName: "figure.volleyball")
+                                        Image(systemName: "person.fill")
                                             .font(.system(size: 14))
                                             .foregroundStyle(AppTheme.textSecondary)
                                         Text(athlete3Name)
@@ -696,7 +696,7 @@ struct ClientCardView: View {
         case "3_athlete", "three_athlete":
             return "person.3.fill"
         case "class_pass", "class":
-            return "sportscourt.fill"
+            return "calendar.badge.clock"
         default:
             return "ticket.fill"
         }
@@ -774,7 +774,7 @@ struct ClientCardView: View {
     
     private func bookingRow(_ booking: ClientBooking) -> some View {
         HStack(spacing: Spacing.sm) {
-            Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "figure.volleyball")
+            Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "calendar")
                 .font(.system(size: 16))
                 .foregroundStyle(AppTheme.primary)
                 .frame(width: 24)
@@ -802,7 +802,7 @@ struct ClientCardView: View {
     private func upcomingBookingRow(_ booking: ClientBooking) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.sm) {
-                Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "figure.volleyball")
+                Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "calendar")
                     .font(.system(size: 16))
                     .foregroundStyle(AppTheme.primary)
                     .frame(width: 24)

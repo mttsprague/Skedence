@@ -143,7 +143,7 @@ private struct ClientRow: View {
                     
                     if let athleteName = client.athleteFullName {
                         HStack(spacing: Spacing.xxs) {
-                            Image(systemName: "figure.volleyball")
+                            Image(systemName: "person.fill")
                                 .font(.labelSmall)
                             Text(athleteName)
                                 .font(.bodySmall)
@@ -158,7 +158,7 @@ private struct ClientRow: View {
                     
                     if let athlete2Name = client.athlete2FullName {
                         HStack(spacing: Spacing.xxs) {
-                            Image(systemName: "figure.volleyball")
+                            Image(systemName: "person.fill")
                                 .font(.labelSmall)
                             Text(athlete2Name)
                                 .font(.bodySmall)

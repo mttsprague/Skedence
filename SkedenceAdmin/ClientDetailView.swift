@@ -218,7 +218,7 @@ struct ClientDetailView: View {
     private func classEventView(classItem: ClientClass, showDivider: Bool) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.xs) {
-                Image(systemName: "sportscourt.fill")
+                Image(systemName: "calendar.badge.clock")
                     .font(.labelSmall)
                     .foregroundStyle(AppTheme.primary)
                 Text("Class")
@@ -528,7 +528,7 @@ struct ClientDetailView: View {
                                         .foregroundStyle(AppTheme.textSecondary)
                                     
                                     HStack(spacing: Spacing.xs) {
-                                        Image(systemName: "figure.volleyball")
+                                        Image(systemName: "person.fill")
                                             .font(.system(size: 14))
                                         Text(athleteName)
                                             .font(.bodyMedium)
@@ -555,7 +555,7 @@ struct ClientDetailView: View {
                                         .foregroundStyle(AppTheme.textSecondary)
                                     
                                     HStack(spacing: Spacing.xs) {
-                                        Image(systemName: "figure.volleyball")
+                                        Image(systemName: "person.fill")
                                             .font(.system(size: 14))
                                         Text(athlete2Name)
                                             .font(.bodyMedium)
@@ -582,7 +582,7 @@ struct ClientDetailView: View {
                                         .foregroundStyle(AppTheme.textSecondary)
                                     
                                     HStack(spacing: Spacing.xs) {
-                                        Image(systemName: "figure.volleyball")
+                                        Image(systemName: "person.fill")
                                             .font(.system(size: 14))
                                         Text(athlete3Name)
                                             .font(.bodyMedium)

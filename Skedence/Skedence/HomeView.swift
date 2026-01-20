@@ -389,7 +389,7 @@ private struct ClassPreviewRow: View {
                         )
                         .frame(width: 50, height: 50)
                     
-                    Image(systemName: "figure.volleyball")
+                    Image(systemName: "person.fill")
                         .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(.white)
                 }
