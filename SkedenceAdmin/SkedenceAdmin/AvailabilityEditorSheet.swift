@@ -579,9 +579,9 @@ struct AvailabilityEditorSheet: View {
         if selectedWeekdays.isEmpty { return true }
         // Validate daily window
         if recurringEndHour <= recurringStartHour { return true }
-        // Validate date range - end date is now required (no "ongoing" option)
+        // Validate date range - use default end date if not set (matching DatePicker behavior)
         let start = bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay)
-        guard let end = bulkEndDate else { return true } // End date is required
+        let end = bulkEndDate ?? Calendar.current.date(byAdding: .month, value: 1, to: start) ?? start
         if end < start { return true }
         return false
     }
