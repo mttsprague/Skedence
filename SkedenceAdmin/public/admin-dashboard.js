@@ -90,10 +90,8 @@ async function sendPasswordResetEmail(email, messageElementId) {
     const messageDiv = document.getElementById(messageElementId);
     
     try {
-        await auth.sendPasswordResetEmail(email, {
-            url: window.location.origin + window.location.pathname,
-            handleCodeInApp: false
-        });
+        // Send password reset email (Firebase will use default settings)
+        await auth.sendPasswordResetEmail(email);
         
         messageDiv.textContent = `✅ Password reset email sent to ${email}. Please check your inbox.`;
         messageDiv.className = 'alert alert-success';
