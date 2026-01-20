@@ -622,9 +622,15 @@ struct BookView: View {
             await loadMonthIfPossible()
             selectedSlot = nil
         } catch {
+            let cleanMessage: String
+            if error.localizedDescription.contains("credits") || error.localizedDescription.contains("package") {
+                cleanMessage = "We couldn't complete your booking. That package has no passes remaining."
+            } else {
+                cleanMessage = "We couldn't complete your booking. \(error.localizedDescription)"
+            }
             bookingAlert = .init(
                 title: "Booking Failed",
-                message: "We couldn't complete your booking. \(error.localizedDescription)"
+                message: cleanMessage
             )
         }
     }

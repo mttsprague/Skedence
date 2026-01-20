@@ -547,8 +547,9 @@ struct AvailabilityEditorSheet: View {
     }
 
     private var singleSaveDisabled: Bool {
-        // Require location selection
-        if selectedLocation == nil {
+        // Only require location when recurring is NOT enabled
+        // When recurring is enabled, we're saving a recurring pattern
+        if !recurringEnabled && selectedLocation == nil {
             return true
         }
         return singleEnd <= singleStart
@@ -556,8 +557,7 @@ struct AvailabilityEditorSheet: View {
 
     private var recurringDisabled: Bool {
         guard recurringEnabled else { return false }
-        // Require location selection
-        if recurringLocation == nil { return true }
+        // Location is NOT required for recurring (Cloud Function creates slots with location)
         // Need at least one day selected
         if selectedWeekdays.isEmpty { return true }
         // Validate daily window

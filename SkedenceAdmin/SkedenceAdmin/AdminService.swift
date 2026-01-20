@@ -136,12 +136,7 @@ final class AdminService: ObservableObject {
         
         let classRef = try await db.collection("classes").addDocument(data: classData)
         
-        // Fetch all trainers for this org
-        let trainersSnapshot = try await db.collection("trainers")
-            .whereField("orgId", isEqualTo: orgId)
-            .getDocuments()
-        
-        // Create a booking in ALL trainers' schedules to block off the time
+        // Create a booking ONLY on the assigned trainer's schedule to block off the time
         let bookingData: [String: Any] = [
             "startTime": Timestamp(date: startTime),
             "endTime": Timestamp(date: endTime),
@@ -154,11 +149,9 @@ final class AdminService: ObservableObject {
             "orgId": orgId
         ]
         
-        // Add slot to all trainers' schedules
-        for trainerDoc in trainersSnapshot.documents {
-            try await db.collection("trainers").document(trainerDoc.documentID)
-                .collection("schedules").addDocument(data: bookingData)
-        }
+        // Add slot ONLY to the assigned trainer's schedule
+        try await db.collection("trainers").document(trainerId)
+            .collection("schedules").addDocument(data: bookingData)
     }
     
     // Toggle class registration status
@@ -192,22 +185,24 @@ final class AdminService: ObservableObject {
         // Delete the class document
         try await db.collection("classes").document(classId).delete()
         
-        // Remove class bookings from all trainers' schedules
-        let trainersSnapshot = try await db.collection("trainers")
-            .whereField("orgId", isEqualTo: orgId)
-            .getDocuments()
+        // Remove class bookings from the assigned trainer's schedule only
+        // Get the class data first to know which trainer
+        let classDoc = try await db.collection("classes").document(classId).getDocument()
+        guard let classData = classDoc.data(),
+              let trainerId = classData["trainerId"] as? String else {
+            // Class already deleted or no trainer assigned, just return
+            return
+        }
         
-        for trainerDoc in trainersSnapshot.documents {
-            let schedulesQuery = db.collection("trainers").document(trainerDoc.documentID)
-                .collection("schedules")
-                .whereField("classId", isEqualTo: classId)
-                .whereField("isClassBooking", isEqualTo: true)
-            
-            let schedulesSnapshot = try await schedulesQuery.getDocuments()
-            
-            for scheduleDoc in schedulesSnapshot.documents {
-                try await scheduleDoc.reference.delete()
-            }
+        let schedulesQuery = db.collection("trainers").document(trainerId)
+            .collection("schedules")
+            .whereField("classId", isEqualTo: classId)
+            .whereField("isClassBooking", isEqualTo: true)
+        
+        let schedulesSnapshot = try await schedulesQuery.getDocuments()
+        
+        for scheduleDoc in schedulesSnapshot.documents {
+            try await scheduleDoc.reference.delete()
         }
     }
     
@@ -243,25 +238,19 @@ final class AdminService: ObservableObject {
             "priceInCents": priceInCents
         ])
         
-        // Remove old bookings from all trainers' schedules
-        let trainersSnapshot = try await db.collection("trainers")
-            .whereField("orgId", isEqualTo: orgId)
-            .getDocuments()
+        // Remove old bookings from the assigned trainer's schedule only
+        let schedulesQuery = db.collection("trainers").document(trainerId)
+            .collection("schedules")
+            .whereField("classId", isEqualTo: classId)
+            .whereField("isClassBooking", isEqualTo: true)
         
-        for trainerDoc in trainersSnapshot.documents {
-            let schedulesQuery = db.collection("trainers").document(trainerDoc.documentID)
-                .collection("schedules")
-                .whereField("classId", isEqualTo: classId)
-                .whereField("isClassBooking", isEqualTo: true)
-            
-            let schedulesSnapshot = try await schedulesQuery.getDocuments()
-            
-            for scheduleDoc in schedulesSnapshot.documents {
-                try await scheduleDoc.reference.delete()
-            }
+        let schedulesSnapshot = try await schedulesQuery.getDocuments()
+        
+        for scheduleDoc in schedulesSnapshot.documents {
+            try await scheduleDoc.reference.delete()
         }
         
-        // Create new bookings on all trainers' schedules with updated times
+        // Create new booking on the assigned trainer's schedule with updated times
         let bookingData: [String: Any] = [
             "clientId": "",
             "startTime": Timestamp(date: startTime),
@@ -273,10 +262,8 @@ final class AdminService: ObservableObject {
             "orgId": orgId
         ]
         
-        for trainerDoc in trainersSnapshot.documents {
-            try await db.collection("trainers").document(trainerDoc.documentID)
-                .collection("schedules").addDocument(data: bookingData)
-        }
+        try await db.collection("trainers").document(trainerId)
+            .collection("schedules").addDocument(data: bookingData)
     }
     
     // Load all users (admin only)

@@ -274,7 +274,7 @@ private struct SignedInProfileScreen: View {
                                 if let start = booking.startTime, let end = booking.endTime {
                                     HStack(spacing: 6) {
                                         Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                        Text("Lesson")
+                                        Text("Session")
                                             .font(.subheadline.weight(.semibold))
                                             .foregroundStyle(.secondary)
                                     }
@@ -442,7 +442,7 @@ private struct SignedInProfileScreen: View {
                         .foregroundStyle(Brand.primary)
                     let upcoming = allUpcomingEvents()
                     if upcoming.isEmpty {
-                        Text("No upcoming lessons or classes.")
+                        Text("No upcoming sessions or classes.")
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(upcoming.indices, id: \.self) { idx in
@@ -452,7 +452,7 @@ private struct SignedInProfileScreen: View {
                                 case .lesson(let booking):
                                     HStack(spacing: 6) {
                                         Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                        Text("Lesson • \(booking.status.capitalized)")
+                                        Text("Session • \(booking.status.capitalized)")
                                             .font(.headline)
                                     }
                                     if let s = booking.startTime, let e = booking.endTime {

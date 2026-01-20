@@ -22,7 +22,7 @@ struct AvailabilitySlot: Identifiable, Hashable {
         case id, trainerId, title, status, startTime, endTime, location
     }
 
-    var displayTitle: String { (title?.isEmpty == false) ? title! : "Private Lesson" }
+    var displayTitle: String { (title?.isEmpty == false) ? title! : "Session" }
 
     // Convenience for UI filtering/labels
     var isOpen: Bool { status == "open" }
