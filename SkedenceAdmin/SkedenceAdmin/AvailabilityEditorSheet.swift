@@ -351,10 +351,14 @@ struct AvailabilityEditorSheet: View {
         } header: {
             Text("Single Slot")
         } footer: {
-            if selectedLocation == nil {
+            if !recurringEnabled && selectedLocation == nil {
                 Text("⚠️ Location is required for single slots")
                     .font(.footnote)
                     .foregroundStyle(.red)
+            } else if recurringEnabled {
+                Text("💡 Location not required when using recurring")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -408,6 +412,14 @@ struct AvailabilityEditorSheet: View {
                             set: { bulkEndDate = $0 }
                         ), displayedComponents: .date)
                         
+                        // Location picker for recurring
+                        Picker("Location", selection: $recurringLocation) {
+                            Text("Select Location").tag(nil as Location?)
+                            ForEach(locationsService.locations) { location in
+                                Text(location.name).tag(location as Location?)
+                            }
+                        }
+                        
                         // Apply recurring button
                         Button {
                             applyRecurring()
@@ -432,10 +444,10 @@ struct AvailabilityEditorSheet: View {
             } header: {
                 Text("Recurring")
             } footer: {
-                if recurringEnabled {
-                    Text("💡 Location is not required - individual slots will be created without a location")
+                if recurringEnabled && recurringLocation == nil {
+                    Text("⚠️ Location is required for recurring availability")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.red)
                 }
             }
         }
@@ -554,14 +566,15 @@ struct AvailabilityEditorSheet: View {
     }
 
     private var singleSaveDisabled: Bool {
-        // Location IS required for single slots
-        if selectedLocation == nil { return true }
+        // Location IS required for single slots ONLY if recurring is not enabled
+        if !recurringEnabled && selectedLocation == nil { return true }
         return singleEnd <= singleStart
     }
 
     private var recurringDisabled: Bool {
         guard recurringEnabled else { return false }
-        // Location is NOT required for recurring
+        // Location IS required for recurring
+        if recurringLocation == nil { return true }
         // Need at least one day selected
         if selectedWeekdays.isEmpty { return true }
         // Validate daily window
@@ -611,8 +624,8 @@ struct AvailabilityEditorSheet: View {
         
         let daysArray = selectedWeekdays.isEmpty ? nil : Array(selectedWeekdays).sorted()
 
-        // Location is not required for recurring - pass nil
-        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, nil)
+        // Pass the recurring location
+        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, recurringLocation?.name)
         dismiss()
     }
 
