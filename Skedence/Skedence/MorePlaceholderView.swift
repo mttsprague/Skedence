@@ -7,8 +7,12 @@
 
 
 import SwiftUI
+import FirebaseAuth
 
 struct MorePlaceholderView: View {
+    @State private var showingResetPassword = false
+    @State private var resetMessage: String?
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -30,33 +34,78 @@ struct MorePlaceholderView: View {
                         SectionHeaderView(title: "Profile")
                         
                         CardView {
-                            NavigationLink(destination: EditProfileView()) {
-                                HStack(spacing: Spacing.md) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
-                                            .fill(AppTheme.primary.opacity(0.15))
-                                            .frame(width: 48, height: 48)
+                            VStack(spacing: Spacing.md) {
+                                NavigationLink(destination: EditProfileView()) {
+                                    HStack(spacing: Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(AppTheme.primary.opacity(0.15))
+                                                .frame(width: 48, height: 48)
+                                            
+                                            Image(systemName: "person.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(AppTheme.primary)
+                                        }
                                         
-                                        Image(systemName: "person.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(AppTheme.primary)
-                                    }
-                                    
-                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                        Text("Edit Profile")
-                                            .font(.bodyMedium)
-                                            .foregroundStyle(AppTheme.primary)
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Edit Profile")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.primary)
+                                            
+                                            Text("Update your information")
+                                                .font(.labelMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
                                         
-                                        Text("Update your information")
-                                            .font(.labelMedium)
-                                            .foregroundStyle(AppTheme.textSecondary)
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
                                     }
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(AppTheme.textTertiary)
+                                }
+                                
+                                Divider()
+                                
+                                Button {
+                                    showingResetPassword = true
+                                } label: {
+                                    HStack(spacing: Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(AppTheme.secondary.opacity(0.15))
+                                                .frame(width: 48, height: 48)
+                                            
+                                            Image(systemName: "lock.rotation")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(AppTheme.secondary)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Reset Password")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.primary)
+                                            
+                                            Text("Send password reset email")
+                                                .font(.labelMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                
+                                if let resetMessage = resetMessage {
+                                    Text(resetMessage)
+                                        .font(.footnote)
+                                        .foregroundStyle(resetMessage.contains("sent") ? .green : .red)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.top, Spacing.xs)
                                 }
                             }
                         }
@@ -337,5 +386,36 @@ struct MorePlaceholderView: View {
             .navigationBarHidden(true)
         }
         .navigationViewStyle(.stack)
+        .alert("Reset Password", isPresented: $showingResetPassword) {
+            Button("Cancel", role: .cancel) { }
+            Button("Send Reset Email") {
+                sendPasswordReset()
+            }
+        } message: {
+            if let email = Auth.auth().currentUser?.email {
+                Text("Send a password reset email to \(email)?")
+            } else {
+                Text("Error: No email found. Please sign out and sign in again.")
+            }
+        }
+    }
+    
+    private func sendPasswordReset() {
+        guard let email = Auth.auth().currentUser?.email else {
+            resetMessage = "Error: No email found"
+            return
+        }
+        
+        Auth.auth().sendPasswordReset(withEmail: email) { error in
+            if let error = error {
+                resetMessage = "Error: \(error.localizedDescription)"
+            } else {
+                resetMessage = "✅ Password reset email sent! Check your inbox."
+                // Clear message after 10 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                    resetMessage = nil
+                }
+            }
+        }
     }
 }

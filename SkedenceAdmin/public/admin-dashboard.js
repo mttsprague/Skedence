@@ -63,6 +63,55 @@ async function handleLogout() {
     }
 }
 
+// Password reset handlers
+window.showForgotPassword = function(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    
+    if (!email) {
+        alert('Please enter your email address first.');
+        document.getElementById('loginEmail').focus();
+        return;
+    }
+    
+    if (confirm(`Send password reset email to ${email}?`)) {
+        sendPasswordResetEmail(email, 'resetMessage');
+    }
+};
+
+window.resetPasswordFromAccount = function() {
+    const email = currentUser?.email;
+    if (email) {
+        sendPasswordResetEmail(email, 'accountResetMessage');
+    }
+};
+
+async function sendPasswordResetEmail(email, messageElementId) {
+    const messageDiv = document.getElementById(messageElementId);
+    
+    try {
+        await auth.sendPasswordResetEmail(email, {
+            url: window.location.origin + window.location.pathname,
+            handleCodeInApp: false
+        });
+        
+        messageDiv.textContent = `✅ Password reset email sent to ${email}. Please check your inbox.`;
+        messageDiv.className = 'alert alert-success';
+        messageDiv.classList.remove('hidden');
+        
+        // Hide message after 10 seconds
+        setTimeout(() => {
+            messageDiv.classList.add('hidden');
+        }, 10000);
+    } catch (error) {
+        console.error('Password reset error:', error);
+        messageDiv.textContent = `❌ Error: ${error.message}`;
+        messageDiv.className = 'alert alert-error';
+        messageDiv.classList.remove('hidden');
+    }
+}
+
+
 // Load user's organization
 async function loadUserOrganization() {
     try {
@@ -158,6 +207,12 @@ window.showSection = function(sectionName) {
     if (event && event.target) {
         const item = event.target.closest('.sidebar-item');
         if (item) item.classList.add('active');
+    }
+    
+    // Populate account section if showing it
+    if (sectionName === 'account' && currentUser) {
+        document.getElementById('accountEmail').value = currentUser.email || '';
+        document.getElementById('accountOrgName').value = document.getElementById('orgName').textContent || '';
     }
     
     // Close mobile menu after selection

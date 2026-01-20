@@ -418,6 +418,12 @@
             color: var(--danger);
             border: 1px solid rgba(239, 68, 68, 0.2);
         }
+        
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
 
         .sortable-header {
             cursor: pointer;
@@ -577,6 +583,12 @@
                 
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
             </form>
+            
+            <div style="text-align: center; margin-top: 1rem;">
+                <a href="#" onclick="showForgotPassword(event)" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">Forgot Password?</a>
+            </div>
+            
+            <div id="resetMessage" class="alert hidden" style="margin-top: 1rem;"></div>
         </div>
     </div>
 
@@ -628,6 +640,10 @@
                     <li class="sidebar-item" onclick="showSection('revenue')">
                         <span class="sidebar-icon">💰</span>
                         <span>Revenue</span>
+                    </li>
+                    <li class="sidebar-item" onclick="showSection('account')">
+                        <span class="sidebar-icon">👤</span>
+                        <span>Account</span>
                     </li>
                     <li class="sidebar-item" onclick="window.location.href='stripe-keys.html'">
                         <span class="sidebar-icon">⚙️</span>
@@ -832,6 +848,45 @@
                             <h2 class="data-card-title">Recent Package Purchases</h2>
                         </div>
                         <div id="recentPackages"></div>
+                    </div>
+                </div>
+                
+                <!-- Account Section -->
+                <div id="accountSection" class="content-section hidden">
+                    <div class="section-header">
+                        <h1 class="section-title">Account Settings</h1>
+                    </div>
+                    
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h2 class="data-card-title">Account Information</h2>
+                        </div>
+                        <div style="padding: 2rem;">
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" id="accountEmail" class="form-input" readonly style="background: var(--bg-main); cursor: not-allowed;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Organization</label>
+                                <input type="text" id="accountOrgName" class="form-input" readonly style="background: var(--bg-main); cursor: not-allowed;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="data-card">
+                        <div class="data-card-header">
+                            <h2 class="data-card-title">Password & Security</h2>
+                        </div>
+                        <div style="padding: 2rem;">
+                            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                                Reset your password to receive a secure link via email.
+                            </p>
+                            <button onclick="resetPasswordFromAccount()" class="btn btn-primary">
+                                🔐 Send Password Reset Email
+                            </button>
+                            <div id="accountResetMessage" class="alert hidden" style="margin-top: 1rem;"></div>
+                        </div>
                     </div>
                 </div>
             </main>

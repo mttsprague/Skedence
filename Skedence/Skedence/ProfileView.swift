@@ -932,6 +932,8 @@ private struct SignInForm: View {
     @EnvironmentObject var auth: AuthManager
     @State private var email = ""
     @State private var password = ""
+    @State private var showingForgotPassword = false
+    @State private var resetMessage: String?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -966,8 +968,56 @@ private struct SignInForm: View {
             .disabled(email.isEmpty || password.isEmpty)
             .padding(.top, 8)
             .padding(.horizontal)
+            
+            Button {
+                showingForgotPassword = true
+            } label: {
+                Text("Forgot Password?")
+                    .font(.subheadline)
+                    .foregroundStyle(Brand.primary)
+            }
+            .padding(.top, 4)
+            
+            if let resetMessage = resetMessage {
+                Text(resetMessage)
+                    .font(.footnote)
+                    .foregroundStyle(resetMessage.contains("sent") ? .green : .red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
         }
         .padding(.horizontal)
+        .alert("Reset Password", isPresented: $showingForgotPassword) {
+            Button("Cancel", role: .cancel) { }
+            Button("Send Reset Email") {
+                sendPasswordReset()
+            }
+        } message: {
+            if email.isEmpty {
+                Text("Please enter your email address in the email field first, then tap 'Forgot Password?' again.")
+            } else {
+                Text("Send a password reset email to \(email)?")
+            }
+        }
+    }
+    
+    private func sendPasswordReset() {
+        guard !email.isEmpty else {
+            resetMessage = "Please enter your email address first"
+            return
+        }
+        
+        Auth.auth().sendPasswordReset(withEmail: email.trimmingCharacters(in: .whitespacesAndNewlines)) { error in
+            if let error = error {
+                resetMessage = "Error: \(error.localizedDescription)"
+            } else {
+                resetMessage = "✅ Password reset email sent! Check your inbox."
+                // Clear message after 10 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                    resetMessage = nil
+                }
+            }
+        }
     }
 }
 
