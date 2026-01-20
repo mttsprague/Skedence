@@ -8,6 +8,7 @@
 
 import SwiftUI
 import FirebaseAuth
+import FirebaseFunctions
 
 struct MorePlaceholderView: View {
     @State private var showingResetPassword = false
