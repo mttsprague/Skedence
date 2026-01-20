@@ -92,7 +92,7 @@ async function sendPasswordResetEmail(email, messageElementId) {
     
     try {
         // Call Cloud Function to send password reset via SendGrid
-        const sendPasswordReset = firebase.functions().httpsCallable('sendPasswordResetEmail');
+        const sendPasswordReset = functions.httpsCallable('sendPasswordResetEmail');
         await sendPasswordReset({ email: email });
         
         messageDiv.textContent = `✅ Password reset email sent to ${email}. Please check your inbox.`;
