@@ -818,13 +818,47 @@ private struct ClassRegistrationSheet: View {
     @State private var errorMessage: String?
     @State private var selectedClassPass: LessonPackage?
     
-    // Find available class pass
-    private var availableClassPass: LessonPackage? {
-        packagesService.packages.first { pkg in
-            pkg.packageType == "class_pass" &&
-            pkg.lessonsRemaining > 0 &&
-            pkg.expirationDate >= Date()
+    // Get available class passes (for booking classes)
+    private var availableClassPasses: [LessonPackage] {
+        let now = Date()
+        let filtered = packagesService.packages.filter { pkg -> Bool in
+            let canBook = pkg.canBookClasses // Only class packages
+            let hasRemaining = pkg.lessonsRemaining > 0
+            let notExpired = pkg.expirationDate >= now
+            return canBook && hasRemaining && notExpired
         }
+        let sorted = filtered.sorted { (a, b) -> Bool in
+            return a.expirationDate < b.expirationDate
+        }
+        return sorted
+    }
+    
+    // Find available class pass (legacy - kept for backward compatibility)
+    private var availableClassPass: LessonPackage? {
+        availableClassPasses.first
+    }
+    
+    private func formatPackageName(_ package: LessonPackage) -> String {
+        // Use packageName if available, otherwise fall back to packageType
+        let baseName: String
+        if let name = package.packageName, !name.isEmpty {
+            baseName = name
+        } else {
+            // Fallback for legacy packages without name
+            switch package.packageType {
+            case "private":
+                baseName = "Private Lesson Pass"
+            case "2_athlete":
+                baseName = "2-Athlete Pass"
+            case "3_athlete":
+                baseName = "3-Athlete Pass"
+            case "class_pass":
+                baseName = "Class Pass"
+            default:
+                baseName = "\(package.totalLessons)-Lesson Pass"
+            }
+        }
+        return "\(baseName) (\(package.lessonsRemaining) remaining)"
     }
     
     var body: some View {
