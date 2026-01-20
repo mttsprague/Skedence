@@ -1007,7 +1007,10 @@ private struct SignInForm: View {
             return
         }
         
-        Auth.auth().sendPasswordReset(withEmail: email.trimmingCharacters(in: .whitespacesAndNewlines)) { error in
+        let functions = Functions.functions()
+        let sendPasswordReset = functions.httpsCallable("sendPasswordResetEmail")
+        
+        sendPasswordReset(["email": email.trimmingCharacters(in: .whitespacesAndNewlines)]) { result, error in
             if let error = error {
                 resetMessage = "Error: \(error.localizedDescription)"
             } else {

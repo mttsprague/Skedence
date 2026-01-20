@@ -47,6 +47,9 @@ export * from "./admin-payment";
 // Export wallet functions
 export * from "./wallet";
 
+// Export password reset functions
+export * from "./passwordReset";
+
 const db = admin.firestore();
 
 /**

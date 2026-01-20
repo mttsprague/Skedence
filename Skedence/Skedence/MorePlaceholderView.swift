@@ -406,7 +406,10 @@ struct MorePlaceholderView: View {
             return
         }
         
-        Auth.auth().sendPasswordReset(withEmail: email) { error in
+        let functions = Functions.functions()
+        let sendPasswordReset = functions.httpsCallable("sendPasswordResetEmail")
+        
+        sendPasswordReset(["email": email]) { result, error in
             if let error = error {
                 resetMessage = "Error: \(error.localizedDescription)"
             } else {
