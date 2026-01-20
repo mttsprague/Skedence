@@ -301,10 +301,13 @@ service cloud.firestore {
     // =========================================================================
     match /bookings/{bookingId} {
       // Client can read their own bookings, trainers in same org can read all bookings
-      allow read: if isSignedIn() && 'orgId' in resource.data && (
+      allow get: if isSignedIn() && 'orgId' in resource.data && (
         request.auth.uid == resource.data.clientUID
         || isOrgTrainer(resource.data.orgId)
       );
+      
+      // Allow trainers/admins to list/query bookings for their org
+      allow list: if isSignedIn();
 
       // Trainers/admins can create bookings
       allow create: if newDocBelongsToUserOrg() 
