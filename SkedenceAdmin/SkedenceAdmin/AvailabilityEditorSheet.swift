@@ -356,9 +356,9 @@ struct AvailabilityEditorSheet: View {
             Text("Single Slot")
         } footer: {
             if selectedLocation == nil {
-                Text("⚠️ Location is required to create availability")
+                Text("💡 Location is optional - you can add it later if needed")
                     .font(.footnote)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -547,11 +547,7 @@ struct AvailabilityEditorSheet: View {
     }
 
     private var singleSaveDisabled: Bool {
-        // Only require location when recurring is NOT enabled
-        // When recurring is enabled, we're saving a recurring pattern
-        if !recurringEnabled && selectedLocation == nil {
-            return true
-        }
+        // Location is optional - allow saving without it
         return singleEnd <= singleStart
     }
 
