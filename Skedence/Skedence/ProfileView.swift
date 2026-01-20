@@ -546,6 +546,7 @@ private struct SignedInProfileScreen: View {
                 } else {
                     ForEach(packageTypes) { packageOption in
                         let count = remainingPasses(forType: packageOption.packageType)
+                        let _ = print("🎨 Package: \(packageOption.title), category: \(packageOption.packageCategory), type: \(packageOption.packageType)")
                         passTypeCard(
                             title: packageOption.title,
                             description: packageOption.description,

@@ -1071,6 +1071,7 @@ export const processTrainerAvailability = functions.https.onCall(
             const trainerFirstName = trainerData.firstName || "";
             const trainerLastName = trainerData.lastName || "";
             const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
+            const orgId = trainerData.orgId || null;
 
             const slotData: Record<string, any> = {
               status: status,
@@ -1081,6 +1082,11 @@ export const processTrainerAvailability = functions.https.onCall(
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
               trainerName: trainerFullName,
             };
+
+            // Add orgId if available from trainer data
+            if (orgId) {
+              slotData.orgId = orgId;
+            }
 
             // Add location if provided
             if (location) {
