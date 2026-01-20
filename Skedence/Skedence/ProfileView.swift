@@ -620,7 +620,9 @@ private struct SignedInProfileScreen: View {
         }
     }
     
-    private func passTypeCard(title: String, description: String, count: Int, icon: String) -> some View {
+    private func passTypeCard(title: String, description: String, count: Int, icon: String, category: PackageCategory) -> some View {
+        let gradientColor = category == .classPass ? AppTheme.secondary : AppTheme.primary
+        
         return card {
             HStack(spacing: Spacing.md) {
                 // Icon with gradient background (similar to ClassPreviewRow)
@@ -628,7 +630,7 @@ private struct SignedInProfileScreen: View {
                     RoundedRectangle(cornerRadius: CornerRadius.sm, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [Brand.primary, Brand.primary.opacity(0.7)],
+                                colors: [gradientColor, gradientColor.opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -672,7 +674,7 @@ private struct SignedInProfileScreen: View {
                 VStack(spacing: Spacing.xxs) {
                     Text("\(count)")
                         .font(.system(size: 36, weight: .bold))
-                        .foregroundStyle(count > 0 ? Brand.primary : AppTheme.textTertiary)
+                        .foregroundStyle(count > 0 ? gradientColor : AppTheme.textTertiary)
                     
                     if count == 0 {
                         Text("None")

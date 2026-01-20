@@ -268,9 +268,9 @@ struct PurchaseLessonsView: View {
     // MARK: - Package Card (Dynamic)
 
     private func packageCard(package: PackageOption, isSelected: Bool, index: Int) -> some View {
-        let gradientColor = package.packageCategory == "class" ? AppTheme.secondary : AppTheme.primary
+        let gradientColor = package.packageCategory == .classPass ? AppTheme.secondary : AppTheme.primary
         
-        Button {
+        return Button {
             withAnimation(.easeInOut(duration: 0.15)) { selectedPackageIndex = index }
         } label: {
             HStack(spacing: Spacing.md) {
@@ -314,7 +314,7 @@ struct PurchaseLessonsView: View {
                             .fontWeight(.semibold)
                     }
                     .foregroundStyle(AppTheme.success)
-                    .padding(.top, Spacing.xxxs)
+                    .padding(.top, Spacing.xxs)
                 }
 
                 Spacer()
