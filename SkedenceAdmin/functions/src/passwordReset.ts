@@ -9,13 +9,14 @@ import * as admin from "firebase-admin";
 export const sendPasswordResetEmail = functions.https.onCall(
   async (data: any, _context) => {
     try {
-      console.log("Received data:", JSON.stringify(data));
+      // Log received data safely
+      console.log("Received password reset request");
 
       // Extract email from data object
       const email = data?.email || data;
 
       if (!email || typeof email !== "string") {
-        console.error("Invalid email:", email, "Type:", typeof email);
+        console.error("Invalid email. Type:", typeof email);
         throw new functions.https.HttpsError(
           "invalid-argument",
           "Email is required"
