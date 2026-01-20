@@ -32,8 +32,6 @@ export const sendPasswordResetEmail = functions.https.onCall(
 
       console.log("Processing password reset for:", email);
 
-      console.log("Processing password reset for:", email);
-
       // Verify user exists
       try {
         await admin.auth().getUserByEmail(email);
@@ -43,7 +41,7 @@ export const sendPasswordResetEmail = functions.https.onCall(
         return {success: true}; // Return success anyway for security
       }
 
-      // Generate password reset link
+      // Generate password reset link (this only generates the link, doesn't send email)
       const resetLink = await admin.auth().generatePasswordResetLink(email);
 
       // Send email via SendGrid extension (mail collection)
