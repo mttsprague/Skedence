@@ -199,9 +199,9 @@ service cloud.firestore {
         // Owner or admins can create packages
         // packageCategory must be 'pass' or 'class' if provided
         allow create: if isSignedIn() && (
-          request.auth.uid == userId 
+          (request.auth.uid == userId && newDocBelongsToUserOrg())
           || ('orgId' in request.resource.data && isOrgAdmin(request.resource.data.orgId))
-        ) && newDocBelongsToUserOrg()
+        )
         && (!('packageCategory' in request.resource.data) || request.resource.data.packageCategory in ['pass', 'class']);
 
         // Trainers/admins can update packages (for booking decrements)
