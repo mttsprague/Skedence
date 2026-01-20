@@ -95,6 +95,33 @@ struct PurchaseLessonsView: View {
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(Brand.primary)
                     .padding(.horizontal)
+                
+                // Legend
+                HStack(spacing: Spacing.md) {
+                    // Pass legend
+                    HStack(spacing: Spacing.xxs) {
+                        Circle()
+                            .fill(AppTheme.primary)
+                            .frame(width: 12, height: 12)
+                        Text("Pass")
+                            .font(.labelMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    // Class legend
+                    HStack(spacing: Spacing.xxs) {
+                        Circle()
+                            .fill(AppTheme.secondary)
+                            .frame(width: 12, height: 12)
+                        Text("Class")
+                            .font(.labelMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 4)
 
                 // Package options (dynamically loaded)
                 if pricingService.isLoading {
@@ -241,6 +268,8 @@ struct PurchaseLessonsView: View {
     // MARK: - Package Card (Dynamic)
 
     private func packageCard(package: PackageOption, isSelected: Bool, index: Int) -> some View {
+        let gradientColor = package.packageCategory == "class" ? AppTheme.secondary : AppTheme.primary
+        
         Button {
             withAnimation(.easeInOut(duration: 0.15)) { selectedPackageIndex = index }
         } label: {
@@ -250,7 +279,7 @@ struct PurchaseLessonsView: View {
                     RoundedRectangle(cornerRadius: CornerRadius.sm, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [Brand.primary, Brand.primary.opacity(0.7)],
+                                colors: [gradientColor, gradientColor.opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -293,11 +322,11 @@ struct PurchaseLessonsView: View {
                 // Selection indicator
                 ZStack {
                     Circle()
-                        .stroke(isSelected ? Brand.primary : Color.secondary.opacity(0.3), lineWidth: 2)
+                        .stroke(isSelected ? gradientColor : Color.secondary.opacity(0.3), lineWidth: 2)
                         .frame(width: 28, height: 28)
                     if isSelected {
                         Circle()
-                            .fill(Brand.primary)
+                            .fill(gradientColor)
                             .frame(width: 22, height: 22)
                             .overlay(Image(systemName: "checkmark")
                                 .font(.system(size: 12, weight: .bold))
@@ -314,7 +343,7 @@ struct PurchaseLessonsView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.md, style: .continuous)
-                    .stroke(isSelected ? Brand.primary : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? gradientColor : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)

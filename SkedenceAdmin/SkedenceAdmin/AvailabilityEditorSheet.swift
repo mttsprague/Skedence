@@ -120,16 +120,12 @@ struct AvailabilityEditorSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
-                if mainTab == .editAvailability {
+                if mainTab == .editAvailability && !recurringEnabled {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") { 
-                            if recurringEnabled {
-                                applyRecurring()
-                            } else {
-                                saveSingle()
-                            }
+                            saveSingle()
                         }
-                        .disabled(recurringEnabled ? recurringDisabled : singleSaveDisabled)
+                        .disabled(singleSaveDisabled)
                     }
                 }
             }
@@ -356,9 +352,9 @@ struct AvailabilityEditorSheet: View {
             Text("Single Slot")
         } footer: {
             if selectedLocation == nil {
-                Text("💡 Location is optional - you can add it later if needed")
+                Text("⚠️ Location is required for single slots")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.red)
             }
         }
     }
@@ -412,23 +408,34 @@ struct AvailabilityEditorSheet: View {
                             set: { bulkEndDate = $0 }
                         ), displayedComponents: .date)
                         
-                        // Location picker for recurring
-                        Picker("Location", selection: $recurringLocation) {
-                            Text("Select Location").tag(nil as Location?)
-                            ForEach(locationsService.locations) { location in
-                                Text(location.name).tag(location as Location?)
+                        // Apply recurring button
+                        Button {
+                            applyRecurring()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Apply Recurring Schedule")
+                                    .font(.headline)
+                                Spacer()
                             }
+                            .padding(.vertical, 12)
+                            .background(recurringDisabled ? Color.gray : Color.accentColor)
+                            .foregroundStyle(.white)
+                            .cornerRadius(10)
                         }
+                        .buttonStyle(.plain)
+                        .disabled(recurringDisabled)
+                        .padding(.top, 8)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
             } header: {
                 Text("Recurring")
             } footer: {
-                if recurringEnabled && recurringLocation == nil {
-                    Text("⚠️ Location is required for recurring availability")
+                if recurringEnabled {
+                    Text("💡 Location is not required - individual slots will be created without a location")
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -547,13 +554,14 @@ struct AvailabilityEditorSheet: View {
     }
 
     private var singleSaveDisabled: Bool {
-        // Location is optional - allow saving without it
+        // Location IS required for single slots
+        if selectedLocation == nil { return true }
         return singleEnd <= singleStart
     }
 
     private var recurringDisabled: Bool {
         guard recurringEnabled else { return false }
-        // Location is NOT required for recurring (Cloud Function creates slots with location)
+        // Location is NOT required for recurring
         // Need at least one day selected
         if selectedWeekdays.isEmpty { return true }
         // Validate daily window
@@ -603,7 +611,8 @@ struct AvailabilityEditorSheet: View {
         
         let daysArray = selectedWeekdays.isEmpty ? nil : Array(selectedWeekdays).sorted()
 
-        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, recurringLocation?.name)
+        // Location is not required for recurring - pass nil
+        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, nil)
         dismiss()
     }
 

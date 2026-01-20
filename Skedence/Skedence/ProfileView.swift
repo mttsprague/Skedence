@@ -510,6 +510,33 @@ private struct SignedInProfileScreen: View {
             if packagesService.isLoading || pricingService.isLoading {
                 ProgressView().padding()
             } else {
+                // Legend at the top
+                HStack(spacing: Spacing.md) {
+                    // Pass legend
+                    HStack(spacing: Spacing.xxs) {
+                        Circle()
+                            .fill(AppTheme.primary)
+                            .frame(width: 12, height: 12)
+                        Text("Pass")
+                            .font(.labelMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    // Class legend
+                    HStack(spacing: Spacing.xxs) {
+                        Circle()
+                            .fill(AppTheme.secondary)
+                            .frame(width: 12, height: 12)
+                        Text("Class")
+                            .font(.labelMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
+                
                 // Dynamically display all package types from pricing structure
                 let packageTypes = pricingService.allPackageOptions
                 if packageTypes.isEmpty {
@@ -523,7 +550,8 @@ private struct SignedInProfileScreen: View {
                             title: packageOption.title,
                             description: packageOption.description,
                             count: count,
-                            icon: iconForPackageType(packageOption.packageType)
+                            icon: iconForPackageType(packageOption.packageType),
+                            category: packageOption.packageCategory
                         )
                     }
                 }
