@@ -54,10 +54,25 @@ struct BookView: View {
     private var availableLessonPackages: [LessonPackage] {
         let now = Date()
         let filtered = packagesService.packages.filter { pkg -> Bool in
-            let isNotClassPass = pkg.packageType != "class_pass"
+            let canBook = pkg.canBookLessons // Only pass packages, not class packages
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
-            return isNotClassPass && hasRemaining && notExpired
+            return canBook && hasRemaining && notExpired
+        }
+        let sorted = filtered.sorted { (a, b) -> Bool in
+            return a.expirationDate < b.expirationDate
+        }
+        return sorted
+    }
+    
+    // Get available class passes (for booking classes)
+    private var availableClassPasses: [LessonPackage] {
+        let now = Date()
+        let filtered = packagesService.packages.filter { pkg -> Bool in
+            let canBook = pkg.canBookClasses // Only class packages
+            let hasRemaining = pkg.lessonsRemaining > 0
+            let notExpired = pkg.expirationDate >= now
+            return canBook && hasRemaining && notExpired
         }
         let sorted = filtered.sorted { (a, b) -> Bool in
             return a.expirationDate < b.expirationDate

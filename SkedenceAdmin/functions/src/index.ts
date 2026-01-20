@@ -245,7 +245,15 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
-        // Validate package type - class passes cannot be used for lessons
+        // Validate package category - only 'pass' packages can book lessons
+        const pkgCategory = lessonPackageData.packageCategory as string | undefined;
+        if (pkgCategory === "class") {
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            "Class packages can only be used to register for classes, not book lessons."
+          );
+        }
+        // Also check legacy packageType field for backward compatibility
         if (lessonPackageData.packageType === "class_pass") {
           throw new functions.https.HttpsError(
             "invalid-argument",
@@ -410,11 +418,14 @@ export const registerForClass = functions.https.onCall(
           );
         }
 
-        // Verify it's a class pass
-        if (classPassData.packageType !== "class_pass") {
+        // Verify it's a class pass - check both new packageCategory and legacy packageType
+        const pkgCategory = classPassData.packageCategory as string | undefined;
+        const isClassPackage = pkgCategory === "class" || classPassData.packageType === "class_pass";
+
+        if (!isClassPackage) {
           throw new functions.https.HttpsError(
             "invalid-argument",
-            "The specified package is not a class pass."
+            "The specified package is not a class pass. Only packages with 'class' category can be used for classes."
           );
         }
 

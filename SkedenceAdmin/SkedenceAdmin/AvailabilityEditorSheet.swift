@@ -435,7 +435,8 @@ struct AvailabilityEditorSheet: View {
     }
     
     private var availablePackages: [LessonPackage] {
-        clientPackages.filter { !$0.isExpired && $0.lessonsRemaining > 0 }
+        // Only show lesson packages (pass category), not class packages
+        clientPackages.filter { !$0.isExpired && $0.lessonsRemaining > 0 && $0.canBookLessons }
     }
     
     private var packagesByType: [String: [LessonPackage]] {
