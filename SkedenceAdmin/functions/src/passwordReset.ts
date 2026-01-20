@@ -47,13 +47,9 @@ export const sendPasswordResetEmail = functions.https.onCall(
       const resetLink = await admin.auth().generatePasswordResetLink(email);
 
       // Send email via SendGrid extension (mail collection)
+      // Using default FROM and REPLY-TO from extension configuration
       await admin.firestore().collection("mail").add({
         to: email,
-        from: {
-          email: "noreply@skedence.com", // Update this to your authenticated domain
-          name: "Skedence",
-        },
-        replyTo: "support@skedence.com", // Update this to your support email
         message: {
           subject: "Reset Your Skedence Password",
           html: generatePasswordResetEmailHTML(resetLink, email),
