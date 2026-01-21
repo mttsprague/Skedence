@@ -133,8 +133,8 @@ service cloud.firestore {
         // Members can read settings (for booking/cancellation timeframes)
         allow read: if isMemberOfOrg(orgId);
         
-        // Only owners can update settings
-        allow write: if isOrgOwner(orgId);
+        // Owners and admins can update settings
+        allow write: if isOrgAdmin(orgId);
       }
       
       // Stripe configuration subcollection
@@ -333,6 +333,58 @@ service cloud.firestore {
       // Trainers/admins can delete bookings
       allow delete: if belongsToUserOrg() 
         && isOrgTrainer(resource.data.orgId);
+    }
+
+    // =========================================================================
+    // TRAINER SLOTS COLLECTION (Availability Management)
+    // =========================================================================
+    match /trainerSlots/{slotId} {
+      // Anyone in the same org can read trainer slots
+      allow get: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      
+      // Allow list/query for authenticated users (for availability lookup)
+      allow list: if isSignedIn();
+      
+      // Trainers can create/update their own slots, admins can manage all slots
+      allow create: if newDocBelongsToUserOrg() && (
+        request.auth.uid == request.resource.data.trainerId
+        || isOrgTrainer(request.resource.data.orgId)
+      );
+      
+      allow update: if belongsToUserOrg() && (
+        request.auth.uid == resource.data.trainerId
+        || isOrgTrainer(resource.data.orgId)
+      );
+      
+      // Trainers can delete their own unbooked slots, admins can delete any slots
+      allow delete: if belongsToUserOrg() && (
+        (request.auth.uid == resource.data.trainerId && resource.data.isBooked == false)
+        || isOrgTrainer(resource.data.orgId)
+      );
+    }
+
+    // =========================================================================
+    // LESSON PACKAGES COLLECTION (Top-level for booking lookups)
+    // =========================================================================
+    match /lessonPackages/{packageId} {
+      // Trainers/admins can read packages to verify availability during booking
+      // Users can read their own packages
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.userId
+        || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
+      );
+      
+      // Allow list/query for trainers/admins (booking interface)
+      allow list: if isSignedIn();
+      
+      // Admins can create packages
+      allow create: if newDocBelongsToUserOrg() && isOrgAdmin(request.resource.data.orgId);
+      
+      // Trainers/admins can update packages (for booking decrements)
+      allow update: if belongsToUserOrg() && isOrgTrainer(resource.data.orgId);
+      
+      // Only admins can delete
+      allow delete: if belongsToUserOrg() && isOrgAdmin(resource.data.orgId);
     }
 
     // =========================================================================

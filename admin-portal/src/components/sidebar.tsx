@@ -9,7 +9,10 @@ import {
   Calendar, 
   BarChart3, 
   Settings,
-  LogOut 
+  LogOut,
+  Clock,
+  Plus,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -19,6 +22,9 @@ const navigation = [
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Trainers', href: '/trainers', icon: UserCog },
   { name: 'Schedule', href: '/schedule', icon: Calendar },
+  { name: 'Availability', href: '/availability', icon: Clock },
+  { name: 'Book Session', href: '/bookings', icon: Plus },
+  { name: 'Classes', href: '/classes', icon: GraduationCap },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
