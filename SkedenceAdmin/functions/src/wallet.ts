@@ -76,11 +76,13 @@ export const createSetupIntentDirect = functions.https.onCall(
       // Get or create Stripe customer
       if (!customerId) {
         console.log("🆕 No customer ID, creating new customer");
+        const customerName = userData?.firstName && userData?.lastName ?
+          `${userData.firstName} ${userData.lastName}` :
+          "Customer";
         const customer = await stripe.customers.create({
           email: userData?.email || undefined,
-          name: userData?.firstName && userData?.lastName ?
-            `${userData.firstName} ${userData.lastName}` :
-            undefined,
+          name: `Skedence: ${customerName} (${userId.slice(-4)})`,
+          description: `Customer ID: ${userId}`,
           metadata: {
             userId: userId,
             orgId: orgId,
@@ -106,11 +108,13 @@ export const createSetupIntentDirect = functions.https.onCall(
         } catch (error: any) {
           if (error.code === "resource_missing") {
             console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
+            const customerName = userData?.firstName && userData?.lastName ?
+              `${userData.firstName} ${userData.lastName}` :
+              (userData?.firstName || "Customer");
             const customer = await stripe.customers.create({
               email: userData?.email || undefined,
-              name: userData?.firstName && userData?.lastName ?
-                `${userData.firstName} ${userData.lastName}` :
-                undefined,
+              name: `Skedence: ${customerName} (${userId.slice(-4)})`,
+              description: `Customer ID: ${userId}`,
               metadata: {
                 userId: userId,
                 orgId: orgId,
@@ -262,7 +266,8 @@ export const getPaymentMethodsDirect = functions.https.onCall(
 
         const customer = await stripe.customers.create({
           email: email,
-          name: name,
+          name: `Skedence: ${name} (${userId.slice(-4)})`,
+          description: `Customer ID: ${userId}`,
           metadata: {orgId, userId},
         });
 
@@ -296,7 +301,8 @@ export const getPaymentMethodsDirect = functions.https.onCall(
 
           const customer = await stripe.customers.create({
             email: email,
-            name: name,
+            name: `Skedence: ${name} (${userId.slice(-4)})`,
+            description: `Customer ID: ${userId}`,
             metadata: {orgId, userId},
           });
 
@@ -458,7 +464,8 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
 
         const customer = await stripe.customers.create({
           email: email || undefined,
-          name: name,
+          name: `Skedence: ${name} (${userId.slice(-4)})`,
+          description: `Customer ID: ${userId}`,
           metadata: {orgId, userId},
         });
 
@@ -494,7 +501,8 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
 
           const customer = await stripe.customers.create({
             email: email || undefined,
-            name: name,
+            name: `Skedence: ${name} (${userId.slice(-4)})`,
+            description: `Customer ID: ${userId}`,
             metadata: {orgId, userId},
           });
 

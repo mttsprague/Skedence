@@ -111,9 +111,11 @@ export const adminProcessPayment = functions.https.onCall(
       let customerId = userData.stripeCustomerId;
 
       if (!customerId) {
+        const customerName = `${userData.firstName} ${userData.lastName}`;
         const customer = await stripe.customers.create({
           email: userData.email || undefined,
-          name: `${userData.firstName} ${userData.lastName}`,
+          name: `Skedence: ${customerName} (${userId.slice(-4)})`,
+          description: `Customer ID: ${userId}`,
           metadata: {
             userId: userId,
             orgId: orgId,

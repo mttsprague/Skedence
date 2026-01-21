@@ -126,11 +126,13 @@ export const createPaymentIntentDirect = functions.https.onCall(
       let customerId = userData?.stripeCustomerId;
 
       if (!customerId) {
+        const customerName = userData?.firstName && userData?.lastName ?
+          `${userData.firstName} ${userData.lastName}` :
+          "Customer";
         const customer = await stripe.customers.create({
           email: userData?.email || undefined,
-          name: userData?.firstName && userData?.lastName ?
-            `${userData.firstName} ${userData.lastName}` :
-            undefined,
+          name: `Skedence: ${customerName} (${userId.slice(-4)})`,
+          description: `Customer ID: ${userId}`,
           metadata: {
             userId: userId,
             orgId: orgId,
@@ -312,11 +314,13 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       // If no customer ID exists, or customer doesn't exist in this org's Stripe account, create one
       if (!customerId) {
         console.log("⚠️ No Stripe customer ID found, creating new customer");
+        const customerName = userData?.firstName && userData?.lastName ?
+          `${userData.firstName} ${userData.lastName}` :
+          "Customer";
         const customer = await stripe.customers.create({
           email: userData?.email || undefined,
-          name: userData?.firstName && userData?.lastName ?
-            `${userData.firstName} ${userData.lastName}` :
-            undefined,
+          name: `Skedence: ${customerName} (${userId.slice(-4)})`,
+          description: `Customer ID: ${userId}`,
           metadata: {
             userId: userId,
             orgId: orgId,
@@ -341,11 +345,13 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         } catch (error: any) {
           if (error.code === "resource_missing") {
             console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
+            const customerName = userData?.firstName && userData?.lastName ?
+              `${userData.firstName} ${userData.lastName}` :
+              "Customer";
             const customer = await stripe.customers.create({
               email: userData?.email || undefined,
-              name: userData?.firstName && userData?.lastName ?
-                `${userData.firstName} ${userData.lastName}` :
-                undefined,
+              name: `Skedence: ${customerName} (${userId.slice(-4)})`,
+              description: `Customer ID: ${userId}`,
               metadata: {
                 userId: userId,
                 orgId: orgId,
