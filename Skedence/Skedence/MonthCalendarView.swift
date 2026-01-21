@@ -84,6 +84,7 @@ struct MonthCalendarView: View {
         Group {
             if let day {
                 let isSelected = calendar.isDate(day, inSameDayAs: selectedDate)
+                let isToday = calendar.isDate(day, inSameDayAs: Date())
                 let count = availabilityByDay[calendar.startOfDay(for: day)] ?? 0
 
                 Button {
@@ -94,7 +95,11 @@ struct MonthCalendarView: View {
                             .font(.body.weight(isSelected ? .bold : .regular))
                             .foregroundStyle(isSelected ? .white : .primary)
                             .frame(width: 32, height: 32)
-                            .background(Circle().fill(isSelected ? Brand.primary : .clear))
+                            .background(
+                                Circle().fill(
+                                    isSelected ? Brand.primary : (isToday ? Brand.primary.opacity(0.2) : .clear)
+                                )
+                            )
 
                         Circle()
                             .fill(count > 0 ? Color.yellow : Color.clear)

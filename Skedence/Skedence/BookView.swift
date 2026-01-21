@@ -745,7 +745,7 @@ private struct ClassCard: View {
                         VStack(alignment: .leading, spacing: Spacing.xs) {
                             Text(classItem.title)
                                 .font(.headingMedium)
-                                .foregroundStyle(AppTheme.primary)
+                                .foregroundStyle(AppTheme.secondary)
                                 .fontWeight(.semibold)
                             
                             if isRegistered {
@@ -803,7 +803,7 @@ private struct DetailRow: View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: icon)
                 .font(.bodyMedium)
-                .foregroundStyle(AppTheme.primary)
+                .foregroundStyle(AppTheme.secondary)
                 .frame(width: 20)
             Text(text)
                 .font(.bodyMedium)
