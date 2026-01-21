@@ -122,7 +122,7 @@ struct BookView: View {
         NavigationView {
             contentView
                 .background(Color.platformGroupedBackground.ignoresSafeArea())
-                .navigationTitle("Book a Session")
+                .navigationTitle("Book a Time")
                 .navigationBarTitleDisplayMode(.large)
                 .alert(item: $bookingAlert) { alert in
                     Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
@@ -357,7 +357,7 @@ struct BookView: View {
                                             .font(.headingSmall)
                                             .foregroundStyle(isBookable ? AppTheme.textPrimary : AppTheme.textTertiary)
                                         if isBookable {
-                                            Text("\(Int((slot.endTime.timeIntervalSince(slot.startTime)) / 60)) min session")
+                                            Text("\(Int((slot.endTime.timeIntervalSince(slot.startTime)) / 60)) minutes")
                                                 .font(.bodySmall)
                                                 .foregroundStyle(AppTheme.textSecondary)
                                             if let location = slot.location {
