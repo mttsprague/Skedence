@@ -39,6 +39,7 @@ export const sendPurchaseConfirmation = onDocumentCreated(
           if (!stripeKey) {
             throw new Error("Stripe secret key not configured");
           }
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
           const stripe = require("stripe")(stripeKey);
 
           const paymentIntent = await stripe.paymentIntents.retrieve(packageData.transactionId);
@@ -62,13 +63,13 @@ export const sendPurchaseConfirmation = onDocumentCreated(
 
       // Format package name
       const packageTypeNames: { [key: string]: string } = {
-        single: "Single Lesson",
-        five_pack: "5-Lesson Package",
-        ten_pack: "10-Lesson Package",
-        two_athlete: "2-Athlete Lesson",
-        three_athlete: "3-Athlete Lesson",
-        class_pass: "Class Pass",
-        private: "Private Lesson",
+        "single": "Single Lesson",
+        "five_pack": "5-Lesson Package",
+        "ten_pack": "10-Lesson Package",
+        "two_athlete": "2-Athlete Lesson",
+        "three_athlete": "3-Athlete Lesson",
+        "class_pass": "Class Pass",
+        "private": "Private Lesson",
         "2_athlete": "2-Athlete Lesson",
         "3_athlete": "3-Athlete Lesson",
       };
