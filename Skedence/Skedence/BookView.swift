@@ -566,7 +566,7 @@ struct BookView: View {
         let minHours = settingsService.settings?.minBookingHours ?? 4
         let now = Date()
         let minimumBookingTime = now.addingTimeInterval(Double(minHours) * 60 * 60)
-        return slot.startTime > minimumBookingTime
+        return slot.startTime >= minimumBookingTime
     }
     
     private var bookButtonText: String {

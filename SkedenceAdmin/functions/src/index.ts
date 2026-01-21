@@ -245,8 +245,8 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
-        // Check location booking limit if location is specified
-        if (orgId && trainerSlotData.location) {
+        // Check settings: location booking limit and minimum booking notice
+        if (orgId) {
           const settingsDoc = await transaction.get(
             db.collection("organizations")
               .doc(orgId)
@@ -256,23 +256,40 @@ export const bookLesson = functions.https.onCall(
 
           if (settingsDoc.exists) {
             const settings = settingsDoc.data();
-            const maxBookingsPerLocation = settings?.maxBookingsPerLocation ?? 5;
 
-            // Count current booked sessions at this location (status = 'booked', not 'open')
-            const locationBookingsQuery = await db
-              .collectionGroup("schedules")
-              .where("orgId", "==", orgId)
-              .where("location", "==", trainerSlotData.location)
-              .where("status", "==", "booked")
-              .get();
+            // Check minimum booking notice
+            const minBookingHours = settings?.minBookingHours ?? 4;
+            const slotStartTime = trainerSlotData.startTime?.toDate();
+            if (slotStartTime) {
+              const hoursUntilLesson = (slotStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
+              if (hoursUntilLesson < minBookingHours) {
+                throw new functions.https.HttpsError(
+                  "failed-precondition",
+                  `Bookings must be made at least ${minBookingHours} hours in advance. This slot is too soon.`
+                );
+              }
+            }
 
-            const currentBookings = locationBookingsQuery.size;
+            // Check location booking limit if location is specified
+            if (trainerSlotData.location) {
+              const maxBookingsPerLocation = settings?.maxBookingsPerLocation ?? 5;
 
-            if (currentBookings >= maxBookingsPerLocation) {
-              throw new functions.https.HttpsError(
-                "resource-exhausted",
-                `This location has reached its booking capacity (${maxBookingsPerLocation} concurrent sessions). Please choose a different time or location.`
-              );
+              // Count current booked sessions at this location (status = 'booked', not 'open')
+              const locationBookingsQuery = await db
+                .collectionGroup("schedules")
+                .where("orgId", "==", orgId)
+                .where("location", "==", trainerSlotData.location)
+                .where("status", "==", "booked")
+                .get();
+
+              const currentBookings = locationBookingsQuery.size;
+
+              if (currentBookings >= maxBookingsPerLocation) {
+                throw new functions.https.HttpsError(
+                  "resource-exhausted",
+                  `This location has reached its booking capacity (${maxBookingsPerLocation} concurrent sessions). Please choose a different time or location.`
+                );
+              }
             }
           }
         }
@@ -598,6 +615,30 @@ export const cancelLesson = functions.https.onCall(
             "permission-denied",
             "You can only cancel your own bookings."
           );
+        }
+
+        // Check minimum cancellation notice if orgId and startTime are available
+        if (bookingData.orgId && bookingData.startTime) {
+          const settingsDoc = await transaction.get(
+            db.collection("organizations")
+              .doc(bookingData.orgId)
+              .collection("settings")
+              .doc(bookingData.orgId)
+          );
+
+          if (settingsDoc.exists) {
+            const settings = settingsDoc.data();
+            const minCancellationHours = settings?.minCancellationHours ?? 24;
+            const lessonStartTime = bookingData.startTime.toDate();
+            const hoursUntilLesson = (lessonStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
+
+            if (hoursUntilLesson < minCancellationHours) {
+              throw new functions.https.HttpsError(
+                "failed-precondition",
+                `Cancellations must be made at least ${minCancellationHours} hours in advance. This lesson is too soon to cancel.`
+              );
+            }
+          }
         }
 
         // Get the lesson package and decrement lessonsUsed

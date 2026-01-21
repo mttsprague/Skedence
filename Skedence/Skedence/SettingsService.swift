@@ -62,7 +62,7 @@ final class SettingsService: ObservableObject {
     func isWithinBookingWindow(_ slotStartTime: Date, settings: OrgSettings?) -> Bool {
         guard let settings = settings else { return true } // Allow booking if no settings
         let hoursUntilLesson = slotStartTime.timeIntervalSinceNow / 3600
-        return hoursUntilLesson > Double(settings.minBookingHours)
+        return hoursUntilLesson >= Double(settings.minBookingHours)
     }
     
     // Helper to check if a booking is within cancellation window
