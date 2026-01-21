@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { DashboardStats } from '@/types';
-import { Users, UserCog, Calendar, DollarSign, Package, GraduationCap } from 'lucide-react';
+import { Users, UserCog, Calendar, DollarSign, Package, GraduationCap, Clock, Plus, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const { orgId } = useAuth();
@@ -86,32 +87,118 @@ export default function DashboardPage() {
           <p className="text-gray-600 mt-1">Welcome back! Here's an overview of your organization.</p>
         </div>
 
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {statCards.map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <Card key={stat.title}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+        {/* Quick Actions */}
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/availability">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-lg bg-blue-100 text-[#3258A3]">
+                        <Clock className="h-6 w-6" />
                       </div>
-                      <div className={`p-3 rounded-lg bg-gray-100 ${stat.color}`}>
-                        <Icon className="h-8 w-8" />
+                      <div>
+                        <p className="font-semibold text-gray-900">Manage Availability</p>
+                        <p className="text-sm text-gray-600">Set trainer schedules</p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/bookings">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-lg bg-green-100 text-green-600">
+                        <Plus className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Book Session</p>
+                        <p className="text-sm text-gray-600">Schedule for clients</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/classes">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-lg bg-purple-100 text-purple-600">
+                        <GraduationCap className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">Manage Classes</p>
+                        <p className="text-sm text-gray-600">Create group sessions</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/schedule">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-lg bg-orange-100 text-orange-600">
+                        <Calendar className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">View Schedule</p>
+                        <p className="text-sm text-gray-600">See all bookings</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
-        )}
+        </div>
+
+        {/* Stats Overview */}
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Overview</h2>
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {statCards.map((stat) => {
+                const Icon = stat.icon;
+                return (
+                  <Card key={stat.title}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                          <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                        </div>
+                        <div className={`p-3 rounded-lg bg-gray-100 ${stat.color}`}>
+                          <Icon className="h-8 w-8" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );
