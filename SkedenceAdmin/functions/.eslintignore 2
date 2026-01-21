@@ -1,0 +1,5 @@
+update-test-keys.js
+add-test-payment.js
+check-stripe-account.js
+check-subscription.js
+recreate-subscription-no-trial.js
