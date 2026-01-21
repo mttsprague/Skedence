@@ -7,12 +7,14 @@ export interface User {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  phone?: string; // Alternative field name used in some contexts
   role?: 'owner' | 'trainer' | 'client';
   photoURL?: string;
   avatarUrl?: string;
   orgId?: string;
   stripeCustomerId?: string;
   createdAt?: Date;
+  isActive?: boolean; // For trainer status
 }
 
 export interface Trainer extends User {

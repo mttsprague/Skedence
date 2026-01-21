@@ -107,7 +107,9 @@ export default function ClientsPage() {
                         <div className="flex items-center text-sm text-gray-500 mt-2">
                           <Calendar className="h-4 w-4 mr-1.5" />
                           <span>
-                            Joined {new Date(client.createdAt.seconds * 1000).toLocaleDateString()}
+                            Joined {client.createdAt instanceof Date 
+                              ? client.createdAt.toLocaleDateString() 
+                              : new Date((client.createdAt as any).seconds * 1000).toLocaleDateString()}
                           </span>
                         </div>
                       )}

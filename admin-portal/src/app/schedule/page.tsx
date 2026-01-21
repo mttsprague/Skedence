@@ -56,8 +56,8 @@ export default function SchedulePage() {
           
           // Fetch client and trainer names
           const [clientDoc, trainerDoc] = await Promise.all([
-            getDocs(query(collection(db, 'organizations', orgId, 'users'), where('__name__', '==', data.clientId))),
-            getDocs(query(collection(db, 'organizations', orgId, 'users'), where('__name__', '==', data.trainerId)))
+            getDocs(query(collection(db, 'organizations', orgId!, 'users'), where('__name__', '==', data.clientId))),
+            getDocs(query(collection(db, 'organizations', orgId!, 'users'), where('__name__', '==', data.trainerId)))
           ]);
 
           const clientData = clientDoc.docs[0]?.data();
