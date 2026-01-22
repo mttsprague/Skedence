@@ -76,6 +76,23 @@ export const setupTrainerPassword = functions.https.onCall(async (request) => {
       }
     }
 
+    const orgId = trainerData.orgId;
+    const userId = userRecord.uid;
+
+    // Create or update orgMembers document (junction table)
+    const orgMemberId = `${userId}_${orgId}`;
+    const orgMemberRef = admin.firestore().collection("orgMembers").doc(orgMemberId);
+
+    await orgMemberRef.set({
+      userId: userId,
+      orgId: orgId,
+      role: "trainer",
+      isActive: true,
+      joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+
+    console.log(`Created orgMembers document: ${orgMemberId}`);
+
     // Update trainer document to remove setup token and mark as active
     await trainerRef.update({
       setupToken: null,
