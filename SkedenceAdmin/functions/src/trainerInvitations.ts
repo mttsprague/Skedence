@@ -179,23 +179,23 @@ ${email}
 
 GETTING STARTED
 
-Step 1: Set Up Your Password
+Step 1: Create Password
 Click this link to create your password (works on any device):
 ${setupLink}
 
 This secure link expires in 7 days.
 
-Step 2: Download the SkedenceAdmin App
+Step 2: Download SkedenceAdmin
 After setting your password, download the app:
-- iOS: https://apps.apple.com/app/skedence-admin
-- Android: https://play.google.com/store/apps/details?id=com.skedence.admin
+iOS: https://apps.apple.com/app/skedence-admin
 
-Step 3: Sign In
+Step 3: Login
 Open the app and sign in with:
 - Email: ${email}
 - Password: (the one you just created)
 
-That's it! You'll have full ${role.toLowerCase()} access to ${orgName}.
+Step 4: All Set!
+You'll have full ${role.toLowerCase()} access to ${orgName}.
 
 IMPORTANT: 
 - Complete Step 1 first (set your password on the website)
@@ -443,71 +443,43 @@ function generateInvitationHTML(
         <div class="step">
           <div class="step-number">1</div>
           <div class="step-content">
-            <strong>Download SkedenceAdmin</strong>
-            <p>Get the app from the App Store or Play Store to manage your schedule and clients.</p>
+            <strong>Create Password</strong>
+            <p><a href="${setupLink}" class="button" style="background: linear-gradient(135deg, #4CAF50 0%, #45A049 100%); font-size: 16px; padding: 14px 28px; display: inline-block; margin-top: 8px;">🔐 Create Password Link</a></p>
+            <p style="margin-top: 12px; font-size: 13px; color: #666;">This secure link expires in 7 days</p>
           </div>
         </div>
         
-      <div class="step-container">
-        <div class="step">
-          <div class="step-number">1</div>
-          <div class="step-content">
-            <strong>Set Up Your Password</strong>
-            <p>Click the button below to create your password on our secure website. Works on any device!</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="button-container">
-        <p>Create Your Password Now</p>
-        <a href="${setupLink}" class="button" style="background: linear-gradient(135deg, #4CAF50 0%, #45A049 100%); font-size: 18px; padding: 18px 36px;">
-          🔐 Set Up Password
-        </a>
-        <p style="margin: 16px 0 0 0; font-size: 13px; color: #666; font-weight: normal;">
-          This secure link expires in 7 days
-        </p>
-      </div>
-      
-      <div class="step-container">
         <div class="step">
           <div class="step-number">2</div>
           <div class="step-content">
             <strong>Download SkedenceAdmin</strong>
-            <p>After setting your password, download the app from your device's app store.</p>
+            <p><a href="https://apps.apple.com/app/skedence-admin" class="button" style="display: inline-block; margin-top: 8px;">📱 iOS App Store</a></p>
           </div>
         </div>
         
         <div class="step">
           <div class="step-number">3</div>
           <div class="step-content">
-            <strong>Sign In</strong>
-            <p>Open the app and sign in with <strong>${email}</strong> and your new password.</p>
+            <strong>Login</strong>
+            <p>Open the app and sign in using your newly created password with <strong>${email}</strong></p>
           </div>
         </div>
         
         <div class="step">
           <div class="step-number">4</div>
           <div class="step-content">
-            <strong>You're All Set!</strong>
-            <p>Your account will automatically link to ${orgName} with ${role.toLowerCase()} access.</p>
+            <strong>All Set!</strong>
+            <p>You'll have full ${role.toLowerCase()} access to ${orgName}.</p>
           </div>
         </div>
       </div>
       
-      <div class="button-container">
-        <p style="font-size: 14px; font-weight: normal; margin-bottom: 12px;">Download the App</p>
-        <a href="https://apps.apple.com/app/skedence-admin" class="button">
-          📱 App Store
-        </a>
-        <a href="https://play.google.com/store/apps/details?id=com.skedence.admin" class="button">
-          🤖 Play Store
-        </a>
-      </div>
-      
       <div class="warning-box">
         <strong>⚠️ Remember</strong>
-        <p>• First: Create your password on the website (Step 1)<br>
-        • Then: Download the app and sign in (Steps 2-3)<br>
+        <p>• Step 1: Create your password on the website<br>
+        • Step 2: Download SkedenceAdmin from iOS App Store<br>
+        • Step 3: Login with your email and new password<br>
+        • Step 4: All set! Start managing ${orgName}<br>
         • Setup link expires in 7 days</p>
       </div>
       
