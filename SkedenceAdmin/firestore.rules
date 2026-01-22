@@ -388,7 +388,18 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // CLASSES COLLECTION
+    // GROUP CLASSES COLLECTION
+    // =========================================================================
+    match /groupClasses/{classId} {
+      // Anyone in the same org can read classes
+      allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      
+      // Trainers, admins, and owners can create, update, or delete classes
+      allow create, update, delete: if newDocBelongsToUserOrg() && isOrgTrainer(request.resource.data.orgId);
+    }
+    
+    // =========================================================================
+    // CLASSES COLLECTION (Legacy - keeping for backwards compatibility)
     // =========================================================================
     match /classes/{classId} {
       // Anyone in the same org can read classes

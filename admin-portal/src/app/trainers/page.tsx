@@ -20,19 +20,30 @@ export default function TrainersPage() {
 
     async function loadTrainers() {
       try {
+        console.log('Trainers: Loading for orgId:', orgId);
+        // Query trainers collection directly with orgId filter (matches iOS app)
         const trainersQuery = query(
-          collection(db, 'organizations', orgId!, 'users'),
-          where('role', '==', 'trainer'),
-          orderBy('firstName', 'asc')
+          collection(db, 'trainers'),
+          where('orgId', '==', orgId)
         );
         const snapshot = await getDocs(trainersQuery);
-        const trainersData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as User[];
-        setTrainers(trainersData);
+        console.log('Trainers: Found', snapshot.size, 'trainers');
+        const trainersData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            email: data.email || data.emailAddress || '',
+            phone: data.phoneNumber || data.phone || '',
+            role: data.role || 'trainer',
+            isActive: data.active !== false,
+          };
+        }) as User[];
+        console.log('Trainers: Loaded', trainersData.length, 'trainers:', trainersData);
+        setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
       } catch (error) {
-        console.error('Error loading trainers:', error);
+        console.error('Trainers: Error loading:', error);
       } finally {
         setLoading(false);
       }
@@ -50,10 +61,10 @@ export default function TrainersPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Trainers</h1>
-          <p className="text-gray-600 mt-2">Manage trainers and view their schedules</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Trainers</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage trainers and view their schedules</p>
         </div>
 
         {/* Search Bar */}
@@ -64,7 +75,7 @@ export default function TrainersPage() {
             placeholder="Search trainers by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent touch-manipulation text-base"
           />
         </div>
 
@@ -79,10 +90,10 @@ export default function TrainersPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredTrainers.map((trainer) => (
-              <Card key={trainer.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardContent className="p-6">
+              <Card key={trainer.id} className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer touch-manipulation">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start space-x-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg">
                       {trainer.firstName?.[0]}{trainer.lastName?.[0]}

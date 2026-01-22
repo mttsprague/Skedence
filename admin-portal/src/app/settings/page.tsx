@@ -36,9 +36,19 @@ export default function SettingsPage() {
 
     async function loadSettings() {
       try {
-        const settingsDoc = await getDoc(doc(db, 'organizations', orgId!, 'settings', orgId!));
-        if (settingsDoc.exists()) {
-          setSettings(settingsDoc.data() as OrgSettings);
+        // Load from organizations/{orgId} document (matches iOS app schema)
+        const orgDoc = await getDoc(doc(db, 'organizations', orgId!));
+        if (orgDoc.exists()) {
+          const data = orgDoc.data();
+          // Settings are stored as fields in the organization document
+          setSettings({
+            minBookingHours: data.minBookingHours || 4,
+            minCancellationHours: data.minCancellationHours || 24,
+            maxBookingsPerLocation: data.maxBookingsPerLocation || 10,
+            defaultSessionLength: data.defaultSessionLength || 60,
+            allowSameDayBooking: data.allowSameDayBooking || false,
+            requireWaiver: data.requireWaiver !== false,
+          });
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -57,7 +67,8 @@ export default function SettingsPage() {
     setSaveMessage('');
 
     try {
-      await setDoc(doc(db, 'organizations', orgId, 'settings', orgId), settings, { merge: true });
+      // Save to organizations/{orgId} document (matches iOS app schema)
+      await setDoc(doc(db, 'organizations', orgId), settings, { merge: true });
       setSaveMessage('Settings saved successfully!');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {

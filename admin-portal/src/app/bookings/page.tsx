@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, where, getDocs, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Calendar, Clock, User, MapPin, DollarSign, Plus } from 'lucide-react';
@@ -63,34 +63,51 @@ export default function BookingsPage() {
 
     async function loadData() {
       try {
-        // Load clients
-        const clientsQuery = query(
-          collection(db, 'organizations', orgId!, 'users'),
+        // Load clients from orgMembers + users
+        const membersQuery = query(
+          collection(db, 'orgMembers'),
+          where('orgId', '==', orgId),
           where('role', '==', 'client')
         );
-        const clientsSnapshot = await getDocs(clientsQuery);
-        const clientsData = clientsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Client[];
+        const membersSnapshot = await getDocs(membersQuery);
+        const clientPromises = membersSnapshot.docs.map(async (memberDoc) => {
+          const memberData = memberDoc.data();
+          const userDoc = await getDoc(doc(db, 'users', memberData.userId));
+          if (!userDoc.exists()) return null;
+          const userData = userDoc.data();
+          return {
+            id: memberData.userId,
+            firstName: userData.firstName || '',
+            lastName: userData.lastName || '',
+            email: userData.emailAddress || userData.email || '',
+          } as Client;
+        });
+        const clientsData = (await Promise.all(clientPromises)).filter((c): c is Client => c !== null);
+        console.log('Bookings: Loaded', clientsData.length, 'clients');
         setClients(clientsData);
 
-        // Load trainers
+        // Load trainers from trainers collection
         const trainersQuery = query(
-          collection(db, 'organizations', orgId!, 'users'),
-          where('role', '==', 'trainer')
+          collection(db, 'trainers'),
+          where('orgId', '==', orgId)
         );
         const trainersSnapshot = await getDocs(trainersQuery);
-        const trainersData = trainersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Trainer[];
+        console.log('Bookings: Found', trainersSnapshot.size, 'trainers');
+        const trainersData = trainersSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+          };
+        }) as Trainer[];
+        console.log('Bookings: Loaded', trainersData.length, 'trainers:', trainersData);
         setTrainers(trainersData);
 
         if (clientsData.length > 0) setSelectedClient(clientsData[0].id);
         if (trainersData.length > 0) setSelectedTrainer(trainersData[0].id);
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Bookings: Error loading data:', error);
       } finally {
         setLoading(false);
       }
@@ -107,18 +124,23 @@ export default function BookingsPage() {
       try {
         const packagesQuery = query(
           collection(db, 'lessonPackages'),
-          where('userId', '==', selectedClient),
-          where('remainingLessons', '>', 0)
+          where('userId', '==', selectedClient)
         );
         const snapshot = await getDocs(packagesQuery);
-        const packagesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as LessonPackage[];
-        setPackages(packagesData);
-        if (packagesData.length > 0) setSelectedPackage(packagesData[0].id);
+        
+        const packagesData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+          };
+        }) as LessonPackage[];
+        
+        const activePackages = packagesData.filter(p => p.remainingLessons > 0);
+        setPackages(activePackages);
+        if (activePackages.length > 0) setSelectedPackage(activePackages[0].id);
       } catch (error) {
-        console.error('Error loading packages:', error);
+        console.error('Error loading passes:', error);
       }
     }
 
@@ -135,9 +157,8 @@ export default function BookingsPage() {
         const endOfDay = new Date(`${selectedDate}T23:59:59`);
 
         // Query trainer schedules subcollection (matches iOS pattern)
-        const trainerRef = doc(db, 'trainers', selectedTrainer);
         const slotsQuery = query(
-          collection(trainerRef, 'schedules'),
+          collection(db, 'trainers', selectedTrainer, 'schedules'),
           where('startTime', '>=', Timestamp.fromDate(startOfDay)),
           where('startTime', '<=', Timestamp.fromDate(endOfDay)),
           where('status', '==', 'open')
@@ -223,27 +244,27 @@ export default function BookingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Create Booking</h1>
-          <p className="text-gray-600 mt-2">Book sessions for clients</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Create Booking</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Book sessions for clients</p>
         </div>
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Booking Form */}
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                   <Plus className="h-5 w-5 text-[#3258A3]" />
                   New Booking
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 sm:space-y-6">
                 {/* Client Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -253,7 +274,7 @@ export default function BookingsPage() {
                   <select
                     value={selectedClient}
                     onChange={(e) => setSelectedClient(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
                   >
                     {clients.map(client => (
                       <option key={client.id} value={client.id}>
@@ -263,21 +284,21 @@ export default function BookingsPage() {
                   </select>
                 </div>
 
-                {/* Package Selection */}
+                {/* Pass Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <DollarSign className="h-4 w-4 inline mr-1" />
-                    Lesson Package
+                    Lesson Pass
                   </label>
                   {packages.length === 0 ? (
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                      No active packages available for this client
+                    <div className="p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                      No active passes available for this client
                     </div>
                   ) : (
                     <select
                       value={selectedPackage}
                       onChange={(e) => setSelectedPackage(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
                     >
                       {packages.map(pkg => (
                         <option key={pkg.id} value={pkg.id}>
@@ -297,7 +318,7 @@ export default function BookingsPage() {
                   <select
                     value={selectedTrainer}
                     onChange={(e) => setSelectedTrainer(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
                   >
                     {trainers.map(trainer => (
                       <option key={trainer.id} value={trainer.id}>
@@ -317,7 +338,7 @@ export default function BookingsPage() {
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
                   />
                 </div>
 
@@ -405,7 +426,7 @@ export default function BookingsPage() {
 
                 {selectedPackageData && (
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Package</p>
+                    <p className="text-sm font-medium text-gray-500">Pass</p>
                     <p className="text-base font-semibold text-gray-900">
                       {selectedPackageData.packageName}
                     </p>

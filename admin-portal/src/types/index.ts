@@ -49,7 +49,8 @@ export interface OrgSettings {
 
 export interface Booking {
   id: string;
-  clientId: string;
+  clientId?: string; // Web format
+  clientUID?: string; // iOS format
   trainerId: string;
   orgId: string;
   startTime: Date;

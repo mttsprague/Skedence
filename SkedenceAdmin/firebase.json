@@ -31,6 +31,10 @@
     ],
     "rewrites": [
       {
+        "source": "/admin-portal/**",
+        "destination": "/admin-portal/index.html"
+      },
+      {
         "source": "/checkout-success",
         "destination": "/checkout-success.html"
       },

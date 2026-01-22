@@ -58,10 +58,10 @@ export default function ClassesPage() {
 
     async function loadData() {
       try {
-        // Load trainers
+        // Load trainers from trainers collection
         const trainersQuery = query(
-          collection(db, 'organizations', orgId!, 'users'),
-          where('role', '==', 'trainer')
+          collection(db, 'trainers'),
+          where('orgId', '==', orgId!)
         );
         const trainersSnapshot = await getDocs(trainersQuery);
         const trainersData = trainersSnapshot.docs.map(doc => ({

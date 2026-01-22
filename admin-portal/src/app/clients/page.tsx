@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
 import { Search, Mail, Phone, MapPin, Calendar } from 'lucide-react';
@@ -20,19 +20,46 @@ export default function ClientsPage() {
 
     async function loadClients() {
       try {
-        const clientsQuery = query(
-          collection(db, 'organizations', orgId!, 'users'),
-          where('role', '==', 'client'),
-          orderBy('firstName', 'asc')
+        console.log('Clients: Loading for orgId:', orgId);
+        // Query orgMembers to find all members in this org
+        const membersQuery = query(
+          collection(db, 'orgMembers'),
+          where('orgId', '==', orgId)
         );
-        const snapshot = await getDocs(clientsQuery);
-        const clientsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as User[];
+        const membersSnapshot = await getDocs(membersQuery);
+        console.log('Clients: Found', membersSnapshot.size, 'org members');
+        
+        const clientPromises = membersSnapshot.docs.map(async (memberDoc) => {
+          const memberData = memberDoc.data();
+          console.log('Clients: Member role:', memberData.role, 'userId:', memberData.userId);
+          // Only include clients (not trainers/admins)
+          if (memberData.role !== 'client') return null;
+          
+          // Get user details from users collection
+          const userDoc = await getDoc(doc(db, 'users', memberData.userId));
+          if (!userDoc.exists()) return null;
+          
+          const userData = userDoc.data();
+          return {
+            id: memberData.userId,
+            firstName: userData.firstName || '',
+            lastName: userData.lastName || '',
+            email: userData.emailAddress || userData.email || '',
+            phone: userData.phoneNumber || '',
+            role: memberData.role,
+            createdAt: memberData.joinedAt,
+            isActive: userData.isActive !== false,
+          } as User;
+        });
+        
+        const clientsData = (await Promise.all(clientPromises))
+          .filter((c): c is User => c !== null)
+          .sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+        
+        console.log('Clients: Loaded', clientsData.length, 'clients');
         setClients(clientsData);
       } catch (error) {
-        console.error('Error loading clients:', error);
+        console.error('Clients: Error loading:', error);
       } finally {
         setLoading(false);
       }
@@ -50,10 +77,10 @@ export default function ClientsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
-          <p className="text-gray-600 mt-2">Manage your client list and view details</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Clients</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage your client list and view details</p>
         </div>
 
         {/* Search Bar */}
@@ -64,7 +91,7 @@ export default function ClientsPage() {
             placeholder="Search clients by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent touch-manipulation text-base"
           />
         </div>
 
@@ -79,10 +106,10 @@ export default function ClientsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredClients.map((client) => (
-              <Card key={client.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardContent className="p-6">
+              <Card key={client.id} className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer touch-manipulation">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start space-x-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3258A3] to-[#4A7CC7] flex items-center justify-center text-white font-bold text-lg">
                       {client.firstName?.[0]}{client.lastName?.[0]}
@@ -122,9 +149,9 @@ export default function ClientsPage() {
         )}
 
         {/* Stats Summary */}
-        <div className="bg-white rounded-lg border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Summary</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg border p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Summary</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <p className="text-sm text-gray-600">Total Clients</p>
               <p className="text-2xl font-bold text-[#3258A3] mt-1">{clients.length}</p>

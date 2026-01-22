@@ -319,41 +319,55 @@
         // Auth state observer
         auth.onAuthStateChanged(async (user) => {
             if (user) {
+                // Check if we should redirect after login
+                const shouldRedirect = sessionStorage.getItem('redirectAfterLogin');
+                if (shouldRedirect === 'true') {
+                    sessionStorage.removeItem('redirectAfterLogin');
+                    window.location.href = 'admin-dashboard.html';
+                    return;
+                }
+                
                 currentUser = user;
                 document.getElementById('userEmail').textContent = user.email;
                 
                 try {
-                    // Find user's organization
-                    const orgsSnapshot = await db.collection('organizations')
-                        .where('members', 'array-contains', user.uid)
+                    // Find user's organization membership
+                    const memberSnapshot = await db.collection('orgMembers')
+                        .where('userId', '==', user.uid)
+                        .where('isActive', '==', true)
                         .limit(1)
                         .get();
 
-                    if (orgsSnapshot.empty) {
+                    if (memberSnapshot.empty) {
                         showMessage('keysMessage', 'error', 'No organization found for your account.');
                         showAuth();
                         await auth.signOut();
                         return;
                     }
 
-                    const orgDoc = orgsSnapshot.docs[0];
-                    currentOrgId = orgDoc.id;
-                    currentOrgName = orgDoc.data().name || 'Your Organization';
-                    document.getElementById('orgName').textContent = currentOrgName;
+                    const memberDoc = memberSnapshot.docs[0];
+                    const memberData = memberDoc.data();
+                    currentOrgId = memberData.orgId;
 
                     // Check if user is owner
-                    const memberDoc = await db.collection('organizations')
-                        .doc(currentOrgId)
-                        .collection('orgMembers')
-                        .doc(user.uid)
-                        .get();
-
-                    if (!memberDoc.exists || memberDoc.data().role !== 'owner') {
+                    if (memberData.role !== 'owner') {
                         showMessage('keysMessage', 'error', 'Only organization owners can configure Stripe keys.');
                         showAuth();
                         await auth.signOut();
                         return;
                     }
+
+                    // Get organization name
+                    const orgDoc = await db.collection('organizations')
+                        .doc(currentOrgId)
+                        .get();
+                    
+                    if (orgDoc.exists) {
+                        currentOrgName = orgDoc.data().name || 'Your Organization';
+                    } else {
+                        currentOrgName = 'Your Organization';
+                    }
+                    document.getElementById('orgName').textContent = currentOrgName;
 
                     // Load existing keys
                     await loadExistingKeys();
@@ -417,8 +431,10 @@
             loginBtn.textContent = 'Signing in...';
 
             try {
+                // Set flag to redirect after login
+                sessionStorage.setItem('redirectAfterLogin', 'true');
                 await auth.signInWithEmailAndPassword(email, password);
-                // Auth state observer will handle the rest
+                // Auth state observer will handle redirect
             } catch (error) {
                 console.error('Login error:', error);
                 showMessage('authMessage', 'error', 'Login failed: ' + error.message);

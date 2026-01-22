@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { DashboardStats } from '@/types';
 import { Users, UserCog, Calendar, DollarSign, Package, GraduationCap, Clock, Plus, ArrowRight } from 'lucide-react';
@@ -23,45 +23,105 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!orgId) return;
+    console.log('Dashboard: orgId =', orgId);
+    if (!orgId) {
+      console.log('Dashboard: No orgId, waiting...');
+      return;
+    }
 
     async function loadStats() {
       try {
+        console.log('Dashboard: Loading stats for orgId:', orgId);
         const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        // Get clients
-        const clientsQuery = query(
-          collection(db, 'organizations', orgId!, 'users'),
-          where('role', '==', 'client')
+        // Get org members (clients and trainers)
+        console.log('Dashboard: Querying orgMembers...');
+        const orgMembersQuery = query(
+          collection(db, 'orgMembers'),
+          where('orgId', '==', orgId)
         );
-        const clientsSnap = await getDocs(clientsQuery);
+        const orgMembersSnap = await getDocs(orgMembersQuery);
+        console.log('Dashboard: Found', orgMembersSnap.size, 'org members');
         
-        // Get trainers
-        const trainersQuery = query(
-          collection(db, 'organizations', orgId!, 'users'),
-          where('role', '==', 'trainer')
-        );
-        const trainersSnap = await getDocs(trainersQuery);
+        let clientCount = 0;
+        let trainerCount = 0;
+        
+        for (const memberDoc of orgMembersSnap.docs) {
+          const memberData = memberDoc.data();
+          console.log('Dashboard: Member data:', memberDoc.id, 'role:', memberData.role, 'all fields:', Object.keys(memberData));
+          // Get role from orgMembers collection, not users collection (matches old admin schema)
+          if (memberData.role === 'client') clientCount++;
+          if (memberData.role === 'trainer' || memberData.role === 'admin' || memberData.role === 'owner') trainerCount++;
+        }
+        
+        console.log('Dashboard: Clients:', clientCount, 'Trainers:', trainerCount);
         
         // Get upcoming bookings
+        console.log('Dashboard: Querying bookings...');
         const bookingsQuery = query(
           collection(db, 'bookings'),
           where('orgId', '==', orgId),
           where('startTime', '>=', Timestamp.fromDate(now))
         );
         const bookingsSnap = await getDocs(bookingsQuery);
+        console.log('Dashboard: Found', bookingsSnap.size, 'upcoming bookings');
+
+        // Count active packages
+        let packageCount = 0;
+        for (const memberDoc of orgMembersSnap.docs) {
+          const memberData = memberDoc.data();
+          if (memberData.role !== 'client') continue;
+          
+          try {
+            const packagesQuery = query(
+              collection(db, 'users', memberData.userId, 'lessonPackages'),
+              where('remainingLessons', '>', 0)
+            );
+            const packagesSnap = await getDocs(packagesQuery);
+            packageCount += packagesSnap.size;
+          } catch (err) {
+            console.warn('Dashboard: Could not load packages for user', memberData.userId, err);
+          }
+        }
+        console.log('Dashboard: Found', packageCount, 'active packages');
+
+        // Count open classes (classes with available spots)
+        let openClassCount = 0;
+        try {
+          console.log('Dashboard: Querying classes...');
+          const classesQuery = query(
+            collection(db, 'classes'),
+            where('orgId', '==', orgId),
+            where('startTime', '>=', Timestamp.fromDate(now))
+          );
+          const classesSnap = await getDocs(classesQuery);
+          console.log('Dashboard: Found', classesSnap.size, 'upcoming classes');
+          
+          for (const classDoc of classesSnap.docs) {
+            const classData = classDoc.data();
+            const currentParticipants = classData.currentParticipants || 0;
+            const maxParticipants = classData.maxParticipants || classData.maxCapacity || 0;
+            console.log('Dashboard: Class', classDoc.id, '- participants:', currentParticipants, 'max:', maxParticipants, 'isOpen:', classData.isOpenForRegistration);
+            if (currentParticipants < maxParticipants && classData.isOpenForRegistration !== false) {
+              openClassCount++;
+            }
+          }
+          console.log('Dashboard: Found', openClassCount, 'open classes');
+        } catch (err) {
+          console.warn('Dashboard: Could not load classes:', err);
+        }
 
         setStats({
-          totalClients: clientsSnap.size,
-          totalTrainers: trainersSnap.size,
+          totalClients: clientCount,
+          totalTrainers: trainerCount,
           upcomingBookings: bookingsSnap.size,
           thisMonthRevenue: 0, // TODO: Calculate from payments
-          activePackages: 0, // TODO: Count active packages
-          openClasses: 0, // TODO: Count open classes
+          activePackages: packageCount,
+          openClasses: openClassCount,
         });
+        console.log('Dashboard: Stats loaded successfully');
       } catch (error) {
-        console.error('Error loading stats:', error);
+        console.error('Dashboard: Error loading stats:', error);
       } finally {
         setLoading(false);
       }
@@ -81,87 +141,87 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 lg:space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back! Here&apos;s an overview of your organization.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Welcome back! Here&apos;s an overview of your organization.</p>
         </div>
 
         {/* Quick Actions */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/availability">
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-lg bg-blue-100 text-[#3258A3]">
-                        <Clock className="h-6 w-6" />
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+            <Link href="/availability" className="touch-manipulation">
+              <Card className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <div className="p-2 sm:p-3 rounded-lg bg-blue-100 text-[#3258A3] flex-shrink-0">
+                        <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">Manage Availability</p>
-                        <p className="text-sm text-gray-600">Set trainer schedules</p>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">Manage Availability</p>
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">Set trainer schedules</p>
                       </div>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
                   </div>
                 </CardContent>
               </Card>
             </Link>
 
-            <Link href="/bookings">
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-lg bg-green-100 text-green-600">
-                        <Plus className="h-6 w-6" />
+            <Link href="/bookings" className="touch-manipulation">
+              <Card className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <div className="p-2 sm:p-3 rounded-lg bg-green-100 text-green-600 flex-shrink-0">
+                        <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">Book Session</p>
-                        <p className="text-sm text-gray-600">Schedule for clients</p>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">Book Session</p>
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">Schedule for clients</p>
                       </div>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
                   </div>
                 </CardContent>
               </Card>
             </Link>
 
-            <Link href="/classes">
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-lg bg-purple-100 text-purple-600">
-                        <GraduationCap className="h-6 w-6" />
+            <Link href="/classes" className="touch-manipulation">
+              <Card className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <div className="p-2 sm:p-3 rounded-lg bg-purple-100 text-purple-600 flex-shrink-0">
+                        <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">Manage Classes</p>
-                        <p className="text-sm text-gray-600">Create group sessions</p>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">Manage Classes</p>
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">Create group sessions</p>
                       </div>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
                   </div>
                 </CardContent>
               </Card>
             </Link>
 
-            <Link href="/schedule">
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-lg bg-orange-100 text-orange-600">
-                        <Calendar className="h-6 w-6" />
+            <Link href="/schedule" className="touch-manipulation">
+              <Card className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer border-2 border-transparent hover:border-[#3258A3]">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <div className="p-2 sm:p-3 rounded-lg bg-orange-100 text-orange-600 flex-shrink-0">
+                        <Calendar className="h-5 w-5 sm:h-6 sm:w-6" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">View Schedule</p>
-                        <p className="text-sm text-gray-600">See all bookings</p>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">View Schedule</p>
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">See all bookings</p>
                       </div>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
                   </div>
                 </CardContent>
               </Card>
@@ -171,25 +231,25 @@ export default function DashboardPage() {
 
         {/* Stats Overview */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Overview</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Overview</h2>
           {loading ? (
             <div className="text-center py-12">
-              <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {statCards.map((stat) => {
                 const Icon = stat.icon;
                 return (
                   <Card key={stat.title}>
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-6">
                       <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                          <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                        <div className="min-w-0">
+                          <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">{stat.title}</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stat.value}</p>
                         </div>
-                        <div className={`p-3 rounded-lg bg-gray-100 ${stat.color}`}>
-                          <Icon className="h-8 w-8" />
+                        <div className={`p-2 sm:p-3 rounded-lg bg-gray-100 ${stat.color} flex-shrink-0`}>
+                          <Icon className="h-6 w-6 sm:h-8 sm:w-8" />
                         </div>
                       </div>
                     </CardContent>
