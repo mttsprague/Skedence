@@ -262,21 +262,22 @@ service cloud.firestore {
     // =========================================================================
     match /trainers/{trainerId} {
       // Anyone in the same org can get a specific trainer profile
-      // OR allow reading for password setup validation (needs setupToken)
+      // OR allow reading for password setup validation (no auth required if setupToken exists)
       allow get: if ('orgId' in resource.data && isMemberOfOrg(resource.data.orgId))
-        || (resource.data.needsPasswordSetup == true && 'setupToken' in resource.data);
+        || ('setupToken' in resource.data && resource.data.setupToken != null);
       
       // Allow list queries for authenticated users (will be filtered by org)
       allow list: if isSignedIn();
 
       // Trainer can update their own profile, or admins in their org
-      // OR allow password setup: linking Firebase UID to existing trainer doc
+      // OR allow password setup: clear setupToken and mark as active (auth required)
       allow update: if isSignedIn() && (
         request.auth.uid == trainerId
         || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
-        || (resource.data.needsPasswordSetup == true 
-            && request.resource.data.userId == request.auth.uid
-            && request.resource.data.needsPasswordSetup == false)
+        || ('setupToken' in resource.data 
+            && resource.data.setupToken != null
+            && request.resource.data.setupToken == null
+            && request.resource.data.isActive == true)
       );
 
       // Users can create their own trainer profile during registration
