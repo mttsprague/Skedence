@@ -29,6 +29,9 @@ export * from "./stripe-connect-webhook";
 // Export quota and rate limiting functions
 export * from "./quotas";
 
+// Export password setup function
+export * from "./passwordSetup";
+
 // Export trainer invitation functions
 export * from "./trainerInvitations";
 
