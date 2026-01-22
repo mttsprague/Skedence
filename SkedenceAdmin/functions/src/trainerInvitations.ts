@@ -66,6 +66,17 @@ export const sendTrainerInvitation = onDocumentCreated(
       const memberData = orgMemberDoc.data();
       const role = memberData?.role || "trainer";
 
+      // Get setup token from trainer document
+      const setupToken = trainerData.setupToken;
+      if (!setupToken) {
+        console.error(`No setup token found for trainer ${trainerId}`);
+        return;
+      }
+
+      // Generate web link for password setup (using admin portal website)
+      const setupLink = `https://polyface-ae6d3.web.app/setup-password?token=${setupToken}&email=${encodeURIComponent(emailAddress)}&trainerId=${trainerId}`;
+      console.log(`Generated setup link: ${setupLink}`);
+
       // Fetch owner information
       let ownerName = "your team";
       try {
@@ -109,14 +120,16 @@ export const sendTrainerInvitation = onDocumentCreated(
             orgData.name || "the organization",
             role,
             emailAddress,
-            ownerName
+            ownerName,
+            setupLink
           ),
           html: generateInvitationHTML(
             fullName,
             orgData.name || "the organization",
             role,
             emailAddress,
-            ownerName
+            ownerName,
+            setupLink
           ),
         },
       };
@@ -143,6 +156,7 @@ export const sendTrainerInvitation = onDocumentCreated(
  * @param {string} role - The role assigned to the trainer
  * @param {string} email - The email address for the trainer to use
  * @param {string} ownerName - The name of the person who invited them
+ * @param {string} setupLink - Deep link for password setup
  * @return {string} Plain text email content
  */
 function generateInvitationText(
@@ -150,7 +164,8 @@ function generateInvitationText(
   orgName: string,
   role: string,
   email: string,
-  ownerName: string
+  ownerName: string,
+  setupLink: string
 ): string {
   return `
 Welcome to ${orgName}!
@@ -162,30 +177,32 @@ Great news! ${ownerName} has invited you to join ${orgName} as a ${role.toLowerC
 YOUR LOGIN EMAIL
 ${email}
 
-Make sure to use this exact email address when registering.
-
 GETTING STARTED
 
-1. Download the SkedenceAdmin App
-   Download the app from the App Store or Play Store.
+Step 1: Set Up Your Password
+Click this link to create your password (works on any device):
+${setupLink}
 
-2. Create Your Account
-   Open the app and tap "Create Business" or "Sign Up".
-   Use the email: ${email}
+This secure link expires in 7 days.
 
-3. Set Your Password
-   Choose a secure password for your account. You'll use this to log in.
+Step 2: Download the SkedenceAdmin App
+After setting your password, download the app:
+- iOS: https://apps.apple.com/app/skedence-admin
+- Android: https://play.google.com/store/apps/details?id=com.skedence.admin
 
-4. You're All Set!
-   Your account will automatically be linked to ${orgName} and you'll have ${role.toLowerCase()} access.
+Step 3: Sign In
+Open the app and sign in with:
+- Email: ${email}
+- Password: (the one you just created)
 
-DOWNLOAD THE APP
-App Store: https://apps.apple.com/app/skedence-admin
-Play Store: https://play.google.com/store/apps/details?id=com.skedence.admin
+That's it! You'll have full ${role.toLowerCase()} access to ${orgName}.
 
-IMPORTANT: Make sure to use the email ${email} when registering. This is how the app will link your account to ${orgName}.
+IMPORTANT: 
+- Complete Step 1 first (set your password on the website)
+- Then download the app and sign in
+- If the link expires, contact your administrator to resend
 
-If you have any questions or need help getting started, feel free to reach out to your organization admin.
+Questions? Reach out to your organization admin for help.
 
 Welcome aboard!
 The Skedence Team
@@ -203,6 +220,7 @@ Visit us at: https://skedence.app
  * @param {string} role - The role assigned to the trainer
  * @param {string} email - The email address for the trainer to use
  * @param {string} ownerName - The name of the person who invited them
+ * @param {string} setupLink - Deep link for password setup
  * @return {string} HTML email content
  */
 function generateInvitationHTML(
@@ -210,7 +228,8 @@ function generateInvitationHTML(
   orgName: string,
   role: string,
   email: string,
-  ownerName: string
+  ownerName: string,
+  setupLink: string
 ): string {
   return `
 <!DOCTYPE html>
@@ -429,19 +448,40 @@ function generateInvitationHTML(
           </div>
         </div>
         
+      <div class="step-container">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <strong>Set Up Your Password</strong>
+            <p>Click the button below to create your password on our secure website. Works on any device!</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="button-container">
+        <p>Create Your Password Now</p>
+        <a href="${setupLink}" class="button" style="background: linear-gradient(135deg, #4CAF50 0%, #45A049 100%); font-size: 18px; padding: 18px 36px;">
+          🔐 Set Up Password
+        </a>
+        <p style="margin: 16px 0 0 0; font-size: 13px; color: #666; font-weight: normal;">
+          This secure link expires in 7 days
+        </p>
+      </div>
+      
+      <div class="step-container">
         <div class="step">
           <div class="step-number">2</div>
           <div class="step-content">
-            <strong>Create Your Account</strong>
-            <p>Open the app and tap "Create Business" or "Sign Up". Use <strong>${email}</strong> as your email.</p>
+            <strong>Download SkedenceAdmin</strong>
+            <p>After setting your password, download the app from your device's app store.</p>
           </div>
         </div>
         
         <div class="step">
           <div class="step-number">3</div>
           <div class="step-content">
-            <strong>Set Your Password</strong>
-            <p>Choose a secure password. You'll use this along with your email to log in.</p>
+            <strong>Sign In</strong>
+            <p>Open the app and sign in with <strong>${email}</strong> and your new password.</p>
           </div>
         </div>
         
@@ -455,7 +495,7 @@ function generateInvitationHTML(
       </div>
       
       <div class="button-container">
-        <p>Download the App Now</p>
+        <p style="font-size: 14px; font-weight: normal; margin-bottom: 12px;">Download the App</p>
         <a href="https://apps.apple.com/app/skedence-admin" class="button">
           📱 App Store
         </a>
@@ -465,8 +505,10 @@ function generateInvitationHTML(
       </div>
       
       <div class="warning-box">
-        <strong>⚠️ Important Reminder</strong>
-        <p>Make sure to use <strong>${email}</strong> when registering. This is how the app will link your account to ${orgName}.</p>
+        <strong>⚠️ Remember</strong>
+        <p>• First: Create your password on the website (Step 1)<br>
+        • Then: Download the app and sign in (Steps 2-3)<br>
+        • Setup link expires in 7 days</p>
       </div>
       
       <p style="margin-top: 32px; color: #666;">Questions or need help? Reach out to your organization admin or reply to this email.</p>

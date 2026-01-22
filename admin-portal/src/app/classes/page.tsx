@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, T
 import { db } from '@/lib/firebase';
 import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { Location } from '@/types/location';
 
 interface Trainer {
   id: string;
@@ -23,7 +24,7 @@ interface GroupClass {
   trainerId: string;
   startTime: Timestamp;
   endTime: Timestamp;
-  location?: string;
+  locationId?: string;
   maxCapacity: number;
   currentParticipants: number; // Matches iOS GroupClass schema
   isRecurring: boolean;
@@ -33,6 +34,7 @@ interface GroupClass {
 export default function ClassesPage() {
   const { orgId } = useAuth();
   const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [classes, setClasses] = useState<GroupClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -47,7 +49,7 @@ export default function ClassesPage() {
     date: format(new Date(), 'yyyy-MM-dd'),
     startTime: '09:00',
     endTime: '10:00',
-    location: '',
+    locationId: '',
     maxCapacity: 10,
     isRecurring: false,
     recurringPattern: 'weekly',
@@ -73,6 +75,18 @@ export default function ClassesPage() {
           setForm(prev => ({ ...prev, trainerId: trainersData[0].id }));
         }
 
+        const locationsQuery = query(
+          collection(db, 'locations'),
+          where('orgId', '==', orgId!),
+          where('isActive', '==', true)
+        );
+        const locationsSnapshot = await getDocs(locationsQuery);
+        const locationsData = locationsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Location[];
+        setLocations(locationsData);
+
         // Load classes
         const classesQuery = query(
           collection(db, 'classes'),
@@ -95,7 +109,7 @@ export default function ClassesPage() {
   }, [orgId]);
 
   const handleSubmit = async () => {
-    if (!orgId || !form.title || !form.trainerId) {
+    if (!orgId || !form.title || !form.trainerId || !form.locationId) {
       alert('Please fill in all required fields');
       return;
     }
@@ -112,7 +126,7 @@ export default function ClassesPage() {
         trainerId: form.trainerId,
         startTime: Timestamp.fromDate(startDateTime),
         endTime: Timestamp.fromDate(endDateTime),
-        location: form.location || null,
+        locationId: form.locationId,
         maxCapacity: form.maxCapacity,
         currentParticipants: 0,
         isRecurring: form.isRecurring,
@@ -145,7 +159,7 @@ export default function ClassesPage() {
       date: format(cls.startTime.toDate(), 'yyyy-MM-dd'),
       startTime: format(cls.startTime.toDate(), 'HH:mm'),
       endTime: format(cls.endTime.toDate(), 'HH:mm'),
-      location: cls.location || '',
+      locationId: cls.locationId || '',
       maxCapacity: cls.maxCapacity,
       isRecurring: cls.isRecurring,
       recurringPattern: cls.recurringPattern || 'weekly',
@@ -173,7 +187,7 @@ export default function ClassesPage() {
       date: format(new Date(), 'yyyy-MM-dd'),
       startTime: '09:00',
       endTime: '10:00',
-      location: '',
+      locationId: '',
       maxCapacity: 10,
       isRecurring: false,
       recurringPattern: 'weekly',
@@ -185,6 +199,12 @@ export default function ClassesPage() {
   const getTrainerName = (trainerId: string) => {
     const trainer = trainers.find(t => t.id === trainerId);
     return trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown';
+  };
+
+  const getLocationName = (locationId?: string) => {
+    if (!locationId) return 'No location';
+    const location = locations.find(l => l.id === locationId);
+    return location ? location.name : 'Unknown';
   };
 
   return (
@@ -313,15 +333,27 @@ export default function ClassesPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Location
+                        Location *
                       </label>
-                      <input
-                        type="text"
-                        value={form.location}
-                        onChange={(e) => setForm({ ...form, location: e.target.value })}
-                        placeholder="Optional"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
-                      />
+                      {locations.length === 0 ? (
+                        <div className="w-full px-3 py-2 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-800">
+                          No locations found. Please add a location in Settings first.
+                        </div>
+                      ) : (
+                        <select
+                          value={form.locationId}
+                          onChange={(e) => setForm({ ...form, locationId: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          required
+                        >
+                          <option value="">Select a location</option>
+                          {locations.map(location => (
+                            <option key={location.id} value={location.id}>
+                              {location.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -413,10 +445,10 @@ export default function ClassesPage() {
                                   <Clock className="h-4 w-4" />
                                   {format(cls.startTime.toDate(), 'h:mm a')} - {format(cls.endTime.toDate(), 'h:mm a')}
                                 </div>
-                                {cls.location && (
+                                {cls.locationId && (
                                   <div className="flex items-center gap-1 text-sm text-gray-600">
                                     <MapPin className="h-4 w-4" />
-                                    {cls.location}
+                                    {getLocationName(cls.locationId)}
                                   </div>
                                 )}
                                 <div className="flex items-center gap-1 text-sm text-gray-600">

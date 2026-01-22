@@ -56,6 +56,11 @@ trainers/{trainerId}
 ├── orgId: string
 ├── active: boolean
 ├── role: "trainer"
+├── needsPasswordSetup: boolean (true for new invitations)
+├── setupToken: string (UUID for password setup)
+├── setupTokenExpiry: timestamp (7 days from creation)
+├── userId: string (Firebase Auth UID, added after password setup)
+├── passwordSetAt: timestamp (when password was created)
 └── createdAt: timestamp
 
   SUBCOLLECTION: schedules
@@ -276,7 +281,113 @@ const q = query(schedulesRef, where('isBooked', '==', false));
 
 ---
 
-## 💳 Stripe Integration
+## � Trainer Invitation & Password Setup Flow
+
+### Overview
+When an admin adds a new trainer, they receive an invitation email with a deep link to set up their password. This flow ensures trainers can securely create their accounts without the admin having to manually share passwords.
+
+### Step-by-Step Process
+
+1. **Admin Adds Trainer** (SuperAdminViewModel.swift)
+   - Creates `trainers/{trainerId}` document with:
+     - `needsPasswordSetup: true`
+     - `setupToken: UUID()` (unique secure token)
+     - `setupTokenExpiry: Date + 7 days`
+     - Email, name, orgId
+   - Creates `orgMembers/{trainerId}_{orgId}` entry with role
+
+2. **Cloud Function Triggered** (trainerInvitations.ts)
+   - Firestore trigger: `onDocumentCreated("trainers/{trainerId}")`
+   - Checks if `needsPasswordSetup === true`
+   - Fetches organization and owner info
+   - Generates deep link: `skedence://setup-password?token={token}&email={email}&trainerId={id}`
+   - Sends email via Firebase Email Extension with:
+     - Setup link button (prominent green button)
+     - App Store / Play Store download links
+     - Clear instructions
+     - 7-day expiration notice
+
+3. **Trainer Opens Email**
+   - Clicks "Set Up Password" button
+   - Deep link opens SkedenceAdmin app (or prompts to download)
+   - URL scheme: `skedence://` (registered in Info.plist)
+
+4. **App Handles Deep Link** (SkedenceAdminApp.swift)
+   - `onOpenURL` parses query parameters
+   - Extracts token, email, trainerId
+   - Sets `passwordSetupData` state
+   - Navigates to `PasswordSetupView`
+
+5. **Password Setup Screen** (PasswordSetupView.swift)
+   - Shows trainer's email (read-only)
+   - Password and confirm password fields
+   - Real-time password requirements validation:
+     - Minimum 8 characters
+     - Uppercase and lowercase letters
+     - Contains a number
+   - "Create Account" button (disabled until valid)
+
+6. **Password Creation Process**
+   - Validates setup token:
+     - Checks token matches stored value
+     - Verifies not expired (< 7 days old)
+     - Confirms email matches
+   - Creates Firebase Auth account: `Auth.auth().createUser(withEmail:password:)`
+   - Gets Firebase UID from result
+   - Updates trainer document:
+     - `userId: firebaseUid` (links to Firebase Auth)
+     - `needsPasswordSetup: false`
+     - `passwordSetAt: timestamp`
+     - Deletes `setupToken` and `setupTokenExpiry`
+   - Updates orgMembers:
+     - Creates new doc: `{firebaseUid}_{orgId}`
+     - Copies role and membership data
+     - Deletes old doc if different from new one
+   - Success alert shown
+   - Auth listener automatically signs in and navigates to main app
+
+### Security Features
+- **Unique Tokens**: UUID generated per invitation
+- **Time-Limited**: 7-day expiration on setup links
+- **Single Use**: Token deleted after successful setup
+- **Email Verification**: Must match stored email
+- **Strong Passwords**: Enforced requirements
+- **Secure Storage**: Tokens stored in Firestore (server-side)
+
+### Error Handling
+- **Invalid Token**: "Invalid or expired setup link"
+- **Expired Link**: "This setup link has expired. Contact admin."
+- **Email Mismatch**: "Email mismatch. Use correct setup link."
+- **Weak Password**: "Password is too weak."
+- **Email Already Used**: "This email is already in use. Try signing in."
+- **Network Errors**: Displays Firebase error message
+
+### Deep Link Configuration
+- **URL Scheme**: `skedence://`
+- **Host**: `setup-password`
+- **Parameters**: `token`, `email`, `trainerId`
+- **Registered in**: Info.plist `CFBundleURLTypes`
+- **Example**: `skedence://setup-password?token=abc123&email=trainer@example.com&trainerId=xyz789`
+
+### Email Template Features
+- Branded header with gradient
+- Prominent green "Set Up Password" button
+- Step-by-step visual guide
+- App download links (iOS & Android)
+- Warning box with key info
+- Mobile-responsive HTML design
+
+### Testing
+1. Add trainer via SuperAdminView
+2. Check Cloud Functions logs for email sent
+3. Open email on mobile device
+4. Click setup link (should open app)
+5. Set password and verify auto-login
+6. Check Firestore for updated trainer doc
+
+---
+
+## �💳 Stripe Integration
 
 **Environment:** LIVE MODE (Production)  
 **Keys Location:** `SkedenceAdmin/functions/.env`
@@ -381,11 +492,21 @@ const q = query(schedulesRef, where('isBooked', '==', false));
 - iOS Client: `Skedence/firestore.rules`
 - Admin: `SkedenceAdmin/firestore.rules`
 
+**⚠️ IMPORTANT: Both files MUST be identical mirrors of each other!**
+
+These files secure the same Firebase project (polyface-ae6d3) and must always match. When updating security rules:
+1. Make changes to one file
+2. **Immediately copy changes to the other file**
+3. Deploy both: 
+   - `cd Skedence && firebase deploy --only firestore:rules`
+   - `cd SkedenceAdmin && firebase deploy --only firestore:rules`
+
 ### Key Rules
 - Users can only read/write their own data
 - Trainers can read clients in their org
 - Admins have full access to their org
 - Bookings require valid packageId with remaining lessons
+- Password setup: Allows reading trainer docs with `needsPasswordSetup: true` and updating to link Firebase UID
 
 ---
 

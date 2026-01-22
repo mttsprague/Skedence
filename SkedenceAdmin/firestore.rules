@@ -80,8 +80,10 @@ service cloud.firestore {
         || isOrgAdmin(request.resource.data.orgId)
       );
       
-      // Only org owners/admins can update/delete memberships
-      allow update, delete: if false;
+      // Allow deleting old orgMember doc during password setup (when switching from trainerId to Firebase UID)
+      // Only org owners/admins can update
+      allow update: if false;
+      allow delete: if isSignedIn() && membershipId.matches('^[a-zA-Z0-9]+_[a-zA-Z0-9]+$');
     }
 
     // =========================================================================
@@ -260,15 +262,21 @@ service cloud.firestore {
     // =========================================================================
     match /trainers/{trainerId} {
       // Anyone in the same org can get a specific trainer profile
-      allow get: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      // OR allow reading for password setup validation (needs setupToken)
+      allow get: if ('orgId' in resource.data && isMemberOfOrg(resource.data.orgId))
+        || (resource.data.needsPasswordSetup == true && 'setupToken' in resource.data);
       
       // Allow list queries for authenticated users (will be filtered by org)
       allow list: if isSignedIn();
 
       // Trainer can update their own profile, or admins in their org
+      // OR allow password setup: linking Firebase UID to existing trainer doc
       allow update: if isSignedIn() && (
         request.auth.uid == trainerId
         || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
+        || (resource.data.needsPasswordSetup == true 
+            && request.resource.data.userId == request.auth.uid
+            && request.resource.data.needsPasswordSetup == false)
       );
 
       // Users can create their own trainer profile during registration

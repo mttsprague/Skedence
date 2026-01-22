@@ -9,6 +9,7 @@ import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Calendar, Clock, User, MapPin, DollarSign, Plus } from 'lucide-react';
 import { format, addHours } from 'date-fns';
+import { Location } from '@/types/location';
 
 interface Client {
   id: string;

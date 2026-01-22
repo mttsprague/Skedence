@@ -312,7 +312,7 @@ export default function SchedulePage() {
               </Label>
               <Select value={selectedTrainerId} onValueChange={setSelectedTrainerId}>
                 <SelectTrigger id="trainer-select" className="w-full sm:w-[200px] touch-manipulation">
-                  <SelectValue />
+                  <SelectValue placeholder="Select trainer" />
                 </SelectTrigger>
                 <SelectContent>
                   {trainers.map((trainer) => (

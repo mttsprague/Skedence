@@ -62,6 +62,16 @@
 				<string>skedenceadmin</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.skedence.setup</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>skedence</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

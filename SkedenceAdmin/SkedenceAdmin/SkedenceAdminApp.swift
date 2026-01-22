@@ -19,6 +19,7 @@ struct SkedenceAdminApp: App {
     @StateObject private var subscriptionStatus = SubscriptionStatusService.shared
     @StateObject private var onboardingCoordinator = OnboardingCoordinator()
     @State private var stripeConnectCompleted = false
+    @State private var passwordSetupData: (token: String, email: String, trainerId: String)?
 
     init() {
         configureFirebaseIfAvailable()
@@ -40,8 +41,21 @@ struct SkedenceAdminApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
+                // Show password setup if coming from invitation link
+                if let setupData = passwordSetupData {
+                    PasswordSetupView(
+                        setupToken: setupData.token,
+                        email: setupData.email,
+                        trainerId: setupData.trainerId
+                    )
+                    .environmentObject(auth)
+                    .onDisappear {
+                        // Clear setup data after view dismisses
+                        passwordSetupData = nil
+                    }
+                }
                 // Show onboarding if not authenticated OR if authenticated but onboarding not complete
-                if !auth.isAuthenticated {
+                else if !auth.isAuthenticated {
                     OnboardingLandingView()
                         .environmentObject(auth)
                         .environmentObject(onboardingCoordinator)
@@ -78,6 +92,30 @@ struct SkedenceAdminApp: App {
     }
     
     private func handleDeepLink(_ url: URL) {
+        print("📱 Deep link received: \(url)")
+        
+        // Handle password setup invitation (skedence://setup-password?token=xxx&email=xxx&trainerId=xxx)
+        if url.scheme == "skedence" && url.host == "setup-password" {
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let queryItems = components.queryItems else {
+                print("❌ Invalid setup-password deep link")
+                return
+            }
+            
+            let token = queryItems.first(where: { $0.name == "token" })?.value
+            let email = queryItems.first(where: { $0.name == "email" })?.value
+            let trainerId = queryItems.first(where: { $0.name == "trainerId" })?.value
+            
+            guard let token = token, let email = email, let trainerId = trainerId else {
+                print("❌ Missing parameters in setup-password deep link")
+                return
+            }
+            
+            print("✅ Password setup link parsed - email: \(email), trainerId: \(trainerId)")
+            passwordSetupData = (token: token, email: email, trainerId: trainerId)
+            return
+        }
+        
         // Handle Stripe Connect completion
         if url.scheme == "skedenceadmin" && url.host == "stripe-connect" {
             if url.pathComponents.contains("complete") {

@@ -472,6 +472,10 @@ class AddTrainerViewModel: ObservableObject {
             // Use trainerId as the userId for orgMembers (trainers don't need separate user docs)
             let userId = trainerId
             
+            // Generate secure setup token (valid for 7 days)
+            let setupToken = UUID().uuidString
+            let setupTokenExpiry = Date().addingTimeInterval(7 * 24 * 60 * 60) // 7 days
+            
             // Create trainer document (already have trainerRef from above)
             let trainerData: [String: Any] = [
                 "firstName": firstName,
@@ -480,6 +484,8 @@ class AddTrainerViewModel: ObservableObject {
                 "orgId": orgId,
                 "emailAddress": email,
                 "needsPasswordSetup": true,
+                "setupToken": setupToken,
+                "setupTokenExpiry": Timestamp(date: setupTokenExpiry),
                 "active": true,
                 "createdAt": Timestamp()
             ]
