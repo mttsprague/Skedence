@@ -264,29 +264,17 @@ export default function SetupPasswordContent() {
             {/* Download Buttons */}
             <div className="space-y-3">
               <h3 className="font-semibold text-gray-900 text-center">Download the App</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex justify-center">
                 <a
                   href="https://apps.apple.com/app/skedence-admin"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-3 px-6 py-4 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                  className="flex items-center justify-center gap-3 px-8 py-4 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   <Download className="w-5 h-5" />
                   <div className="text-left">
                     <div className="text-xs">Download on the</div>
                     <div className="text-lg font-semibold">App Store</div>
-                  </div>
-                </a>
-                <a
-                  href="https://play.google.com/store/apps/details?id=com.skedence.admin"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-3 px-6 py-4 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-                >
-                  <Smartphone className="w-5 h-5" />
-                  <div className="text-left">
-                    <div className="text-xs">Get it on</div>
-                    <div className="text-lg font-semibold">Google Play</div>
                   </div>
                 </a>
               </div>

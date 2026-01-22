@@ -74,7 +74,7 @@ export const sendTrainerInvitation = onDocumentCreated(
       }
 
       // Generate web link for password setup (using admin portal website)
-      const setupLink = `https://polyface-ae6d3.web.app/setup-password?token=${setupToken}&email=${encodeURIComponent(emailAddress)}&trainerId=${trainerId}`;
+      const setupLink = `https://polyface-ae6d3.web.app/admin-portal/setup-password?token=${setupToken}&email=${encodeURIComponent(emailAddress)}&trainerId=${trainerId}`;
       console.log(`Generated setup link: ${setupLink}`);
 
       // Fetch owner information
