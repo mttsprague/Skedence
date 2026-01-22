@@ -73,8 +73,8 @@ export const sendTrainerInvitation = onDocumentCreated(
         return;
       }
 
-      // Generate web link for password setup (using admin portal website)
-      const setupLink = `https://skedence.com/admin-portal/setup-password?token=${setupToken}&email=${encodeURIComponent(emailAddress)}&trainerId=${trainerId}`;
+      // Generate web link for password setup (standalone page, not part of marketing or admin portal)
+      const setupLink = `https://skedence.com/setup-password.html?token=${setupToken}&email=${encodeURIComponent(emailAddress)}&trainerId=${trainerId}`;
       console.log(`Generated setup link: ${setupLink}`);
 
       // Fetch owner information
