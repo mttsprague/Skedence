@@ -8,7 +8,11 @@
     ],
     "rewrites": [
       {
-        "source": "!{/admin-portal,/admin-portal/**}",
+        "source": "/admin-portal/**",
+        "destination": "/admin-portal/index.html"
+      },
+      {
+        "source": "/**",
         "destination": "/index.html"
       }
     ]
