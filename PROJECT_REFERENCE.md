@@ -1,7 +1,133 @@
 # Skedence Project Reference Guide
 **Last Updated:** January 22, 2026  
 **Firebase Project:** polyface-ae6d3  
+**Production Domain:** https://skedence.com  
 **Status:** Production (Live with Stripe payments)
+
+---
+
+## 🌐 Website Architecture
+
+### Domain & Hosting Structure
+
+**IMPORTANT:** All public URLs must use **skedence.com** domain. Never reference polyface-ae6d3.web.app in user-facing links.
+
+#### Live Sites
+- **Marketing Site:** https://skedence.com
+  - Location: `/web/index.html`
+  - Static HTML with Tailwind CSS
+  - Header contains "Admin Portal" link → `/admin-portal/`
+
+- **Admin Portal:** https://skedence.com/admin-portal/
+  - Location: `/admin-portal/` (Next.js 16.1.4)
+  - Built files deployed to: `/web/admin-portal/`
+  - Owner login and management dashboard
+  - Accessible from marketing site header link
+
+- **Password Setup:** https://skedence.com/admin-portal/setup-password
+  - Location: `/admin-portal/src/app/setup-password/`
+  - Used by trainer invitation emails
+  - Email auto-fill, dual password validation, iOS app download
+
+#### Firebase Hosting Configuration
+**File:** `/web/firebase.json`
+
+```json
+{
+  "hosting": {
+    "public": ".",
+    "rewrites": [
+      {
+        "source": "/admin-portal/**",
+        "destination": "/admin-portal/index.html"
+      },
+      {
+        "source": "/**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
+```
+
+**How it works:**
+1. `/admin-portal/**` routes to admin portal Next.js app
+2. All other routes (`/**`) serve marketing site
+
+#### Deployment Process
+
+**Deploy Everything:**
+```bash
+./deploy-website.sh
+```
+
+**What it does:**
+1. Builds admin portal: `cd admin-portal && npm run build`
+2. Copies build to web: `cp -r admin-portal/out web/admin-portal`
+3. Deploys to Firebase: `cd web && firebase deploy --only hosting`
+
+**Manual Steps:**
+```bash
+# Build admin portal only
+cd admin-portal && npm run build
+
+# Deploy hosting only
+cd web && firebase deploy --only hosting
+
+# Deploy Cloud Functions
+cd SkedenceAdmin/functions && firebase deploy --only functions
+```
+
+### File Locations Reference
+
+#### Marketing Website
+- **HTML:** `/web/index.html`
+- **CSS:** `/web/styles.css`
+- **Images:** `/web/images/`
+- **Firebase Config:** `/web/firebase.json`
+
+#### Admin Portal (Next.js)
+- **Source Code:** `/admin-portal/src/`
+- **Pages:** `/admin-portal/src/app/`
+- **Components:** `/admin-portal/src/components/`
+- **Configuration:** `/admin-portal/next.config.ts`
+- **Build Output:** `/admin-portal/out/` (generated, not committed)
+- **Deployed Location:** `/web/admin-portal/` (copied from build)
+
+#### Cloud Functions
+- **Source:** `/SkedenceAdmin/functions/src/`
+- **Trainer Invitations:** `/SkedenceAdmin/functions/src/trainerInvitations.ts`
+- **Email Templates:** Uses skedence.com domain in all links
+- **Configuration:** `/SkedenceAdmin/functions/tsconfig.json`
+- **Environment:** `/SkedenceAdmin/functions/.env` (Stripe keys, NOT committed)
+
+#### iOS Apps
+- **Admin App:** `/SkedenceAdmin/SkedenceAdmin/`
+- **Client App:** `/Skedence/Skedence/`
+
+### Critical Rules
+
+1. **Always use skedence.com domain** in:
+   - Email templates
+   - Hardcoded links
+   - OAuth redirects
+   - Share links
+   
+2. **Never use polyface-ae6d3.web.app** in:
+   - User-facing emails
+   - Public documentation
+   - Social media links
+   - App configurations
+
+3. **Admin Portal basePath:**
+   - Must be set to `'/admin-portal'` in `/admin-portal/next.config.ts`
+   - Matches Firebase hosting subdirectory structure
+   - DO NOT remove or change without updating firebase.json
+
+4. **Deployment Order:**
+   - Always build admin portal before deploying hosting
+   - Deploy functions separately if only email templates changed
+   - Test on skedence.com (not polyface domain) after deployment
 
 ---
 
