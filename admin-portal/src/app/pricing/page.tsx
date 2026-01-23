@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Plus, Trash2, Info } from 'lucide-react';
 
 interface PackageOption {
@@ -97,10 +98,52 @@ export default function PricingPage() {
     setTiers(newTiers);
   };
 
-  const deletePackage = (tierIndex: number, packageIndex: number) => {
-    const newTiers = [...tiers];
-    newTiers[tierIndex].packages = newTiers[tierIndex].packages.filter((_, i) => i !== packageIndex);
-    setTiers(newTiers);
+  const deletePackage = async (tierIndex: number, packageIndex: number) => {
+    const packageToDelete = tiers[tierIndex].packages[packageIndex];
+    
+    if (!orgId || !packageToDelete.id) {
+      setMessage({ type: 'error', text: 'Cannot delete package: missing organization or package ID' });
+      return;
+    }
+
+    // Confirm deletion
+    if (!confirm(`Delete "${packageToDelete.title}"? This will also remove all purchased passes of this type from client accounts.`)) {
+      return;
+    }
+
+    setSaving(true);
+    setMessage({ type: 'info', text: 'Deleting package and associated passes...' });
+
+    try {
+      // Call Cloud Function to delete all lesson packages purchased from this pricing package
+      const functions = getFunctions();
+      const deletePricingPackageLessons = httpsCallable(functions, 'deletePricingPackageLessons');
+      
+      const result = await deletePricingPackageLessons({
+        orgId: orgId,
+        packageId: packageToDelete.id
+      });
+
+      const data = result.data as { success: boolean; deletedCount: number; message: string };
+      
+      // Remove from local state
+      const newTiers = [...tiers];
+      newTiers[tierIndex].packages = newTiers[tierIndex].packages.filter((_, i) => i !== packageIndex);
+      setTiers(newTiers);
+
+      setMessage({ 
+        type: 'success', 
+        text: `Package deleted. ${data.message}` 
+      });
+    } catch (error) {
+      console.error('Error deleting package:', error);
+      setMessage({ 
+        type: 'error', 
+        text: `Failed to delete package: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updatePackage = (tierIndex: number, packageIndex: number, field: string, value: any) => {
@@ -253,6 +296,7 @@ export default function PricingPage() {
                         variant="ghost"
                         size="sm"
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        disabled={saving}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

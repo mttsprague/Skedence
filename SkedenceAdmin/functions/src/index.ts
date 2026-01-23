@@ -44,6 +44,9 @@ export * from "./deleteTrainer";
 // Export user account deletion functions
 export * from "./deleteUserAccount";
 
+// Export pricing package deletion functions
+export * from "./deletePricingPackages";
+
 // Export confirmation email functions
 export * from "./confirmationEmails";
 
