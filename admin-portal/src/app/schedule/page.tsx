@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { WeekScheduleGrid } from '@/components/schedule/WeekScheduleGrid';
-import { collection, query, where, getDocs, doc, getDoc, Timestamp, addDoc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp, addDoc, updateDoc, deleteDoc, orderBy, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -104,30 +104,28 @@ export default function SchedulePage() {
     }
   }, [orgId, userData]);
 
-  // Load schedule data
+  // Load schedule data with real-time listeners
   useEffect(() => {
     if (!orgId || !selectedTrainerId) return;
-    loadScheduleData();
-  }, [orgId, selectedTrainerId]);
+    
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 0 });
+    const weekEnd = addDays(weekStart, 7);
+    
+    setLoading(true);
 
-  async function loadScheduleData() {
-    try {
-      setLoading(true);
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 0 });
-      const weekEnd = addDays(weekStart, 7);
-
-      // Load bookings
-      const bookingsQuery = query(
-        collection(db, 'bookings'),
-        where('trainerId', '==', selectedTrainerId),
-        where('startTime', '>=', Timestamp.fromDate(weekStart)),
-        where('startTime', '<', Timestamp.fromDate(weekEnd))
-      );
-      const bookingsSnap = await getDocs(bookingsQuery);
+    // Real-time listener for bookings
+    const bookingsQuery = query(
+      collection(db, 'bookings'),
+      where('trainerId', '==', selectedTrainerId),
+      where('startTime', '>=', Timestamp.fromDate(weekStart)),
+      where('startTime', '<', Timestamp.fromDate(weekEnd))
+    );
+    
+    const unsubBookings = onSnapshot(bookingsQuery, async (snapshot) => {
       const bookingsData: Booking[] = [];
-
-      for (const bookingDoc of bookingsSnap.docs) {
+      
+      for (const bookingDoc of snapshot.docs) {
         const data = bookingDoc.data() as any;
         const actualClientId = data.clientUID || data.clientId;
         
@@ -156,45 +154,54 @@ export default function SchedulePage() {
         });
       }
       setBookings(bookingsData);
+      setLoading(false);
+    });
 
-      // Load classes
-      const classesQuery = query(
-        collection(db, 'classes'),
-        where('orgId', '==', orgId),
-        where('startTime', '>=', Timestamp.fromDate(weekStart)),
-        where('startTime', '<', Timestamp.fromDate(weekEnd))
-      );
-      const classesSnap = await getDocs(classesQuery);
-      const classesData = classesSnap.docs.map(doc => ({
+    // Real-time listener for classes (only for this trainer)
+    const classesQuery = query(
+      collection(db, 'classes'),
+      where('trainerId', '==', selectedTrainerId),
+      where('startTime', '>=', Timestamp.fromDate(weekStart)),
+      where('startTime', '<', Timestamp.fromDate(weekEnd))
+    );
+    
+    const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+      const classesData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         startTime: doc.data().startTime.toDate(),
         endTime: doc.data().endTime.toDate(),
       })) as GroupClass[];
+      console.log(`Classes loaded for trainer ${selectedTrainerId}:`, classesData.length, 'classes');
+      classesData.forEach(c => console.log(`  - ${c.title} (trainerId: ${(c as any).trainerId})`));
       setClasses(classesData);
+    });
 
-      // Load availability slots from trainer subcollection
-      const availabilityQuery = query(
-        collection(db, 'trainers', selectedTrainerId, 'schedules'),
-        where('startTime', '>=', Timestamp.fromDate(weekStart)),
-        where('startTime', '<', Timestamp.fromDate(weekEnd)),
-        orderBy('startTime', 'asc')
-      );
-      const availabilitySnap = await getDocs(availabilityQuery);
-      const availabilityData = availabilitySnap.docs.map(doc => ({
+    // Real-time listener for availability slots
+    const availabilityQuery = query(
+      collection(db, 'trainers', selectedTrainerId, 'schedules'),
+      where('startTime', '>=', Timestamp.fromDate(weekStart)),
+      where('startTime', '<', Timestamp.fromDate(weekEnd)),
+      orderBy('startTime', 'asc')
+    );
+    
+    const unsubAvailability = onSnapshot(availabilityQuery, (snapshot) => {
+      const availabilityData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         startTime: doc.data().startTime.toDate(),
         endTime: doc.data().endTime.toDate(),
       })) as AvailabilitySlot[];
       setAvailabilitySlots(availabilityData);
+    });
 
-    } catch (error) {
-      console.error('Error loading schedule data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+    // Cleanup listeners on unmount or when dependencies change
+    return () => {
+      unsubBookings();
+      unsubClasses();
+      unsubAvailability();
+    };
+  }, [orgId, selectedTrainerId]);
 
   const handleAddAvailability = (day: Date, hour: number) => {
     setEditingSlot({ day, hour });
@@ -222,50 +229,92 @@ export default function SchedulePage() {
       const startTime = setMinutes(setHours(editingSlot.day, editingSlot.hour), 0);
       const endTime = new Date(startTime.getTime() + slotDuration * 60 * 60 * 1000);
 
+      console.log('Schedule: Creating slot for trainer:', selectedTrainerId);
+      console.log('Schedule: Start time:', startTime);
+      console.log('Schedule: End time:', endTime);
+      console.log('Schedule: Status:', slotStatus);
+
+      // Helper function to generate deterministic slot ID (matches iOS/Cloud Functions)
+      const generateScheduleDocId = (date: Date): string => {
+        const utcDate = new Date(date);
+        utcDate.setUTCMinutes(0, 0, 0); // normalize to top of the hour
+        const year = utcDate.getUTCFullYear();
+        const month = (utcDate.getUTCMonth() + 1).toString().padStart(2, '0');
+        const day = utcDate.getUTCDate().toString().padStart(2, '0');
+        const hour = utcDate.getUTCHours().toString().padStart(2, '0');
+        return `${year}-${month}-${day}T${hour}`;
+      };
+
+      // Get trainer name
+      const trainerDoc = await getDoc(doc(db, 'trainers', selectedTrainerId));
+      const trainerData = trainerDoc.data();
+      const trainerFirstName = trainerData?.firstName || '';
+      const trainerLastName = trainerData?.lastName || '';
+      const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || 'Unknown Trainer';
+
       if (editingSlot.existingSlot) {
         // Update existing slot
+        console.log('Schedule: Updating existing slot:', editingSlot.existingSlot.id);
         await updateDoc(doc(db, 'trainers', selectedTrainerId, 'schedules', editingSlot.existingSlot.id), {
           startTime: Timestamp.fromDate(startTime),
           endTime: Timestamp.fromDate(endTime),
           status: slotStatus,
+          trainerName: trainerFullName,
+          updatedAt: Timestamp.now(),
         });
       } else if (isRecurring) {
         // Create recurring slots
+        console.log('Schedule: Creating recurring slots for', recurringWeeks, 'weeks');
         const batch = [];
         for (let week = 0; week < recurringWeeks; week++) {
           const weekOffset = week * 7 * 24 * 60 * 60 * 1000;
           const slotStart = new Date(startTime.getTime() + weekOffset);
           const slotEnd = new Date(endTime.getTime() + weekOffset);
+          const slotId = generateScheduleDocId(slotStart);
           
+          console.log('Schedule: Creating slot with ID:', slotId);
           batch.push(
-            addDoc(collection(db, 'trainers', selectedTrainerId, 'schedules'), {
+            setDoc(doc(db, 'trainers', selectedTrainerId, 'schedules', slotId), {
               trainerId: selectedTrainerId,
               orgId: orgId,
               startTime: Timestamp.fromDate(slotStart),
               endTime: Timestamp.fromDate(slotEnd),
               status: slotStatus,
+              clientId: null,
+              clientName: null,
+              trainerName: trainerFullName,
               createdAt: Timestamp.now(),
-            })
+            }, { merge: true })
           );
         }
         await Promise.all(batch);
+        console.log('Schedule: Recurring slots created successfully');
       } else {
-        // Create single slot
-        await addDoc(collection(db, 'trainers', selectedTrainerId, 'schedules'), {
+        // Create single slot with deterministic ID
+        const slotId = generateScheduleDocId(startTime);
+        console.log('Schedule: Creating single slot with ID:', slotId);
+        console.log('Schedule: Full path: trainers/' + selectedTrainerId + '/schedules/' + slotId);
+        
+        await setDoc(doc(db, 'trainers', selectedTrainerId, 'schedules', slotId), {
           trainerId: selectedTrainerId,
           orgId: orgId,
           startTime: Timestamp.fromDate(startTime),
           endTime: Timestamp.fromDate(endTime),
           status: slotStatus,
+          clientId: null,
+          clientName: null,
+          trainerName: trainerFullName,
           createdAt: Timestamp.now(),
-        });
+        }, { merge: true });
+        
+        console.log('Schedule: Single slot created successfully');
       }
 
       setShowAvailabilityDialog(false);
       setEditingSlot(null);
       setIsRecurring(false);
       setRecurringWeeks(4);
-      loadScheduleData();
+      // Real-time listener will update automatically
     } catch (error) {
       console.error('Error saving availability:', error);
     }
@@ -278,7 +327,7 @@ export default function SchedulePage() {
       await deleteDoc(doc(db, 'trainers', selectedTrainerId, 'schedules', editingSlot.existingSlot.id));
       setShowAvailabilityDialog(false);
       setEditingSlot(null);
-      loadScheduleData();
+      // Real-time listener will update automatically
     } catch (error) {
       console.error('Error deleting availability:', error);
     }
@@ -335,7 +384,6 @@ export default function SchedulePage() {
           onBookingClick={(booking) => setSelectedBooking(booking)}
           onClassClick={(classItem) => setSelectedClass(classItem)}
           onAvailabilityClick={handleAvailabilityClick}
-          onRefresh={loadScheduleData}
         />
       </div>
 

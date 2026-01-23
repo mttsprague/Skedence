@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, isSameDay, isToday, setHours, setMinutes, getHours, getMinutes, isBefore, isAfter } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, RefreshCw, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Booking {
@@ -43,7 +43,6 @@ interface WeekScheduleGridProps {
   onBookingClick: (booking: Booking) => void;
   onClassClick: (classItem: GroupClass) => void;
   onAvailabilityClick: (slot: AvailabilitySlot) => void;
-  onRefresh: () => void;
 }
 
 export function WeekScheduleGrid({
@@ -55,7 +54,6 @@ export function WeekScheduleGrid({
   onBookingClick,
   onClassClick,
   onAvailabilityClick,
-  onRefresh,
 }: WeekScheduleGridProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [hasScrolledToCurrentTime, setHasScrolledToCurrentTime] = useState(false);
@@ -169,13 +167,6 @@ export function WeekScheduleGrid({
           >
             <Calendar className="h-4 w-4 mr-2" />
             Today
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRefresh}
-          >
-            <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </div>

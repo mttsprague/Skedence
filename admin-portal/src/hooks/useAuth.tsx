@@ -73,11 +73,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (trainerDoc.exists()) {
           const trainerData = trainerDoc.data();
           
+          // Get role from orgMembers collection
+          let role: 'owner' | 'admin' | 'trainer' = 'trainer';
+          try {
+            const orgMembersQuery = query(
+              collection(db, 'orgMembers'),
+              where('userId', '==', firebaseUser.uid),
+              where('orgId', '==', trainerData.orgId)
+            );
+            const orgMembersSnap = await getDocs(orgMembersQuery);
+            if (!orgMembersSnap.empty) {
+              const memberData = orgMembersSnap.docs[0].data();
+              role = memberData.role as 'owner' | 'admin' | 'trainer';
+              console.log('Auth: User role from orgMembers:', role);
+            }
+          } catch (err) {
+            console.warn('Auth: Could not fetch orgMembers role, defaulting to trainer:', err);
+          }
+          
           setUserData({ 
             id: firebaseUser.uid,
             email: firebaseUser.email || '',
-            name: trainerData.name || '',
-            role: 'trainer',
+            name: trainerData.name || `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim() || '',
+            role: role,
             orgId: trainerData.orgId,
           } as User);
           

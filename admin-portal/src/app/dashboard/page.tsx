@@ -34,7 +34,7 @@ export default function DashboardPage() {
         console.log('Dashboard: Loading stats for orgId:', orgId);
         const now = new Date();
 
-        // Get org members (clients and trainers)
+        // Get org members (clients only)
         console.log('Dashboard: Querying orgMembers...');
         const orgMembersQuery = query(
           collection(db, 'orgMembers'),
@@ -44,17 +44,25 @@ export default function DashboardPage() {
         console.log('Dashboard: Found', orgMembersSnap.size, 'org members');
         
         let clientCount = 0;
-        let trainerCount = 0;
         
         for (const memberDoc of orgMembersSnap.docs) {
           const memberData = memberDoc.data();
           console.log('Dashboard: Member data:', memberDoc.id, 'role:', memberData.role, 'all fields:', Object.keys(memberData));
           // Get role from orgMembers collection, not users collection (matches old admin schema)
           if (memberData.role === 'client') clientCount++;
-          if (memberData.role === 'trainer' || memberData.role === 'admin' || memberData.role === 'owner') trainerCount++;
         }
         
-        console.log('Dashboard: Clients:', clientCount, 'Trainers:', trainerCount);
+        // Get active trainers from trainers collection
+        console.log('Dashboard: Querying trainers...');
+        const trainersQuery = query(
+          collection(db, 'trainers'),
+          where('orgId', '==', orgId),
+          where('active', '==', true)
+        );
+        const trainersSnap = await getDocs(trainersQuery);
+        const trainerCount = trainersSnap.size;
+        
+        console.log('Dashboard: Clients:', clientCount, 'Active Trainers:', trainerCount);
         
         // Get upcoming bookings
         console.log('Dashboard: Querying bookings...');
@@ -66,24 +74,43 @@ export default function DashboardPage() {
         const bookingsSnap = await getDocs(bookingsQuery);
         console.log('Dashboard: Found', bookingsSnap.size, 'upcoming bookings');
 
-        // Count active packages
+        // Count active packages and calculate revenue
         let packageCount = 0;
+        let monthRevenue = 0;
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        
         for (const memberDoc of orgMembersSnap.docs) {
           const memberData = memberDoc.data();
           if (memberData.role !== 'client') continue;
           
           try {
             const packagesQuery = query(
-              collection(db, 'users', memberData.userId, 'lessonPackages'),
-              where('remainingLessons', '>', 0)
+              collection(db, 'users', memberData.userId, 'lessonPackages')
             );
             const packagesSnap = await getDocs(packagesQuery);
-            packageCount += packagesSnap.size;
+            
+            for (const pkgDoc of packagesSnap.docs) {
+              const pkgData = pkgDoc.data();
+              
+              // Count active packages
+              if ((pkgData.remainingLessons || 0) > 0) {
+                packageCount++;
+              }
+              
+              // Calculate this month's revenue
+              if (pkgData.amountPaid && pkgData.purchasedAt) {
+                const purchasedDate = pkgData.purchasedAt?.toDate?.() || new Date(pkgData.purchasedAt);
+                if (purchasedDate >= monthStart) {
+                  monthRevenue += pkgData.amountPaid;
+                }
+              }
+            }
           } catch (err) {
             console.warn('Dashboard: Could not load packages for user', memberData.userId, err);
           }
         }
         console.log('Dashboard: Found', packageCount, 'active packages');
+        console.log('Dashboard: This month revenue:', monthRevenue, 'cents');
 
         // Count open classes (classes with available spots)
         let openClassCount = 0;
@@ -115,7 +142,7 @@ export default function DashboardPage() {
           totalClients: clientCount,
           totalTrainers: trainerCount,
           upcomingBookings: bookingsSnap.size,
-          thisMonthRevenue: 0, // TODO: Calculate from payments
+          thisMonthRevenue: monthRevenue / 100, // Convert cents to dollars
           activePackages: packageCount,
           openClasses: openClassCount,
         });

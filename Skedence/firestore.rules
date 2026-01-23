@@ -261,9 +261,11 @@ service cloud.firestore {
     // TRAINERS COLLECTION
     // =========================================================================
     match /trainers/{trainerId} {
-      // Anyone in the same org can get a specific trainer profile
+      // Trainers can read their own profile (trainerId == Firebase UID)
+      // OR anyone in the same org can get a specific trainer profile
       // OR allow reading for password setup validation (no auth required if setupToken exists)
-      allow get: if ('orgId' in resource.data && isMemberOfOrg(resource.data.orgId))
+      allow get: if isSignedIn() && request.auth.uid == trainerId
+        || ('orgId' in resource.data && isMemberOfOrg(resource.data.orgId))
         || ('setupToken' in resource.data && resource.data.setupToken != null);
       
       // Allow list queries for authenticated users (will be filtered by org)
@@ -292,12 +294,14 @@ service cloud.firestore {
 
       // Schedules subcollection
       match /schedules/{slotId} {
-        // Allow anyone to read schedules if the parent trainer is in their org
-        // OR trainer reading their own schedule
+        // Trainers can read schedules under their own trainer document (trainerId == Firebase UID)
+        // OR anyone in the same org can read (if orgId is in schedule or parent trainer doc)
         allow read: if isSignedIn() && (
-          // Trainer reading their own schedule
+          // Trainer reading their own schedules
           request.auth.uid == trainerId
-          // OR member reading schedules of trainer in their org
+          // OR member of same org (check orgId in schedule if available)
+          || ('orgId' in resource.data && isMemberOfOrg(resource.data.orgId))
+          // OR check parent trainer's orgId
           || (exists(/databases/$(database)/documents/trainers/$(trainerId))
             && 'orgId' in get(/databases/$(database)/documents/trainers/$(trainerId)).data
             && isMemberOfOrg(get(/databases/$(database)/documents/trainers/$(trainerId)).data.orgId))
@@ -328,7 +332,8 @@ service cloud.firestore {
         || isOrgTrainer(resource.data.orgId)
       );
       
-      // Allow trainers/admins to list/query bookings for their org
+      // Allow members to list/query bookings (will be filtered by orgId or trainerId where clause)
+      // NOTE: Queries MUST include orgId or trainerId where clause
       allow list: if isSignedIn();
 
       // Trainers/admins can create bookings
@@ -411,8 +416,12 @@ service cloud.firestore {
     // CLASSES COLLECTION (Legacy - keeping for backwards compatibility)
     // =========================================================================
     match /classes/{classId} {
-      // Anyone in the same org can read classes
-      allow read: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      // Anyone in the same org can read specific class documents
+      allow get: if 'orgId' in resource.data && isMemberOfOrg(resource.data.orgId);
+      
+      // Allow list queries for authenticated users
+      // NOTE: Queries should include trainerId or orgId where clause for proper filtering
+      allow list: if isSignedIn();
       
       // Trainers, admins, and owners can create, update, or delete classes
       allow create: if newDocBelongsToUserOrg() 

@@ -15,7 +15,9 @@ import {
   Plus,
   GraduationCap,
   Menu,
-  X
+  X,
+  Package,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -27,6 +29,8 @@ const navigation = [
   { name: 'Schedule', href: '/schedule', icon: Calendar },
   { name: 'Book Session', href: '/bookings', icon: Plus },
   { name: 'Classes', href: '/classes', icon: GraduationCap },
+  { name: 'Passes', href: '/passes', icon: Package },
+  { name: 'Pricing', href: '/pricing', icon: DollarSign },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

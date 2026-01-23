@@ -45,13 +45,27 @@ final class FirestoreService {
             return []
         }
         
+        print("🔍 fetchTrainerSchedule: trainerId=\(trainerId), orgId=\(orgId)")
+        
         let db = Firestore.firestore()
         let startTs = Timestamp(date: from)
         let endTs = Timestamp(date: to)
 
+        // DEBUG: Check if there are ANY schedules for this trainer
+        let anySchedulesSnapshot = try? await db.collection("trainers")
+            .document(trainerId)
+            .collection("schedules")
+            .limit(to: 5)
+            .getDocuments()
+        print("🔍 DEBUG: Found \(anySchedulesSnapshot?.documents.count ?? 0) total schedules for this trainer (first 5)")
+        if let firstDoc = anySchedulesSnapshot?.documents.first {
+            print("🔍 DEBUG: First schedule doc: \(firstDoc.documentID), data: \(firstDoc.data())")
+        }
+
         var mergedById: [String: TrainerScheduleSlot] = [:]
 
         // --- 1) Fetch open/unavailable slots from trainer subcollection
+        print("🔍 Querying trainers/\(trainerId)/schedules...")
         let trainerScheduleSnapshot = try await db.collection("trainers")
             .document(trainerId)
             .collection("schedules")
@@ -60,6 +74,8 @@ final class FirestoreService {
             .order(by: "startTime")
             .getDocuments()
 
+        print("🔍 Found \(trainerScheduleSnapshot.documents.count) docs in trainers/\(trainerId)/schedules")
+        
         let subcollectionSlots: [TrainerScheduleSlot] = trainerScheduleSnapshot.documents.compactMap { doc in
             let data = doc.data()
 
@@ -68,6 +84,7 @@ final class FirestoreService {
                 let startTs = data["startTime"] as? Timestamp,
                 let endTs = data["endTime"] as? Timestamp
             else {
+                print("⚠️ Schedule doc \(doc.documentID) missing startTime or endTime")
                 return nil
             }
 
@@ -102,8 +119,11 @@ final class FirestoreService {
             mergedById[slot.id] = slot
         }
 
+        print("🔍 Processed \(subcollectionSlots.count) slots from subcollection")
+        
         // --- 2) Fetch booked slots from top-level bookings collection
         // Accept both "confirmed" and "booked" as booked states (new data uses "confirmed").
+        print("🔍 Querying bookings collection...")
         let bookingsSnapshot = try await db.collection("bookings")
             .whereField("orgId", isEqualTo: orgId)
             .whereField("trainerId", isEqualTo: trainerId)

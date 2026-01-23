@@ -720,6 +720,71 @@ struct ScheduleView: View {
     }
 }
 
+// MARK: - Shared helper (file scope)
+
+private func findTrainerDocument(forUserId userId: String, orgId: String) async throws -> Trainer? {
+#if canImport(FirebaseFirestore)
+    let db = Firestore.firestore()
+    
+    print("🔍 findTrainerDocument: looking for trainer with userId=\(userId), orgId=\(orgId)")
+    
+    // First try: check if trainer document ID equals the userId
+    let directDoc = try? await db.collection("trainers").document(userId).getDocument()
+    print("🔍 Direct lookup trainers/\(userId): exists=\(directDoc?.exists ?? false)")
+    if let directDoc = directDoc, directDoc.exists {
+        print("🔍 Direct doc data: \(directDoc.data() ?? [:])")
+    }
+    
+    if let directDoc = directDoc, directDoc.exists,
+       let data = directDoc.data(),
+       let trainerOrgId = data["orgId"] as? String,
+       trainerOrgId == orgId {
+        print("🔍 Found trainer via direct lookup!")
+        return Trainer(
+            id: directDoc.documentID,
+            firstName: data["firstName"] as? String,
+            lastName: data["lastName"] as? String,
+            email: data["email"] as? String,
+            orgId: trainerOrgId
+        )
+    }
+    
+    // Second try: query trainers where email matches the user's email or another UID field
+    // This handles cases where trainer doc ID doesn't match auth UID
+    let userDoc = try? await db.collection("users").document(userId).getDocument()
+    print("🔍 User doc exists: \(userDoc?.exists ?? false)")
+    if let userData = userDoc?.data() {
+        print("🔍 User data: email=\(userData["email"] as? String ?? "nil"), emailAddress=\(userData["emailAddress"] as? String ?? "nil")")
+    }
+    
+    if let userEmail = userDoc?.data()?["email"] as? String ?? userDoc?.data()?["emailAddress"] as? String {
+        print("🔍 Querying trainers by email: \(userEmail)")
+        let querySnapshot = try? await db.collection("trainers")
+            .whereField("orgId", isEqualTo: orgId)
+            .whereField("email", isEqualTo: userEmail)
+            .limit(to: 1)
+            .getDocuments()
+        
+        print("🔍 Query found \(querySnapshot?.documents.count ?? 0) trainers")
+        
+        if let doc = querySnapshot?.documents.first {
+            let data = doc.data()
+            print("🔍 Found trainer via email query: \(doc.documentID)")
+            return Trainer(
+                id: doc.documentID,
+                firstName: data["firstName"] as? String,
+                lastName: data["lastName"] as? String,
+                email: data["email"] as? String,
+                orgId: data["orgId"] as? String
+            )
+        }
+    }
+    
+    print("🔍 No trainer found for userId=\(userId)")
+#endif
+    return nil
+}
+
 // MARK: - View Modifiers to reduce body complexity
 
 private struct ViewLifecycleModifiers: ViewModifier {
@@ -729,9 +794,11 @@ private struct ViewLifecycleModifiers: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task {
-                // Set IDs first, before loading data
-                if let userId = auth.userId, !userId.isEmpty {
-                    viewModel.setTrainerId(userId)
+                // Use trainerId from AuthManager (already resolved)
+                // Fall back to userId if trainerId not available (for owners/admins)
+                if let trainerId = auth.trainerId ?? auth.userId, !trainerId.isEmpty {
+                    print("🔍 ScheduleView: Using trainerId from auth: \(trainerId)")
+                    viewModel.setTrainerId(trainerId)
                 }
                 if let orgId = auth.currentOrgId {
                     viewModel.setOrgId(orgId)
@@ -746,8 +813,18 @@ private struct ViewLifecycleModifiers: ViewModifier {
                     await viewModel.loadAllTrainers()
                 }
             }
+            .onChange(of: auth.trainerId) { _, newValue in
+                if let trainerId = newValue {
+                    print("🔍 ScheduleView onChange trainerId: \(trainerId)")
+                    viewModel.setTrainerId(trainerId)
+                }
+            }
             .onChange(of: auth.userId) { _, newValue in
-                viewModel.setTrainerId(newValue ?? "trainer_demo")
+                // Fallback to userId if no trainerId
+                if auth.trainerId == nil, let userId = newValue, !userId.isEmpty {
+                    print("🔍 ScheduleView onChange userId: \(userId)")
+                    viewModel.setTrainerId(userId)
+                }
             }
             .onChange(of: auth.currentOrgId) { _, newOrgId in
                 viewModel.setOrgId(newOrgId)

@@ -196,13 +196,18 @@ final class ScheduleViewModel: ObservableObject {
             }
         }
 
+        print("📅 loadWeek called: trainerId=\(trainerId), orgId=\(orgId), mode=\(mode)")
+        
         // Determine week range based on selectedDate
         let cal = Calendar.current
         let startOfWeek = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedDate)) ?? selectedDate
         let endOfWeek = cal.date(byAdding: .day, value: 7, to: startOfWeek) ?? selectedDate
 
+        print("📅 Week range: \(startOfWeek) to \(endOfWeek)")
+        
         do {
             let slots = try await scheduleRepo.fetchScheduleSlots(trainerId: trainerId, from: startOfWeek, to: endOfWeek, orgId: orgId)
+            print("📅 Loaded \(slots.count) schedule slots")
             var grouped: [DateOnly: [TrainerScheduleSlot]] = [:]
             for slot in slots {
                 let key = DateOnly(slot.startTime)
@@ -219,6 +224,7 @@ final class ScheduleViewModel: ObservableObject {
             // Prefetch class participants for all class bookings in this week
             await prefetchClassParticipantsForVisibleWeek()
         } catch {
+            print("❌ Error loading week: \(error)")
             self.slotsByDay = [:]
         }
     }

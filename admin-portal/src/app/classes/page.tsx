@@ -22,11 +22,16 @@ interface GroupClass {
   title: string;
   description?: string;
   trainerId: string;
+  trainerName: string; // Added to match iOS schema
   startTime: Timestamp;
   endTime: Timestamp;
-  locationId?: string;
-  maxCapacity: number;
-  currentParticipants: number; // Matches iOS GroupClass schema
+  location: string; // Location name string, not locationId
+  maxParticipants: number; // Changed from maxCapacity to match iOS
+  currentParticipants: number;
+  isOpenForRegistration: boolean; // Added to match iOS schema
+  createdBy: string; // Admin user ID
+  createdAt: Timestamp; // Added to match iOS schema
+  priceInCents: number; // Added to match iOS schema
   isRecurring: boolean;
   recurringPattern?: string;
 }
@@ -118,27 +123,73 @@ export default function ClassesPage() {
     try {
       const startDateTime = new Date(`${form.date}T${form.startTime}`);
       const endDateTime = new Date(`${form.date}T${form.endTime}`);
+      
+      // Get trainer name and location name
+      const trainer = trainers.find(t => t.id === form.trainerId);
+      const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : '';
+      const location = locations.find(l => l.id === form.locationId);
+      const locationName = location ? location.name : '';
 
+      // Match iOS AdminService.createClass schema exactly
       const classData = {
         orgId,
         title: form.title,
-        description: form.description || null,
-        trainerId: form.trainerId,
+        description: form.description || '',
         startTime: Timestamp.fromDate(startDateTime),
         endTime: Timestamp.fromDate(endDateTime),
-        locationId: form.locationId,
-        maxCapacity: form.maxCapacity,
+        maxParticipants: form.maxCapacity,
         currentParticipants: 0,
+        location: locationName, // Location name string, not ID
+        isOpenForRegistration: true,
+        trainerId: form.trainerId,
+        trainerName: trainerName,
+        createdBy: orgId, // Using orgId as placeholder for current user
+        createdAt: Timestamp.fromDate(new Date()),
+        priceInCents: 0, // Default to free
         isRecurring: form.isRecurring,
         recurringPattern: form.isRecurring ? form.recurringPattern : null,
       };
 
       if (editingClass) {
         await updateDoc(doc(db, 'classes', editingClass.id), classData);
-        setClasses(classes.map(c => c.id === editingClass.id ? { ...classData, id: editingClass.id, currentParticipants: editingClass.currentParticipants } as GroupClass : c));
+        // Reload classes
+        const classesQuery = query(collection(db, 'classes'), where('orgId', '==', orgId));
+        const classesSnapshot = await getDocs(classesQuery);
+        const classesData = classesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as GroupClass[];
+        setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
       } else {
+        // Create class document
         const docRef = await addDoc(collection(db, 'classes'), classData);
-        setClasses([...classes, { ...classData, id: docRef.id, currentParticipants: 0 } as GroupClass].sort((a, b) => a.startTime.seconds - b.startTime.seconds));
+        
+        // Create trainer schedule slot to block off time (matching iOS)
+        const bookingData = {
+          startTime: Timestamp.fromDate(startDateTime),
+          endTime: Timestamp.fromDate(endDateTime),
+          status: 'booked',
+          clientId: 'CLASS',
+          clientName: form.title,
+          classId: docRef.id,
+          isClassBooking: true,
+          bookedAt: Timestamp.fromDate(new Date()),
+          orgId: orgId
+        };
+        
+        await addDoc(
+          collection(db, 'trainers', form.trainerId, 'schedules'),
+          bookingData
+        );
+        
+        // Reload classes
+        const classesQuery = query(collection(db, 'classes'), where('orgId', '==', orgId));
+        const classesSnapshot = await getDocs(classesQuery);
+        const classesData = classesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as GroupClass[];
+        setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
       }
 
       resetForm();
@@ -151,6 +202,10 @@ export default function ClassesPage() {
   };
 
   const handleEdit = (cls: GroupClass) => {
+    // Find location ID from location name
+    const location = locations.find(l => l.name === cls.location);
+    const locationId = location?.id || '';
+    
     setEditingClass(cls);
     setForm({
       title: cls.title,
@@ -159,8 +214,8 @@ export default function ClassesPage() {
       date: format(cls.startTime.toDate(), 'yyyy-MM-dd'),
       startTime: format(cls.startTime.toDate(), 'HH:mm'),
       endTime: format(cls.endTime.toDate(), 'HH:mm'),
-      locationId: cls.locationId || '',
-      maxCapacity: cls.maxCapacity,
+      locationId: locationId,
+      maxCapacity: cls.maxParticipants, // Use maxParticipants, not maxCapacity
       isRecurring: cls.isRecurring,
       recurringPattern: cls.recurringPattern || 'weekly',
     });
@@ -201,10 +256,9 @@ export default function ClassesPage() {
     return trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown';
   };
 
-  const getLocationName = (locationId?: string) => {
-    if (!locationId) return 'No location';
-    const location = locations.find(l => l.id === locationId);
-    return location ? location.name : 'Unknown';
+  // Location is now stored as name string directly in class document
+  const getLocationName = (locationName?: string) => {
+    return locationName || 'No location';
   };
 
   return (
@@ -435,7 +489,7 @@ export default function ClassesPage() {
                               <div className="flex flex-wrap gap-4 mt-3">
                                 <div className="flex items-center gap-1 text-sm text-gray-600">
                                   <User className="h-4 w-4" />
-                                  {getTrainerName(cls.trainerId)}
+                                  {cls.trainerName || getTrainerName(cls.trainerId)}
                                 </div>
                                 <div className="flex items-center gap-1 text-sm text-gray-600">
                                   <Calendar className="h-4 w-4" />
@@ -445,15 +499,15 @@ export default function ClassesPage() {
                                   <Clock className="h-4 w-4" />
                                   {format(cls.startTime.toDate(), 'h:mm a')} - {format(cls.endTime.toDate(), 'h:mm a')}
                                 </div>
-                                {cls.locationId && (
+                                {cls.location && (
                                   <div className="flex items-center gap-1 text-sm text-gray-600">
                                     <MapPin className="h-4 w-4" />
-                                    {getLocationName(cls.locationId)}
+                                    {cls.location}
                                   </div>
                                 )}
                                 <div className="flex items-center gap-1 text-sm text-gray-600">
                                   <Users className="h-4 w-4" />
-                                  {cls.currentParticipants} / {cls.maxCapacity}
+                                  {cls.currentParticipants} / {cls.maxParticipants}
                                 </div>
                               </div>
 

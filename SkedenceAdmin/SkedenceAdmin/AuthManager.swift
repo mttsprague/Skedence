@@ -25,6 +25,7 @@ final class AuthManager: ObservableObject {
     @Published var isAdmin: Bool = false
     @Published var currentOrgId: String?
     @Published var currentOrgRole: String?
+    @Published var trainerId: String? // The actual trainer document ID (may differ from userId)
 
     // Trainer profile fields (from /trainers/{uid})
     @Published var trainerDisplayName: String?
@@ -268,6 +269,13 @@ final class AuthManager: ObservableObject {
                 print("AuthManager: Loaded orgId: \(orgId), role: \(currentOrgRole ?? "unknown") for user: \(userId)")
                 print("AuthManager: isAdmin set to: \(isAdmin)")
                 
+                // If user is a trainer, find their trainer document ID
+                if currentOrgRole == "trainer" {
+                    await loadTrainerId(userId: userId, orgId: orgId)
+                } else {
+                    trainerId = nil
+                }
+                
                 // Load organization branding
                 await loadOrgBranding(orgId: orgId)
             } else {
@@ -275,15 +283,55 @@ final class AuthManager: ObservableObject {
                 currentOrgId = nil
                 currentOrgRole = nil
                 isAdmin = false
+                trainerId = nil
             }
         } catch {
             print("AuthManager: ❌ Failed to load orgId: \(error.localizedDescription)")
             currentOrgId = nil
             currentOrgRole = nil
+            trainerId = nil
         }
         #else
         currentOrgId = nil
         currentOrgRole = nil
+        trainerId = nil
+        #endif
+    }
+    
+    func loadTrainerId(userId: String, orgId: String) async {
+        #if canImport(FirebaseFirestore)
+        do {
+            let db = Firestore.firestore()
+            
+            // Query trainers collection by orgId and email matching the userId's email
+            // First get the user's email from users collection or auth
+            let userDoc = try? await db.collection("users").document(userId).getDocument()
+            let userEmail = userDoc?.data()?["email"] as? String ?? userDoc?.data()?["emailAddress"] as? String ?? self.userEmail
+            
+            if let email = userEmail {
+                let trainersSnapshot = try await db.collection("trainers")
+                    .whereField("orgId", isEqualTo: orgId)
+                    .whereField("email", isEqualTo: email)
+                    .limit(to: 1)
+                    .getDocuments()
+                
+                if let trainerDoc = trainersSnapshot.documents.first {
+                    trainerId = trainerDoc.documentID
+                    print("AuthManager: Loaded trainerId: \(trainerDoc.documentID) for user: \(userId)")
+                } else {
+                    print("AuthManager: ⚠️ No trainer document found for user: \(userId), email: \(email)")
+                    trainerId = nil
+                }
+            } else {
+                print("AuthManager: ⚠️ No email found for user: \(userId)")
+                trainerId = nil
+            }
+        } catch {
+            print("AuthManager: ❌ Failed to load trainerId: \(error.localizedDescription)")
+            trainerId = nil
+        }
+        #else
+        trainerId = nil
         #endif
     }
     
