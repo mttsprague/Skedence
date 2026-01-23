@@ -150,42 +150,38 @@ export default function BookingsPage() {
       try {
         // Query users/{userId}/lessonPackages directly
         console.log('Bookings: Querying path: users/' + selectedClient + '/lessonPackages');
-        const packagesQuery = query(
-          collection(db, 'users', selectedClient, 'lessonPackages'),
-          where('remainingLessons', '>', 0)
-        );
-        const snapshot = await getDocs(packagesQuery);
-        console.log('Bookings: Found', snapshot.size, 'packages with remainingLessons > 0');
         
-        // Also log all packages without the filter to debug
+        // Get all packages (we'll filter in code since remainingLessons might be undefined)
         const allPackagesSnapshot = await getDocs(
           collection(db, 'users', selectedClient, 'lessonPackages')
         );
         console.log('Bookings: Total packages in collection:', allPackagesSnapshot.size);
-        allPackagesSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          console.log('Bookings: Package', doc.id, '- remainingLessons:', data.remainingLessons, 'totalLessons:', data.totalLessons, 'name:', data.packageName || data.name);
-        });
         
-        const packagesData = snapshot.docs.map(doc => {
-          const data = doc.data();
-          console.log('Bookings: Processing package', doc.id, 'data:', data);
-          return {
-            id: doc.id,
-            userId: selectedClient,
-            packageName: data.packageName || data.name || 'Unknown Package',
-            remainingLessons: data.remainingLessons || 0,
-            totalLessons: data.totalLessons || 0,
-          };
-        }) as LessonPackage[];
+        const packagesData = allPackagesSnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            console.log('Bookings: Package', doc.id, '- remainingLessons:', data.remainingLessons, 'totalLessons:', data.totalLessons, 'name:', data.packageName || data.name);
+            
+            // If remainingLessons is undefined, assume it equals totalLessons (unused package)
+            const remaining = data.remainingLessons !== undefined ? data.remainingLessons : data.totalLessons || 0;
+            
+            return {
+              id: doc.id,
+              userId: selectedClient,
+              packageName: data.packageName || data.name || data.packageType || 'Unknown Package',
+              remainingLessons: remaining,
+              totalLessons: data.totalLessons || 0,
+            };
+          })
+          .filter(pkg => pkg.remainingLessons > 0); // Only show packages with lessons remaining
         
-        console.log('Bookings: Final processed packages:', packagesData);
+        console.log('Bookings: Packages with lessons remaining:', packagesData);
         setPackages(packagesData);
         if (packagesData.length > 0) {
           console.log('Bookings: Setting selectedPackage to:', packagesData[0].id);
           setSelectedPackage(packagesData[0].id);
         } else {
-          console.log('Bookings: No packages to select');
+          console.log('Bookings: No packages with remaining lessons');
         }
       } catch (error) {
         console.error('Bookings: Error loading passes:', error);
