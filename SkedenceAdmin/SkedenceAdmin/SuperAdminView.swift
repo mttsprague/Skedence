@@ -8,6 +8,7 @@
 import SwiftUI
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseFunctions
 
 struct SuperAdminView: View {
     @EnvironmentObject var auth: AuthManager
@@ -20,6 +21,8 @@ struct SuperAdminView: View {
     @State private var showingPricing = false
     @State private var showingAvatarUpload = false
     @State private var alertItem: AlertItem?
+    @State private var showingDeleteConfirmation = false
+    @State private var isDeletingAccount = false
     @Environment(\.openURL) private var openURL
     
     enum AdminTab: String, CaseIterable {
@@ -126,6 +129,14 @@ struct SuperAdminView: View {
             }
             .alert(item: $alertItem) { item in
                 Alert(title: Text(item.title), message: Text(item.message))
+            }
+            .alert("Delete Account", isPresented: $showingDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    deleteAccount()
+                }
+            } message: {
+                Text("Are you sure you want to delete your account? All saved info will be permanently deleted.")
             }
             .sheet(isPresented: $showingPricing) {
                 NavigationStack {
@@ -308,6 +319,54 @@ struct SuperAdminView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                
+                // Danger Zone
+                Divider()
+                    .padding(.vertical, Spacing.md)
+                
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("Danger Zone")
+                        .font(.headingSmall)
+                        .foregroundStyle(.red)
+                        .padding(.horizontal)
+                    
+                    Button {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(.red)
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("Delete Account")
+                                    .font(.bodyMedium)
+                                    .foregroundStyle(.red)
+                                
+                                Text("Permanently delete all your data")
+                                    .font(.labelMedium)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            
+                            Spacer()
+                            
+                            if isDeletingAccount {
+                                ProgressView()
+                                    .tint(.red)
+                            } else {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.textTertiary)
+                            }
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(CornerRadius.md)
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isDeletingAccount)
+                }
             }
         }
         .padding()
@@ -421,6 +480,35 @@ struct SuperAdminView: View {
         await viewModel.loadOrganizations()
         await viewModel.loadTrainers(orgId: auth.currentOrgId)
         await viewModel.loadAllUsers()
+    }
+    
+    private func deleteAccount() {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            return
+        }
+        
+        isDeletingAccount = true
+        let functions = Functions.functions()
+        let callable = functions.httpsCallable("deleteUserAccount")
+        
+        Task {
+            do {
+                _ = try await callable.call(["userId": userId])
+                // Sign out and return to login
+                try Auth.auth().signOut()
+                await MainActor.run {
+                    isDeletingAccount = false
+                }
+            } catch {
+                await MainActor.run {
+                    isDeletingAccount = false
+                    alertItem = AlertItem(
+                        title: "Delete Failed",
+                        message: error.localizedDescription
+                    )
+                }
+            }
+        }
     }
     
     private func configureCoordinatorForStripe() -> OnboardingCoordinator {
