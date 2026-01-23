@@ -13,6 +13,9 @@ import FirebaseFunctions
 struct MorePlaceholderView: View {
     @State private var showingResetPassword = false
     @State private var resetMessage: String?
+    @State private var showingDeleteConfirmation = false
+    @State private var deleteMessage: String?
+    @State private var isDeletingAccount = false
     
     var body: some View {
         NavigationView {
@@ -367,6 +370,51 @@ struct MorePlaceholderView: View {
                         }
                     }
                     
+                    // Delete Account Section
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        SectionHeaderView(title: "Danger Zone")
+                        
+                        CardView {
+                            Button(action: {
+                                showingDeleteConfirmation = true
+                            }) {
+                                HStack(spacing: Spacing.md) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                            .fill(Color.red.opacity(0.15))
+                                            .frame(width: 48, height: 48)
+                                        
+                                        Image(systemName: "trash.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(.red)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                        Text("Delete Account")
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(.red)
+                                        
+                                        Text("Permanently delete all your data")
+                                            .font(.labelMedium)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if isDeletingAccount {
+                                        ProgressView()
+                                            .tint(.red)
+                                    } else {
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                    }
+                                }
+                            }
+                            .disabled(isDeletingAccount)
+                        }
+                    }
+                    
                     // App Info
                     VStack(spacing: Spacing.xs) {
                         Text("Skedence")
@@ -399,6 +447,14 @@ struct MorePlaceholderView: View {
                 Text("Error: No email found. Please sign out and sign in again.")
             }
         }
+        .alert("Delete Account", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteAccount()
+            }
+        } message: {
+            Text("Are you sure you want to delete your account? All saved info will be permanently deleted.")
+        }
     }
     
     private func sendPasswordReset() {
@@ -423,6 +479,32 @@ struct MorePlaceholderView: View {
             } catch {
                 await MainActor.run {
                     resetMessage = "Error: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    private func deleteAccount() {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            return
+        }
+        
+        isDeletingAccount = true
+        let functions = Functions.functions()
+        let callable = functions.httpsCallable("deleteUserAccount")
+        
+        Task {
+            do {
+                _ = try await callable.call(["userId": userId])
+                // Sign out and return to login
+                try Auth.auth().signOut()
+                await MainActor.run {
+                    isDeletingAccount = false
+                }
+            } catch {
+                await MainActor.run {
+                    isDeletingAccount = false
+                    deleteMessage = "Error: \(error.localizedDescription)"
                 }
             }
         }

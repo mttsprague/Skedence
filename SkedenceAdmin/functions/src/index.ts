@@ -41,6 +41,9 @@ export * from "./trainerLimits";
 // Export trainer deletion functions
 export * from "./deleteTrainer";
 
+// Export user account deletion functions
+export * from "./deleteUserAccount";
+
 // Export confirmation email functions
 export * from "./confirmationEmails";
 
