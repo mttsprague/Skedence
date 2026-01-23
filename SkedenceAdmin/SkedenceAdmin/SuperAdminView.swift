@@ -664,8 +664,8 @@ struct TrainerCard: View {
             Button {
                 showingDeleteConfirmation = true
             } label: {
-                Image(systemName: "trash")
-                    .foregroundColor(.red)
+                Image(systemName: "person.fill.xmark")
+                    .foregroundColor(.orange)
                     .font(.body)
             }
             .buttonStyle(.plain)
@@ -674,15 +674,15 @@ struct TrainerCard: View {
         .background(Color.platformBackground)
         .cornerRadius(CornerRadius.md)
         .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
-        .alert("Delete Trainer?", isPresented: $showingDeleteConfirmation) {
+        .alert("Deactivate Trainer?", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
+            Button("Deactivate", role: .destructive) {
                 Task {
-                    await viewModel.deleteTrainer(trainerId: trainer.id, orgId: auth.currentOrgId)
+                    await viewModel.deactivateTrainer(trainerId: trainer.id, orgId: auth.currentOrgId)
                 }
             }
         } message: {
-            Text("Are you sure you want to delete this trainer? Doing so will remove all of their information from your organization.")
+            Text("Deactivating this trainer will hide them from the trainers list and prevent clients from booking with them. They will still appear in the Members tab.")
         }
     }
 }
@@ -720,8 +720,8 @@ struct UserCard: View {
                 showingRoleSheet = true
             } label: {
                 StatusBadge(
-                    text: user.role ?? "member",
-                    isActive: true
+                    text: user.isActive == false ? "inactive" : (user.role ?? "member"),
+                    isActive: user.isActive ?? true
                 )
             }
         }
@@ -747,7 +747,7 @@ struct StatusBadge: View {
             .foregroundStyle(.white)
             .padding(.horizontal, Spacing.xs)
             .padding(.vertical, 4)
-            .background(isActive ? AppTheme.success : AppTheme.textSecondary)
+            .background(isActive ? AppTheme.success : Color.gray)
             .cornerRadius(CornerRadius.xs)
     }
 }

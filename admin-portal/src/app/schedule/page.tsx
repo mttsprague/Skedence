@@ -85,7 +85,8 @@ export default function SchedulePage() {
       try {
         const trainersQuery = query(
           collection(db, 'trainers'),
-          where('orgId', '==', orgId)
+          where('orgId', '==', orgId),
+          where('active', '==', true) // Only load active trainers
         );
         const trainersSnap = await getDocs(trainersQuery);
         const trainersData = trainersSnap.docs.map(doc => ({

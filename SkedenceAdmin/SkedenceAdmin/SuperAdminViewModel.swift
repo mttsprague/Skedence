@@ -97,6 +97,13 @@ class SuperAdminViewModel: ObservableObject {
             trainers = snapshot.documents.compactMap { doc in
                 let data = doc.data()
                 
+                // Only show active trainers in the Trainers tab
+                let isActive = data["active"] as? Bool ?? true
+                guard isActive else {
+                    print("⏭️ Skipping inactive trainer \(doc.documentID)")
+                    return nil
+                }
+                
                 let firstName = data["firstName"] as? String ?? ""
                 let lastName = data["lastName"] as? String ?? ""
                 print("🔍 Trainer \(doc.documentID): firstName='\(firstName)', lastName='\(lastName)', email=\(data["email"] as? String ?? "nil")")
@@ -168,12 +175,13 @@ class SuperAdminViewModel: ObservableObject {
                 // Members tab should only show staff: trainers, admins, owners (NOT clients)
                 // NOTE: Staff are stored in trainers collection, clients in users collection
                 let role = memberData["role"] as? String ?? "client"
+                let isActive = memberData["isActive"] as? Bool ?? true
                 if role == "client" {
                     print("🔍 Skipping client \(memberId) from Members tab")
                     continue
                 }
                 
-                print("🔍 Looking up trainer \(memberId) from orgMember \(memberDoc.documentID)")
+                print("🔍 Looking up trainer \(memberId) from orgMember \(memberDoc.documentID), isActive=\(isActive)")
                 
                 // Staff (trainers/admins/owners) are in trainers collection
                 // The userId in orgMembers should be the trainer document ID
@@ -217,7 +225,7 @@ class SuperAdminViewModel: ObservableObject {
                     continue
                 }
                 
-                print("🔍 Staff member \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(role)")
+                print("🔍 Staff member \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(role), isActive=\(isActive)")
                 
                 users.append(AdminUser(
                     id: memberId,
@@ -226,7 +234,8 @@ class SuperAdminViewModel: ObservableObject {
                     emailAddress: email,
                     orgId: orgId,
                     organizationName: nil,
-                    role: role
+                    role: role,
+                    isActive: isActive
                 ))
             }
             
@@ -260,28 +269,27 @@ class SuperAdminViewModel: ObservableObject {
         }
     }
     
-    func deleteTrainer(trainerId: String, orgId: String?) async {
+    func deactivateTrainer(trainerId: String, orgId: String?) async {
         do {
-            // Call Cloud Function to delete trainer and all associated data
-            let functions = Functions.functions()
-            let callable = functions.httpsCallable("deleteTrainer")
+            // Update trainer document to set active = false
+            try await db.collection("trainers").document(trainerId).updateData([
+                "active": false
+            ])
             
-            let result = try await callable.call(["trainerId": trainerId])
-            
-            if let data = result.data as? [String: Any],
-               let success = data["success"] as? Bool,
-               success {
-                print("✅ Successfully deleted trainer: \(trainerId)")
-                await loadTrainers(orgId: orgId) // Refresh trainers list
-                await loadAllUsers() // Refresh users list as well
-            } else {
-                let message = (result.data as? [String: Any])?["message"] as? String ?? "Unknown error"
-                errorMessage = "Failed to delete trainer: \(message)"
-                print("❌ Error deleting trainer: \(message)")
+            // Also update the orgMembers document
+            if let orgId = orgId {
+                let memberDocId = "\(trainerId)_\(orgId)"
+                try await db.collection("orgMembers").document(memberDocId).updateData([
+                    "isActive": false
+                ])
             }
+            
+            print("✅ Successfully deactivated trainer: \(trainerId)")
+            await loadTrainers(orgId: orgId) // Refresh trainers list
+            await loadAllUsers() // Refresh users list to show in Members tab
         } catch {
-            errorMessage = "Failed to delete trainer: \(error.localizedDescription)"
-            print("❌ Error deleting trainer: \(error)")
+            errorMessage = "Failed to deactivate trainer: \(error.localizedDescription)"
+            print("❌ Error deactivating trainer: \(error)")
         }
     }
 }
@@ -560,4 +568,5 @@ struct AdminUser: Identifiable {
     let orgId: String
     var organizationName: String?
     var role: String?
+    var isActive: Bool?
 }

@@ -68,7 +68,8 @@ export default function ClassesPage() {
         // Load trainers from trainers collection
         const trainersQuery = query(
           collection(db, 'trainers'),
-          where('orgId', '==', orgId!)
+          where('orgId', '==', orgId!),
+          where('active', '==', true) // Only load active trainers
         );
         const trainersSnapshot = await getDocs(trainersQuery);
         const trainersData = trainersSnapshot.docs.map(doc => ({

@@ -24,6 +24,7 @@ final class TrainersService: ObservableObject {
         do {
             let snap = try await db.collection("trainers")
                 .whereField("orgId", isEqualTo: orgId)
+                .whereField("active", isEqualTo: true) // Only load active trainers
                 .getDocuments()
             trainers = snap.documents.map { doc in
                 let data = doc.data()
