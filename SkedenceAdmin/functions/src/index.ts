@@ -519,17 +519,11 @@ export const registerForClass = functions.https.onCall(
           );
         }
 
-        // Check if user is already registered
+        // Allow multiple registrations by the same user (for multiple athletes)
+        // Use auto-generated ID instead of userId to allow duplicates
         const participantRef = classRef
           .collection("participants")
-          .doc(userId);
-        const participantDoc = await transaction.get(participantRef);
-        if (participantDoc.exists) {
-          throw new functions.https.HttpsError(
-            "already-exists",
-            "You are already registered for this class."
-          );
-        }
+          .doc(); // Auto-generate unique ID
 
         // Increment lessonsUsed on the class pass
         transaction.update(classPassRef, {
@@ -541,7 +535,8 @@ export const registerForClass = functions.https.onCall(
           currentParticipants: admin.firestore.FieldValue.increment(1),
         });
 
-        // Add user to participants subcollection
+        // Add user to participants subcollection with auto-generated ID
+        // This allows the same user/email to register multiple times
         transaction.set(participantRef, {
           userId: userId,
           firstName: userData.firstName || "Unknown",

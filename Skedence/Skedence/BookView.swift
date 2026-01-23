@@ -824,10 +824,10 @@ private struct ClassRegistrationSheet: View {
     let onRegistered: () -> Void
     
     @State private var isRegistering = false
-    @State private var isAlreadyRegistered = false
     @State private var registrationSuccessful = false
     @State private var errorMessage: String?
     @State private var selectedClassPass: LessonPackage?
+    @State private var registrationCount = 0
     
     // Get available class passes (for booking classes)
     private var availableClassPasses: [LessonPackage] {
@@ -944,29 +944,35 @@ private struct ClassRegistrationSheet: View {
                         }
                     }
                     
-                    if isAlreadyRegistered {
+                    if registrationSuccessful {
                         CardView {
-                            HStack(spacing: Spacing.sm) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(AppTheme.success)
-                                Text("You're already registered for this class!")
-                                    .font(.bodyMedium)
-                                    .foregroundStyle(AppTheme.success)
-                            }
-                        }
-                    } else if registrationSuccessful {
-                        CardView {
-                            VStack(spacing: Spacing.sm) {
+                            VStack(spacing: Spacing.md) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 48))
                                     .foregroundStyle(AppTheme.success)
                                 Text("Registration Successful!")
                                     .font(.headingMedium)
                                     .foregroundStyle(AppTheme.success)
-                                Text("You're all set for \(classItem.title). We'll see you there!")
+                                Text(registrationCount > 1 ? 
+                                    "You've registered \(registrationCount) athletes for \(classItem.title). Register another or close to finish." :
+                                    "You're all set for \(classItem.title). Register another athlete or close to finish.")
                                     .font(.bodyMedium)
                                     .foregroundStyle(AppTheme.textSecondary)
                                     .multilineTextAlignment(.center)
+                                
+                                // Register Another Button
+                                Button {
+                                    registrationSuccessful = false
+                                    errorMessage = nil
+                                    selectedClassPass = nil
+                                } label: {
+                                    HStack(spacing: Spacing.sm) {
+                                        Image(systemName: "person.badge.plus")
+                                        Text("Register Another Athlete")
+                                    }
+                                }
+                                .buttonStyle(PrimaryButtonStyle())
+                                .padding(.top, Spacing.sm)
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Spacing.md)
@@ -1030,7 +1036,7 @@ private struct ClassRegistrationSheet: View {
                                 }
                             }
                             .buttonStyle(PrimaryButtonStyle())
-                            .disabled(isRegistering || isAlreadyRegistered || selectedClassPass == nil)
+                            .disabled(isRegistering || selectedClassPass == nil)
                         } else {
                             CardView {
                                 VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -1072,7 +1078,6 @@ private struct ClassRegistrationSheet: View {
         }
         .navigationViewStyle(.stack)
         .task {
-            isAlreadyRegistered = await classesService.isRegistered(for: classItem.id ?? "")
             // Load packages to check for class passes
             if packagesService.packages.isEmpty {
                 await packagesService.loadMyPackages()
@@ -1111,13 +1116,11 @@ private struct ClassRegistrationSheet: View {
             }
             
             registrationSuccessful = true
+            registrationCount += 1
             errorMessage = nil
             
-            // Wait a moment for user to see success state
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            
+            // Don't dismiss - allow registering another athlete
             onRegistered()
-            dismiss()
         } catch {
             errorMessage = "Registration failed: \(error.localizedDescription)"
         }

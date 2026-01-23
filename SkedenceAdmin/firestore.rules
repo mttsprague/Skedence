@@ -437,17 +437,17 @@ service cloud.firestore {
           && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
           && isMemberOfOrg(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId);
         
-        // Users in org can register themselves
+        // Users in org can register themselves (multiple times for multiple athletes)
+        // Using auto-generated participant IDs allows the same user to register multiple times
         allow create: if isSignedIn() 
-          && request.auth.uid == participantId
           && request.resource.data.userId == request.auth.uid
           && existsAfter(/databases/$(database)/documents/classes/$(classId))
           && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
           && isMemberOfOrg(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId);
         
-        // Users can unregister themselves, admins can remove anyone
+        // Users can unregister their own registrations, admins can remove anyone
         allow delete: if isSignedIn() && (
-          request.auth.uid == participantId 
+          resource.data.userId == request.auth.uid 
           || (existsAfter(/databases/$(database)/documents/classes/$(classId))
             && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
             && isOrgAdmin(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId))
