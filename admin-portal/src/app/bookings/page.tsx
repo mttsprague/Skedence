@@ -60,10 +60,15 @@ export default function BookingsPage() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
-    if (!orgId) return;
+    console.log('Bookings: loadData useEffect triggered, orgId =', orgId);
+    if (!orgId) {
+      console.log('Bookings: No orgId yet, skipping load');
+      return;
+    }
 
     async function loadData() {
       try {
+        console.log('Bookings: Starting to load clients and trainers for orgId:', orgId);
         // Load clients from orgMembers + users
         const membersQuery = query(
           collection(db, 'orgMembers'),
@@ -84,7 +89,7 @@ export default function BookingsPage() {
           } as Client;
         });
         const clientsData = (await Promise.all(clientPromises)).filter((c): c is Client => c !== null);
-        console.log('Bookings: Loaded', clientsData.length, 'clients');
+        console.log('Bookings: Loaded', clientsData.length, 'clients:', clientsData);
         setClients(clientsData);
 
         // Load trainers from trainers collection
@@ -105,8 +110,17 @@ export default function BookingsPage() {
         console.log('Bookings: Loaded', trainersData.length, 'trainers:', trainersData);
         setTrainers(trainersData);
 
-        if (clientsData.length > 0) setSelectedClient(clientsData[0].id);
-        if (trainersData.length > 0) setSelectedTrainer(trainersData[0].id);
+        if (clientsData.length > 0) {
+          const firstClientId = clientsData[0].id;
+          console.log('Bookings: Auto-selecting first client:', firstClientId);
+          setSelectedClient(firstClientId);
+        } else {
+          console.log('Bookings: No clients loaded, cannot auto-select');
+        }
+        if (trainersData.length > 0) {
+          console.log('Bookings: Auto-selecting first trainer:', trainersData[0].id);
+          setSelectedTrainer(trainersData[0].id);
+        }
       } catch (error) {
         console.error('Bookings: Error loading data:', error);
       } finally {
@@ -119,34 +133,68 @@ export default function BookingsPage() {
 
   // Load packages when client changes
   useEffect(() => {
-    if (!selectedClient) return;
+    console.log('Bookings: selectedClient changed to:', selectedClient);
+    if (!selectedClient) {
+      console.log('Bookings: No client selected, skipping package load');
+      setPackages([]);
+      return;
+    }
+    if (!orgId) {
+      console.log('Bookings: No orgId, skipping package load');
+      setPackages([]);
+      return;
+    }
 
     async function loadPackages() {
+      console.log('Bookings: Loading packages for client:', selectedClient, 'orgId:', orgId);
       try {
+        // Query users/{userId}/lessonPackages directly
+        console.log('Bookings: Querying path: users/' + selectedClient + '/lessonPackages');
         const packagesQuery = query(
-          collection(db, 'lessonPackages'),
-          where('userId', '==', selectedClient)
+          collection(db, 'users', selectedClient, 'lessonPackages'),
+          where('remainingLessons', '>', 0)
         );
         const snapshot = await getDocs(packagesQuery);
+        console.log('Bookings: Found', snapshot.size, 'packages with remainingLessons > 0');
+        
+        // Also log all packages without the filter to debug
+        const allPackagesSnapshot = await getDocs(
+          collection(db, 'users', selectedClient, 'lessonPackages')
+        );
+        console.log('Bookings: Total packages in collection:', allPackagesSnapshot.size);
+        allPackagesSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          console.log('Bookings: Package', doc.id, '- remainingLessons:', data.remainingLessons, 'totalLessons:', data.totalLessons, 'name:', data.packageName || data.name);
+        });
         
         const packagesData = snapshot.docs.map(doc => {
           const data = doc.data();
+          console.log('Bookings: Processing package', doc.id, 'data:', data);
           return {
             id: doc.id,
-            ...data,
+            userId: selectedClient,
+            packageName: data.packageName || data.name || 'Unknown Package',
+            remainingLessons: data.remainingLessons || 0,
+            totalLessons: data.totalLessons || 0,
           };
         }) as LessonPackage[];
         
-        const activePackages = packagesData.filter(p => p.remainingLessons > 0);
-        setPackages(activePackages);
-        if (activePackages.length > 0) setSelectedPackage(activePackages[0].id);
+        console.log('Bookings: Final processed packages:', packagesData);
+        setPackages(packagesData);
+        if (packagesData.length > 0) {
+          console.log('Bookings: Setting selectedPackage to:', packagesData[0].id);
+          setSelectedPackage(packagesData[0].id);
+        } else {
+          console.log('Bookings: No packages to select');
+        }
       } catch (error) {
-        console.error('Error loading passes:', error);
+        console.error('Bookings: Error loading passes:', error);
+        setPackages([]);
       }
     }
 
     loadPackages();
-  }, [selectedClient]);
+  }, [selectedClient, orgId]);
 
   // Load slots when trainer or date changes
   useEffect(() => {
