@@ -38,6 +38,8 @@ struct OnboardingContinueView: View {
                             case .account:
                                 // Skip account - already created
                                 EmptyView()
+                            case .termsOfService:
+                                OnboardingTermsView()
                             case .businessDetails:
                                 OnboardingBusinessDetailsView()
                             case .inviteCode:
@@ -81,13 +83,22 @@ struct OnboardingContinueView: View {
                 coordinator.userId = userId
                 coordinator.organizationData["name"] = orgData["name"] as? String
                 
-                if let inviteCode = orgData["inviteCode"] as? String {
-                    coordinator.organizationData["inviteCode"] = inviteCode
-                    // Skip invite code step if already exists
-                    coordinator.currentStep = .location
+                // Check if terms have been accepted
+                if orgData["termsAcceptedAt"] != nil {
+                    coordinator.organizationData["termsAccepted"] = true
+                    
+                    // Check for invite code
+                    if let inviteCode = orgData["inviteCode"] as? String {
+                        coordinator.organizationData["inviteCode"] = inviteCode
+                        // Skip invite code step if already exists
+                        coordinator.currentStep = .location
+                    } else {
+                        // Start from business details (skip account creation)
+                        coordinator.currentStep = .businessDetails
+                    }
                 } else {
-                    // Start from business details (skip account creation)
-                    coordinator.currentStep = .businessDetails
+                    // Terms not accepted yet, start there
+                    coordinator.currentStep = .termsOfService
                 }
             }
             

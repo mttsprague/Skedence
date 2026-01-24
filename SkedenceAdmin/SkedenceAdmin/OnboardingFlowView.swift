@@ -40,6 +40,8 @@ struct OnboardingFlowView: View {
                             switch coordinator.currentStep {
                             case .account:
                                 OnboardingAccountView()
+                            case .termsOfService:
+                                OnboardingTermsView()
                             case .businessDetails:
                                 OnboardingBusinessDetailsView()
                             case .inviteCode:
@@ -153,7 +155,7 @@ struct OnboardingFlowView: View {
         print("   Current step before check: \(coordinator.currentStep)")
         
         // If user is already authenticated, they must have started onboarding but didn't finish
-        // Skip account creation and go to business details (or later if they have org data)
+        // Skip account creation and go to terms or later based on what exists
         if auth.isAuthenticated, let userId = auth.userId {
             coordinator.userId = userId
             print("   Found authenticated user: \(userId)")
@@ -162,9 +164,9 @@ struct OnboardingFlowView: View {
             if let orgId = auth.currentOrgId {
                 coordinator.orgId = orgId
                 print("   Found org in auth: \(orgId)")
-                // Skip to business details or later based on what exists
-                coordinator.currentStep = .businessDetails
-                print("   ✏️  Set currentStep to: .businessDetails")
+                // Skip to appropriate step based on what exists
+                coordinator.currentStep = .termsOfService
+                print("   ✏️  Set currentStep to: .termsOfService")
             } else {
                 // No org exists - check if they have an orgMember record
                 print("   No org in auth, checking orgMembers...")
@@ -200,21 +202,30 @@ struct OnboardingFlowView: View {
                 if let orgData = orgDoc.data() {
                     coordinator.organizationData["name"] = orgData["name"] as? String
                     
-                    if let inviteCode = orgData["inviteCode"] as? String {
-                        coordinator.organizationData["inviteCode"] = inviteCode
-                        coordinator.currentStep = .location // Skip to location
+                    // Check if terms have been accepted
+                    if orgData["termsAcceptedAt"] != nil {
+                        coordinator.organizationData["termsAccepted"] = true
+                        
+                        // Check for invite code
+                        if let inviteCode = orgData["inviteCode"] as? String {
+                            coordinator.organizationData["inviteCode"] = inviteCode
+                            coordinator.currentStep = .location // Skip to location
+                        } else {
+                            coordinator.currentStep = .businessDetails // Start from business details
+                        }
                     } else {
-                        coordinator.currentStep = .businessDetails // Start from business details
+                        // Terms not accepted yet, start there
+                        coordinator.currentStep = .termsOfService
                     }
                 } else {
                     // Org doesn't exist - this is the orphaned case, show sign out screen
                     coordinator.currentStep = .account // Will show orphaned view
                 }
             } else {
-                // No orgMember found - user just created account, stay at business details
-                print("   No orgMember found, staying at business details step")
-                print("   ⚠️  CHANGING STEP: account → businessDetails (line 197)")
-                coordinator.currentStep = .businessDetails
+                // No orgMember found - user just created account, start at terms
+                print("   No orgMember found, starting at terms step")
+                print("   ⚠️  CHANGING STEP: account → termsOfService (line 197)")
+                coordinator.currentStep = .termsOfService
             }
         } catch {
             print("Error loading org from membership: \(error)")

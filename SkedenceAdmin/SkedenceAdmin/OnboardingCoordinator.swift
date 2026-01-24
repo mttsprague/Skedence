@@ -11,6 +11,7 @@ import FirebaseFirestore
 
 enum OnboardingStep: Int, CaseIterable {
     case account = 0        // Create account (existing CreateBusinessView)
+    case termsOfService     // Accept Terms of Service and Privacy Policy
     case businessDetails    // Phone, website, address
     case inviteCode         // Generate and preview invite code
     case location           // First location (optional)
@@ -21,6 +22,7 @@ enum OnboardingStep: Int, CaseIterable {
     var title: String {
         switch self {
         case .account: return "Account"
+        case .termsOfService: return "Terms & Privacy"
         case .businessDetails: return "Business Details"
         case .inviteCode: return "Invite Code"
         case .location: return "Location"
@@ -71,6 +73,8 @@ class OnboardingCoordinator: ObservableObject {
         switch step {
         case .account:
             return orgId != nil
+        case .termsOfService:
+            return organizationData["termsAccepted"] as? Bool ?? false
         case .businessDetails:
             return organizationData["phone"] != nil || organizationData["contactEmail"] != nil
         case .inviteCode:
