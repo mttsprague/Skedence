@@ -97,8 +97,14 @@ export default function DashboardPage() {
                 packageCount++;
               }
               
-              // Calculate this month's revenue
-              if (pkgData.amountPaid && pkgData.purchasedAt) {
+              // Calculate this month's revenue (amountPaid is in cents)
+              if (pkgData.amountPaid && pkgData.purchaseDate) {
+                const purchasedDate = pkgData.purchaseDate?.toDate?.() || new Date(pkgData.purchaseDate);
+                if (purchasedDate >= monthStart) {
+                  monthRevenue += pkgData.amountPaid;
+                }
+              } else if (pkgData.amountPaid && pkgData.purchasedAt) {
+                // Fallback to purchasedAt if purchaseDate doesn't exist
                 const purchasedDate = pkgData.purchasedAt?.toDate?.() || new Date(pkgData.purchasedAt);
                 if (purchasedDate >= monthStart) {
                   monthRevenue += pkgData.amountPaid;

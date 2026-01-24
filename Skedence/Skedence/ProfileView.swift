@@ -598,11 +598,42 @@ private struct SignedInProfileScreen: View {
     
     // Helper to get remaining passes for a specific packageType
     private func remainingPasses(forType packageType: String) -> Int {
-        packagesService.packages.reduce(into: 0) { sum, pkg in
-            guard pkg.expirationDate >= Date() else { return }
-            guard pkg.packageType == packageType else { return }
-            sum += max(0, pkg.lessonsRemaining)
+        var totalRemaining = 0
+        var includedPackages: [String] = []
+        var excludedPackages: [String] = []
+        
+        for pkg in packagesService.packages {
+            guard pkg.expirationDate >= Date() else { continue }
+            guard pkg.packageType == packageType else { continue }
+            
+            // Filter out packages with mismatched categories
+            // Class packages should have category="class", lesson packages should have category="pass"
+            let isClassType = (packageType == "class" || packageType == "class_pass")
+            if isClassType {
+                // For class types, ensure packageCategory is "class" (not "pass")
+                if pkg.packageCategory != "class" {
+                    excludedPackages.append("\(pkg.packageName ?? "Unknown")(cat:\(pkg.packageCategory ?? "nil"), rem:\(pkg.lessonsRemaining))")
+                    continue
+                }
+            } else {
+                // For lesson types, ensure packageCategory is "pass" (not "class")
+                if pkg.packageCategory != "pass" && pkg.packageCategory != nil {
+                    excludedPackages.append("\(pkg.packageName ?? "Unknown")(cat:\(pkg.packageCategory ?? "nil"), rem:\(pkg.lessonsRemaining))")
+                    continue
+                }
+            }
+            
+            let remaining = max(0, pkg.lessonsRemaining)
+            totalRemaining += remaining
+            includedPackages.append("\(pkg.packageName ?? "Unknown")(\(remaining))")
         }
+        
+        if !excludedPackages.isEmpty {
+            print("📊 ProfileView remainingPasses(\(packageType)): EXCLUDED \(excludedPackages.count) packages with wrong category: \(excludedPackages.joined(separator: ", "))")
+        }
+        print("📊 ProfileView remainingPasses(\(packageType)): Total=\(totalRemaining) from packages: \(includedPackages.joined(separator: ", "))")
+        
+        return totalRemaining
     }
     
     // Helper to get icon for package type

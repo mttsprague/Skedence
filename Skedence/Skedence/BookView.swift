@@ -20,6 +20,7 @@ struct BookView: View {
     @StateObject private var bookingManager = BookingManager()
     @StateObject private var classesService = ClassesService()
     @StateObject private var settingsService = SettingsService()
+    @StateObject private var pricingService = PricingStructureService()
     
     @Binding var initialMode: Int
 
@@ -53,11 +54,16 @@ struct BookView: View {
     // Get available lesson packages (excluding class passes)
     private var availableLessonPackages: [LessonPackage] {
         let now = Date()
+        
+        // Get all valid package types from current pricing structure
+        let validPackageTypes = getCurrentPackageTypes(category: "pass")
+        
         let filtered = packagesService.packages.filter { pkg -> Bool in
             let canBook = pkg.canBookLessons // Only pass packages, not class packages
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
-            return canBook && hasRemaining && notExpired
+            let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
+            return canBook && hasRemaining && notExpired && isCurrentPackage
         }
         let sorted = filtered.sorted { (a, b) -> Bool in
             return a.expirationDate < b.expirationDate
@@ -69,8 +75,12 @@ struct BookView: View {
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
         
+        // Get all valid package types from current pricing structure
+        let validPackageTypes = getCurrentPackageTypes(category: "class")
+        
         // Debug: Print all packages
         print("🔍 DEBUG availableClassPasses: All packages count: \(packagesService.packages.count)")
+        print("🔍 Valid package types from pricing structure: \(validPackageTypes)")
         for pkg in packagesService.packages {
             print("🔍 Package: type=\(pkg.packageType), category=\(pkg.packageCategory ?? "nil"), name=\(pkg.packageName ?? "nil"), canBookClasses=\(pkg.canBookClasses), remaining=\(pkg.lessonsRemaining)")
         }
@@ -79,8 +89,9 @@ struct BookView: View {
             let canBook = pkg.canBookClasses // Only class packages
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
-            print("🔍 Package \(pkg.packageType): canBook=\(canBook), hasRemaining=\(hasRemaining), notExpired=\(notExpired)")
-            return canBook && hasRemaining && notExpired
+            let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
+            print("🔍 Package \(pkg.packageType): canBook=\(canBook), hasRemaining=\(hasRemaining), notExpired=\(notExpired), isCurrentPackage=\(isCurrentPackage)")
+            return canBook && hasRemaining && notExpired && isCurrentPackage
         }
         
         print("🔍 DEBUG availableClassPasses: Filtered class passes count: \(filtered.count)")
@@ -89,6 +100,29 @@ struct BookView: View {
             return a.expirationDate < b.expirationDate
         }
         return sorted
+    }
+    
+    // Helper to get all valid package types/IDs from current pricing structure
+    private func getCurrentPackageTypes(category: String) -> Set<String> {
+        guard let pricing = pricingService.pricingStructure else { return [] }
+        
+        var packageTypes = Set<String>()
+        for tier in pricing.tiers {
+            for package in tier.packages {
+                // Match by category if specified
+                if category == "pass" && package.packageCategory.rawValue == "pass" {
+                    // Add both the package ID and packageType for matching
+                    packageTypes.insert(package.id)
+                    packageTypes.insert(package.packageType)
+                } else if category == "class" && package.packageCategory.rawValue == "class" {
+                    packageTypes.insert(package.id)
+                    packageTypes.insert(package.packageType)
+                }
+            }
+        }
+        
+        print("🔍 getCurrentPackageTypes(\(category)): Found \(packageTypes.count) valid types: \(packageTypes)")
+        return packageTypes
     }
 
     var body: some View {
@@ -193,8 +227,9 @@ struct BookView: View {
     private func loadInitialData() async {
         guard let orgId = auth.currentOrgId else { return }
         
-        // Load settings first
+        // Load settings and pricing structure first
         await settingsService.loadSettings(orgId: orgId)
+        await pricingService.loadPricingStructure(for: orgId)
         
         if trainersService.trainers.isEmpty {
             await trainersService.loadAll(orgId: orgId)
@@ -823,6 +858,7 @@ private struct ClassRegistrationSheet: View {
     @ObservedObject var packagesService: PackagesService
     let onRegistered: () -> Void
     
+    @StateObject private var pricingService = PricingStructureService()
     @State private var isRegistering = false
     @State private var registrationSuccessful = false
     @State private var errorMessage: String?
@@ -833,8 +869,12 @@ private struct ClassRegistrationSheet: View {
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
         
+        // Get all valid package types from current pricing structure
+        let validPackageTypes = getCurrentPackageTypes(category: "class")
+        
         // Debug: Print all packages
         print("🔍 DEBUG ClassRegistrationSheet: All packages count: \(packagesService.packages.count)")
+        print("🔍 Valid class package types from pricing structure: \(validPackageTypes)")
         for pkg in packagesService.packages {
             print("🔍 ClassRegistrationSheet Package: type=\(pkg.packageType), category=\(pkg.packageCategory ?? "nil"), name=\(pkg.packageName ?? "nil"), canBookClasses=\(pkg.canBookClasses), remaining=\(pkg.lessonsRemaining)")
         }
@@ -843,8 +883,10 @@ private struct ClassRegistrationSheet: View {
             let canBook = pkg.canBookClasses // Only class packages
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
-            print("🔍 ClassRegistrationSheet Package \(pkg.packageType): canBook=\(canBook), hasRemaining=\(hasRemaining), notExpired=\(notExpired)")
-            return canBook && hasRemaining && notExpired
+            let hasClassCategory = pkg.packageCategory == "class" // Must have class category
+            let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
+            print("🔍 ClassRegistrationSheet Package \(pkg.packageType): canBook=\(canBook), hasRemaining=\(hasRemaining), notExpired=\(notExpired), hasClassCategory=\(hasClassCategory), isCurrentPackage=\(isCurrentPackage)")
+            return canBook && hasRemaining && notExpired && hasClassCategory && isCurrentPackage
         }
         
         print("🔍 DEBUG ClassRegistrationSheet: Filtered class passes count: \(filtered.count)")
@@ -853,6 +895,26 @@ private struct ClassRegistrationSheet: View {
             return a.expirationDate < b.expirationDate
         }
         return sorted
+    }
+    
+    // Helper to get all valid package types/IDs from current pricing structure
+    private func getCurrentPackageTypes(category: String) -> Set<String> {
+        guard let pricing = pricingService.pricingStructure else { return [] }
+        
+        var packageTypes = Set<String>()
+        for tier in pricing.tiers {
+            for package in tier.packages {
+                // Match by category if specified
+                if category == "class" && package.packageCategory.rawValue == "class" {
+                    // Add both the package ID and packageType for matching
+                    packageTypes.insert(package.id)
+                    packageTypes.insert(package.packageType)
+                }
+            }
+        }
+        
+        print("🔍 ClassRegistrationSheet getCurrentPackageTypes(\(category)): Found \(packageTypes.count) valid types: \(packageTypes)")
+        return packageTypes
     }
     
     // Find available class pass (legacy - kept for backward compatibility)
@@ -1078,9 +1140,12 @@ private struct ClassRegistrationSheet: View {
         }
         .navigationViewStyle(.stack)
         .task {
-            // Load packages to check for class passes
+            // Load packages and pricing structure to check for class passes
             if packagesService.packages.isEmpty {
                 await packagesService.loadMyPackages()
+            }
+            if let orgId = auth.currentOrgId {
+                await pricingService.loadPricingStructure(for: orgId)
             }
         }
     }
@@ -1301,3 +1366,4 @@ private extension View {
         }
     }
 }
+

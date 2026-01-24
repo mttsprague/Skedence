@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   Package,
-  DollarSign
+  DollarSign,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,10 @@ const navigation = [
   { name: 'Pricing', href: '/pricing', icon: DollarSign },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
+];
+
+const ownerOnlyNavigation = [
+  { name: 'Stripe Settings', href: '/settings/stripe', icon: CreditCard },
 ];
 
 export function Sidebar() {
@@ -89,6 +94,31 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-2">
             {navigation.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              
+              return (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors touch-manipulation',
+                      'min-h-[44px]', // Minimum touch target size
+                      isActive
+                        ? 'bg-white/10 text-white'
+                        : 'text-white/70 hover:bg-white/5 hover:text-white active:bg-white/10'
+                    )}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">{item.name}</span>
+                  </Link>
+                </li>
+              );
+            })}
+
+            {/* Owner-Only Navigation */}
+            {userData?.role === 'owner' && ownerOnlyNavigation.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               

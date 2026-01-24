@@ -181,7 +181,7 @@ class SuperAdminViewModel: ObservableObject {
                     continue
                 }
                 
-                print("🔍 Looking up trainer \(memberId) from orgMember \(memberDoc.documentID), isActive=\(isActive)")
+                print("🔍 Looking up staff member \(memberId) (role: \(role)) from orgMember \(memberDoc.documentID), isActive=\(isActive)")
                 
                 // Staff (trainers/admins/owners) are in trainers collection
                 // The userId in orgMembers should be the trainer document ID
@@ -191,38 +191,57 @@ class SuperAdminViewModel: ObservableObject {
                 var foundTrainerDoc = false
                 
                 // First, try to find trainer by the memberId (which should be trainerId)
-                if let trainerDoc = try? await db.collection("trainers").document(memberId).getDocument(),
-                   trainerDoc.exists,
-                   let trainerData = trainerDoc.data() {
-                    firstName = trainerData["firstName"] as? String ?? ""
-                    lastName = trainerData["lastName"] as? String ?? ""
-                    email = trainerData["email"] as? String ?? trainerData["emailAddress"] as? String
-                    foundTrainerDoc = true
-                    print("✅ Found trainer doc by ID \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil")")
+                // Use silent error handling to avoid permission errors for non-existent docs
+                do {
+                    let trainerDoc = try await db.collection("trainers").document(memberId).getDocument()
+                    if trainerDoc.exists, let trainerData = trainerDoc.data() {
+                        firstName = trainerData["firstName"] as? String ?? ""
+                        lastName = trainerData["lastName"] as? String ?? ""
+                        email = trainerData["email"] as? String ?? trainerData["emailAddress"] as? String
+                        foundTrainerDoc = true
+                        print("✅ Found trainer doc by ID \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil")")
+                    }
+                } catch {
+                    // Document doesn't exist or permission denied - this is expected for non-trainers
+                    print("ℹ️ No direct trainer doc for \(memberId) (\(role))")
                 }
                 
                 // Fallback: If trainer doc not found by memberId, search by Firebase Auth UID
                 // This handles legacy data where trainers might still have user documents
                 if !foundTrainerDoc {
-                    print("⚠️ No trainer doc for \(memberId), searching trainers by userId field...")
-                    let trainerQuery = try? await db.collection("trainers")
-                        .whereField("userId", isEqualTo: memberId)
-                        .limit(to: 1)
-                        .getDocuments()
-                    
-                    if let trainerDoc = trainerQuery?.documents.first {
-                        let trainerData = trainerDoc.data()
-                        firstName = trainerData["firstName"] as? String ?? ""
-                        lastName = trainerData["lastName"] as? String ?? ""
-                        email = trainerData["email"] as? String ?? trainerData["emailAddress"] as? String
-                        foundTrainerDoc = true
-                        print("✅ Found trainer doc by userId query: firstName='\(firstName)', lastName='\(lastName)'")
+                    do {
+                        let trainerQuery = try await db.collection("trainers")
+                            .whereField("userId", isEqualTo: memberId)
+                            .limit(to: 1)
+                            .getDocuments()
+                        
+                        if let trainerDoc = trainerQuery.documents.first {
+                            let trainerData = trainerDoc.data()
+                            firstName = trainerData["firstName"] as? String ?? ""
+                            lastName = trainerData["lastName"] as? String ?? ""
+                            email = trainerData["email"] as? String ?? trainerData["emailAddress"] as? String
+                            foundTrainerDoc = true
+                            print("✅ Found trainer doc by userId query: firstName='\(firstName)', lastName='\(lastName)'")
+                        }
+                    } catch {
+                        // Query failed - this is expected if no matching trainer exists
+                        print("ℹ️ No trainer found by userId for \(memberId) (\(role))")
                     }
                 }
                 
+                // If no trainer doc found, use data from orgMember document
                 if !foundTrainerDoc {
-                    print("❌ No trainer document found for userId \(memberId) - skipping")
-                    continue
+                    // For non-trainers (admins/owners), we might not have a trainer doc
+                    // Use whatever info we have from the orgMember doc
+                    firstName = memberData["firstName"] as? String ?? ""
+                    lastName = memberData["lastName"] as? String ?? ""
+                    email = memberData["email"] as? String ?? memberData["emailAddress"] as? String
+                    
+                    if firstName.isEmpty && lastName.isEmpty && email == nil {
+                        print("⚠️ No data found for \(memberId) - skipping")
+                        continue
+                    }
+                    print("ℹ️ Using orgMember data for \(memberId): firstName='\(firstName)', lastName='\(lastName)'")
                 }
                 
                 print("🔍 Staff member \(memberId): firstName='\(firstName)', lastName='\(lastName)', email=\(email ?? "nil"), role=\(role), isActive=\(isActive)")

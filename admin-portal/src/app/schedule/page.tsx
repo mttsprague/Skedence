@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { WeekScheduleGrid } from '@/components/schedule/WeekScheduleGrid';
+import { AllTrainersDayGrid } from '@/components/schedule/AllTrainersDayGrid';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp, addDoc, updateDoc, deleteDoc, orderBy, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { startOfWeek, addDays, setHours, setMinutes } from 'date-fns';
-import { User } from 'lucide-react';
+import { User, Users } from 'lucide-react';
 
 interface Booking {
   id: string;
@@ -55,12 +56,14 @@ export default function SchedulePage() {
   const [classes, setClasses] = useState<GroupClass[]>([]);
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const trainersRef = useRef<Trainer[]>([]);
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'week' | 'allTrainersDay'>('week');
   
   // Availability editor
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
-  const [editingSlot, setEditingSlot] = useState<{ day: Date; hour: number; existingSlot?: AvailabilitySlot } | null>(null);
+  const [editingSlot, setEditingSlot] = useState<{ day: Date; hour: number; existingSlot?: AvailabilitySlot; targetTrainerId?: string } | null>(null);
   const [slotDuration, setSlotDuration] = useState<number>(1);
   const [slotStatus, setSlotStatus] = useState<'open' | 'unavailable'>('open');
   const [isRecurring, setIsRecurring] = useState(false);
@@ -75,7 +78,7 @@ export default function SchedulePage() {
     if (user && !selectedTrainerId) {
       setSelectedTrainerId(user.uid);
     }
-  }, [user, selectedTrainerId]);
+  }, [user]);
 
   // Load trainers if admin
   useEffect(() => {
@@ -85,8 +88,7 @@ export default function SchedulePage() {
       try {
         const trainersQuery = query(
           collection(db, 'trainers'),
-          where('orgId', '==', orgId),
-          where('active', '==', true) // Only load active trainers
+          where('orgId', '==', orgId)
         );
         const trainersSnap = await getDocs(trainersQuery);
         const trainersData = trainersSnap.docs.map(doc => ({
@@ -94,6 +96,7 @@ export default function SchedulePage() {
           ...doc.data(),
         })) as Trainer[];
         setTrainers(trainersData);
+        trainersRef.current = trainersData;
       } catch (error) {
         console.error('Error loading trainers:', error);
       }
@@ -103,11 +106,12 @@ export default function SchedulePage() {
     if (userData.role === 'owner') {
       loadTrainers();
     }
-  }, [orgId, userData]);
+  }, [orgId, userData?.role]);
 
   // Load schedule data with real-time listeners
   useEffect(() => {
-    if (!orgId || !selectedTrainerId) return;
+    if (!orgId) return;
+    if (viewMode === 'week' && !selectedTrainerId) return;
     
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 0 });
@@ -116,12 +120,19 @@ export default function SchedulePage() {
     setLoading(true);
 
     // Real-time listener for bookings
-    const bookingsQuery = query(
-      collection(db, 'bookings'),
-      where('trainerId', '==', selectedTrainerId),
-      where('startTime', '>=', Timestamp.fromDate(weekStart)),
-      where('startTime', '<', Timestamp.fromDate(weekEnd))
-    );
+    const bookingsQuery = viewMode === 'week'
+      ? query(
+          collection(db, 'bookings'),
+          where('trainerId', '==', selectedTrainerId),
+          where('startTime', '>=', Timestamp.fromDate(weekStart)),
+          where('startTime', '<', Timestamp.fromDate(weekEnd))
+        )
+      : query(
+          collection(db, 'bookings'),
+          where('orgId', '==', orgId),
+          where('startTime', '>=', Timestamp.fromDate(weekStart)),
+          where('startTime', '<', Timestamp.fromDate(weekEnd))
+        );
     
     const unsubBookings = onSnapshot(bookingsQuery, async (snapshot) => {
       const bookingsData: Booking[] = [];
@@ -159,12 +170,19 @@ export default function SchedulePage() {
     });
 
     // Real-time listener for classes (only for this trainer)
-    const classesQuery = query(
-      collection(db, 'classes'),
-      where('trainerId', '==', selectedTrainerId),
-      where('startTime', '>=', Timestamp.fromDate(weekStart)),
-      where('startTime', '<', Timestamp.fromDate(weekEnd))
-    );
+    const classesQuery = viewMode === 'week'
+      ? query(
+          collection(db, 'classes'),
+          where('trainerId', '==', selectedTrainerId),
+          where('startTime', '>=', Timestamp.fromDate(weekStart)),
+          where('startTime', '<', Timestamp.fromDate(weekEnd))
+        )
+      : query(
+          collection(db, 'classes'),
+          where('orgId', '==', orgId),
+          where('startTime', '>=', Timestamp.fromDate(weekStart)),
+          where('startTime', '<', Timestamp.fromDate(weekEnd))
+        );
     
     const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
       const classesData = snapshot.docs.map(doc => ({
@@ -179,22 +197,58 @@ export default function SchedulePage() {
     });
 
     // Real-time listener for availability slots
-    const availabilityQuery = query(
-      collection(db, 'trainers', selectedTrainerId, 'schedules'),
-      where('startTime', '>=', Timestamp.fromDate(weekStart)),
-      where('startTime', '<', Timestamp.fromDate(weekEnd)),
-      orderBy('startTime', 'asc')
-    );
+    let unsubAvailability: () => void;
     
-    const unsubAvailability = onSnapshot(availabilityQuery, (snapshot) => {
-      const availabilityData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        startTime: doc.data().startTime.toDate(),
-        endTime: doc.data().endTime.toDate(),
-      })) as AvailabilitySlot[];
-      setAvailabilitySlots(availabilityData);
-    });
+    if (viewMode === 'week') {
+      // Single trainer mode
+      const availabilityQuery = query(
+        collection(db, 'trainers', selectedTrainerId, 'schedules'),
+        where('startTime', '>=', Timestamp.fromDate(weekStart)),
+        where('startTime', '<', Timestamp.fromDate(weekEnd)),
+        orderBy('startTime', 'asc')
+      );
+      
+      unsubAvailability = onSnapshot(availabilityQuery, (snapshot) => {
+        const availabilityData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          trainerId: selectedTrainerId,
+          ...doc.data(),
+          startTime: doc.data().startTime.toDate(),
+          endTime: doc.data().endTime.toDate(),
+        })) as AvailabilitySlot[];
+        setAvailabilitySlots(availabilityData);
+      });
+    } else {
+      // All trainers mode - load availability for all trainers
+      const loadAllAvailability = async () => {
+        const allAvailability: AvailabilitySlot[] = [];
+        
+        for (const trainer of trainersRef.current) {
+          const availabilityQuery = query(
+            collection(db, 'trainers', trainer.id, 'schedules'),
+            where('startTime', '>=', Timestamp.fromDate(weekStart)),
+            where('startTime', '<', Timestamp.fromDate(weekEnd)),
+            orderBy('startTime', 'asc')
+          );
+          
+          const snapshot = await getDocs(availabilityQuery);
+          const trainerAvailability = snapshot.docs.map(doc => ({
+            id: doc.id,
+            trainerId: trainer.id,
+            ...doc.data(),
+            startTime: doc.data().startTime.toDate(),
+            endTime: doc.data().endTime.toDate(),
+          })) as AvailabilitySlot[];
+          
+          allAvailability.push(...trainerAvailability);
+        }
+        
+        setAvailabilitySlots(allAvailability);
+      };
+      
+      loadAllAvailability();
+      unsubAvailability = () => {}; // No-op for all trainers mode
+    }
 
     // Cleanup listeners on unmount or when dependencies change
     return () => {
@@ -202,10 +256,10 @@ export default function SchedulePage() {
       unsubClasses();
       unsubAvailability();
     };
-  }, [orgId, selectedTrainerId]);
+  }, [orgId, selectedTrainerId, viewMode]);
 
-  const handleAddAvailability = (day: Date, hour: number) => {
-    setEditingSlot({ day, hour });
+  const handleAddAvailability = (day: Date, hour: number, trainerId?: string) => {
+    setEditingSlot({ day, hour, targetTrainerId: trainerId });
     setSlotDuration(1);
     setSlotStatus('open');
     setShowAvailabilityDialog(true);
@@ -217,6 +271,7 @@ export default function SchedulePage() {
       day: startDate,
       hour: startDate.getHours(),
       existingSlot: slot,
+      targetTrainerId: slot.trainerId,
     });
     setSlotDuration(Math.round((slot.endTime.getTime() - slot.startTime.getTime()) / (1000 * 60 * 60)));
     setSlotStatus(slot.status);
@@ -224,13 +279,14 @@ export default function SchedulePage() {
   };
 
   const handleSaveAvailability = async () => {
-    if (!editingSlot || !selectedTrainerId) return;
+    const targetTrainerId = editingSlot?.targetTrainerId || selectedTrainerId;
+    if (!editingSlot || !targetTrainerId) return;
 
     try {
       const startTime = setMinutes(setHours(editingSlot.day, editingSlot.hour), 0);
       const endTime = new Date(startTime.getTime() + slotDuration * 60 * 60 * 1000);
 
-      console.log('Schedule: Creating slot for trainer:', selectedTrainerId);
+      console.log('Schedule: Creating slot for trainer:', targetTrainerId);
       console.log('Schedule: Start time:', startTime);
       console.log('Schedule: End time:', endTime);
       console.log('Schedule: Status:', slotStatus);
@@ -247,7 +303,7 @@ export default function SchedulePage() {
       };
 
       // Get trainer name
-      const trainerDoc = await getDoc(doc(db, 'trainers', selectedTrainerId));
+      const trainerDoc = await getDoc(doc(db, 'trainers', targetTrainerId));
       const trainerData = trainerDoc.data();
       const trainerFirstName = trainerData?.firstName || '';
       const trainerLastName = trainerData?.lastName || '';
@@ -256,7 +312,7 @@ export default function SchedulePage() {
       if (editingSlot.existingSlot) {
         // Update existing slot
         console.log('Schedule: Updating existing slot:', editingSlot.existingSlot.id);
-        await updateDoc(doc(db, 'trainers', selectedTrainerId, 'schedules', editingSlot.existingSlot.id), {
+        await updateDoc(doc(db, 'trainers', targetTrainerId, 'schedules', editingSlot.existingSlot.id), {
           startTime: Timestamp.fromDate(startTime),
           endTime: Timestamp.fromDate(endTime),
           status: slotStatus,
@@ -294,10 +350,10 @@ export default function SchedulePage() {
         // Create single slot with deterministic ID
         const slotId = generateScheduleDocId(startTime);
         console.log('Schedule: Creating single slot with ID:', slotId);
-        console.log('Schedule: Full path: trainers/' + selectedTrainerId + '/schedules/' + slotId);
+        console.log('Schedule: Full path: trainers/' + targetTrainerId + '/schedules/' + slotId);
         
-        await setDoc(doc(db, 'trainers', selectedTrainerId, 'schedules', slotId), {
-          trainerId: selectedTrainerId,
+        await setDoc(doc(db, 'trainers', targetTrainerId, 'schedules', slotId), {
+          trainerId: targetTrainerId,
           orgId: orgId,
           startTime: Timestamp.fromDate(startTime),
           endTime: Timestamp.fromDate(endTime),
@@ -355,37 +411,73 @@ export default function SchedulePage() {
             <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">Manage availability, bookings, and classes</p>
           </div>
 
-          {isAdmin && trainers.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Label htmlFor="trainer-select" className="text-sm font-medium whitespace-nowrap">
-                Viewing:
-              </Label>
-              <Select value={selectedTrainerId} onValueChange={setSelectedTrainerId}>
-                <SelectTrigger id="trainer-select" className="w-full sm:w-[200px] touch-manipulation">
-                  <SelectValue placeholder="Select trainer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {trainers.map((trainer) => (
-                    <SelectItem key={trainer.id} value={trainer.id}>
-                      {trainer.firstName} {trainer.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {isAdmin && trainers.length > 1 && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {viewMode === 'week' && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="trainer-select" className="text-sm font-medium whitespace-nowrap">
+                    Viewing:
+                  </Label>
+                  <Select value={selectedTrainerId} onValueChange={setSelectedTrainerId}>
+                    <SelectTrigger id="trainer-select" className="w-full sm:w-[200px] touch-manipulation">
+                      <SelectValue placeholder="Select trainer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {trainers.map((trainer) => (
+                        <SelectItem key={trainer.id} value={trainer.id}>
+                          {trainer.firstName} {trainer.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              <Button
+                variant={viewMode === 'allTrainersDay' ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode(viewMode === 'week' ? 'allTrainersDay' : 'week')}
+                className="touch-manipulation whitespace-nowrap"
+              >
+                {viewMode === 'week' ? (
+                  <>
+                    <Users className="h-4 w-4 mr-2" />
+                    All Trainers
+                  </>
+                ) : (
+                  <>
+                    <User className="h-4 w-4 mr-2" />
+                    Single Trainer
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </div>
 
-        <WeekScheduleGrid
-          trainerId={selectedTrainerId}
-          bookings={bookings}
-          classes={classes}
-          availabilitySlots={availabilitySlots}
-          onAddAvailability={handleAddAvailability}
-          onBookingClick={(booking) => setSelectedBooking(booking)}
-          onClassClick={(classItem) => setSelectedClass(classItem)}
-          onAvailabilityClick={handleAvailabilityClick}
-        />
+        {viewMode === 'week' ? (
+          <WeekScheduleGrid
+            trainerId={selectedTrainerId}
+            bookings={bookings}
+            classes={classes}
+            availabilitySlots={availabilitySlots}
+            onAddAvailability={(day, hour) => handleAddAvailability(day, hour)}
+            onBookingClick={(booking) => setSelectedBooking(booking)}
+            onClassClick={(classItem) => setSelectedClass(classItem)}
+            onAvailabilityClick={handleAvailabilityClick}
+          />
+        ) : (
+          <AllTrainersDayGrid
+            trainers={trainers}
+            bookings={bookings}
+            classes={classes}
+            availabilitySlots={availabilitySlots}
+            onAddAvailability={(trainerId, day, hour) => handleAddAvailability(day, hour, trainerId)}
+            onBookingClick={(booking) => setSelectedBooking(booking)}
+            onClassClick={(classItem) => setSelectedClass(classItem)}
+            onAvailabilityClick={handleAvailabilityClick}
+          />
+        )}
       </div>
 
       {/* Availability Editor Dialog */}
