@@ -22,7 +22,13 @@ struct SkedenceAdminApp: App {
     @State private var passwordSetupData: (token: String, email: String, trainerId: String)?
 
     init() {
-        configureFirebaseIfAvailable()
+        // Configure Firebase FIRST, before anything else
+        #if canImport(FirebaseCore)
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+            print("🔥 Firebase configured in app init")
+        }
+        #endif
     }
 
     var sharedModelContainer: ModelContainer = {
@@ -140,12 +146,4 @@ struct SkedenceAdminApp: App {
             }
         }
     }
-}
-
-private func configureFirebaseIfAvailable() {
-    #if canImport(FirebaseCore)
-    if FirebaseApp.app() == nil {
-        FirebaseApp.configure()
-    }
-    #endif
 }
