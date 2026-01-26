@@ -45,7 +45,9 @@ struct AppRootView: View {
                              scheduleService: scheduleService,
                              packagesService: packagesService,
                              usersService: usersService,
-                             initialMode: $bookViewMode)
+                             initialMode: $bookViewMode,
+                             selectedTab: $selectedTab,
+                             profileTab: $profileTab)
                         .tabItem {
                             Label("Book", systemImage: "calendar.badge.plus")
                         }

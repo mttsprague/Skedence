@@ -23,6 +23,8 @@ struct BookView: View {
     @StateObject private var pricingService = PricingStructureService()
     
     @Binding var initialMode: Int
+    @Binding var selectedTab: Int
+    @Binding var profileTab: String?
 
     @State private var mode: Mode = .lessons
     @State private var selectedTrainer: Trainer?
@@ -159,7 +161,13 @@ struct BookView: View {
                 .navigationTitle("Book a Time")
                 .navigationBarTitleDisplayMode(.large)
                 .alert(item: $bookingAlert) { alert in
-                    Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
+                    Alert(
+                        title: Text(alert.title),
+                        message: Text(alert.message),
+                        dismissButton: .default(Text("OK")) {
+                            alert.action?()
+                        }
+                    )
                 }
                 .sheet(item: $selectedClass) { classItem in
                     classRegistrationSheet(for: classItem)
@@ -675,14 +683,20 @@ struct BookView: View {
             selectedSlot = nil
         } catch {
             let cleanMessage: String
+            var navigateToPasses = false
             if error.localizedDescription.contains("credits") || error.localizedDescription.contains("package") {
                 cleanMessage = "We couldn't complete your booking. That package has no passes remaining."
+                navigateToPasses = true
             } else {
                 cleanMessage = "We couldn't complete your booking. \(error.localizedDescription)"
             }
             bookingAlert = .init(
                 title: "Booking Failed",
-                message: cleanMessage
+                message: cleanMessage,
+                action: navigateToPasses ? {
+                    profileTab = "PASSES"
+                    selectedTab = 2 // Profile tab
+                } : nil
             )
         }
     }
@@ -691,6 +705,13 @@ struct BookView: View {
         let id = UUID()
         let title: String
         let message: String
+        let action: (() -> Void)?
+        
+        init(title: String, message: String, action: (() -> Void)? = nil) {
+            self.title = title
+            self.message = message
+            self.action = action
+        }
     }
 }
 
