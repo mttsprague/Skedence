@@ -143,7 +143,13 @@ interface CancelSubscriptionData {
  */
 export const cancelSubscription = functions.https.onCall(
   async (request: functions.https.CallableRequest<CancelSubscriptionData>) => {
+    console.log("🔴 cancelSubscription called on server");
+    console.log("   request.auth:", request.auth ? "EXISTS" : "NULL");
+    console.log("   request.auth.uid:", request.auth?.uid || "N/A");
+    console.log("   request.data:", request.data);
+
     if (!request.auth) {
+      console.log("❌ No auth context - throwing UNAUTHENTICATED");
       throw new functions.https.HttpsError(
         "unauthenticated",
         "You must be signed in"
@@ -160,11 +166,13 @@ export const cancelSubscription = functions.https.onCall(
     }
 
     try {
+      console.log(`✅ Authenticated as ${request.auth.uid}, checking org ${orgId}`);
       // Verify user is org owner
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
       if (!orgData || orgData.ownerUserId !== request.auth.uid) {
+        console.log(`❌ Permission denied: ownerUserId=${orgData?.ownerUserId}, requestUid=${request.auth.uid}`);
         throw new functions.https.HttpsError(
           "permission-denied",
           "You must be the organization owner"
