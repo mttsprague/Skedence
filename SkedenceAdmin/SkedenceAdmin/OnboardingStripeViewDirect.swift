@@ -201,6 +201,11 @@ struct OnboardingStripeViewDirect: View {
                     .padding(.vertical, Spacing.sm)
             }
             .disabled(isLoading)
+            Text("You can add these keys later in the admin portal (Manage → Stripe & Payments).")
+                .font(.bodySmall)
+                .foregroundStyle(AppTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Spacing.lg)
             
             // Save button
             Button(action: saveKeys) {

@@ -22,6 +22,7 @@ struct OnboardingPackagesView: View {
     @State private var sessions: String = ""
     @State private var price: String = ""
     @State private var expirationDays: String = ""
+    @State private var packageCategory: PackageCategory = .pass
     
     var body: some View {
         ScrollView {
@@ -52,6 +53,18 @@ struct OnboardingPackagesView: View {
                     Text("Package Details")
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
+
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Package Type")
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+
+                        Picker("Package Type", selection: $packageCategory) {
+                            Text("Pass").tag(PackageCategory.pass)
+                            Text("Class").tag(PackageCategory.classPass)
+                        }
+                        .pickerStyle(.segmented)
+                    }
                     
                     FormField(
                         icon: "tag",
@@ -184,6 +197,7 @@ struct OnboardingPackagesView: View {
                     title: packageName,
                     priceInCents: Int(priceValue * 100),
                     packageType: packageName.lowercased().replacingOccurrences(of: " ", with: "_"),
+                    packageCategory: packageCategory,
                     lessonCount: sessionsValue,
                     description: packageDescription
                 )

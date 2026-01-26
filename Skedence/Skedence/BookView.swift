@@ -5,7 +5,6 @@
 //  Created by Matthew Sprague on 10/14/25.
 //
 
-
 import SwiftUI
 import StripePaymentSheet
 import FirebaseAuth
@@ -447,7 +446,7 @@ struct BookView: View {
             }
             
             // Package selection (only show if user has multiple available passes)
-            if availableLessonPackages.count > 1 {
+            if !availableLessonPackages.isEmpty {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text("Select Pass to Use")
                         .font(.headingMedium)
@@ -461,7 +460,7 @@ struct BookView: View {
                                     selectedPackage = package
                                 } label: {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(package.packageName ?? package.packageType.capitalized)
+                                        Text(displayPackageTitle(package))
                                             .font(.bodyMedium)
                                         Text("\(package.lessonsRemaining) left")
                                             .font(.caption)
@@ -481,7 +480,7 @@ struct BookView: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    Text(selectedPackage != nil ? (selectedPackage!.packageName ?? selectedPackage!.packageType.capitalized) : "Choose a pass")
+                                    Text(selectedPackage != nil ? displayPackageTitle(selectedPackage!) : "Choose a pass")
                                         .font(.headingSmall)
                                         .foregroundStyle(AppTheme.textPrimary)
                                     Text(selectedPackage != nil ? "\(selectedPackage!.lessonsRemaining) left" : "Select which pass to use")
@@ -520,8 +519,8 @@ struct BookView: View {
                 }
             }
             .buttonStyle(PrimaryButtonStyle())
-            .disabled(bookingInFlight || selectedTrainer == nil || selectedSlot == nil || (availableLessonPackages.count > 1 && selectedPackage == nil))
-            .opacity((selectedTrainer != nil && selectedSlot != nil && (availableLessonPackages.count <= 1 || selectedPackage != nil)) ? 1.0 : 0.5)
+            .disabled(bookingInFlight || selectedTrainer == nil || selectedSlot == nil || (availableLessonPackages.count > 0 && selectedPackage == nil))
+            .opacity((selectedTrainer != nil && selectedSlot != nil && (availableLessonPackages.isEmpty || selectedPackage != nil)) ? 1.0 : 0.5)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.md)
         }
@@ -595,6 +594,22 @@ struct BookView: View {
             }
         }
         return "\(baseName) (\(package.lessonsRemaining) remaining)"
+    }
+
+    private func displayPackageTitle(_ package: LessonPackage) -> String {
+        if let name = package.packageName, !name.isEmpty {
+            return name
+        }
+        // Try pricing structure title by packageType
+        if let pricing = pricingService.pricingStructure {
+            for tier in pricing.tiers {
+                if let match = tier.packages.first(where: { $0.packageType == package.packageType }) {
+                    return match.title
+                }
+            }
+        }
+        // Fallback
+        return package.packageType.replacingOccurrences(of: "_", with: " ").capitalized
     }
 
     private var isBookEnabled: Bool {
@@ -966,6 +981,21 @@ private struct ClassRegistrationSheet: View {
         return "\(baseName) (\(package.lessonsRemaining) remaining)"
     }
     
+    // Local version for this sheet using its pricingService
+    private func displayPackageTitle(_ package: LessonPackage) -> String {
+        if let name = package.packageName, !name.isEmpty {
+            return name
+        }
+        if let pricing = pricingService.pricingStructure {
+            for tier in pricing.tiers {
+                if let match = tier.packages.first(where: { $0.packageType == package.packageType }) {
+                    return match.title
+                }
+            }
+        }
+        return package.packageType.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -1075,7 +1105,7 @@ private struct ClassRegistrationSheet: View {
                                                 selectedClassPass = package
                                             } label: {
                                                 VStack(alignment: .leading, spacing: 2) {
-                                                    Text(package.packageName ?? package.packageType.capitalized)
+                                                    Text(displayPackageTitle(package))
                                                         .font(.bodyMedium)
                                                     Text("\(package.lessonsRemaining) left")
                                                         .font(.caption)
@@ -1095,7 +1125,7 @@ private struct ClassRegistrationSheet: View {
                                             }
                                             
                                             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                                Text(selectedClassPass != nil ? (selectedClassPass!.packageName ?? selectedClassPass!.packageType.capitalized) : "Choose a class pass")
+                                                Text(selectedClassPass != nil ? displayPackageTitle(selectedClassPass!) : "Choose a class pass")
                                                     .font(.headingSmall)
                                                     .foregroundStyle(AppTheme.textPrimary)
                                                 Text(selectedClassPass != nil ? "\(selectedClassPass!.lessonsRemaining) left" : "Select which pass to use")
@@ -1390,4 +1420,3 @@ private extension View {
         }
     }
 }
-

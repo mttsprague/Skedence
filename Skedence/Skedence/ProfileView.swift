@@ -99,6 +99,9 @@ private struct SignedInProfileScreen: View {
     @State private var tab: Tab = .passes
     enum Tab: String { case passes = "PASSES", schedule = "SCHEDULE", wallet = "WALLET" }
     @State private var showPurchaseLessons = false
+    @State private var showingDescriptionSheet = false
+    @State private var descriptionSheetTitle: String = ""
+    @State private var descriptionSheetText: String = ""
 
     // Location is now dynamic from booking data - no hardcoded venue
 
@@ -155,6 +158,29 @@ private struct SignedInProfileScreen: View {
         }
         .navigationDestination(isPresented: $showPurchaseLessons) {
             PurchaseLessonsView(packagesService: packagesService)
+        }
+        .sheet(isPresented: $showingDescriptionSheet) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        Text(descriptionSheetTitle)
+                            .font(.headingMedium)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text(descriptionSheetText)
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(Spacing.lg)
+                }
+                .navigationTitle("Package Details")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { showingDescriptionSheet = false }
+                    }
+                }
+            }
         }
         .onChangeCompat(of: showPurchaseLessons) { isPresentingPurchase in
             // Reload packages when returning from purchase view
@@ -689,6 +715,11 @@ private struct SignedInProfileScreen: View {
                             .foregroundStyle(AppTheme.textSecondary)
                             .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
+                            .onTapGesture {
+                                descriptionSheetTitle = title
+                                descriptionSheetText = description
+                                showingDescriptionSheet = true
+                            }
                     }
                     
                     // Allotment/remaining count

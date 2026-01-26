@@ -240,6 +240,9 @@ struct SuperAdminView: View {
                             Text("Accept payments & manage subscription")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
+                            Text("You can also add Stripe keys in the admin portal website.")
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "creditcard")
