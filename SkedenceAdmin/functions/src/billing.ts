@@ -179,7 +179,9 @@ export const cancelSubscription = functions.https.onCall(
         );
       }
 
-      const subscriptionId = orgData.billing?.subscriptionId;
+      const subscriptionId = orgData.billing?.stripeSubscriptionId;
+      console.log(`🔍 Found stripeSubscriptionId: ${subscriptionId || "null"}`);
+
       if (!subscriptionId) {
         throw new functions.https.HttpsError(
           "failed-precondition",
@@ -187,18 +189,30 @@ export const cancelSubscription = functions.https.onCall(
         );
       }
 
-      // Cancel at period end (don't charge them immediately)
+      // Cancel the subscription at period end
       await stripe.subscriptions.update(subscriptionId, {
         cancel_at_period_end: true,
+        metadata: {
+          canceledBy: request.auth.uid,
+          canceledAt: new Date().toISOString(),
+        },
       });
 
-      // Update organization
+      // Update Firestore - set plan to 'free', status to 'canceled', and mark inactive
       await db.collection("organizations").doc(orgId).update({
+        "billing.plan": "free",
+        "billing.status": "canceled",
+        "billing.isActive": false,
         "billing.cancelAtPeriodEnd": true,
-        "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+        "billing.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      return {success: true};
+      console.log("✅ Subscription scheduled for cancellation at period end, plan reverted to free");
+
+      return {
+        success: true,
+        message: "Subscription will be canceled at the end of the billing period",
+      };
     } catch (error: unknown) {
       console.error("Error canceling subscription:", error);
       if (error instanceof functions.https.HttpsError) {

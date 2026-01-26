@@ -136,13 +136,21 @@ export default function PassesPage() {
     }
 
     async function loadClientPackages() {
-      if (!selectedClient) return; // Type guard
+      if (!selectedClient || !orgId) return; // Type guard
       
       try {
-        const packagesQuery = query(
-          collection(db, 'users', selectedClient.userId, 'lessonPackages')
+        // Try new organization path first
+        let packagesSnap = await getDocs(
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
         );
-        const packagesSnap = await getDocs(packagesQuery);
+        
+        // Fall back to old path if no packages found
+        if (packagesSnap.empty) {
+          packagesSnap = await getDocs(
+            collection(db, 'users', selectedClient.userId, 'lessonPackages')
+          );
+        }
+        
         const packagesData = packagesSnap.docs.map(doc => {
           const data = doc.data();
           return {
@@ -158,7 +166,7 @@ export default function PassesPage() {
     }
 
     loadClientPackages();
-  }, [selectedClient]);
+  }, [selectedClient, orgId]);
 
   const handleSubmit = async () => {
     if (!selectedClient || !selectedPackage || !orgId) return;
@@ -185,10 +193,20 @@ export default function PassesPage() {
           orgId: orgId
         };
 
+        // Write to BOTH locations for compatibility:
+        // 1. Old path (backward compatibility)
         await addDoc(
           collection(db, 'users', selectedClient.userId, 'lessonPackages'),
           passData
         );
+
+        // 2. New path (organizations/{orgId}/users/{userId}/packages) - where client apps read
+        if (orgId) {
+          await addDoc(
+            collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
+            passData
+          );
+        }
 
         setMessage({
           type: 'success',

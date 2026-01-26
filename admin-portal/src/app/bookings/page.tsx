@@ -148,13 +148,25 @@ export default function BookingsPage() {
     async function loadPackages() {
       console.log('Bookings: Loading packages for client:', selectedClient, 'orgId:', orgId);
       try {
-        // Query users/{userId}/lessonPackages directly
-        console.log('Bookings: Querying path: users/' + selectedClient + '/lessonPackages');
+        if (!orgId) {
+          console.error('Bookings: orgId is not available');
+          return;
+        }
         
-        // Get all packages (we'll filter in code since remainingLessons might be undefined)
-        const allPackagesSnapshot = await getDocs(
-          collection(db, 'users', selectedClient, 'lessonPackages')
+        // Try new organization path first
+        console.log('Bookings: Querying path: organizations/' + orgId + '/users/' + selectedClient + '/packages');
+        let allPackagesSnapshot = await getDocs(
+          collection(db, 'organizations', orgId, 'users', selectedClient, 'packages')
         );
+        
+        // Fall back to old path if no packages found
+        if (allPackagesSnapshot.empty) {
+          console.log('Bookings: No packages in new path, trying old path: users/' + selectedClient + '/lessonPackages');
+          allPackagesSnapshot = await getDocs(
+            collection(db, 'users', selectedClient, 'lessonPackages')
+          );
+        }
+        
         console.log('Bookings: Total packages in collection:', allPackagesSnapshot.size);
         
         const packagesData = allPackagesSnapshot.docs

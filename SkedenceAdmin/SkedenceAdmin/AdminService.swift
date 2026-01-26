@@ -325,20 +325,31 @@ final class AdminService: ObservableObject {
         }
         
         // Load pricing structure to get packageCategory and packageName
-        let pricingDoc = try await db.collection("organizations").document(orgId)
-            .collection("pricingStructure").document("current").getDocument()
+        let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
+        guard let orgData = orgDoc.data(),
+              let pricingData = orgData["pricingStructure"] as? [String: Any] else {
+            print("⚠️ AdminService: No pricing structure found, using defaults")
+            throw NSError(domain: "AdminService", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Pricing structure not found"])
+        }
         
         var packageCategory: String = "pass" // Default to pass for backward compatibility
         var packageName: String? = nil
         
-        if let pricingData = pricingDoc.data(),
-           let tiers = pricingData["tiers"] as? [[String: Any]] {
+        print("🔍 AdminService.addPassToClient: Looking for passType=\(passType)")
+        
+        if let tiers = pricingData["tiers"] as? [[String: Any]] {
             // Search for the package in all tiers
             for tier in tiers {
                 if let packages = tier["packages"] as? [[String: Any]] {
                     for package in packages {
                         if let pkgType = package["packageType"] as? String,
                            pkgType == passType {
+                            print("🔍 AdminService: Found package in pricing structure:")
+                            print("   packageType: \(pkgType)")
+                            print("   packageCategory: \(package["packageCategory"] as? String ?? "nil")")
+                            print("   title: \(package["title"] as? String ?? "nil")")
+                            
                             if let category = package["packageCategory"] as? String {
                                 packageCategory = category
                             }
@@ -351,6 +362,11 @@ final class AdminService: ObservableObject {
                 }
             }
         }
+        
+        print("🔍 AdminService: Will write package with:")
+        print("   packageType: \(passType)")
+        print("   packageCategory: \(packageCategory)")
+        print("   packageName: \(packageName ?? "nil")")
         
         let now = Date()
         let expirationDate = Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now.addingTimeInterval(365 * 24 * 60 * 60)
@@ -371,9 +387,19 @@ final class AdminService: ObservableObject {
             passData["packageName"] = packageName
         }
         
+        // Write to BOTH locations for compatibility:
+        // 1. Old path (backward compatibility for users not in orgs or old client apps)
         try await db.collection("users")
             .document(clientId)
             .collection("lessonPackages")
+            .addDocument(data: passData)
+        
+        // 2. New path (organizations/{orgId}/users/{userId}/packages) - where modern client apps read
+        try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
+            .document(clientId)
+            .collection("packages")
             .addDocument(data: passData)
     }
     

@@ -609,11 +609,67 @@ final class FirestoreService {
         
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
-        let snapshot = try await db.collection("users")
-            .document(clientId)
-            .collection("lessonPackages")
-            .order(by: "purchaseDate", descending: true)
-            .getDocuments()
+        
+        // First, get the client's orgId
+        let userDoc = try await db.collection("users").document(clientId).getDocument()
+        let orgId = userDoc.data()?["orgId"] as? String
+        
+        var snapshot: QuerySnapshot
+        var packageTitleByType: [String: String] = [:]
+        
+        // Try NEW path first (organizations/{orgId}/users/{userId}/packages)
+        if let orgId = orgId {
+            // Build packageType -> title map from pricing structure (for display names)
+            var pricingData: [String: Any]?
+            if let orgData = try? await db.collection("organizations").document(orgId).getDocument().data(),
+               let orgPricing = orgData["pricingStructure"] as? [String: Any] {
+                pricingData = orgPricing
+            } else if let legacyDoc = try? await db.collection("organizations").document(orgId)
+                        .collection("pricingStructure").document("current").getDocument(),
+                      let legacyData = legacyDoc.data() {
+                pricingData = legacyData
+            }
+            if let pricingData = pricingData,
+               let tiers = pricingData["tiers"] as? [[String: Any]] {
+                for tier in tiers {
+                    if let packages = tier["packages"] as? [[String: Any]] {
+                        for package in packages {
+                            if let pkgType = package["packageType"] as? String,
+                               let title = package["title"] as? String {
+                                packageTitleByType[pkgType] = title
+                            }
+                        }
+                    }
+                }
+            }
+
+            print("📦 Fetching packages from NEW path: organizations/\(orgId)/users/\(clientId)/packages")
+            snapshot = try await db.collection("organizations")
+                .document(orgId)
+                .collection("users")
+                .document(clientId)
+                .collection("packages")
+                .order(by: "purchaseDate", descending: true)
+                .getDocuments()
+            
+            // If no packages found in new path, fall back to old path
+            if snapshot.documents.isEmpty {
+                print("📦 No packages in NEW path, trying OLD path: users/\(clientId)/lessonPackages")
+                snapshot = try await db.collection("users")
+                    .document(clientId)
+                    .collection("lessonPackages")
+                    .order(by: "purchaseDate", descending: true)
+                    .getDocuments()
+            }
+        } else {
+            // No orgId, use old path
+            print("📦 No orgId found, using OLD path: users/\(clientId)/lessonPackages")
+            snapshot = try await db.collection("users")
+                .document(clientId)
+                .collection("lessonPackages")
+                .order(by: "purchaseDate", descending: true)
+                .getDocuments()
+        }
         
         let packages: [LessonPackage] = snapshot.documents.compactMap { doc in
             let data = doc.data()
@@ -628,10 +684,16 @@ final class FirestoreService {
             
             let expirationDate = (data["expirationDate"] as? Timestamp)?.dateValue()
             let transactionId = data["transactionId"] as? String
+            let packageCategory = data["packageCategory"] as? String
+            let packageName = data["packageName"] as? String ?? packageTitleByType[packageType]
+            let trainerId = data["trainerId"] as? String
             
             return LessonPackage(
                 id: doc.documentID,
                 packageType: packageType,
+                packageCategory: packageCategory,
+                packageName: packageName,
+                trainerId: trainerId,
                 totalLessons: totalLessons,
                 lessonsUsed: lessonsUsed,
                 purchaseDate: purchaseDateTs.dateValue(),
@@ -651,6 +713,10 @@ final class FirestoreService {
             print("⚠️ adminBookLesson called with empty ID(s): trainerId=\(trainerId), slotId=\(slotId), clientId=\(clientId), packageId=\(packageId), orgId=\(orgId)")
             throw FirestoreServiceError.notAvailable
         }
+        let safeTrainerId = trainerId
+        let safeClientId = clientId
+        let safePackageId = packageId
+        let safeOrgId = orgId
         
         #if canImport(FirebaseFirestore)
         print("🔵 adminBookLesson: Start")
@@ -659,7 +725,7 @@ final class FirestoreService {
         print("🔵 Getting slot")
         // 1. Get the slot reference and data
         let slotRef = db.collection("trainers")
-            .document(trainerId)
+            .document(safeTrainerId)
             .collection("schedules")
             .document(slotId)
         
@@ -673,21 +739,76 @@ final class FirestoreService {
         print("✅ Got slot data")
         
         print("🔵 Getting trainer name")
-        // 2. Get trainer name
-        let trainerSnap = try await db.collection("trainers").document(trainerId).getDocument()
-        let trainerName = trainerSnap.data()?["name"] as? String ?? "Trainer"
+        // 2. Get trainer name (best-effort; avoid extra Firestore round-trip)
+        let trainerName = (slotData["trainerName"] as? String) ?? "Trainer"
         print("✅ Got trainer name: \(trainerName)")
         
         print("🔵 Getting client name")
-        // 3. Get client name - create a local copy to avoid corruption
-        let clientIdCopy = String(clientId)
-        let clientRef = db.collection("users").document(clientIdCopy)
-        let clientSnap = try await clientRef.getDocument()
-        let clientData = clientSnap.data() ?? [:]
-        let firstName = clientData["firstName"] as? String ?? ""
-        let lastName = clientData["lastName"] as? String ?? ""
-        let clientName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+        // 3. Get client name (best-effort; avoid blocking booking if fetch fails)
+        var clientName = (slotData["clientName"] as? String) ?? "Client"
+        if clientName == "Client" {
+            let clientRef = db.collection("users").document(safeClientId)
+            if let clientSnap = try? await clientRef.getDocument(),
+               let clientData = clientSnap.data() {
+                let firstName = clientData["firstName"] as? String ?? ""
+                let lastName = clientData["lastName"] as? String ?? ""
+                let combined = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+                if !combined.isEmpty { clientName = combined }
+            } else {
+                print("⚠️ Could not load client name, using fallback")
+            }
+        }
         print("✅ Got client name: \(clientName)")
+        
+        print("🔵 Validating package")
+        // 3a. Validate package - ensure it's not a class pass
+        var packageRef = db.collection("organizations")
+            .document(safeOrgId)
+            .collection("users")
+            .document(safeClientId)
+            .collection("packages")
+            .document(safePackageId)
+        
+        var packageSnap = try await packageRef.getDocument()
+        if packageSnap.data() == nil {
+            // Fallback to old path for legacy packages
+            packageRef = db.collection("users")
+                .document(safeClientId)
+                .collection("lessonPackages")
+                .document(safePackageId)
+            packageSnap = try await packageRef.getDocument()
+        }
+        
+        guard let packageData = packageSnap.data() else {
+            print("❌ Package not found")
+            throw FirestoreServiceError.notAvailable
+        }
+        
+        // Check if package is a class pass (not allowed for lesson bookings)
+        let packageType = packageData["packageType"] as? String ?? ""
+        let packageCategory = packageData["packageCategory"] as? String
+        
+        if packageType == "class" || packageType == "class_pass" || packageCategory == "class" {
+            print("❌ Cannot book lesson with class pass")
+            throw FirestoreServiceError.notAvailable
+        }
+        
+        // Check package has lessons remaining
+        let lessonsUsed = packageData["lessonsUsed"] as? Int ?? 0
+        let totalLessons = packageData["totalLessons"] as? Int ?? 0
+        if lessonsUsed >= totalLessons {
+            print("❌ Package has no lessons remaining")
+            throw FirestoreServiceError.notAvailable
+        }
+        
+        // Check package is not expired
+        if let expirationTimestamp = packageData["expirationDate"] as? Timestamp {
+            if expirationTimestamp.dateValue() < Date() {
+                print("❌ Package is expired")
+                throw FirestoreServiceError.notAvailable
+            }
+        }
+        print("✅ Package validated")
         
         // 4. Create a batch
         print("🔵 Creating batch")
@@ -696,31 +817,25 @@ final class FirestoreService {
         print("🔵 Adding booking to batch")
         // 5. Create the booking document with all required fields including orgId
         let bookingRef = db.collection("bookings").document()
-        let packageIdCopy = String(packageId)
         batch.setData([
-            "clientUID": clientIdCopy,
+            "clientUID": safeClientId,
             "clientName": clientName,
-            "trainerUID": trainerId,
-            "trainerId": trainerId,
+            "trainerUID": safeTrainerId,
+            "trainerId": safeTrainerId,
             "trainerName": trainerName,
             "startTime": startTs,
             "endTime": endTs,
             "status": "confirmed",
             "bookedAt": Timestamp(date: Date()),
-            "packageId": packageIdCopy,
-            "lessonPackageId": packageIdCopy,
+            "packageId": safePackageId,
+            "lessonPackageId": safePackageId,
             "scheduleSlotId": slotId,
             "slotId": slotId,
-            "orgId": orgId
+            "orgId": safeOrgId
         ], forDocument: bookingRef)
         
         print("🔵 Adding package update to batch")
-        // 6. Increment the package lessons used
-        let packageRef = db.collection("users")
-            .document(clientIdCopy)
-            .collection("lessonPackages")
-            .document(packageIdCopy)
-        
+        // 6. Increment the package lessons used (packageIdCopy already defined above)
         batch.updateData([
             "lessonsUsed": FieldValue.increment(Int64(1))
         ], forDocument: packageRef)
@@ -729,7 +844,7 @@ final class FirestoreService {
         // 7. Update the slot to show it's booked
         batch.updateData([
             "status": "booked",
-            "clientId": clientIdCopy,
+            "clientId": safeClientId,
             "clientName": clientName,
             "bookedAt": Timestamp(date: Date()),
             "updatedAt": Timestamp(date: Date())

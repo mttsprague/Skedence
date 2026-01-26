@@ -15,7 +15,7 @@ struct AvailabilityEditorSheet: View {
     let orgId: String?
     let onSaveSingle: (Date, Date, Date, TrainerScheduleSlot.Status, Bool, String?) -> Void
     let onSaveOngoing: (Date?, Date?, Int?, Int?, Int?, [Int]?, TrainerScheduleSlot.Status, Bool, String?) -> Void
-    let onBookLesson: (String, TimeInterval, TimeInterval, String) -> Void // clientId, startTime, endTime, packageId
+    let onBookingCompleted: () async -> Void
 
     @Environment(\.dismiss) private var dismiss
     @StateObject private var locationsService = LocationsService()
@@ -54,12 +54,14 @@ struct AvailabilityEditorSheet: View {
     @State private var allClients: [Client] = []
     @State private var selectedClientId: String?
     @State private var clientPackages: [LessonPackage] = []
-    @State private var selectedPackageType: String?
     @State private var selectedPackageId: String?
     @State private var isLoadingClients: Bool = false
     @State private var isLoadingPackages: Bool = false
     @State private var isBooking: Bool = false
     @State private var bookingError: String?
+    @State private var showBookingSuccess: Bool = false
+    @State private var showBookingError: Bool = false
+    @State private var bookingResultMessage: String = ""
 
     init(
         defaultDay: Date,
@@ -69,7 +71,7 @@ struct AvailabilityEditorSheet: View {
         orgId: String? = nil,
         onSaveSingle: @escaping (Date, Date, Date, TrainerScheduleSlot.Status, Bool, String?) -> Void,
         onSaveOngoing: @escaping (Date?, Date?, Int?, Int?, Int?, [Int]?, TrainerScheduleSlot.Status, Bool, String?) -> Void,
-        onBookLesson: @escaping (String, TimeInterval, TimeInterval, String) -> Void = { _, _, _, _ in }
+        onBookingCompleted: @escaping () async -> Void = { }
     ) {
         self.defaultDay = defaultDay
         self.defaultHour = defaultHour
@@ -78,7 +80,7 @@ struct AvailabilityEditorSheet: View {
         self.orgId = orgId
         self.onSaveSingle = onSaveSingle
         self.onSaveOngoing = onSaveOngoing
-        self.onBookLesson = onBookLesson
+        self.onBookingCompleted = onBookingCompleted
 
         // Initialize state with provided defaults
         let cal = Calendar.current
@@ -128,6 +130,16 @@ struct AvailabilityEditorSheet: View {
                         .disabled(singleSaveDisabled)
                     }
                 }
+            }
+            .alert("Success", isPresented: $showBookingSuccess) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(bookingResultMessage)
+            }
+            .alert("Booking Failed", isPresented: $showBookingError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(bookingResultMessage)
             }
             .onAppear {
                 snapAndSyncTimes()
@@ -200,7 +212,6 @@ struct AvailabilityEditorSheet: View {
                             loadPackagesForClient(clientId)
                         } else {
                             clientPackages = []
-                            selectedPackageType = nil
                             selectedPackageId = nil
                         }
                     }
@@ -226,7 +237,7 @@ struct AvailabilityEditorSheet: View {
             }
             
             Section {
-                // Package selector with grouped display
+                // Package selector - show individual packages like client app
                 if selectedClientId != nil {
                     if isLoadingPackages {
                         HStack {
@@ -239,43 +250,14 @@ struct AvailabilityEditorSheet: View {
                             .foregroundStyle(.secondary)
                             .font(.caption)
                     } else {
-                        VStack(alignment: .leading, spacing: 12) {
-                            // Package type picker - select by type, not individual package
-                            Picker("Select Pass Type", selection: $selectedPackageType) {
-                                Text("Choose a pass type...").tag(nil as String?)
-                                ForEach(["private", "2_athlete", "3_athlete", "class_pass"], id: \.self) { type in
-                                    let count = totalPassesForType(type)
-                                    if count > 0 {
-                                        Text("\(packageTypeName(type)) (\(count) available)")
-                                            .tag(Optional(type))
-                                    }
-                                }
-                            }
-                            .onChange(of: selectedPackageType) { _, newType in
-                                // When type is selected, automatically pick the best available package of that type
-                                // Priority: earliest expiration date (if set), then oldest purchase date
-                                if let type = newType {
-                                    let packagesOfType = packagesByType[type]?.filter { $0.lessonsRemaining > 0 && !$0.isExpired } ?? []
-                                    
-                                    let sortedPackages = packagesOfType.sorted { pkg1, pkg2 in
-                                        // Sort by expiration date first (if both have one, earliest first)
-                                        if let exp1 = pkg1.expirationDate, let exp2 = pkg2.expirationDate {
-                                            return exp1 < exp2
-                                        } else if pkg1.expirationDate != nil {
-                                            return true // pkg1 has expiration, prioritize it
-                                        } else if pkg2.expirationDate != nil {
-                                            return false // pkg2 has expiration, prioritize it
-                                        }
-                                        // If neither has expiration or both don't, use oldest purchase date
-                                        return pkg1.purchaseDate < pkg2.purchaseDate
-                                    }
-                                    
-                                    selectedPackageId = sortedPackages.first?.id
-                                } else {
-                                    selectedPackageId = nil
-                                }
+                        Picker("Select Pass", selection: $selectedPackageId) {
+                            Text("Choose a pass...").tag(nil as String?)
+                            ForEach(availablePackages) { package in
+                                Text("\(package.packageDisplayName) (\(package.lessonsRemaining) left)")
+                                    .tag(Optional(package.id))
                             }
                         }
+                        .pickerStyle(.menu)
                     }
                 } else {
                     Text("Please select a client first")
@@ -455,25 +437,22 @@ struct AvailabilityEditorSheet: View {
     
     private var availablePackages: [LessonPackage] {
         // Only show lesson packages (pass category), not class packages
-        clientPackages.filter { !$0.isExpired && $0.lessonsRemaining > 0 && $0.canBookLessons }
-    }
-    
-    private var packagesByType: [String: [LessonPackage]] {
-        Dictionary(grouping: availablePackages) { $0.packageType }
-    }
-    
-    private func packageTypeName(_ type: String) -> String {
-        switch type {
-        case "private": return "Private Lesson Passes"
-        case "2_athlete": return "2-Athlete Passes"
-        case "3_athlete": return "3-Athlete Passes"
-        case "class_pass": return "Class Passes"
-        default: return type
-        }
-    }
-    
-    private func totalPassesForType(_ type: String) -> Int {
-        packagesByType[type]?.reduce(0) { $0 + $1.lessonsRemaining } ?? 0
+        // Sort by expiration date (earliest first) then by purchase date (oldest first)
+        clientPackages
+            .filter { !$0.isExpired && $0.lessonsRemaining > 0 && $0.canBookLessons }
+            .filter { $0.packageCategory != "class" && $0.packageType != "class" && $0.packageType != "class_pass" }
+            .sorted { pkg1, pkg2 in
+                // Sort by expiration date first (if both have one, earliest first)
+                if let exp1 = pkg1.expirationDate, let exp2 = pkg2.expirationDate {
+                    return exp1 < exp2
+                } else if pkg1.expirationDate != nil {
+                    return true // pkg1 has expiration, prioritize it
+                } else if pkg2.expirationDate != nil {
+                    return false // pkg2 has expiration, prioritize it
+                }
+                // If neither has expiration or both don't, use oldest purchase date
+                return pkg1.purchaseDate < pkg2.purchaseDate
+            }
     }
     
     private var canBookLesson: Bool {
@@ -551,18 +530,47 @@ struct AvailabilityEditorSheet: View {
         isBooking = true
         bookingError = nil
         
-        // Convert dates to TimeIntervals to avoid memory corruption
-        let startInterval = singleStart.timeIntervalSinceReferenceDate
-        let endInterval = singleEnd.timeIntervalSinceReferenceDate
-        
-        // Call the synchronous closure that will trigger async work
-        onBookLesson(clientId, startInterval, endInterval, packageId)
-        
-        // Wait a moment for booking to process
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-        
-        isBooking = false
-        dismiss()
+        guard let trainerId = editingTrainerId,
+              let orgId = orgId else {
+            bookingError = "Missing trainer or organization"
+            isBooking = false
+            return
+        }
+
+        do {
+            try await FirestoreService.shared.upsertTrainerSlot(
+                trainerId: trainerId,
+                orgId: orgId,
+                startTime: singleStart,
+                endTime: singleEnd,
+                status: .open,
+                location: selectedLocation?.name
+            )
+
+            let slotId = scheduleDocId(for: singleStart)
+
+            try await FirestoreService.shared.adminBookLesson(
+                trainerId: trainerId,
+                slotId: slotId,
+                clientId: clientId,
+                packageId: packageId,
+                orgId: orgId
+            )
+
+            await onBookingCompleted()
+
+            isBooking = false
+            bookingResultMessage = "Lesson successfully booked!"
+            showBookingSuccess = true
+
+            // Wait for user to see success alert, then dismiss
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            dismiss()
+        } catch {
+            isBooking = false
+            bookingResultMessage = "Booking failed: \(error.localizedDescription)"
+            showBookingError = true
+        }
     }
 
     private var singleSaveDisabled: Bool {
@@ -627,6 +635,20 @@ struct AvailabilityEditorSheet: View {
     }
 
     // MARK: - Helpers
+
+    private func scheduleDocId(for start: Date) -> String {
+        let calendar = Calendar(identifier: .gregorian)
+        let utcTimezone = TimeZone(secondsFromGMT: 0)!
+        var utcCalendar = calendar
+        utcCalendar.timeZone = utcTimezone
+
+        let comps = utcCalendar.dateComponents([.year, .month, .day, .hour], from: start)
+        let y = comps.year ?? 1970
+        let m = comps.month ?? 1
+        let d = comps.day ?? 1
+        let h = comps.hour ?? 0
+        return String(format: "%04d-%02d-%02dT%02d", y, m, d, h)
+    }
 
     private func snapAndSyncTimes(anchorToDay: Bool = false) {
         let cal = Calendar.current

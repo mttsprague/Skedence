@@ -25,36 +25,49 @@ final class PackagesService: ObservableObject {
         errorMessage = nil
         
         do {
-            // First try to find the user's organization
-            let orgSnapshot = try await db.collection("organizations")
-                .whereField("members", arrayContains: uid)
+            // Look up the user's organization from orgMembers (same as AuthManager)
+            let orgMembersQuery = db.collection("orgMembers")
+                .whereField("userId", isEqualTo: uid)
                 .limit(to: 1)
-                .getDocuments()
             
-            if let orgDoc = orgSnapshot.documents.first {
+            let orgMembersSnapshot = try await orgMembersQuery.getDocuments()
+            
+            if let memberDoc = orgMembersSnapshot.documents.first,
+               let orgId = memberDoc.data()["orgId"] as? String {
                 // New path: organizations/{orgId}/users/{userId}/packages
-                let orgId = orgDoc.documentID
+                print("📦 PackagesService: Loading from NEW path: organizations/\(orgId)/users/\(uid)/packages")
                 let snap = try await db.collection("organizations").document(orgId)
                     .collection("users").document(uid)
                     .collection("packages")
                     .order(by: "purchaseDate", descending: true)
                     .getDocuments()
                 
+                print("📦 PackagesService: Found \(snap.documents.count) packages in NEW path")
+                snap.documents.forEach { doc in
+                    let data = doc.data()
+                    print("📦   - \(doc.documentID): type=\(data["packageType"] as? String ?? "nil"), category=\(data["packageCategory"] as? String ?? "nil"), name=\(data["packageName"] as? String ?? "nil"), total=\(data["totalLessons"] as? Int ?? 0), used=\(data["lessonsUsed"] as? Int ?? 0)")
+                }
+                
                 packages = snap.documents.compactMap { doc in
                     decodePackage(id: doc.documentID, data: doc.data())
                 }
+                print("📦 PackagesService: Successfully decoded \(packages.count) packages")
             } else {
                 // Fallback to old path: users/{uid}/lessonPackages
+                print("📦 PackagesService: No organization found, loading from OLD path: users/\(uid)/lessonPackages")
                 let snap = try await db.collection("users").document(uid)
                     .collection("lessonPackages")
                     .order(by: "purchaseDate", descending: true)
                     .getDocuments()
+                
+                print("📦 PackagesService: Found \(snap.documents.count) packages in OLD path")
                 
                 packages = snap.documents.compactMap { doc in
                     decodePackage(id: doc.documentID, data: doc.data())
                 }
             }
         } catch {
+            print("📦 PackagesService ERROR: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             packages = []
         }

@@ -460,11 +460,11 @@ struct BookView: View {
                                 Button {
                                     selectedPackage = package
                                 } label: {
-                                    HStack(spacing: Spacing.sm) {
-                                        Text(formatPackageName(package))
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(package.packageName ?? package.packageType.capitalized)
                                             .font(.bodyMedium)
-                                        Text("- \(package.lessonsRemaining) left")
-                                            .font(.bodySmall)
+                                        Text("\(package.lessonsRemaining) left")
+                                            .font(.caption)
                                             .foregroundStyle(AppTheme.textSecondary)
                                     }
                                 }
@@ -481,10 +481,10 @@ struct BookView: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    Text(selectedPackage != nil ? formatPackageName(selectedPackage!) : "Choose a pass")
+                                    Text(selectedPackage != nil ? (selectedPackage!.packageName ?? selectedPackage!.packageType.capitalized) : "Choose a pass")
                                         .font(.headingSmall)
                                         .foregroundStyle(AppTheme.textPrimary)
-                                    Text(selectedPackage != nil ? "\(selectedPackage!.lessonsRemaining) passes remaining" : "Select which pass to use")
+                                    Text(selectedPackage != nil ? "\(selectedPackage!.lessonsRemaining) left" : "Select which pass to use")
                                         .font(.bodySmall)
                                         .foregroundStyle(AppTheme.textSecondary)
                                 }
@@ -1074,9 +1074,12 @@ private struct ClassRegistrationSheet: View {
                                             Button {
                                                 selectedClassPass = package
                                             } label: {
-                                                HStack(spacing: Spacing.sm) {
-                                                    Text(formatPackageName(package))
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(package.packageName ?? package.packageType.capitalized)
                                                         .font(.bodyMedium)
+                                                    Text("\(package.lessonsRemaining) left")
+                                                        .font(.caption)
+                                                        .foregroundStyle(AppTheme.textSecondary)
                                                 }
                                             }
                                         }
@@ -1092,10 +1095,10 @@ private struct ClassRegistrationSheet: View {
                                             }
                                             
                                             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                                Text(selectedClassPass != nil ? formatPackageName(selectedClassPass!) : "Choose a class pass")
+                                                Text(selectedClassPass != nil ? (selectedClassPass!.packageName ?? selectedClassPass!.packageType.capitalized) : "Choose a class pass")
                                                     .font(.headingSmall)
                                                     .foregroundStyle(AppTheme.textPrimary)
-                                                Text(selectedClassPass != nil ? "\(selectedClassPass!.lessonsRemaining) passes remaining" : "Select which pass to use")
+                                                Text(selectedClassPass != nil ? "\(selectedClassPass!.lessonsRemaining) left" : "Select which pass to use")
                                                     .font(.bodySmall)
                                                     .foregroundStyle(AppTheme.textSecondary)
                                             }

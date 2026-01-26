@@ -48,9 +48,17 @@ export default function AnalyticsPage() {
           const memberData = memberDoc.data();
           if (memberData.role !== 'client') continue;
           
-          const packagesSnap = await getDocs(
-            collection(db, 'users', memberData.userId, 'lessonPackages')
+          // Try new organization path first
+          let packagesSnap = await getDocs(
+            collection(db, 'organizations', orgId, 'users', memberData.userId, 'packages')
           );
+          
+          // Fall back to old path if no packages found
+          if (packagesSnap.empty) {
+            packagesSnap = await getDocs(
+              collection(db, 'users', memberData.userId, 'lessonPackages')
+            );
+          }
           
           packagesSnap.forEach(pkgDoc => {
             allPackages.push(pkgDoc.data() as PackageData);

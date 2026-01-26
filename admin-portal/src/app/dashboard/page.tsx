@@ -84,10 +84,17 @@ export default function DashboardPage() {
           if (memberData.role !== 'client') continue;
           
           try {
-            const packagesQuery = query(
-              collection(db, 'users', memberData.userId, 'lessonPackages')
+            // Try new organization path first
+            let packagesSnap = await getDocs(
+              collection(db, 'organizations', orgId, 'users', memberData.userId, 'packages')
             );
-            const packagesSnap = await getDocs(packagesQuery);
+            
+            // Fall back to old path if no packages found
+            if (packagesSnap.empty) {
+              packagesSnap = await getDocs(
+                collection(db, 'users', memberData.userId, 'lessonPackages')
+              );
+            }
             
             for (const pkgDoc of packagesSnap.docs) {
               const pkgData = pkgDoc.data();

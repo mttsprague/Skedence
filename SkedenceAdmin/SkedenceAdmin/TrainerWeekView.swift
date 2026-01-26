@@ -182,15 +182,8 @@ struct TrainerWeekView: View {
                         await refreshSchedule()
                     }
                 },
-                onBookLesson: { clientId, startInterval, endInterval, packageId in
-                    Task {
-                        let start = Date(timeIntervalSinceReferenceDate: startInterval)
-                        let end = Date(timeIntervalSinceReferenceDate: endInterval)
-                        let ok = await viewModel.bookLessonForClient(clientId: clientId, startTime: start, endTime: end, packageId: packageId)
-                        if ok {
-                            await refreshSchedule()
-                        }
-                    }
+                onBookingCompleted: {
+                    await refreshSchedule()
                 }
             )
         }

@@ -258,20 +258,8 @@ struct AllTrainersDayView: View {
                                 await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
                             }
                         },
-                        onBookLesson: { clientId, startInterval, endInterval, packageId in
-                            // Convert back to Date and delegate to ScheduleViewModel
-                            let start = Date(timeIntervalSinceReferenceDate: startInterval)
-                            let end = Date(timeIntervalSinceReferenceDate: endInterval)
-                            Task {
-                                scheduleViewModel.editingTrainerId = context.trainerId
-                                _ = await scheduleViewModel.bookLessonForClient(
-                                    clientId: clientId,
-                                    startTime: start,
-                                    endTime: end,
-                                    packageId: packageId
-                                )
-                                await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
-                            }
+                        onBookingCompleted: {
+                            await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
                         }
                     )
                 }

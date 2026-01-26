@@ -29,6 +29,8 @@ struct ManageSubscriptionView: View {
     @State private var showingUpgrade = false
     @State private var isProcessing = false
     @State private var selectedPlanForUpgrade: String?
+    @State private var showSuccessAlert = false
+    @State private var successMessage = ""
     @StateObject private var enforcement = SubscriptionEnforcementService()
     @StateObject private var billingListener = BillingListener()
     
@@ -200,6 +202,11 @@ struct ManageSubscriptionView: View {
                     }
                 }
             }
+            .alert("Success", isPresented: $showSuccessAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(successMessage)
+            }
             .task {
                 await loadBillingStatus()
                 billingListener.startListening(orgId: orgId) { billing in
@@ -300,6 +307,11 @@ struct ManageSubscriptionView: View {
                 print("✅ cancelSubscription succeeded: \(result.data)")
                 
                 await loadBillingStatus()
+                
+                // Show success notification
+                successMessage = "Subscription canceled successfully. You have been moved to the Free plan."
+                showSuccessAlert = true
+                
                 isProcessing = false
             } catch let error as NSError {
                 print("❌ cancelSubscription failed")

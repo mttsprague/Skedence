@@ -501,12 +501,18 @@ struct MorePlaceholderView: View {
         }
         
         isDeletingAccount = true
-        let functions = Functions.functions()
+        let functions = Functions.functions(region: "us-central1")
         let callable = functions.httpsCallable("deleteUserAccount")
         
         Task {
             do {
+                // Force token refresh to ensure valid authentication
+                if let currentUser = Auth.auth().currentUser {
+                    _ = try await currentUser.getIDToken(forcingRefresh: true)
+                }
+                
                 _ = try await callable.call(["userId": userId])
+                
                 // Sign out and show success
                 try Auth.auth().signOut()
                 await MainActor.run {

@@ -23,6 +23,7 @@ struct SuperAdminView: View {
     @State private var alertItem: AlertItem?
     @State private var showingDeleteConfirmation = false
     @State private var isDeletingAccount = false
+    @State private var showDeleteSuccessAlert = false
     @Environment(\.openURL) private var openURL
     
     enum AdminTab: String, CaseIterable {
@@ -137,6 +138,11 @@ struct SuperAdminView: View {
                 }
             } message: {
                 Text("Are you sure you want to delete your account? All saved info will be permanently deleted.")
+            }
+            .alert("Account Deleted", isPresented: $showDeleteSuccessAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Your account has been successfully deleted. You will now be signed out.")
             }
             .sheet(isPresented: $showingPricing) {
                 NavigationStack {
@@ -493,12 +499,25 @@ struct SuperAdminView: View {
         
         Task {
             do {
+                // Force token refresh to ensure valid authentication
+                if let currentUser = Auth.auth().currentUser {
+                    _ = try await currentUser.getIDToken(forcingRefresh: true)
+                }
+                
                 _ = try await callable.call(["userId": userId])
-                // Sign out and return to login
-                try Auth.auth().signOut()
+                
+                // Show success alert before signing out
                 await MainActor.run {
                     isDeletingAccount = false
+                    showDeleteSuccessAlert = true
                 }
+                
+                // Wait a moment for user to see the alert
+                try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                
+                // Sign out and return to login
+                try Auth.auth().signOut()
+                
             } catch {
                 await MainActor.run {
                     isDeletingAccount = false

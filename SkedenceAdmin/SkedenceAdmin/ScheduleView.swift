@@ -930,22 +930,8 @@ private struct SheetModifiers: ViewModifier {
                             editorContext = nil
                         }
                     },
-                    onBookLesson: { clientId, startInterval, endInterval, packageId in
-                        Task {
-                            if auth.isBillingBlocked {
-                                print("❌ Billing blocked, cannot book")
-                                return
-                            }
-                            
-                            let startTime = Date(timeIntervalSinceReferenceDate: startInterval)
-                            let endTime = Date(timeIntervalSinceReferenceDate: endInterval)
-                            let _ = await viewModel.bookLessonForClient(
-                                clientId: clientId,
-                                startTime: startTime,
-                                endTime: endTime,
-                                packageId: packageId
-                            )
-                        }
+                    onBookingCompleted: {
+                        await viewModel.loadWeek()
                     }
                 )
                 .presentationDetents([.medium, .large])

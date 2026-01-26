@@ -596,13 +596,18 @@ final class ScheduleViewModel: ObservableObject {
             print("✅ ID OK")
             
             print("🎯 Booking")
-            try await FirestoreService.shared.adminBookLesson(
-                trainerId: trainerId,
-                slotId: slotId,
-                clientId: clientId,
-                packageId: packageId,
-                orgId: orgId
-            )
+            do {
+                try await FirestoreService.shared.adminBookLesson(
+                    trainerId: trainerId,
+                    slotId: slotId,
+                    clientId: clientId,
+                    packageId: packageId,
+                    orgId: orgId
+                )
+            } catch {
+                print("❌ Booking error: \(error.localizedDescription)")
+                return false
+            }
             print("✅ Booked")
             
             // Wait a moment for Firestore to propagate changes
@@ -641,4 +646,5 @@ final class ScheduleViewModel: ObservableObject {
             selectedDate = weekDays.first ?? anchor
         }
     }
+
 }
