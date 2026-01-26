@@ -96,8 +96,8 @@ private struct SignedInProfileScreen: View {
     @StateObject private var pricingService = PricingStructureService()
     @Binding var profileTab: String?
 
-    @State private var tab: Tab = .schedule
-    enum Tab: String { case schedule = "SCHEDULE", passes = "PASSES", wallet = "WALLET" }
+    @State private var tab: Tab = .passes
+    enum Tab: String { case passes = "PASSES", schedule = "SCHEDULE", wallet = "WALLET" }
     @State private var showPurchaseLessons = false
 
     // Location is now dynamic from booking data - no hardcoded venue
@@ -166,7 +166,7 @@ private struct SignedInProfileScreen: View {
         }
     }
 
-    // Header with curved background, avatar, name, email
+    // Header with gradient background, avatar, name, email
     private var header: some View {
         let name = (usersService.currentUser?.displayName.isEmpty == false
                     ? usersService.currentUser!.displayName
@@ -174,50 +174,52 @@ private struct SignedInProfileScreen: View {
         let email = usersService.currentUser?.emailAddress ?? Auth.auth().currentUser?.email
         let initials = initialsFrom(name: name, emailFallback: email ?? "")
 
-        return ZStack(alignment: .bottom) {
-            // Curved background: place a very large circle well above the top
-            GeometryReader { proxy in
-                let circleSize = proxy.size.width * 2.2
-                // Position the circle's center above the visible area so only the bottom arc shows
-                Circle()
-                    .fill(Brand.primary)
-                    .frame(width: circleSize, height: circleSize)
-                    // Center horizontally, push center far above the top so the arc dips down
-                    .position(x: proxy.size.width / 2, y: -circleSize * 0.32)
-            }
-            .frame(height: 180) // visible header height
-
-            // Avatar + name + email
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle().fill(Color.platformBackground)
-                        .frame(width: 98, height: 98)
-                        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
-                    Circle().fill(Color.gray.opacity(0.18))
-                        .frame(width: 90, height: 90)
-                    Text(initials)
-                        .font(.system(size: 34, weight: .bold))
+        return VStack(spacing: 0) {
+            // Gradient background section with avatar and name
+            ZStack(alignment: .bottom) {
+                // Subtle gradient background
+                LinearGradient(
+                    colors: [Brand.primary.opacity(0.15), Brand.primary.opacity(0.05)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 160)
+                
+                // Avatar + name
+                VStack(spacing: 12) {
+                    ZStack {
+                        Circle().fill(Color.platformBackground)
+                            .frame(width: 98, height: 98)
+                            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
+                        Circle().fill(Brand.primary.opacity(0.12))
+                            .frame(width: 90, height: 90)
+                        Text(initials)
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(Brand.primary)
+                    }
+                    Text(name)
+                        .font(.system(size: 28, weight: .bold))
                         .foregroundStyle(.primary)
                 }
-                Text(name)
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.primary)
-                if let email {
-                    Text(email)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                .padding(.bottom, 16)
             }
-            .padding(.bottom, 12)
+            
+            // Email in white background area for better visibility
+            if let email {
+                Text(email)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+            }
         }
-        .padding(.bottom, 8)
     }
 
-    // Segmented tab bar (SCHEDULE / PASSES / WALLET)
+    // Segmented tab bar (PASSES / SCHEDULE / WALLET)
     private var tabBar: some View {
         HStack(spacing: 24) {
-            tabItem(.schedule)
             tabItem(.passes)
+            tabItem(.schedule)
             tabItem(.wallet)
         }
         .padding(.horizontal, 20)
@@ -248,10 +250,10 @@ private struct SignedInProfileScreen: View {
     @ViewBuilder
     private var content: some View {
         switch tab {
-        case .schedule:
-            scheduleTab
         case .passes:
             passesTab
+        case .schedule:
+            scheduleTab
         case .wallet:
             walletTab
         }
