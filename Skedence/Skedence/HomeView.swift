@@ -168,7 +168,7 @@ struct HomeView: View {
                                                 .font(.headingSmall)
                                                 .foregroundStyle(AppTheme.textPrimary)
                                             
-                                            Text("Get your pass packages to start")
+                                            Text("Get your passes in Profile")
                                                 .font(.bodyMedium)
                                                 .foregroundStyle(AppTheme.textSecondary)
                                         }
