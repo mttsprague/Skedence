@@ -125,7 +125,7 @@ struct SkedenceAdminApp: App {
                     Task {
                         do {
                             #if canImport(FirebaseCore)
-                            let functions = Functions.functions()
+                            let functions = Functions.functions(region: "us-central1")
                             let callable = functions.httpsCallable("refreshConnectAccountStatus")
                             _ = try await callable.call(["orgId": orgId])
                             print("✅ Stripe Connect status refreshed after return")

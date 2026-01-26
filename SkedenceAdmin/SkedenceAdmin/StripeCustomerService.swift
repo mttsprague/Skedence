@@ -32,7 +32,7 @@ class StripeCustomerService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private let functions = Functions.functions()
+    private let functions = Functions.functions(region: "us-central1")
     
     // Load saved payment methods for a specific user (used by admin)
     func loadPaymentMethodsForUser(userId: String, orgId: String) async {

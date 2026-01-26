@@ -100,7 +100,7 @@ struct StripeOnboardingView: View {
         
         Task {
             do {
-                let functions = Functions.functions()
+                let functions = Functions.functions(region: "us-central1")
                 let callable = functions.httpsCallable("createConnectAccount")
                 
                 let result = try await callable.call([
@@ -130,7 +130,7 @@ struct StripeOnboardingView: View {
         isLoading = true
         
         do {
-            let functions = Functions.functions()
+            let functions = Functions.functions(region: "us-central1")
             let callable = functions.httpsCallable("createConnectAccountLink")
             
             let result = try await callable.call([
@@ -167,7 +167,7 @@ struct StripeOnboardingView: View {
         
         Task {
             do {
-                let functions = Functions.functions()
+                let functions = Functions.functions(region: "us-central1")
                 let callable = functions.httpsCallable("refreshConnectAccountStatus")
                 
                 let result = try await callable.call([

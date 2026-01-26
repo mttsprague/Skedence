@@ -488,7 +488,7 @@ struct SuperAdminView: View {
         }
         
         isDeletingAccount = true
-        let functions = Functions.functions()
+        let functions = Functions.functions(region: "us-central1")
         let callable = functions.httpsCallable("deleteUserAccount")
         
         Task {

@@ -237,7 +237,7 @@ struct ManageSubscriptionView: View {
                 _ = try await currentUser.getIDToken(forcingRefresh: true)
             }
             
-            let functions = Functions.functions()
+            let functions = Functions.functions(region: "us-central1")
             let callable = functions.httpsCallable("getBillingStatus")
             
             let result = try await callable.call(["orgId": orgId])
@@ -292,7 +292,7 @@ struct ManageSubscriptionView: View {
                 let token = try await currentUser.getIDToken(forcingRefresh: true)
                 print("✅ Token refreshed, length: \(token.count)")
                 
-                let functions = Functions.functions()
+                let functions = Functions.functions(region: "us-central1")
                 print("📞 Calling cancelSubscription function with orgId: \(orgId)")
                 let callable = functions.httpsCallable("cancelSubscription")
                 

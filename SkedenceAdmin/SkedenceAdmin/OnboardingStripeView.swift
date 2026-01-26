@@ -405,7 +405,7 @@ struct OnboardingStripeView: View {
         
         Task {
             do {
-                let functions = Functions.functions()
+                let functions = Functions.functions(region: "us-central1")
                 let callable = functions.httpsCallable("createConnectAccount")
                 
                 let orgName = coordinator.organizationData["name"] as? String ?? "Training Business"
@@ -455,7 +455,7 @@ struct OnboardingStripeView: View {
         
         Task {
             do {
-                let functions = Functions.functions()
+                let functions = Functions.functions(region: "us-central1")
                 let callable = functions.httpsCallable("refreshConnectAccountStatus")
                 
                 let result = try await callable.call(["orgId": orgId])

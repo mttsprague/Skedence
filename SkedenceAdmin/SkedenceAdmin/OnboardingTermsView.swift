@@ -179,7 +179,7 @@ struct OnboardingTermsView: View {
             }
             .padding(Spacing.lg)
         }
-        .background(AppTheme.backgroundPrimary)
+        .background(Color.platformBackground)
     }
     
     func acceptTermsAndContinue() {

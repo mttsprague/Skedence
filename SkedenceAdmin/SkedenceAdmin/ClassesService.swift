@@ -20,7 +20,7 @@ final class ClassesService: ObservableObject {
     @Published private(set) var errorMessage: String?
     
     private let db = Firestore.firestore()
-    private let functions = Functions.functions()
+    private let functions = Functions.functions(region: "us-central1")
     
     // Load all open classes for registration
     func loadOpenClasses(orgId: String) async {

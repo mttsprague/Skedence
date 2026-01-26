@@ -163,7 +163,7 @@ final class AuthManager: ObservableObject {
 
     func registerTrainerProfileOnServer(uid: String, email: String, firstName: String, lastName: String) async throws {
         #if canImport(FirebaseFunctions)
-        let functions = Functions.functions()
+        let functions = Functions.functions(region: "us-central1")
         let payload: [String: Any] = [
             "uid": uid,
             "email": email,

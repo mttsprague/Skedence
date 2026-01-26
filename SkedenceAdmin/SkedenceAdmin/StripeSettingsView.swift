@@ -502,7 +502,7 @@ struct StripeSettingsView: View {
         }
         
         do {
-            let functions = Functions.functions()
+            let functions = Functions.functions(region: "us-central1")
             
             // Get org name
             let orgDoc = try await Firestore.firestore()
