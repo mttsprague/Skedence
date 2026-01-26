@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 import FirebaseFunctions
 import FirebaseFirestore
 import Combine
@@ -231,6 +232,11 @@ struct ManageSubscriptionView: View {
         errorMessage = nil
         
         do {
+            // Ensure user is authenticated and token is fresh
+            if let currentUser = Auth.auth().currentUser {
+                _ = try await currentUser.getIDToken(forcingRefresh: true)
+            }
+            
             let functions = Functions.functions()
             let callable = functions.httpsCallable("getBillingStatus")
             
@@ -268,6 +274,15 @@ struct ManageSubscriptionView: View {
         
         Task {
             do {
+                // Ensure user is authenticated and token is fresh
+                guard let currentUser = Auth.auth().currentUser else {
+                    throw NSError(domain: "ManageSubscription", code: -1, 
+                                userInfo: [NSLocalizedDescriptionKey: "No authenticated user found"])
+                }
+                
+                // Force token refresh to ensure valid authentication
+                _ = try await currentUser.getIDToken(forcingRefresh: true)
+                
                 let functions = Functions.functions()
                 let callable = functions.httpsCallable("cancelSubscription")
                 
