@@ -11,16 +11,28 @@ import SwiftData
 #if canImport(FirebaseCore)
 import FirebaseCore
 import FirebaseFunctions
+import FirebaseAnalytics
+import FirebaseCrashlytics
 #endif
 
 @main
 struct SkedenceAdminApp: App {
-    // Configure Firebase BEFORE anything else using static initializer
-    static let _ = {
+    // Configure Firebase BEFORE anything else using a static bootstrap
+    // Give it a real name and type so it is a valid stored property.
+    // We'll force its evaluation in init().
+    static let firebaseBootstrap: Void = {
         #if canImport(FirebaseCore)
         if FirebaseApp.app() == nil {
+            // Configure Firebase FIRST
             FirebaseApp.configure()
-            print("🔥 Firebase configured via static initializer (EARLY)")
+            print("🔥 Firebase Core configured FIRST")
+            
+            // Now manually enable Analytics and Crashlytics
+            Analytics.setAnalyticsCollectionEnabled(true)
+            print("📊 Firebase Analytics enabled manually")
+            
+            Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
+            print("🔧 Firebase Crashlytics enabled manually")
         }
         #endif
     }()
@@ -32,6 +44,8 @@ struct SkedenceAdminApp: App {
     @State private var passwordSetupData: (token: String, email: String, trainerId: String)?
 
     init() {
+        // Ensure the static bootstrap runs as early as possible
+        _ = Self.firebaseBootstrap
         // Firebase should already be configured by static initializer above
         print("📱 App init() called")
     }
