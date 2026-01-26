@@ -26,6 +26,7 @@
 		C38B33F72F1A9AF6008F2ED2 /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = C38B33F62F1A9AF6008F2ED2 /* StripePaymentSheet */; };
 		C38B33F92F1A9AF6008F2ED2 /* StripePayments in Frameworks */ = {isa = PBXBuildFile; productRef = C38B33F82F1A9AF6008F2ED2 /* StripePayments */; };
 		C38B33FB2F1A9AF6008F2ED2 /* StripePaymentsUI in Frameworks */ = {isa = PBXBuildFile; productRef = C38B33FA2F1A9AF6008F2ED2 /* StripePaymentsUI */; };
+		C38B5C1F2F27F4F0008F2ED2 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = C38B5C1E2F27F4F0008F2ED2 /* FirebaseAppCheck */; };
 		C394B5FF2F10083100BC0002 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = C394B5FE2F10083100BC0002 /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
 
@@ -91,6 +92,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C38B5C1F2F27F4F0008F2ED2 /* FirebaseAppCheck in Frameworks */,
 				C38B33F72F1A9AF6008F2ED2 /* StripePaymentSheet in Frameworks */,
 				C320428A2E9D654E003EF857 /* FirebaseDatabase in Frameworks */,
 				C38B33F92F1A9AF6008F2ED2 /* StripePayments in Frameworks */,
@@ -190,6 +192,7 @@
 				C38B33F62F1A9AF6008F2ED2 /* StripePaymentSheet */,
 				C38B33F82F1A9AF6008F2ED2 /* StripePayments */,
 				C38B33FA2F1A9AF6008F2ED2 /* StripePaymentsUI */,
+				C38B5C1E2F27F4F0008F2ED2 /* FirebaseAppCheck */,
 			);
 			productName = SkedenceAdmin;
 			productReference = C32042152E9C9C95003EF857 /* SkedenceAdmin.app */;
@@ -807,6 +810,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C38B33E72F1A9AF6008F2ED2 /* XCRemoteSwiftPackageReference "stripe-ios" */;
 			productName = StripePaymentsUI;
+		};
+		C38B5C1E2F27F4F0008F2ED2 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32042842E9D654E003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
 		};
 		C394B5FE2F10083100BC0002 /* FirebaseCrashlytics */ = {
 			isa = XCSwiftPackageProductDependency;

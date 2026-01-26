@@ -7,7 +7,6 @@
 
 import UIKit
 import FirebaseCore
-import FirebaseAppCheck
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
@@ -18,19 +17,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
             print("🔥 Firebase configured in AppDelegate (EARLIEST)")
-            
-            // Configure App Check IMMEDIATELY after Firebase
-            #if DEBUG
-            // Use debug provider for development
-            let providerFactory = AppCheckDebugProviderFactory()
-            AppCheck.setAppCheckProviderFactory(providerFactory)
-            print("✅ App Check configured with DEBUG provider")
-            #else
-            // Use DeviceCheck for production
-            let providerFactory = DeviceCheckProviderFactory()
-            AppCheck.setAppCheckProviderFactory(providerFactory)
-            print("✅ App Check configured with DeviceCheck provider")
-            #endif
         }
         return true
     }
