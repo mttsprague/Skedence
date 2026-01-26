@@ -15,6 +15,16 @@ import FirebaseFunctions
 
 @main
 struct SkedenceAdminApp: App {
+    // Configure Firebase BEFORE anything else using static initializer
+    static let _ = {
+        #if canImport(FirebaseCore)
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+            print("🔥 Firebase configured via static initializer (EARLY)")
+        }
+        #endif
+    }()
+    
     @StateObject private var auth = AuthManager()
     @StateObject private var subscriptionStatus = SubscriptionStatusService.shared
     @StateObject private var onboardingCoordinator = OnboardingCoordinator()
@@ -22,13 +32,8 @@ struct SkedenceAdminApp: App {
     @State private var passwordSetupData: (token: String, email: String, trainerId: String)?
 
     init() {
-        // Configure Firebase FIRST, before anything else
-        #if canImport(FirebaseCore)
-        if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
-            print("🔥 Firebase configured in app init")
-        }
-        #endif
+        // Firebase should already be configured by static initializer above
+        print("📱 App init() called")
     }
 
     var sharedModelContainer: ModelContainer = {
