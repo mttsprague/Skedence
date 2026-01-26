@@ -269,6 +269,10 @@ struct ManageSubscriptionView: View {
     }
     
     func cancelSubscription() {
+        print("🔴 cancelSubscription called")
+        print("   orgId: \(orgId)")
+        print("   Auth.auth().currentUser: \(Auth.auth().currentUser?.uid ?? "nil")")
+        
         isProcessing = true
         errorMessage = nil
         
@@ -276,21 +280,33 @@ struct ManageSubscriptionView: View {
             do {
                 // Ensure user is authenticated and token is fresh
                 guard let currentUser = Auth.auth().currentUser else {
+                    print("❌ No authenticated user found")
                     throw NSError(domain: "ManageSubscription", code: -1, 
                                 userInfo: [NSLocalizedDescriptionKey: "No authenticated user found"])
                 }
                 
+                print("✅ Current user found: \(currentUser.uid)")
+                print("   Refreshing auth token...")
+                
                 // Force token refresh to ensure valid authentication
-                _ = try await currentUser.getIDToken(forcingRefresh: true)
+                let token = try await currentUser.getIDToken(forcingRefresh: true)
+                print("✅ Token refreshed, length: \(token.count)")
                 
                 let functions = Functions.functions()
+                print("📞 Calling cancelSubscription function with orgId: \(orgId)")
                 let callable = functions.httpsCallable("cancelSubscription")
                 
-                _ = try await callable.call(["orgId": orgId])
+                let result = try await callable.call(["orgId": orgId])
+                print("✅ cancelSubscription succeeded: \(result.data)")
                 
                 await loadBillingStatus()
                 isProcessing = false
-            } catch {
+            } catch let error as NSError {
+                print("❌ cancelSubscription failed")
+                print("   Error domain: \(error.domain)")
+                print("   Error code: \(error.code)")
+                print("   Error userInfo: \(error.userInfo)")
+                print("   Localized description: \(error.localizedDescription)")
                 errorMessage = "Failed to cancel subscription: \(error.localizedDescription)"
                 isProcessing = false
             }
