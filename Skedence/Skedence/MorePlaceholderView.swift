@@ -11,9 +11,12 @@ import FirebaseAuth
 import FirebaseFunctions
 
 struct MorePlaceholderView: View {
+    @EnvironmentObject var auth: AuthManager
+    @Binding var selectedTab: Int
     @State private var showingResetPassword = false
     @State private var resetMessage: String?
     @State private var showingDeleteConfirmation = false
+    @State private var showingDeleteSuccess = false
     @State private var deleteMessage: String?
     @State private var isDeletingAccount = false
     
@@ -455,6 +458,14 @@ struct MorePlaceholderView: View {
         } message: {
             Text("Are you sure you want to delete your account? All saved info will be permanently deleted.")
         }
+        .alert("Account Deleted", isPresented: $showingDeleteSuccess) {
+            Button("OK") {
+                // Redirect to Profile tab which will show sign-in screen
+                selectedTab = 2
+            }
+        } message: {
+            Text("Your account has been successfully deleted.")
+        }
     }
     
     private func sendPasswordReset() {
@@ -496,10 +507,11 @@ struct MorePlaceholderView: View {
         Task {
             do {
                 _ = try await callable.call(["userId": userId])
-                // Sign out and return to login
+                // Sign out and show success
                 try Auth.auth().signOut()
                 await MainActor.run {
                     isDeletingAccount = false
+                    showingDeleteSuccess = true
                 }
             } catch {
                 await MainActor.run {

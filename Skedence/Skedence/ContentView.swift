@@ -65,7 +65,7 @@ struct AppRootView: View {
                         }
                         .tag(2)
 
-                    MorePlaceholderView()
+                    MorePlaceholderView(selectedTab: $selectedTab)
                         .tabItem {
                             Label("More", systemImage: "ellipsis.circle")
                         }
