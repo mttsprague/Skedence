@@ -476,16 +476,41 @@ export const registerForClass = functions.https.onCall(
     const classRef = db.collection("classes").doc(classId);
 
     try {
+      // Get orgId BEFORE the transaction to avoid collectionGroup query inside transaction
+      functions.logger.info(`[registerForClass] Step 1: Getting user document for userId: ${userId}`);
+      const userDoc = await userRef.get();
+      if (!userDoc.exists) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "User profile not found for the authenticated user."
+        );
+      }
+
+      const userData = userDoc.data();
+      if (!userData) {
+        throw new functions.https.HttpsError(
+          "internal",
+          "User data is missing."
+        );
+      }
+
+      // Get orgId from userData - REQUIRED for class registration
+      const orgId = userData.organizationId as string | undefined;
+      functions.logger.info(`[registerForClass] orgId from userData: ${orgId || "NOT FOUND"}`);
+
+      if (!orgId) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "User must be associated with an organization to register for classes. Please contact support."
+        );
+      }
+
+      functions.logger.info(`[registerForClass] Starting transaction with orgId: ${orgId}`);
+
+
       await db.runTransaction(async (transaction) => {
-        const userDoc = await transaction.get(userRef);
         const classDoc = await transaction.get(classRef);
 
-        if (!userDoc.exists) {
-          throw new functions.https.HttpsError(
-            "not-found",
-            "User profile not found for the authenticated user."
-          );
-        }
         if (!classDoc.exists) {
           throw new functions.https.HttpsError(
             "not-found",
@@ -493,54 +518,38 @@ export const registerForClass = functions.https.onCall(
           );
         }
 
-        const userData = userDoc.data();
         const classData = classDoc.data();
 
-        if (!userData || !classData) {
+        if (!classData) {
           throw new functions.https.HttpsError(
             "internal",
             "Unexpected missing document data."
           );
         }
 
-        // Get orgId from userData or by querying orgMembers
-        let orgId = userData.organizationId as string | undefined;
-        if (!orgId) {
-          const orgMembersSnapshot = await db
-            .collectionGroup("orgMembers")
-            .where("userId", "==", userId)
-            .limit(1)
-            .get();
-          if (!orgMembersSnapshot.empty) {
-            const orgMemberDoc = orgMembersSnapshot.docs[0];
-            orgId = orgMemberDoc.ref.parent.parent?.id;
-          }
-        }
-
         // Try new path first, then fallback to old path
         let classPassDoc: FirebaseFirestore.DocumentSnapshot | undefined;
-        let classPassRef: FirebaseFirestore.DocumentReference;
 
         if (orgId) {
-          classPassRef = db
+          const newPathRef = db
             .collection("organizations")
             .doc(orgId)
             .collection("users")
             .doc(userId)
             .collection("packages")
             .doc(classPassPackageId);
-          classPassDoc = await transaction.get(classPassRef);
+          classPassDoc = await transaction.get(newPathRef);
         }
 
         // Fallback to old path if not found in new path
         if (!classPassDoc || !classPassDoc.exists) {
-          classPassRef = userRef
+          const oldPathRef = userRef
             .collection("lessonPackages")
             .doc(classPassPackageId);
-          classPassDoc = await transaction.get(classPassRef);
+          classPassDoc = await transaction.get(oldPathRef);
         }
 
-        if (!classPassDoc.exists) {
+        if (!classPassDoc || !classPassDoc.exists) {
           throw new functions.https.HttpsError(
             "not-found",
             "Specified class pass not found."
@@ -636,6 +645,276 @@ export const registerForClass = functions.https.onCall(
       throw new functions.https.HttpsError(
         "internal",
         "An unexpected error occurred while registering for the class.",
+        (error as Error).message
+      );
+    }
+  }
+);
+
+/**
+ * Cloud Function for admin to manually register a client for a class
+ * Supports two modes:
+ * 1. Existing client with class pass (requires userId and classPassPackageId)
+ * 2. Manual entry (requires firstName, lastName, optional email - no package deduction)
+ */
+interface ManualRegisterData {
+  classId: string;
+  userId?: string;
+  classPassPackageId?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string | null;
+}
+
+export const manualRegisterForClass = functions.https.onCall(
+  async (request: functions.https.CallableRequest<ManualRegisterData>) => {
+    // Verify admin authentication
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in to manually register a client."
+      );
+    }
+
+    const {classId, userId, classPassPackageId, firstName, lastName, email} = request.data;
+
+    if (!classId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing classId"
+      );
+    }
+
+    // Determine registration mode
+    const isExistingClient = !!userId && !!classPassPackageId;
+    const isManualEntry = !!firstName && !!lastName;
+
+    if (!isExistingClient && !isManualEntry) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Must provide either (userId + classPassPackageId) or (firstName + lastName)"
+      );
+    }
+
+    const classRef = db.collection("classes").doc(classId);
+
+    try {
+      if (isExistingClient) {
+        // Mode 1: Existing client with class pass
+        const userRef = db.collection("users").doc(userId);
+        functions.logger.info(`[manualRegisterForClass] Registering user ${userId} for class ${classId} with package ${classPassPackageId}`);
+
+        // Get user data for orgId
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) {
+          throw new functions.https.HttpsError(
+            "not-found",
+            "User profile not found."
+          );
+        }
+
+        const userData = userDoc.data();
+        if (!userData) {
+          throw new functions.https.HttpsError(
+            "internal",
+            "User data is missing."
+          );
+        }
+
+        const orgId = userData.organizationId as string | undefined;
+        if (!orgId) {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            "User must be associated with an organization."
+          );
+        }
+
+        await db.runTransaction(async (transaction) => {
+          const classDoc = await transaction.get(classRef);
+
+          if (!classDoc.exists) {
+            throw new functions.https.HttpsError(
+              "not-found",
+              "Class not found."
+            );
+          }
+
+          const classData = classDoc.data();
+          if (!classData) {
+            throw new functions.https.HttpsError(
+              "internal",
+              "Class data is missing."
+            );
+          }
+
+          // Try new path first, then fallback to old path
+          let classPassDoc: FirebaseFirestore.DocumentSnapshot | undefined;
+
+          const newPathRef = db
+            .collection("organizations")
+            .doc(orgId)
+            .collection("users")
+            .doc(userId)
+            .collection("packages")
+            .doc(classPassPackageId);
+          classPassDoc = await transaction.get(newPathRef);
+
+          // Fallback to old path if not found in new path
+          if (!classPassDoc || !classPassDoc.exists) {
+            const oldPathRef = userRef
+              .collection("lessonPackages")
+              .doc(classPassPackageId);
+            classPassDoc = await transaction.get(oldPathRef);
+          }
+
+          if (!classPassDoc || !classPassDoc.exists) {
+            throw new functions.https.HttpsError(
+              "not-found",
+              "Specified class pass not found."
+            );
+          }
+
+          const classPassData = classPassDoc.data();
+          if (!classPassData) {
+            throw new functions.https.HttpsError(
+              "internal",
+              "Class pass data is missing."
+            );
+          }
+
+          // Verify it's a class pass
+          const pkgCategory = classPassData.packageCategory;
+          const pkgType = classPassData.packageType;
+          const isClassPackage = pkgType === "class" || pkgType === "class_pass" || pkgCategory === "class";
+
+          if (!isClassPackage) {
+            throw new functions.https.HttpsError(
+              "invalid-argument",
+              "The specified package is not a class pass."
+            );
+          }
+
+          // Check if pass has remaining uses
+          if (classPassData.lessonsUsed >= classPassData.totalLessons) {
+            throw new functions.https.HttpsError(
+              "failed-precondition",
+              "Class pass has already been fully used."
+            );
+          }
+
+          // Check if pass is expired
+          if (
+            classPassData.expirationDate &&
+            classPassData.expirationDate.toDate() < new Date()
+          ) {
+            throw new functions.https.HttpsError(
+              "failed-precondition",
+              "Class pass has expired."
+            );
+          }
+
+          // Check if class is full
+          if (classData.currentParticipants >= classData.maxParticipants) {
+            throw new functions.https.HttpsError(
+              "failed-precondition",
+              "Class is full."
+            );
+          }
+
+          // Check if user is already registered
+          const existingParticipant = await transaction.get(
+            classRef.collection("participants").doc(userId)
+          );
+          if (existingParticipant.exists) {
+            throw new functions.https.HttpsError(
+              "already-exists",
+              "User is already registered for this class."
+            );
+          }
+
+          // Add participant
+          const participantRef = classRef.collection("participants").doc(userId);
+          transaction.set(participantRef, {
+            userId: userId,
+            firstName: userData.firstName || "Unknown",
+            lastName: userData.lastName || "User",
+            registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+            classPassPackageId: classPassPackageId,
+            manuallyAdded: true,
+          });
+
+          // Increment lessonsUsed on the class pass
+          transaction.update(classPassDoc.ref, {
+            lessonsUsed: admin.firestore.FieldValue.increment(1),
+          });
+
+          // Increment class participants
+          transaction.update(classRef, {
+            currentParticipants: admin.firestore.FieldValue.increment(1),
+          });
+        });
+
+        functions.logger.info(`Manual registration successful for user ${userId} in class ${classId}`);
+        return {message: "Client successfully registered for class!"};
+      } else {
+        // Mode 2: Manual entry (no package deduction)
+        functions.logger.info(`[manualRegisterForClass] Manual entry registration for ${firstName} ${lastName} in class ${classId}`);
+
+        await db.runTransaction(async (transaction) => {
+          const classDoc = await transaction.get(classRef);
+
+          if (!classDoc.exists) {
+            throw new functions.https.HttpsError(
+              "not-found",
+              "Class not found."
+            );
+          }
+
+          const classData = classDoc.data();
+          if (!classData) {
+            throw new functions.https.HttpsError(
+              "internal",
+              "Class data is missing."
+            );
+          }
+
+          // Check if class is full
+          if (classData.currentParticipants >= classData.maxParticipants) {
+            throw new functions.https.HttpsError(
+              "failed-precondition",
+              "Class is full."
+            );
+          }
+
+          // Add participant with auto-generated ID (allows duplicates for walk-ins)
+          const participantRef = classRef.collection("participants").doc();
+          transaction.set(participantRef, {
+            userId: "", // Empty for manual entries
+            firstName: firstName,
+            lastName: lastName,
+            email: email || "",
+            registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+            manualEntry: true,
+            manuallyAdded: true,
+          });
+
+          // Increment class participants
+          transaction.update(classRef, {
+            currentParticipants: admin.firestore.FieldValue.increment(1),
+          });
+        });
+
+        functions.logger.info(`Manual entry registration successful for ${firstName} ${lastName} in class ${classId}`);
+        return {message: "Client successfully added to class!"};
+      }
+    } catch (error) {
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      functions.logger.error("Error in manual registration:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "An unexpected error occurred during manual registration.",
         (error as Error).message
       );
     }
