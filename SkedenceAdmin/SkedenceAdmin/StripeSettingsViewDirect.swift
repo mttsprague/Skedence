@@ -37,7 +37,7 @@ struct StripeSettingsViewDirect: View {
                         Text("Manage your Stripe keys to accept payments from clients")
                             .font(.bodyMedium)
                             .foregroundStyle(AppTheme.textSecondary)
-                        Text("You can also update these in the admin portal (Manage → Stripe & Payments).")
+                        Text("You can also update these in the admin portal at skedence.com (Manage → Stripe & Payments).")
                             .font(.bodySmall)
                             .foregroundStyle(AppTheme.textSecondary)
                     }

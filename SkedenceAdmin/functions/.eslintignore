@@ -3,3 +3,6 @@ add-test-payment.js
 check-stripe-account.js
 check-subscription.js
 recreate-subscription-no-trial.js
+check_client_packages.js
+fix_class_pass_category.js
+sync-billing.js

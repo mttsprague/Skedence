@@ -209,11 +209,18 @@ struct ManageSubscriptionView: View {
             }
             .task {
                 await loadBillingStatus()
+                
+                // Start realtime listener
                 billingListener.startListening(orgId: orgId) { billing in
+                    print("🔄 Billing listener update received:")
+                    print("   Raw billing data: \\(billing)")
+                    
                     if let plan = billing["plan"] as? String {
+                        print("   Updating currentPlan from '\\(currentPlan)' to '\\(plan)'")
                         currentPlan = plan
                     }
                     if let billingStatus = billing["status"] as? String {
+                        print("   Updating status from '\\(status)' to '\\(billingStatus)'")
                         status = billingStatus
                     }
                     if let cancel = billing["cancelAtPeriodEnd"] as? Bool {
@@ -222,7 +229,7 @@ struct ManageSubscriptionView: View {
                     if let timestamp = billing["currentPeriodEnd"] as? Timestamp {
                         currentPeriodEnd = timestamp.dateValue()
                     }
-                    print("🔄 Subscription updated in realtime: plan=\(currentPlan), status=\(status)")
+                    print("🔄 Subscription updated in realtime: plan=\\(currentPlan), status=\\(status)")
                 }
             }
             .refreshable {
@@ -324,6 +331,45 @@ struct ManageSubscriptionView: View {
             }
         }
     }    
+    func syncBillingFromStripe() async {
+        isProcessing = true
+        errorMessage = nil
+        
+        do {
+            // Ensure user is authenticated
+            guard let currentUser = Auth.auth().currentUser else {
+                throw NSError(domain: "ManageSubscription", code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "No authenticated user found"])
+            }
+            
+            _ = try await currentUser.getIDToken(forcingRefresh: true)
+            
+            let functions = Functions.functions(region: "us-central1")
+            let callable = functions.httpsCallable("syncBillingFromStripe")
+            
+            print("🔄 Calling syncBillingFromStripe for orgId: \(orgId)")
+            let result = try await callable.call(["orgId": orgId])
+            
+            if let data = result.data as? [String: Any] {
+                print("✅ Sync result:")
+                print("   - status: \(data["status"] ?? "unknown")")
+                print("   - plan: \(data["plan"] ?? "unknown")")
+                
+                // Reload billing status
+                await loadBillingStatus()
+                
+                successMessage = "Billing synced successfully from Stripe"
+                showSuccessAlert = true
+            }
+            
+            isProcessing = false
+        } catch {
+            print("❌ Sync failed: \(error.localizedDescription)")
+            errorMessage = "Failed to sync billing: \(error.localizedDescription)"
+            isProcessing = false
+        }
+    }
+    
     func upgradeSubscription(to plan: String) async {
         isProcessing = true
         errorMessage = nil

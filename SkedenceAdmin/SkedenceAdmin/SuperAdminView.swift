@@ -240,7 +240,7 @@ struct SuperAdminView: View {
                             Text("Accept payments & manage subscription")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
-                            Text("You can also add Stripe keys in the admin portal website.")
+                            Text("You can also add Stripe keys in the admin portal at skedence.com.")
                                 .font(.footnote)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }

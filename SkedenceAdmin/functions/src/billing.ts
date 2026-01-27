@@ -25,6 +25,16 @@ const PRICE_IDS = {
   professional: process.env.STRIPE_PRO_PRICE_ID || "price_professional",
 };
 
+const resolvePlanName = (priceId?: string | null) => {
+  if (!priceId) return "starter";
+  if (priceId === process.env.STRIPE_ENTERPRISE_PRICE_ID) return "enterprise";
+  if (priceId === process.env.STRIPE_ACADEMY_PRICE_ID) return "academy";
+  if (priceId === process.env.STRIPE_STUDIO_PRICE_ID) return "studio";
+  if (priceId === PRICE_IDS.professional) return "professional";
+  if (priceId === PRICE_IDS.starter) return "starter";
+  return "starter";
+};
+
 interface CreateSubscriptionData {
   orgId: string;
   priceId: string;
@@ -131,6 +141,101 @@ export const createSubscription = functions.https.onCall(
       const message = error instanceof Error ? error.message : String(error);
       throw new functions.https.HttpsError("internal", message);
     }
+  }
+);
+
+interface SyncBillingData {
+  orgId: string;
+}
+
+/**
+ * Sync org billing from Stripe (owner only)
+ * Ensures plan/status fields match Stripe subscription state
+ */
+export const syncBillingFromStripe = functions.https.onCall(
+  async (request: functions.https.CallableRequest<SyncBillingData>) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {orgId} = request.data;
+    if (!orgId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing orgId"
+      );
+    }
+
+    const orgDoc = await db.collection("organizations").doc(orgId).get();
+    const orgData = orgDoc.data();
+    if (!orgData || orgData.ownerUserId !== request.auth.uid) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "You must be the organization owner"
+      );
+    }
+
+    const billing = orgData.billing || {};
+    const subscriptionId: string | undefined =
+      billing.stripeSubscriptionId || billing.subscriptionId;
+    const customerId: string | undefined =
+      billing.stripeCustomerId || billing.customerId;
+
+    let subscription: Stripe.Subscription | null = null;
+
+    if (subscriptionId) {
+      subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    } else if (customerId) {
+      const subs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 1,
+      });
+      subscription = subs.data[0] || null;
+    }
+
+    if (!subscription) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "No subscription found for this organization"
+      );
+    }
+
+    const priceId = subscription.items.data[0]?.price.id;
+    const planName = resolvePlanName(priceId);
+    const trialEnd = subscription.trial_end ?
+      admin.firestore.Timestamp.fromDate(
+        new Date(subscription.trial_end * 1000)
+      ) :
+      null;
+
+    await db.collection("organizations").doc(orgId).update({
+      "billing.status": subscription.status,
+      "billing.plan": planName,
+      "billing.isActive": subscription.status === "active" ||
+        subscription.status === "trialing",
+      "billing.currentPeriodEnd": admin.firestore.Timestamp.fromDate(
+        new Date(subscription.current_period_end * 1000)
+      ),
+      "billing.trialEndsAt": trialEnd,
+      "billing.cancelAtPeriodEnd": subscription.cancel_at_period_end,
+      "billing.subscriptionId": subscription.id,
+      "billing.customerId": subscription.customer as string,
+      "billing.stripeSubscriptionId": subscription.id,
+      "billing.stripeCustomerId": subscription.customer as string,
+      "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      status: subscription.status,
+      plan: planName,
+      subscriptionId: subscription.id,
+      customerId: subscription.customer,
+    };
   }
 );
 
@@ -356,15 +461,22 @@ export const stripeWebhook = functions.https.onRequest(
           else if (priceId === process.env.STRIPE_ACADEMY_PRICE_ID) planName = "academy";
           else if (priceId === process.env.STRIPE_ENTERPRISE_PRICE_ID) planName = "enterprise";
 
+          const trialEnd = subscription.trial_end ?
+            admin.firestore.Timestamp.fromDate(new Date(subscription.trial_end * 1000)) :
+            null;
+
           await db.collection("organizations").doc(orgId).update({
             "billing.subscriptionId": subscriptionId,
             "billing.customerId": subscription.customer as string,
+            "billing.stripeSubscriptionId": subscriptionId,
+            "billing.stripeCustomerId": subscription.customer as string,
             "billing.status": subscription.status,
             "billing.plan": planName,
             "billing.isActive": subscription.status === "active" || subscription.status === "trialing",
             "billing.currentPeriodEnd": admin.firestore.Timestamp.fromDate(
               new Date(subscription.current_period_end * 1000)
             ),
+            "billing.trialEndsAt": trialEnd,
             "billing.cancelAtPeriodEnd": subscription.cancel_at_period_end,
             "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -388,6 +500,10 @@ export const stripeWebhook = functions.https.onRequest(
           else if (priceId === process.env.STRIPE_ACADEMY_PRICE_ID) planName = "academy";
           else if (priceId === process.env.STRIPE_ENTERPRISE_PRICE_ID) planName = "enterprise";
 
+          const trialEnd = subscription.trial_end ?
+            admin.firestore.Timestamp.fromDate(new Date(subscription.trial_end * 1000)) :
+            null;
+
           await db.collection("organizations").doc(orgId).update({
             "billing.status": subscription.status,
             "billing.plan": planName,
@@ -395,7 +511,12 @@ export const stripeWebhook = functions.https.onRequest(
             "billing.currentPeriodEnd": admin.firestore.Timestamp.fromDate(
               new Date(subscription.current_period_end * 1000)
             ),
+            "billing.trialEndsAt": trialEnd,
             "billing.cancelAtPeriodEnd": subscription.cancel_at_period_end,
+            "billing.subscriptionId": subscription.id,
+            "billing.customerId": subscription.customer as string,
+            "billing.stripeSubscriptionId": subscription.id,
+            "billing.stripeCustomerId": subscription.customer as string,
             "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
           });
 

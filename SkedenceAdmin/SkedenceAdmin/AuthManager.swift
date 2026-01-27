@@ -336,7 +336,7 @@ final class AuthManager: ObservableObject {
     }
     
     // STEP 8: Load dynamic branding from organization
-    private func loadOrgBranding(orgId: String) async {
+    func loadOrgBranding(orgId: String) async {
         guard !orgId.isEmpty else {
             print("⚠️ loadOrgBranding called with empty orgId")
             return
@@ -432,3 +432,4 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 }
+

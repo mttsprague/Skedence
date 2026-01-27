@@ -150,9 +150,6 @@ export const bookLesson = functions.https.onCall(
     }
 
     const userRef = db.collection("users").doc(userId);
-    const lessonPackageRef = userRef
-      .collection("lessonPackages")
-      .doc(lessonPackageId);
     const trainerRef = db.collection("trainers").doc(trainerId);
     // IMPORTANT: slotId is deterministic ("YYYY-MM-DDTHH")
     const trainerSlotRef = trainerRef.collection("schedules").doc(slotId);
@@ -162,7 +159,6 @@ export const bookLesson = functions.https.onCall(
     try {
       await db.runTransaction(async (transaction) => {
         const userDoc = await transaction.get(userRef);
-        const lessonPackageDoc = await transaction.get(lessonPackageRef);
         const trainerDoc = await transaction.get(trainerRef);
         const trainerSlotDoc = await transaction.get(trainerSlotRef);
 
@@ -171,6 +167,42 @@ export const bookLesson = functions.https.onCall(
             "not-found",
             "User profile not found for the authenticated user."
           );
+        }
+
+        // Get orgId from user document or orgMembers
+        const userData = userDoc.data();
+        orgId = userData?.orgId as string | undefined;
+
+        if (!orgId) {
+          // Fallback: check orgMembers collection
+          const orgMembersQuery = await db.collection("orgMembers")
+            .where("userId", "==", userId)
+            .limit(1)
+            .get();
+          if (!orgMembersQuery.empty) {
+            orgId = orgMembersQuery.docs[0].data().orgId;
+          }
+        }
+
+        // Try to get lesson package from new path first, then fallback to old path
+        let lessonPackageDoc;
+        if (orgId) {
+          // New path: organizations/{orgId}/users/{userId}/packages/{packageId}
+          const newPathRef = db.collection("organizations")
+            .doc(orgId)
+            .collection("users")
+            .doc(userId)
+            .collection("packages")
+            .doc(lessonPackageId);
+          lessonPackageDoc = await transaction.get(newPathRef);
+        }
+
+        if (!lessonPackageDoc || !lessonPackageDoc.exists) {
+          // Fallback to old path: users/{userId}/lessonPackages/{packageId}
+          const oldPathRef = userRef
+            .collection("lessonPackages")
+            .doc(lessonPackageId);
+          lessonPackageDoc = await transaction.get(oldPathRef);
         }
 
         // STEP 10: Check trainer's organization billing status and quota
@@ -242,7 +274,6 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
-        const userData = userDoc.data();
         const lessonPackageData = lessonPackageDoc.data();
         const trainerData = trainerDoc.data();
         const trainerSlotData = trainerSlotDoc.data();
@@ -361,6 +392,8 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
+        // Increment lessonsUsed on the package (write to the same path we read from)
+        const lessonPackageRef = lessonPackageDoc.ref;
         transaction.update(lessonPackageRef, {
           lessonsUsed: admin.firestore.FieldValue.increment(1),
         });
@@ -440,27 +473,17 @@ export const registerForClass = functions.https.onCall(
     }
 
     const userRef = db.collection("users").doc(userId);
-    const classPassRef = userRef
-      .collection("lessonPackages")
-      .doc(classPassPackageId);
     const classRef = db.collection("classes").doc(classId);
 
     try {
       await db.runTransaction(async (transaction) => {
         const userDoc = await transaction.get(userRef);
-        const classPassDoc = await transaction.get(classPassRef);
         const classDoc = await transaction.get(classRef);
 
         if (!userDoc.exists) {
           throw new functions.https.HttpsError(
             "not-found",
             "User profile not found for the authenticated user."
-          );
-        }
-        if (!classPassDoc.exists) {
-          throw new functions.https.HttpsError(
-            "not-found",
-            "Specified class pass not found."
           );
         }
         if (!classDoc.exists) {
@@ -471,8 +494,60 @@ export const registerForClass = functions.https.onCall(
         }
 
         const userData = userDoc.data();
-        const classPassData = classPassDoc.data();
         const classData = classDoc.data();
+
+        if (!userData || !classData) {
+          throw new functions.https.HttpsError(
+            "internal",
+            "Unexpected missing document data."
+          );
+        }
+
+        // Get orgId from userData or by querying orgMembers
+        let orgId = userData.organizationId as string | undefined;
+        if (!orgId) {
+          const orgMembersSnapshot = await db
+            .collectionGroup("orgMembers")
+            .where("userId", "==", userId)
+            .limit(1)
+            .get();
+          if (!orgMembersSnapshot.empty) {
+            const orgMemberDoc = orgMembersSnapshot.docs[0];
+            orgId = orgMemberDoc.ref.parent.parent?.id;
+          }
+        }
+
+        // Try new path first, then fallback to old path
+        let classPassDoc: FirebaseFirestore.DocumentSnapshot | undefined;
+        let classPassRef: FirebaseFirestore.DocumentReference;
+
+        if (orgId) {
+          classPassRef = db
+            .collection("organizations")
+            .doc(orgId)
+            .collection("users")
+            .doc(userId)
+            .collection("packages")
+            .doc(classPassPackageId);
+          classPassDoc = await transaction.get(classPassRef);
+        }
+
+        // Fallback to old path if not found in new path
+        if (!classPassDoc || !classPassDoc.exists) {
+          classPassRef = userRef
+            .collection("lessonPackages")
+            .doc(classPassPackageId);
+          classPassDoc = await transaction.get(classPassRef);
+        }
+
+        if (!classPassDoc.exists) {
+          throw new functions.https.HttpsError(
+            "not-found",
+            "Specified class pass not found."
+          );
+        }
+
+        const classPassData = classPassDoc.data();
 
         if (!userData || !classPassData || !classData) {
           throw new functions.https.HttpsError(
@@ -529,7 +604,7 @@ export const registerForClass = functions.https.onCall(
           .doc(); // Auto-generate unique ID
 
         // Increment lessonsUsed on the class pass
-        transaction.update(classPassRef, {
+        transaction.update(classPassDoc.ref, {
           lessonsUsed: admin.firestore.FieldValue.increment(1),
         });
 

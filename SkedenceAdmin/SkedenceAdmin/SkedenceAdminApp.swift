@@ -22,6 +22,7 @@ struct SkedenceAdminApp: App {
     @StateObject private var onboardingCoordinator = OnboardingCoordinator()
     @State private var stripeConnectCompleted = false
     @State private var passwordSetupData: (token: String, email: String, trainerId: String)?
+    @Environment(\.scenePhase) private var scenePhase
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -80,6 +81,14 @@ struct SkedenceAdminApp: App {
                                 subscriptionStatus.monitorOrgStatus(organizationId: orgId)
                             }
                         }
+                        .onChange(of: scenePhase) { oldPhase, newPhase in
+                            if newPhase == .active {
+                                // Refresh billing when returning from Safari
+                                Task {
+                                    await refreshBillingAfterCheckout()
+                                }
+                            }
+                        }
                 }
             }
             .onOpenURL { url in
@@ -87,6 +96,18 @@ struct SkedenceAdminApp: App {
             }
         }
         .modelContainer(sharedModelContainer)
+    }
+    
+    private func refreshBillingAfterCheckout() async {
+        guard let orgId = auth.currentOrgId else { return }
+        
+        // Wait a moment for webhook to process
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        
+        // Reload org branding (which includes billing data)
+        await auth.loadOrgBranding(orgId: orgId)
+        
+        print("🔄 Billing refreshed after returning to app")
     }
     
     private func handleDeepLink(_ url: URL) {
@@ -139,3 +160,4 @@ struct SkedenceAdminApp: App {
         }
     }
 }
+

@@ -193,32 +193,33 @@ export default function PassesPage() {
           orgId: orgId
         };
 
-        // Write to BOTH locations for compatibility:
-        // 1. Old path (backward compatibility)
+        // Write to new organization path
         await addDoc(
-          collection(db, 'users', selectedClient.userId, 'lessonPackages'),
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
           passData
         );
-
-        // 2. New path (organizations/{orgId}/users/{userId}/packages) - where client apps read
-        if (orgId) {
-          await addDoc(
-            collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
-            passData
-          );
-        }
 
         setMessage({
           type: 'success',
           text: `Successfully added ${quantity} ${selectedPackage.title}${quantity === 1 ? '' : 's'} to ${selectedClient.firstName} ${selectedClient.lastName}'s account.`
         });
       } else {
-        // Remove passes from client
-        const packagesQuery = query(
-          collection(db, 'users', selectedClient.userId, 'lessonPackages'),
+        // Remove passes from client - try new path first
+        let packagesQuery = query(
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
           where('packageType', '==', selectedPackage.packageType)
         );
-        const packagesSnap = await getDocs(packagesQuery);
+        let packagesSnap = await getDocs(packagesQuery);
+
+        // Fallback to old path if empty
+        const usingNewPath = !packagesSnap.empty;
+        if (packagesSnap.empty) {
+          packagesQuery = query(
+            collection(db, 'users', selectedClient.userId, 'lessonPackages'),
+            where('packageType', '==', selectedPackage.packageType)
+          );
+          packagesSnap = await getDocs(packagesQuery);
+        }
 
         if (packagesSnap.empty) {
           setMessage({
@@ -248,14 +249,19 @@ export default function PassesPage() {
 
           if (remaining <= 0) continue;
 
+          // Use the correct path based on where we found the packages
+          const docRef = usingNewPath
+            ? doc(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages', packageDoc.id)
+            : doc(db, 'users', selectedClient.userId, 'lessonPackages', packageDoc.id);
+
           if (remaining <= remainingToRemove) {
             // Remove entire package
-            await deleteDoc(doc(db, 'users', selectedClient.userId, 'lessonPackages', packageDoc.id));
+            await deleteDoc(docRef);
             remainingToRemove -= remaining;
           } else {
             // Reduce totalLessons
             await updateDoc(
-              doc(db, 'users', selectedClient.userId, 'lessonPackages', packageDoc.id),
+              docRef,
               { totalLessons: lessonsUsed + (remaining - remainingToRemove) }
             );
             remainingToRemove = 0;
@@ -275,10 +281,18 @@ export default function PassesPage() {
       
       // Reload client packages if we had a client selected
       if (selectedClient) {
-        const packagesQuery = query(
-          collection(db, 'users', selectedClient.userId, 'lessonPackages')
+        // Try new path first
+        let packagesSnap = await getDocs(
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
         );
-        const packagesSnap = await getDocs(packagesQuery);
+        
+        // Fallback to old path if empty
+        if (packagesSnap.empty) {
+          packagesSnap = await getDocs(
+            collection(db, 'users', selectedClient.userId, 'lessonPackages')
+          );
+        }
+        
         const packagesData = packagesSnap.docs.map(doc => {
           const data = doc.data();
           return {

@@ -927,10 +927,28 @@ private struct ClassRegistrationSheet: View {
         
         print("🔍 DEBUG ClassRegistrationSheet: Filtered class passes count: \(filtered.count)")
         
-        let sorted = filtered.sorted { (a, b) -> Bool in
-            return a.expirationDate < b.expirationDate
+        // Group by packageType and pick the one expiring soonest for each type
+        var packagesByType: [String: LessonPackage] = [:]
+        for pkg in filtered.sorted(by: { $0.expirationDate < $1.expirationDate }) {
+            if packagesByType[pkg.packageType] == nil {
+                packagesByType[pkg.packageType] = pkg
+            }
         }
-        return sorted
+        
+        let grouped = Array(packagesByType.values).sorted { $0.expirationDate < $1.expirationDate }
+        return grouped
+    }
+    
+    // Get total remaining lessons for a specific package type
+    private func totalRemaining(for packageType: String) -> Int {
+        let now = Date()
+        return packagesService.packages.filter { pkg in
+            pkg.packageType == packageType &&
+            pkg.canBookClasses &&
+            pkg.lessonsRemaining > 0 &&
+            pkg.expirationDate >= now &&
+            pkg.packageCategory == "class"
+        }.reduce(0) { $0 + $1.lessonsRemaining }
     }
     
     // Helper to get all valid package types/IDs from current pricing structure
@@ -1104,13 +1122,8 @@ private struct ClassRegistrationSheet: View {
                                             Button {
                                                 selectedClassPass = package
                                             } label: {
-                                                VStack(alignment: .leading, spacing: 2) {
-                                                    Text(displayPackageTitle(package))
-                                                        .font(.bodyMedium)
-                                                    Text("\(package.lessonsRemaining) left")
-                                                        .font(.caption)
-                                                        .foregroundStyle(AppTheme.textSecondary)
-                                                }
+                                                Text("\(displayPackageTitle(package)) (\(totalRemaining(for: package.packageType)) left)")
+                                                    .font(.bodyMedium)
                                             }
                                         }
                                     } label: {
@@ -1128,7 +1141,7 @@ private struct ClassRegistrationSheet: View {
                                                 Text(selectedClassPass != nil ? displayPackageTitle(selectedClassPass!) : "Choose a class pass")
                                                     .font(.headingSmall)
                                                     .foregroundStyle(AppTheme.textPrimary)
-                                                Text(selectedClassPass != nil ? "\(selectedClassPass!.lessonsRemaining) left" : "Select which pass to use")
+                                                Text(selectedClassPass != nil ? "\(totalRemaining(for: selectedClassPass!.packageType)) left" : "Select which pass to use")
                                                     .font(.bodySmall)
                                                     .foregroundStyle(AppTheme.textSecondary)
                                             }

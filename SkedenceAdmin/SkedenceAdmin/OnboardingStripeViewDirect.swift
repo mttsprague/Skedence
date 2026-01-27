@@ -201,7 +201,7 @@ struct OnboardingStripeViewDirect: View {
                     .padding(.vertical, Spacing.sm)
             }
             .disabled(isLoading)
-            Text("You can add these keys later in the admin portal (Manage → Stripe & Payments).")
+            Text("You can add these keys later in the admin portal at skedence.com (Manage → Stripe & Payments).")
                 .font(.bodySmall)
                 .foregroundStyle(AppTheme.textSecondary)
                 .multilineTextAlignment(.center)
