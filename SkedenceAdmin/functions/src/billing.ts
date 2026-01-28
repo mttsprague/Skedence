@@ -1197,6 +1197,108 @@ export const removePaymentMethod = functions.https.onCall(
 );
 
 /**
+ * Save payment method directly (tokenize and attach to customer)
+ */
+export const savePaymentMethod = functions.https.onCall(
+  async (request: functions.https.CallableRequest<{
+    organizationId: string;
+    token: string;
+  }>) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {organizationId, token} = request.data;
+
+    if (!organizationId || !token) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields"
+      );
+    }
+
+    try {
+      // Get organization
+      const orgDoc = await db.collection("organizations").doc(organizationId).get();
+      const orgData = orgDoc.data();
+
+      if (!orgData) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      // Get or create Stripe customer
+      let customerId = orgData.billing?.stripeCustomerId;
+
+      if (customerId) {
+        try {
+          await stripe.customers.retrieve(customerId);
+        } catch (error) {
+          console.log(`Customer ${customerId} not found, creating new one`);
+          customerId = undefined;
+        }
+      }
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: request.auth.token.email,
+          metadata: {
+            organizationId,
+            userId: request.auth.uid,
+          },
+        });
+        customerId = customer.id;
+
+        await db.collection("organizations").doc(organizationId).update({
+          "billing.stripeCustomerId": customerId,
+          "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Create payment method from token
+      const paymentMethod = await stripe.paymentMethods.create({
+        type: "card",
+        card: {
+          token: token,
+        },
+      });
+
+      // Attach payment method to customer
+      await stripe.paymentMethods.attach(paymentMethod.id, {
+        customer: customerId,
+      });
+
+      // Set as default payment method
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethod.id,
+        },
+      });
+
+      console.log(`✅ Saved payment method ${paymentMethod.id} for customer ${customerId}`);
+
+      return {
+        success: true,
+        last4: paymentMethod.card?.last4,
+        brand: paymentMethod.card?.brand,
+      };
+    } catch (error: unknown) {
+      console.error("Error saving payment method:", error);
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new functions.https.HttpsError("internal", message);
+    }
+  }
+);
+
+/**
  * Create or update subscription with payment method (in-app)
  * This is called after the user adds their payment method in the app
  */

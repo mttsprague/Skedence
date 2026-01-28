@@ -10,6 +10,7 @@
 
 import SwiftUI
 import FirebaseFunctions
+import Stripe
 import StripePaymentSheet
 
 struct InAppSubscriptionView: View {
@@ -39,7 +40,7 @@ struct InAppSubscriptionView: View {
     // Stripe Payment Sheet for adding card
     @State private var paymentSheet: PaymentSheet?
     
-    let stripePublishableKey = "pk_live_51SnNeOFIh2MhEffNNdhQWpsvlgkzWS6rr5BVcfOpHmtdnUE7iUYZVBXDPzCUzDqTiRuMGR1GVh38qvHtcvW3rBtC00qlnOLFXm"
+    let stripePublishableKey = "pk_live_51SnNeOFIh2MhEffNF7SS0liDja5jF9tha3SnJVAO42OcVDkBVIiTralDrcZplXU7JO4E3lijrDIA31RwIrh2oq2r00HBWB8fTD"
     private var effectivePublishableKey: String {
         if let key = auth.stripePublishableKey, !key.isEmpty {
             return key
@@ -92,18 +93,6 @@ struct InAppSubscriptionView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
-            }
-            .sheet(isPresented: $showingAddCard) {
-                AddCardView(
-                    orgId: orgId,
-                    onSuccess: {
-                        showingAddCard = false
-                        Task {
-                            await loadPaymentMethod()
-                        }
-                    }
-                )
-                .environmentObject(auth)
             }
             .alert("Confirm Subscription", isPresented: $showingConfirmation) {
                 Button("Cancel", role: .cancel) {
@@ -277,6 +266,16 @@ struct InAppSubscriptionView: View {
                 .padding()
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
+            } else if showingAddCard {
+                // Inline card entry
+                CardEntryView(orgId: orgId) {
+                    showingAddCard = false
+                    Task {
+                        await loadPaymentMethod()
+                    }
+                } onCancel: {
+                    showingAddCard = false
+                }
             } else {
                 VStack(spacing: 12) {
                     HStack {
@@ -583,6 +582,214 @@ struct InAppSubscriptionView: View {
             await MainActor.run {
                 errorMessage = error.localizedDescription
                 isCanceling = false
+            }
+        }
+    }
+}
+
+// MARK: - Card Entry View
+
+struct CardEntryView: View {
+    @EnvironmentObject var auth: AuthManager
+    let orgId: String
+    let onSuccess: () -> Void
+    let onCancel: () -> Void
+    
+    @State private var cardNumber = ""
+    @State private var expiryDate = ""
+    @State private var cvc = ""
+    @State private var isProcessing = false
+    @State private var errorMessage: String?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Enter Card Details")
+                .font(.headline)
+            
+            // Card Number
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Card Number")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("1234 5678 9012 3456", text: $cardNumber)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: cardNumber) { oldValue, newValue in
+                        cardNumber = formatCardNumber(newValue)
+                    }
+            }
+            
+            HStack(spacing: 12) {
+                // Expiry Date
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Expiry")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("MM/YY", text: $expiryDate)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: expiryDate) { oldValue, newValue in
+                            expiryDate = formatExpiry(newValue)
+                        }
+                }
+                
+                // CVC
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("CVC")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("123", text: $cvc)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: cvc) { oldValue, newValue in
+                            if newValue.count > 4 {
+                                cvc = String(newValue.prefix(4))
+                            }
+                        }
+                }
+            }
+            
+            if let error = errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                Button(action: {
+                    Task {
+                        await saveCard()
+                    }
+                }) {
+                    if isProcessing {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                    } else {
+                        Text("Save Card")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isProcessing || !isValid)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    var isValid: Bool {
+        let cleanCard = cardNumber.replacingOccurrences(of: " ", with: "")
+        return cleanCard.count >= 15 && 
+               expiryDate.count == 5 && 
+               cvc.count >= 3
+    }
+    
+    func formatCardNumber(_ input: String) -> String {
+        let digits = input.filter { $0.isNumber }
+        let trimmed = String(digits.prefix(16))
+        var formatted = ""
+        for (index, char) in trimmed.enumerated() {
+            if index > 0 && index % 4 == 0 {
+                formatted += " "
+            }
+            formatted.append(char)
+        }
+        return formatted
+    }
+    
+    func formatExpiry(_ input: String) -> String {
+        let digits = input.filter { $0.isNumber }
+        let trimmed = String(digits.prefix(4))
+        if trimmed.count >= 3 {
+            return trimmed.prefix(2) + "/" + trimmed.dropFirst(2)
+        }
+        return trimmed
+    }
+    
+    func saveCard() async {
+        isProcessing = true
+        errorMessage = nil
+        
+        do {
+            // Parse card details
+            let cleanCard = cardNumber.replacingOccurrences(of: " ", with: "")
+            let expiryParts = expiryDate.split(separator: "/")
+            guard expiryParts.count == 2,
+                  let month = Int(expiryParts[0]),
+                  let year = Int(expiryParts[1]) else {
+                throw NSError(domain: "CardEntry", code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "Invalid expiry date"])
+            }
+            
+            // Configure Stripe API key from organization settings or fallback
+            let publishableKey: String
+            if let orgKey = auth.stripePublishableKey, !orgKey.isEmpty {
+                publishableKey = orgKey
+                print("🔑 Using organization Stripe key: \(orgKey.prefix(20))...")
+            } else {
+                publishableKey = "pk_live_51SnNeOFIh2MhEffNF7SS0liDja5jF9tha3SnJVAO42OcVDkBVIiTralDrcZplXU7JO4E3lijrDIA31RwIrh2oq2r00HBWB8fTD"
+                print("⚠️ Using fallback Stripe key (organization key not found): \(publishableKey.prefix(20))...")
+            }
+            
+            guard !publishableKey.isEmpty else {
+                throw NSError(domain: "CardEntry", code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "Stripe API key not configured. Please contact support."])
+            }
+            
+            STPAPIClient.shared.publishableKey = publishableKey
+            
+            // Create Stripe card params
+            let cardParams = STPCardParams()
+            cardParams.number = cleanCard
+            cardParams.expMonth = UInt(month)
+            cardParams.expYear = UInt(2000 + year)
+            cardParams.cvc = cvc
+            
+            // Tokenize with Stripe SDK (PCI compliant)
+            let token = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<STPToken, Error>) in
+                STPAPIClient.shared.createToken(withCard: cardParams) { token, error in
+                    if let error = error {
+                        print("❌ Stripe tokenization error: \(error)")
+                        continuation.resume(throwing: error)
+                    } else if let token = token {
+                        continuation.resume(returning: token)
+                    } else {
+                        continuation.resume(throwing: NSError(domain: "Stripe", code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "Failed to create token"]))
+                    }
+                }
+            }
+            
+            print("✅ Created Stripe token: \(token.tokenId)")
+            
+            // Send token to Cloud Function
+            let functions = Functions.functions(region: "us-central1")
+            let callable = functions.httpsCallable("savePaymentMethod")
+            
+            let result = try await callable.call([
+                "organizationId": orgId,
+                "token": token.tokenId
+            ])
+            
+            print("✅ Card saved: \(result.data)")
+            
+            await MainActor.run {
+                isProcessing = false
+                onSuccess()
+            }
+            
+        } catch {
+            print("❌ Failed to save card: \(error)")
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isProcessing = false
             }
         }
     }
