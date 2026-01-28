@@ -120,7 +120,7 @@ struct AdminPanelView: View {
                 .environmentObject(auth)
             }
             .sheet(isPresented: $showingManageSubscription) {
-                ManageSubscriptionView(orgId: auth.currentOrgId ?? "")
+                InAppSubscriptionView(orgId: auth.currentOrgId ?? "")
                     .environmentObject(auth)
             }
             .sheet(isPresented: $showingProcessPayment) {

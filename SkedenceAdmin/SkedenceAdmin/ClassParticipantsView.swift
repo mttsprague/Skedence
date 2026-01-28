@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseFirestore
+import FirebaseFunctions
 import Combine
 
 struct ClassParticipantsView: View {
@@ -46,7 +47,7 @@ struct ClassParticipantsView: View {
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
                         
-                        Section("Participants") {
+                        Section(header: Text("Participants")) {
                             ForEach(participantsLoader.participants) { participant in
                                 ParticipantRow(participant: participant)
                                     .contentShape(Rectangle())
@@ -257,7 +258,7 @@ struct ManualRegistrationSheet: View {
     
     @State private var registrationType: RegistrationType = .existingClient
     @State private var selectedClient: Client?
-    @State private var selectedPackage: LessonPackage?
+    @State private var selectedPackageId: String?
     @State private var manualFirstName = ""
     @State private var manualLastName = ""
     @State private var manualEmail = ""
@@ -321,7 +322,7 @@ struct ManualRegistrationSheet: View {
                         await loadPackages(for: client)
                     } else {
                         clientPackages = []
-                        selectedPackage = nil
+                        selectedPackageId = nil
                     }
                 }
             }
@@ -330,7 +331,7 @@ struct ManualRegistrationSheet: View {
     
     private var existingClientSection: some View {
         Group {
-            Section("Select Client") {
+            Section(header: Text("Select Client")) {
                 if isLoadingClients {
                     HStack {
                         Spacer()
@@ -350,23 +351,26 @@ struct ManualRegistrationSheet: View {
                 }
             }
             
-            if let selectedClient = selectedClient {
-                Section("Select Class Pass") {
-                    if clientPackages.isEmpty {
+            if selectedClient != nil {
+                Section(header: Text("Select Class Pass")) {
+                    // Filter to valid packages
+                    let validPackages = clientPackages.filter { isValidClassPass($0) }
+                    
+                    if validPackages.isEmpty {
                         Text("No available class passes")
                             .foregroundStyle(AppTheme.textSecondary)
                     } else {
-                        Picker("Class Pass", selection: $selectedPackage) {
-                            Text("Select a class pass...").tag(nil as LessonPackage?)
-                            ForEach(clientPackages.filter { isValidClassPass($0) }) { pkg in
+                        Picker("Class Pass", selection: $selectedPackageId) {
+                            Text("Select a class pass...").tag(nil as String?)
+                            ForEach(validPackages) { pkg in
                                 HStack {
-                                    Text(pkg.name)
+                                    Text(pkg.packageDisplayName)
                                     Spacer()
-                                    Text("\(pkg.totalLessons - pkg.lessonsUsed) remaining")
+                                    Text("\(pkg.lessonsRemaining) remaining")
                                         .font(.caption)
                                         .foregroundStyle(AppTheme.textSecondary)
                                 }
-                                .tag(pkg as LessonPackage?)
+                                .tag(pkg.id as String?)
                             }
                         }
                     }
@@ -376,7 +380,7 @@ struct ManualRegistrationSheet: View {
     }
     
     private var manualEntrySection: some View {
-        Section("Client Information") {
+        Section(header: Text("Client Information")) {
             TextField("First Name", text: $manualFirstName)
             TextField("Last Name", text: $manualLastName)
             TextField("Email (optional)", text: $manualEmail)
@@ -387,7 +391,7 @@ struct ManualRegistrationSheet: View {
     
     private var canRegister: Bool {
         if registrationType == .existingClient {
-            return selectedClient != nil && selectedPackage != nil
+            return selectedClient != nil && selectedPackageId != nil
         } else {
             return !manualFirstName.isEmpty && !manualLastName.isEmpty
         }
@@ -455,26 +459,39 @@ struct ManualRegistrationSheet: View {
             
             clientPackages = snapshot.documents.compactMap { doc in
                 let data = doc.data()
-                guard let name = data["name"] as? String,
-                      let totalLessons = data["totalLessons"] as? Int,
-                      let lessonsUsed = data["lessonsUsed"] as? Int,
-                      let purchasedAt = (data["purchasedAt"] as? Timestamp)?.dateValue() else {
+                
+                // Required fields
+                guard
+                    let packageType = data["packageType"] as? String,
+                    let totalLessons = data["totalLessons"] as? Int,
+                    let lessonsUsed = data["lessonsUsed"] as? Int
+                else {
                     return nil
                 }
                 
+                // Support both purchaseDate and purchasedAt
+                let purchaseDate = (data["purchaseDate"] as? Timestamp)?.dateValue()
+                    ?? (data["purchasedAt"] as? Timestamp)?.dateValue()
+                    ?? Date()
+                
                 let expirationDate = (data["expirationDate"] as? Timestamp)?.dateValue()
                 let packageCategory = data["packageCategory"] as? String
-                let packageType = data["packageType"] as? String ?? ""
+                // Support both name and packageName
+                let packageName = (data["name"] as? String) ?? (data["packageName"] as? String)
+                let trainerId = data["trainerId"] as? String
+                let transactionId = data["transactionId"] as? String
                 
                 return LessonPackage(
                     id: doc.documentID,
-                    name: name,
+                    packageType: packageType,
+                    packageCategory: packageCategory,
+                    packageName: packageName,
+                    trainerId: trainerId,
                     totalLessons: totalLessons,
                     lessonsUsed: lessonsUsed,
-                    purchasedAt: purchasedAt,
+                    purchaseDate: purchaseDate,
                     expirationDate: expirationDate,
-                    packageCategory: packageCategory,
-                    packageType: packageType
+                    transactionId: transactionId
                 )
             }
         } catch {
@@ -493,23 +510,24 @@ struct ManualRegistrationSheet: View {
             let data: [String: Any]
             
             if registrationType == .existingClient {
-                guard let client = selectedClient, let package = selectedPackage else { return }
+                guard let client = selectedClient, let packageId = selectedPackageId else { return }
                 
                 data = [
                     "classId": classId,
                     "userId": client.id,
-                    "classPassPackageId": package.id ?? ""
+                    "classPassPackageId": packageId
                 ]
                 
                 let result = try await functions.httpsCallable("manualRegisterForClass").call(data)
                 print("Manual registration result: \(result.data)")
             } else {
                 // Manual entry - no package required
+                let emailValue: Any = manualEmail.isEmpty ? NSNull() : manualEmail
                 data = [
                     "classId": classId,
                     "firstName": manualFirstName,
                     "lastName": manualLastName,
-                    "email": manualEmail.isEmpty ? nil : manualEmail
+                    "email": emailValue
                 ]
                 
                 let result = try await functions.httpsCallable("manualRegisterForClass").call(data)

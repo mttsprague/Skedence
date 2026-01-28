@@ -73,12 +73,7 @@ struct ContentView: View {
                         showingPricing = true
                     },
                     onManageBilling: {
-                        Task {
-                            guard let orgId = auth.currentOrgId,
-                                  let url = await enforcement.openBillingPortal(organizationId: orgId)
-                            else { return }
-                            openURL(url)
-                        }
+                        showingPricing = true
                     },
                     onContactSupport: {
                         if let url = URL(string: "mailto:support@skedence.com?subject=Billing%20Help") {
@@ -93,34 +88,9 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showingPricing) {
-            NavigationStack {
-                PricingView(onPlanSelected: { selectedPlan in
-                    Task { [enforcement] in
-                        guard let orgId = auth.currentOrgId else { return }
-                        guard let priceId = selectedPlan.stripePriceId else {
-                            print("❌ Missing stripePriceId for plan: \(selectedPlan.id)")
-                            return
-                        }
-                        
-                        // Create Stripe Checkout session
-                        if let checkoutUrl = await enforcement.createCheckoutSession(
-                            organizationId: orgId,
-                            priceId: priceId
-                        ) {
-                            await MainActor.run {
-                                showingPricing = false
-                                openURL(checkoutUrl)
-                            }
-                        }
-                    }
-                })
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Cancel") {
-                            showingPricing = false
-                        }
-                    }
-                }
+            if let orgId = auth.currentOrgId {
+                InAppSubscriptionView(orgId: orgId)
+                    .environmentObject(auth)
             }
         }
         .onAppear {

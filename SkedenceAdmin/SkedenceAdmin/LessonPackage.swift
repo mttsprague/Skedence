@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct LessonPackage: Identifiable, Codable {
+struct LessonPackage: Identifiable, Codable, Hashable {
     var id: String
     var packageType: String
     var packageCategory: String? // "pass" or "class" - determines what can be booked

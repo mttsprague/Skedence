@@ -64,7 +64,7 @@ struct ManageSubscriptionView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             
-                            PlanCard(
+                            SubscriptionPlanCard(
                                 name: "Free",
                                 price: "$0",
                                 features: [
@@ -77,7 +77,7 @@ struct ManageSubscriptionView: View {
                             )
                             .disabled(true)
                             
-                            PlanCard(
+                            SubscriptionPlanCard(
                                 name: "Starter",
                                 price: "$29",
                                 features: [
@@ -99,7 +99,7 @@ struct ManageSubscriptionView: View {
                                 }
                             )
                             
-                            PlanCard(
+                            SubscriptionPlanCard(
                                 name: "Studio",
                                 price: "$99",
                                 features: [
@@ -122,7 +122,7 @@ struct ManageSubscriptionView: View {
                                 }
                             )
                             
-                            PlanCard(
+                            SubscriptionPlanCard(
                                 name: "Academy",
                                 price: "$249",
                                 features: [
@@ -145,7 +145,7 @@ struct ManageSubscriptionView: View {
                                 }
                             )
                             
-                            PlanCard(
+                            SubscriptionPlanCard(
                                 name: "Enterprise",
                                 price: "$499",
                                 features: [
@@ -213,14 +213,14 @@ struct ManageSubscriptionView: View {
                 // Start realtime listener
                 billingListener.startListening(orgId: orgId) { billing in
                     print("🔄 Billing listener update received:")
-                    print("   Raw billing data: \\(billing)")
+                    print("   Raw billing data: \(billing)")
                     
                     if let plan = billing["plan"] as? String {
-                        print("   Updating currentPlan from '\\(currentPlan)' to '\\(plan)'")
+                        print("   Updating currentPlan from '\(currentPlan)' to '\(plan)'")
                         currentPlan = plan
                     }
                     if let billingStatus = billing["status"] as? String {
-                        print("   Updating status from '\\(status)' to '\\(billingStatus)'")
+                        print("   Updating status from '\(status)' to '\(billingStatus)'")
                         status = billingStatus
                     }
                     if let cancel = billing["cancelAtPeriodEnd"] as? Bool {
@@ -229,7 +229,7 @@ struct ManageSubscriptionView: View {
                     if let timestamp = billing["currentPeriodEnd"] as? Timestamp {
                         currentPeriodEnd = timestamp.dateValue()
                     }
-                    print("🔄 Subscription updated in realtime: plan=\\(currentPlan), status=\\(status)")
+                    print("🔄 Subscription updated in realtime: plan=\(currentPlan), status=\(status)")
                 }
             }
             .refreshable {
@@ -576,9 +576,9 @@ private struct UsageCard: View {
     }
 }
 
-// MARK: - Plan Card
+// MARK: - Subscription Plan Card
 
-private struct PlanCard: View {
+private struct SubscriptionPlanCard: View {
     let name: String
     let price: String
     let features: [String]

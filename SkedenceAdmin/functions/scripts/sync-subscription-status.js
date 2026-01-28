@@ -65,8 +65,9 @@ async function syncSubscriptionStatus(orgId) {
 
     console.log(`\n📊 Found ${subscriptions.data.length} subscription(s):\n`);
 
-    // Find the active or most recent subscription
+    // Find the most recent active or trialing subscription
     let targetSubscription = null;
+    let mostRecentActiveDate = 0;
     
     for (const sub of subscriptions.data) {
       console.log(`  Subscription: ${sub.id}`);
@@ -80,9 +81,12 @@ async function syncSubscriptionStatus(orgId) {
       }
       console.log('');
 
-      // Prefer active or trialing subscriptions
+      // Prefer the MOST RECENT active or trialing subscription
       if (sub.status === 'active' || sub.status === 'trialing') {
-        targetSubscription = sub;
+        if (sub.created > mostRecentActiveDate) {
+          targetSubscription = sub;
+          mostRecentActiveDate = sub.created;
+        }
       } else if (!targetSubscription) {
         // If no active subscription, use the most recent one
         targetSubscription = sub;
@@ -100,10 +104,13 @@ async function syncSubscriptionStatus(orgId) {
     const priceId = targetSubscription.items.data[0]?.price.id;
     let planName = 'starter';
     
-    if (priceId === process.env.STRIPE_STARTER_PRICE_ID) planName = 'starter';
-    else if (priceId === process.env.STRIPE_STUDIO_PRICE_ID) planName = 'studio';
-    else if (priceId === process.env.STRIPE_ACADEMY_PRICE_ID) planName = 'academy';
-    else if (priceId === process.env.STRIPE_ENTERPRISE_PRICE_ID) planName = 'enterprise';
+    // Use the actual price IDs from Firebase config
+    if (priceId === 'price_1SpKItFIh2MhEffNfsBy4HyT') planName = 'starter';
+    else if (priceId === 'price_1SpKMkFIh2MhEffNgGdbgMr5') planName = 'studio';
+    else if (priceId === 'price_1SpKNrFIh2MhEffNqZf64sPA') planName = 'academy';
+    else if (priceId === 'price_1SpKOrFIh2MhEffNjU5v5X4P') planName = 'enterprise';
+
+    console.log(`📝 Price ID: ${priceId}`);
 
     console.log(`📝 Mapped plan: ${planName}`);
 

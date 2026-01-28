@@ -113,6 +113,45 @@ struct SkedenceAdminApp: App {
     private func handleDeepLink(_ url: URL) {
         print("📱 Deep link received: \(url)")
         
+        // Handle subscription success (skedenceadmin://subscription-success?session_id=xxx&orgId=xxx)
+        if url.scheme == "skedenceadmin" && url.host == "subscription-success" {
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let queryItems = components.queryItems else {
+                print("❌ Invalid subscription-success deep link")
+                return
+            }
+            
+            let sessionId = queryItems.first(where: { $0.name == "session_id" })?.value
+            let orgId = queryItems.first(where: { $0.name == "orgId" })?.value
+            
+            print("✅ Subscription success! SessionId: \(sessionId ?? "unknown"), OrgId: \(orgId ?? "unknown")")
+            
+            // Refresh billing data after subscription purchase
+            Task {
+                // Wait for webhook to process
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                
+                if let orgId = orgId ?? auth.currentOrgId {
+                    await auth.loadOrgBranding(orgId: orgId)
+                    subscriptionStatus.monitorOrgStatus(organizationId: orgId)
+                    print("🔄 Billing refreshed after subscription purchase")
+                }
+                
+                // Show success message
+                await MainActor.run {
+                    // TODO: Show a success alert or banner
+                    print("💰 Subscription activated successfully!")
+                }
+            }
+            return
+        }
+        
+        // Handle subscription cancel (skedenceadmin://subscription-cancel)
+        if url.scheme == "skedenceadmin" && url.host == "subscription-cancel" {
+            print("❌ User canceled subscription purchase")
+            return
+        }
+        
         // Handle password setup invitation (skedence://setup-password?token=xxx&email=xxx&trainerId=xxx)
         if url.scheme == "skedence" && url.host == "setup-password" {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),

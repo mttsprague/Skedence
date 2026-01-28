@@ -208,7 +208,7 @@ struct SuperAdminView: View {
                     .padding(.vertical, Spacing.md)
                 
                 // Manage Subscription
-                NavigationLink(destination: ManageSubscriptionView(orgId: auth.currentOrgId ?? "").environmentObject(auth)) {
+                NavigationLink(destination: InAppSubscriptionView(orgId: auth.currentOrgId ?? "").environmentObject(auth)) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Manage Subscription")
@@ -234,12 +234,9 @@ struct SuperAdminView: View {
                 ) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Stripe & Payments")
+                            Text("Stripe")
                                 .font(.headingSmall)
                                 .foregroundStyle(AppTheme.textPrimary)
-                            Text("Accept payments & manage subscription")
-                                .font(.bodyMedium)
-                                .foregroundStyle(AppTheme.textSecondary)
                             Text("You can also add Stripe keys in the admin portal at skedence.com.")
                                 .font(.footnote)
                                 .foregroundStyle(AppTheme.textSecondary)
@@ -486,6 +483,11 @@ struct SuperAdminView: View {
     }
     
     private func loadData() async {
+        // Reload organization billing/branding to ensure Business tab shows latest plan
+        if let orgId = auth.currentOrgId {
+            await auth.loadOrgBranding(orgId: orgId)
+        }
+        
         await viewModel.loadOrganizations()
         await viewModel.loadTrainers(orgId: auth.currentOrgId)
         await viewModel.loadAllUsers()
