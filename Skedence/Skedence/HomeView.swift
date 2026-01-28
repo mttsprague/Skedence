@@ -212,7 +212,7 @@ struct HomeView: View {
                                                 .font(.headingSmall)
                                                 .foregroundStyle(AppTheme.textPrimary)
                                             
-                                            Text("Check schedules and pick your time")
+                                            Text("View trainers availability in the book tab")
                                                 .font(.bodyMedium)
                                                 .foregroundStyle(AppTheme.textSecondary)
                                         }

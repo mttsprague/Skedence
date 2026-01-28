@@ -201,6 +201,7 @@ struct SuperAdminView: View {
                     OrganizationCard(organization: org) {
                         // View/Edit organization
                     }
+                    .environmentObject(auth)
                 }
                 
                 // Admin Management Cards
@@ -557,6 +558,7 @@ struct SuperAdminView: View {
 struct OrganizationCard: View {
     let organization: Organization
     let onTap: () -> Void
+    @EnvironmentObject var auth: AuthManager
     @State private var showingEditName = false
     @State private var editedName = ""
     @State private var isSaving = false
@@ -570,7 +572,7 @@ struct OrganizationCard: View {
                         .font(.headingMedium)
                         .foregroundStyle(AppTheme.textPrimary)
                     
-                    Text(organization.subscriptionPlan ?? "No plan")
+                    Text(auth.billingPlan.capitalized)
                         .font(.bodySmall)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
