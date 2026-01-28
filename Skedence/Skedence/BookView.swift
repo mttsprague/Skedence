@@ -851,6 +851,25 @@ private struct ClassCard: View {
                         DetailRow(icon: "mappin.circle", text: classItem.location)
                         DetailRow(icon: "person.fill", text: classItem.trainerName)
                     }
+                    
+                    if !isRegistered {
+                        Divider()
+                        
+                        Button(action: onTap) {
+                            HStack {
+                                Image(systemName: "person.badge.plus")
+                                Text("Register")
+                                    .fontWeight(.semibold)
+                            }
+                            .font(.bodyMedium)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Spacing.sm)
+                            .background(AppTheme.primary)
+                            .cornerRadius(CornerRadius.sm)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
@@ -1049,6 +1068,14 @@ private struct ClassRegistrationSheet: View {
                             HStack(spacing: Spacing.xxs) {
                                 Image(systemName: "mappin.circle")
                                 Text(classItem.location)
+                                    .font(.bodyLarge)
+                            }
+                            
+                            Divider()
+                            
+                            HStack(spacing: Spacing.xxs) {
+                                Image(systemName: "person.fill")
+                                Text(classItem.trainerName)
                                     .font(.bodyLarge)
                             }
                             

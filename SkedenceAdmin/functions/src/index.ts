@@ -494,8 +494,11 @@ export const registerForClass = functions.https.onCall(
         );
       }
 
-      // Get orgId from userData - REQUIRED for class registration
-      const orgId = userData.organizationId as string | undefined;
+      // Get orgId from userData - try both fields for backwards compatibility
+      let orgId = userData.organizationId as string | undefined;
+      if (!orgId) {
+        orgId = userData.orgId as string | undefined;
+      }
       functions.logger.info(`[registerForClass] orgId from userData: ${orgId || "NOT FOUND"}`);
 
       if (!orgId) {
@@ -721,7 +724,11 @@ export const manualRegisterForClass = functions.https.onCall(
           );
         }
 
-        const orgId = userData.organizationId as string | undefined;
+        // Try both fields for backwards compatibility
+        let orgId = userData.organizationId as string | undefined;
+        if (!orgId) {
+          orgId = userData.orgId as string | undefined;
+        }
         if (!orgId) {
           throw new functions.https.HttpsError(
             "failed-precondition",
