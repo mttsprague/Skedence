@@ -1,5 +1,5 @@
 # Skedence Project Reference Guide
-**Last Updated:** January 22, 2026  
+**Last Updated:** January 28, 2026  
 **Firebase Project:** polyface-ae6d3  
 **Production Domain:** https://skedence.com  
 **Status:** Production (Live with Stripe payments)
@@ -156,10 +156,27 @@ users/{userId}
 ├── email: string (or emailAddress)
 ├── phoneNumber: string
 ├── role: "admin" | "trainer" | "client"
-├── orgId: string (reference to organization)
+├── orgId: string (PRIMARY - reference to organization)
+├── organizationId: string (LEGACY - backwards compatibility only)
 ├── isActive: boolean
 ├── createdAt: timestamp
 └── profileImageUrl?: string
+
+  SUBCOLLECTION: packages (NEW STANDARD PATH)
+  organizations/{orgId}/users/{userId}/packages/{packageId}
+  ├── packageType: string (e.g., "private", "2_athlete", "class_10_pack")
+  ├── packageCategory: string ("pass" or "class")
+  ├── packageName?: string (optional display title)
+  ├── totalLessons: number
+  ├── lessonsUsed: number
+  ├── purchaseDate: timestamp
+  ├── expirationDate: timestamp
+  ├── transactionId: string
+  └── orgId: string
+  
+  SUBCOLLECTION: lessonPackages (LEGACY PATH - backwards compatibility)
+  users/{userId}/lessonPackages/{packageId}
+  (Same schema as packages above)
 ```
 
 #### **orgMembers** (Junction table)
@@ -216,19 +233,32 @@ bookings/{bookingId}
 └── createdAt: timestamp
 ```
 
-#### **lessonPackages** (Client passes)
+#### **packages** (Client Lesson Passes & Class Passes)
+
+**STANDARD PATH (Primary):**
 ```
-lessonPackages/{packageId}
-├── clientId: string
-├── orgId: string
-├── packageName: string
+organizations/{orgId}/users/{userId}/packages/{packageId}
+├── packageType: string (e.g., "private", "2_athlete", "class_10_pack")
+├── packageCategory: string ("pass" or "class")
+├── packageName?: string (optional display title)
 ├── totalLessons: number
-├── remainingLessons: number
-├── price: number
+├── lessonsUsed: number
 ├── purchaseDate: timestamp
-├── expirationDate?: timestamp
-└── isActive: boolean
+├── expirationDate: timestamp
+├── transactionId: string
+└── orgId: string
 ```
+
+**LEGACY PATH (Backwards Compatibility):**
+```
+users/{userId}/lessonPackages/{packageId}
+(Same schema as above)
+```
+
+**Usage Pattern:**
+- **Reading:** Try new path first, fallback to legacy path
+- **Writing (Admin):** Write to BOTH paths for compatibility
+- **Writing (Stripe):** Write to new path only
 
 #### **groupClasses**
 ```
@@ -259,7 +289,56 @@ waivers/{waiverId}
 
 ---
 
-## 📱 Skedence iOS App (Client App)
+## � Schema Standards & Data Patterns
+
+### User Organization Field
+**PRIMARY:** `orgId` (string)  
+**LEGACY:** `organizationId` (string) - kept for backwards compatibility
+
+**Code Pattern:**
+```typescript
+// Cloud Functions - Always check both fields
+let orgId = userData.orgId as string | undefined;
+if (!orgId) {
+  orgId = userData.organizationId as string | undefined;
+}
+```
+
+### Package Storage Paths
+**PRIMARY:** `organizations/{orgId}/users/{userId}/packages/{packageId}`  
+**LEGACY:** `users/{userId}/lessonPackages/{packageId}`
+
+**Reading Pattern:**
+```typescript
+// Try new path first
+let packageDoc = await db.collection("organizations")
+  .doc(orgId).collection("users").doc(userId)
+  .collection("packages").doc(packageId).get();
+
+// Fallback to old path
+if (!packageDoc.exists) {
+  packageDoc = await db.collection("users")
+    .doc(userId).collection("lessonPackages")
+    .doc(packageId).get();
+}
+```
+
+**Writing Pattern (Admin Functions):**
+```swift
+// Write to BOTH paths for compatibility
+try await db.collection("users").document(userId)
+  .collection("lessonPackages").addDocument(data: passData)
+  
+try await db.collection("organizations").document(orgId)
+  .collection("users").document(userId)
+  .collection("packages").addDocument(data: passData)
+```
+
+**See Also:** `SCHEMA_STANDARDS.md` for complete documentation
+
+---
+
+## �📱 Skedence iOS App (Client App)
 
 **Location:** `/Skedence/`  
 **Target:** Clients who book lessons and manage their schedules
