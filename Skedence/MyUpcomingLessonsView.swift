@@ -30,11 +30,9 @@ struct MyUpcomingLessonsView: View {
     
     private var upcomingClasses: [GroupClass] {
         let now = Date()
-        let filtered = classesService.myRegisteredClasses
+        return classesService.myRegisteredClasses
             .filter { $0.startTime >= now }
             .sorted { $0.startTime < $1.startTime }
-        print("📆 MyUpcomingLessonsView upcomingClasses: myRegisteredClasses.count=\(classesService.myRegisteredClasses.count), filtered.count=\(filtered.count)")
-        return filtered
     }
     
     private enum ScheduleItem: Identifiable {
@@ -60,9 +58,7 @@ struct MyUpcomingLessonsView: View {
         var items: [ScheduleItem] = []
         items.append(contentsOf: upcoming.map { .lesson($0) })
         items.append(contentsOf: upcomingClasses.map { .classItem($0) })
-        let sorted = items.sorted { $0.date < $1.date }
-        print("📆 MyUpcomingLessonsView allUpcoming: lessons=\(upcoming.count), classes=\(upcomingClasses.count), total=\(sorted.count)")
-        return sorted
+        return items.sorted { $0.date < $1.date }
     }    
     private func canCancelItem(_ item: ScheduleItem) -> Bool {
         // Use org settings for minimum cancellation hours
@@ -122,9 +118,6 @@ struct MyUpcomingLessonsView: View {
                                   })
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
-                            .onAppear {
-                                print("🎯 ClassRow appeared for: \(classItem.title)")
-                            }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 if isCancellable {
                                     Button(role: .destructive) {

@@ -984,31 +984,20 @@ private struct SignedInProfileScreen: View {
         let now = Date()
         var events: [UpcomingEvent] = []
         
-        print("📅 ProfileView allUpcomingEvents: now = \(now)")
-        print("📅 ProfileView: myRegisteredClasses count = \(classesService.myRegisteredClasses.count)")
-        
         // Add upcoming lessons
         let upcomingLessons = bookingsService.myBookings
             .filter { ($0.startTime ?? now) >= now }
             .map { UpcomingEvent.lesson($0) }
         events.append(contentsOf: upcomingLessons)
-        print("📅 ProfileView: Added \(upcomingLessons.count) upcoming lessons")
         
         // Add all upcoming classes (user must be registered to see them here)
-        for classItem in classesService.myRegisteredClasses {
-            print("📅 ProfileView: Class '\(classItem.title)' startTime = \(classItem.startTime), isUpcoming = \(classItem.startTime >= now)")
-        }
-        
         let upcomingClasses = classesService.myRegisteredClasses
             .filter { $0.startTime >= now }
             .map { UpcomingEvent.classItem($0) }
         events.append(contentsOf: upcomingClasses)
-        print("📅 ProfileView: Added \(upcomingClasses.count) upcoming classes")
         
         // Sort by date
-        let sorted = events.sorted { $0.date < $1.date }
-        print("📅 ProfileView: Total upcoming events = \(sorted.count)")
-        return sorted
+        return events.sorted { $0.date < $1.date }
     }
 
     // MARK: Remaining credits + expanded credit list
