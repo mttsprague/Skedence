@@ -352,7 +352,7 @@ private struct ClassRow: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.platformBackground)
+                .fill(Color.red.opacity(0.3))  // TEMP: Bright color to verify ClassRow is visible
                 .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
         )
     }
