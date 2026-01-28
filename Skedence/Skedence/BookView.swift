@@ -1284,10 +1284,17 @@ private struct ClassRegistrationSheet: View {
         isRegistering = true
         errorMessage = nil
         
+        guard let orgId = auth.currentOrgId else {
+            errorMessage = "Organization not found"
+            isRegistering = false
+            return
+        }
+        
         do {
             try await classesService.registerForClassWithPass(
                 classId: classId,
-                classPassPackageId: passId
+                classPassPackageId: passId,
+                orgId: orgId
             )
             
             // Track class registration event
@@ -1296,11 +1303,9 @@ private struct ClassRegistrationSheet: View {
                 className: classItem.title
             )
             
-            // Success! Reload packages and show success state
+            // Success! Reload packages
             await packagesService.loadMyPackages()
-            if let orgId = auth.currentOrgId {
-                await classesService.loadMyRegisteredClasses(orgId: orgId)
-            }
+            // Note: loadMyRegisteredClasses is now called inside registerForClassWithPass
             
             registrationSuccessful = true
             registrationCount += 1

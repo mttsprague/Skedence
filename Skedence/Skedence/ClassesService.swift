@@ -92,7 +92,7 @@ final class ClassesService: ObservableObject {
     }
     
     // Register for a class using a class pass (calls backend function)
-    func registerForClassWithPass(classId: String, classPassPackageId: String) async throws {
+    func registerForClassWithPass(classId: String, classPassPackageId: String, orgId: String) async throws {
         let data: [String: Any] = [
             "classId": classId,
             "classPassPackageId": classPassPackageId
@@ -101,17 +101,17 @@ final class ClassesService: ObservableObject {
         let result = try await functions.httpsCallable("registerForClass").call(data)
         
         if let message = (result.data as? [String: Any])?["message"] as? String {
-            print("Registration success: \(message)")
+            print("✅ Registration success: \(message)")
         }
         
         // Trigger UI refresh
         registrationChangeToken = UUID()
+        print("🔄 Triggered registrationChangeToken update")
         
         // Reload registered classes
-        if let classDoc = try? await db.collection("classes").document(classId).getDocument(),
-           let orgId = classDoc.data()?["orgId"] as? String {
-            await loadMyRegisteredClasses(orgId: orgId)
-        }
+        print("🔄 Reloading myRegisteredClasses for orgId: \(orgId)")
+        await loadMyRegisteredClasses(orgId: orgId)
+        print("✅ myRegisteredClasses reloaded, count: \(myRegisteredClasses.count)")
     }
     
     // Register for a class (old direct method - deprecated)
