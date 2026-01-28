@@ -232,6 +232,10 @@ final class ClassesService: ObservableObject {
     }
     
     private func decodeClass(id: String, data: [String: Any]) -> GroupClass? {
+        // Log the data we're trying to decode
+        print("🔍 decodeClass: Attempting to decode class \(id)")
+        print("🔍 decodeClass data keys: \(data.keys.sorted())")
+        
         guard
             let title = data["title"] as? String,
             let description = data["description"] as? String,
@@ -246,11 +250,26 @@ final class ClassesService: ObservableObject {
             let createdBy = data["createdBy"] as? String,
             let createdAt = (data["createdAt"] as? Timestamp)?.dateValue()
         else {
+            print("❌ decodeClass FAILED for \(id):")
+            print("   - title: \(data["title"] != nil ? "✓" : "✗")")
+            print("   - description: \(data["description"] != nil ? "✓" : "✗")")
+            print("   - startTime: \((data["startTime"] as? Timestamp) != nil ? "✓" : "✗")")
+            print("   - endTime: \((data["endTime"] as? Timestamp) != nil ? "✓" : "✗")")
+            print("   - maxParticipants: \(data["maxParticipants"] != nil ? "✓" : "✗")")
+            print("   - currentParticipants: \(data["currentParticipants"] != nil ? "✓" : "✗")")
+            print("   - location: \(data["location"] != nil ? "✓" : "✗")")
+            print("   - isOpenForRegistration: \(data["isOpenForRegistration"] != nil ? "✓" : "✗")")
+            print("   - trainerId: \(data["trainerId"] != nil ? "✓" : "✗")")
+            print("   - trainerName: \(data["trainerName"] != nil ? "✓" : "✗")")
+            print("   - createdBy: \(data["createdBy"] != nil ? "✓" : "✗")")
+            print("   - createdAt: \((data["createdAt"] as? Timestamp) != nil ? "✓" : "✗")")
             return nil
         }
         
         // Price defaults to 2000 cents ($20) for backward compatibility with existing classes
         let priceInCents = data["priceInCents"] as? Int ?? 2000
+        
+        print("✅ decodeClass SUCCESS for \(id): \(title)")
         
         return GroupClass(
             id: id,
