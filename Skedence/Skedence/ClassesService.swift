@@ -190,6 +190,7 @@ final class ClassesService: ObservableObject {
         
         do {
             let now = Timestamp(date: Date())
+            print("📚 loadMyRegisteredClasses: uid=\(uid), orgId=\(orgId), now=\(now.dateValue())")
             
             // Get all upcoming classes first
             let classesSnapshot = try await db.collection("classes")
@@ -198,25 +199,34 @@ final class ClassesService: ObservableObject {
                 .order(by: "startTime")
                 .getDocuments()
             
+            print("📚 loadMyRegisteredClasses: Found \(classesSnapshot.documents.count) upcoming classes for orgId")
+            
             var registeredClasses: [GroupClass] = []
             
             // For each class, check if user is registered
             for doc in classesSnapshot.documents {
+                let classData = doc.data()
+                print("📚 Checking class '\(classData["title"] ?? "unknown")' (id: \(doc.documentID))")
+                
                 let participantDoc = try await db.collection("classes")
                     .document(doc.documentID)
                     .collection("participants")
                     .document(uid)
                     .getDocument()
                 
+                print("📚 User registered for this class: \(participantDoc.exists)")
+                
                 if participantDoc.exists,
                    let groupClass = decodeClass(id: doc.documentID, data: doc.data()) {
+                    print("📚 ✅ Adding class '\(groupClass.title)' to myRegisteredClasses")
                     registeredClasses.append(groupClass)
                 }
             }
             
             myRegisteredClasses = registeredClasses.sorted { $0.startTime < $1.startTime }
+            print("📚 loadMyRegisteredClasses complete: myRegisteredClasses.count = \(myRegisteredClasses.count)")
         } catch {
-            print("Error loading registered classes: \(error)")
+            print("❌ Error loading registered classes: \(error)")
             myRegisteredClasses = []
         }
     }
