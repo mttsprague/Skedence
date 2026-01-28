@@ -1106,8 +1106,16 @@ struct EditClassView: View {
             maxParticipants = classItem.maxParticipants
             location = classItem.location
             
-            if let trainer = trainersService.trainers.first(where: { $0.id == classItem.trainerId }) {
-                selectedTrainer = trainer
+            // Load trainers if not already loaded
+            Task {
+                if let orgId = auth.currentOrgId {
+                    await trainersService.loadTrainers(orgId: orgId)
+                    
+                    // Match trainer after loading
+                    if let trainer = trainersService.trainers.first(where: { $0.id == classItem.trainerId }) {
+                        selectedTrainer = trainer
+                    }
+                }
             }
         }
     }
