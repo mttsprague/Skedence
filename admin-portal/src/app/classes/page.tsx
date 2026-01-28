@@ -174,26 +174,67 @@ export default function ClassesPage() {
         })) as GroupClass[];
         setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
       } else {
-        // Create class document
-        const docRef = await addDoc(collection(db, 'classes'), classData);
-        
-        // Create trainer schedule slot to block off time (matching iOS)
-        const bookingData = {
-          startTime: Timestamp.fromDate(startDateTime),
-          endTime: Timestamp.fromDate(endDateTime),
-          status: 'booked',
-          clientId: 'CLASS',
-          clientName: form.title,
-          classId: docRef.id,
-          isClassBooking: true,
-          bookedAt: Timestamp.fromDate(new Date()),
-          orgId: orgId
-        };
-        
-        await addDoc(
-          collection(db, 'trainers', form.trainerId, 'schedules'),
-          bookingData
-        );
+        // Create class document(s)
+        if (form.isRecurring && form.recurringPattern === 'weekly') {
+          // Generate 12 weeks of recurring classes
+          const classesToCreate = [];
+          const scheduleSlots = [];
+          
+          for (let week = 0; week < 12; week++) {
+            const weekStartDateTime = new Date(startDateTime);
+            weekStartDateTime.setDate(weekStartDateTime.getDate() + (week * 7));
+            const weekEndDateTime = new Date(endDateTime);
+            weekEndDateTime.setDate(weekEndDateTime.getDate() + (week * 7));
+            
+            classesToCreate.push({
+              ...classData,
+              startTime: Timestamp.fromDate(weekStartDateTime),
+              endTime: Timestamp.fromDate(weekEndDateTime),
+            });
+            
+            scheduleSlots.push({
+              startTime: Timestamp.fromDate(weekStartDateTime),
+              endTime: Timestamp.fromDate(weekEndDateTime),
+              status: 'booked',
+              clientId: 'CLASS',
+              clientName: form.title,
+              isClassBooking: true,
+              bookedAt: Timestamp.fromDate(new Date()),
+              orgId: orgId
+            });
+          }
+          
+          // Create all class instances
+          for (let i = 0; i < classesToCreate.length; i++) {
+            const docRef = await addDoc(collection(db, 'classes'), classesToCreate[i]);
+            // Link the schedule slot to the class
+            await addDoc(
+              collection(db, 'trainers', form.trainerId, 'schedules'),
+              { ...scheduleSlots[i], classId: docRef.id }
+            );
+          }
+        } else {
+          // Single class
+          const docRef = await addDoc(collection(db, 'classes'), classData);
+          
+          // Create trainer schedule slot to block off time (matching iOS)
+          const bookingData = {
+            startTime: Timestamp.fromDate(startDateTime),
+            endTime: Timestamp.fromDate(endDateTime),
+            status: 'booked',
+            clientId: 'CLASS',
+            clientName: form.title,
+            classId: docRef.id,
+            isClassBooking: true,
+            bookedAt: Timestamp.fromDate(new Date()),
+            orgId: orgId
+          };
+          
+          await addDoc(
+            collection(db, 'trainers', form.trainerId, 'schedules'),
+            bookingData
+          );
+        }
         
         // Reload classes
         const classesQuery = query(collection(db, 'classes'), where('orgId', '==', orgId));
