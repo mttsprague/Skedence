@@ -386,7 +386,7 @@ export default function BookingsPage() {
                     >
                       {packages.map(pkg => (
                         <option key={pkg.packageType} value={pkg.packageType}>
-                          {pkg.packageName} ({pkg.remainingLessons} left)
+                          {pkg.packageName} ({pkg.remainingLessons})
                         </option>
                       ))}
                     </select>
@@ -515,7 +515,7 @@ export default function BookingsPage() {
                       {selectedPackageData.packageName}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {selectedPackageData.remainingLessons} left
+                      ({selectedPackageData.remainingLessons})
                     </p>
                   </div>
                 )}

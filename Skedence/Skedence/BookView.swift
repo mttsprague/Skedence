@@ -481,11 +481,8 @@ struct BookView: View {
                                     if let firstPkg = firstPackage(ofType: packageType) {
                                         let totalRemaining = totalRemainingForLessons(packageType: packageType)
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text(displayPackageTitle(firstPkg))
+                                            Text("\(displayPackageTitle(firstPkg)) (\(totalRemaining))")
                                                 .font(.bodyMedium)
-                                            Text("(\(totalRemaining) left)")
-                                                .font(.caption)
-                                                .foregroundStyle(AppTheme.textSecondary)
                                         }
                                     }
                                 }
@@ -507,7 +504,7 @@ struct BookView: View {
                                         Text(displayPackageTitle(pkg))
                                             .font(.headingSmall)
                                             .foregroundStyle(AppTheme.textPrimary)
-                                        Text("(\(totalRemaining) left)")
+                                        Text("(\(totalRemaining))")
                                             .font(.bodySmall)
                                             .foregroundStyle(AppTheme.textSecondary)
                                     } else {
