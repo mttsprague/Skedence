@@ -1009,29 +1009,24 @@ export const createSetupIntent = functions.https.onCall(
         });
       }
 
-      // Create ephemeral key for customer
-      const ephemeralKey = await stripe.ephemeralKeys.create(
-        {customer: customerId},
-        {apiVersion: "2024-11-20.acacia"}
-      );
-
-      // Create setup intent with usage parameter
-      const setupIntent = await stripe.setupIntents.create({
+      // Create checkout session in setup mode for adding card
+      const session = await stripe.checkout.sessions.create({
         customer: customerId,
+        mode: "setup",
         payment_method_types: ["card"],
-        usage: "off_session",
+        success_url: "skedenceadmin://payment-method-added?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "skedenceadmin://payment-method-cancel",
         metadata: {
           organizationId,
           userId: request.auth.uid,
         },
       });
 
-      console.log(`✅ Created setup intent ${setupIntent.id} for customer ${customerId}`);
+      console.log(`✅ Created setup checkout session ${session.id} for customer ${customerId}`);
 
       return {
-        clientSecret: setupIntent.client_secret,
-        customerId: customerId,
-        ephemeralKey: ephemeralKey.secret,
+        checkoutUrl: session.url,
+        sessionId: session.id,
       };
     } catch (error: unknown) {
       console.error("Error creating setup intent:", error);
@@ -1107,6 +1102,91 @@ export const getPaymentMethod = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error getting payment method:", error);
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new functions.https.HttpsError("internal", message);
+    }
+  }
+);
+
+/**
+ * Remove payment method from organization
+ */
+export const removePaymentMethod = functions.https.onCall(
+  async (request: functions.https.CallableRequest<{organizationId: string}>) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in"
+      );
+    }
+
+    const {organizationId} = request.data;
+
+    if (!organizationId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing organizationId"
+      );
+    }
+
+    try {
+      // Verify user is org owner
+      const orgDoc = await db.collection("organizations").doc(organizationId).get();
+      const orgData = orgDoc.data();
+
+      if (!orgData) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      if (orgData.ownerUserId !== request.auth.uid) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only the organization owner can remove payment methods"
+        );
+      }
+
+      const customerId = orgData.billing?.stripeCustomerId;
+
+      if (!customerId) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "No customer ID found"
+        );
+      }
+
+      // Get all payment methods for customer
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: customerId,
+        type: "card",
+      });
+
+      // Detach all payment methods
+      for (const pm of paymentMethods.data) {
+        await stripe.paymentMethods.detach(pm.id);
+        console.log(`✅ Detached payment method ${pm.id}`);
+      }
+
+      // Update customer to remove default payment method
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: null,
+        },
+      });
+
+      console.log(`✅ Removed all payment methods for customer ${customerId}`);
+
+      return {
+        success: true,
+        message: "Payment method removed successfully",
+      };
+    } catch (error: unknown) {
+      console.error("Error removing payment method:", error);
       if (error instanceof functions.https.HttpsError) {
         throw error;
       }

@@ -152,6 +152,21 @@ struct SkedenceAdminApp: App {
             return
         }
         
+        // Handle payment method added (skedenceadmin://payment-method-added?session_id=xxx)
+        if url.scheme == "skedenceadmin" && url.host == "payment-method-added" {
+            print("✅ Payment method added successfully!")
+            
+            // Trigger refresh of payment method in InAppSubscriptionView
+            NotificationCenter.default.post(name: NSNotification.Name("PaymentMethodAdded"), object: nil)
+            return
+        }
+        
+        // Handle payment method cancel (skedenceadmin://payment-method-cancel)
+        if url.scheme == "skedenceadmin" && url.host == "payment-method-cancel" {
+            print("❌ User canceled adding payment method")
+            return
+        }
+        
         // Handle password setup invitation (skedence://setup-password?token=xxx&email=xxx&trainerId=xxx)
         if url.scheme == "skedence" && url.host == "setup-password" {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),

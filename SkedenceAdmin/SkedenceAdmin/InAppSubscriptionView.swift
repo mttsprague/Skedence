@@ -33,12 +33,19 @@ struct InAppSubscriptionView: View {
     @State private var showingSuccess = false
     @State private var successMessage = ""
     @State private var showingCancelConfirmation = false
+    @State private var showingRemoveCardConfirmation = false
     @State private var isCanceling = false
     
     // Stripe Payment Sheet for adding card
     @State private var paymentSheet: PaymentSheet?
     
     let stripePublishableKey = "pk_live_51SnNeOFIh2MhEffNNdhQWpsvlgkzWS6rr5BVcfOpHmtdnUE7iUYZVBXDPzCUzDqTiRuMGR1GVh38qvHtcvW3rBtC00qlnOLFXm"
+    private var effectivePublishableKey: String {
+        if let key = auth.stripePublishableKey, !key.isEmpty {
+            return key
+        }
+        return stripePublishableKey
+    }
     
     var body: some View {
         NavigationStack {
@@ -131,6 +138,16 @@ struct InAppSubscriptionView: View {
             } message: {
                 Text("Your subscription will remain active until the end of your billing period. You'll still have access to \(currentPlan.capitalized) features until then.")
             }
+            .alert("Remove Payment Method?", isPresented: $showingRemoveCardConfirmation) {
+                Button("Keep Card", role: .cancel) {}
+                Button("Remove", role: .destructive) {
+                    Task {
+                        await removePaymentMethod()
+                    }
+                }
+            } message: {
+                Text("This will remove your saved card. You'll need to add a new payment method to subscribe or make changes to your subscription.")
+            }
             .overlay {
                 if isProcessing {
                     ZStack {
@@ -152,6 +169,12 @@ struct InAppSubscriptionView: View {
             .task {
                 await loadCurrentPlan()
                 await loadPaymentMethod()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PaymentMethodAdded"))) { _ in
+                Task {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000) // Wait 2s for webhook
+                    await loadPaymentMethod()
+                }
             }
         }
     }
@@ -245,10 +268,11 @@ struct InAppSubscriptionView: View {
                     Text("•••• \(last4)")
                         .font(.body)
                     Spacer()
-                    Button("Update") {
-                        showingAddCard = true
+                    Button("Remove") {
+                        showingRemoveCardConfirmation = true
                     }
                     .buttonStyle(.bordered)
+                    .foregroundStyle(.red)
                 }
                 .padding()
                 .background(Color(.systemGray6))
@@ -532,6 +556,36 @@ struct InAppSubscriptionView: View {
             }
         }
     }
+    
+    func removePaymentMethod() async {
+        isCanceling = true
+        errorMessage = nil
+        
+        do {
+            let functions = Functions.functions(region: "us-central1")
+            let callable = functions.httpsCallable("removePaymentMethod")
+            
+            let result = try await callable.call(["organizationId": orgId])
+            
+            print("✅ Payment method removed: \(result.data)")
+            
+            // Reload payment method status
+            await loadPaymentMethod()
+            
+            await MainActor.run {
+                isCanceling = false
+                successMessage = "Payment method removed successfully."
+                showingSuccess = true
+            }
+            
+        } catch {
+            print("❌ Failed to remove payment method: \(error)")
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isCanceling = false
+            }
+        }
+    }
 }
 
 // MARK: - Add Card View
@@ -539,23 +593,18 @@ struct InAppSubscriptionView: View {
 struct AddCardView: View {
     @EnvironmentObject var auth: AuthManager
     @Environment(\.dismiss) var dismiss
+    @Environment(\.openURL) private var openURL
     
     let orgId: String
     let onSuccess: () -> Void
     
-    @State private var isLoading = true
+    @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var paymentSheet: PaymentSheet?
-    @State private var isProcessing = false
-    
-    let stripePublishableKey = "pk_live_51SnNeOFIh2MhEffNNdhQWpsvlgkzWS6rr5BVcfOpHmtdnUE7iUYZVBXDPzCUzDqTiRuMGR1GVh38qvHtcvW3rBtC00qlnOLFXm"
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                if isLoading {
-                    ProgressView("Loading...")
-                } else if let error = errorMessage {
+                if let error = errorMessage {
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 48))
@@ -569,7 +618,7 @@ struct AddCardView: View {
                             .multilineTextAlignment(.center)
                         Button("Try Again") {
                             Task {
-                                await loadSetupIntent()
+                                await openStripeCheckout()
                             }
                         }
                         .buttonStyle(.bordered)
@@ -585,21 +634,28 @@ struct AddCardView: View {
                             .font(.title2)
                             .bold()
                         
-                        Text("Your card will be saved for future billing. You won't be charged until you subscribe.")
+                        Text("You'll be taken to Stripe's secure checkout to add your card. Your card will be saved for future billing.")
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         
-                        Button(action: {
-                            presentPaymentSheet()
-                        }) {
-                            Text("Add Card")
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(Color.blue)
-                                .cornerRadius(12)
+                        if isLoading {
+                            ProgressView()
+                                .padding()
+                        } else {
+                            Button(action: {
+                                Task {
+                                    await openStripeCheckout()
+                                }
+                            }) {
+                                Text("Continue to Stripe")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(Color.blue)
+                                    .cornerRadius(12)
+                            }
                         }
                     }
                     .padding()
@@ -614,32 +670,10 @@ struct AddCardView: View {
                     }
                 }
             }
-            .overlay {
-                if isProcessing {
-                    ZStack {
-                        Color.black.opacity(0.3)
-                            .ignoresSafeArea()
-                        
-                        VStack(spacing: 16) {
-                            ProgressView()
-                                .scaleEffect(1.5)
-                            Text("Saving card...")
-                                .font(.headline)
-                        }
-                        .padding(32)
-                        .background(Color(.systemBackground))
-                        .cornerRadius(16)
-                    }
-                }
-            }
-            .task {
-                STPAPIClient.shared.publishableKey = stripePublishableKey
-                await loadSetupIntent()
-            }
         }
     }
     
-    func loadSetupIntent() async {
+    func openStripeCheckout() async {
         isLoading = true
         errorMessage = nil
         
@@ -650,67 +684,25 @@ struct AddCardView: View {
             let result = try await callable.call(["organizationId": orgId])
             
             guard let data = result.data as? [String: Any],
-                  let clientSecret = data["clientSecret"] as? String,
-                  let customerId = data["customerId"] as? String,
-                  let ephemeralKey = data["ephemeralKey"] as? String else {
+                  let checkoutUrl = data["checkoutUrl"] as? String,
+                  let url = URL(string: checkoutUrl) else {
                 throw NSError(domain: "AddCard", code: -1,
                             userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
             }
             
-            var configuration = PaymentSheet.Configuration()
-            configuration.merchantDisplayName = "Skedence"
-            configuration.customer = PaymentSheet.CustomerConfiguration(
-                id: customerId,
-                ephemeralKeySecret: ephemeralKey
-            )
-            
             await MainActor.run {
-                paymentSheet = PaymentSheet(setupIntentClientSecret: clientSecret, configuration: configuration)
                 isLoading = false
+                openURL(url)
+                // Close the sheet after opening Stripe
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    dismiss()
+                }
             }
             
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription
                 isLoading = false
-            }
-        }
-    }
-    
-    func presentPaymentSheet() {
-        guard let sheet = paymentSheet else { return }
-        
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
-            errorMessage = "Cannot present payment sheet"
-            return
-        }
-        
-        var topController = rootViewController
-        while let presented = topController.presentedViewController {
-            topController = presented
-        }
-        
-        isProcessing = true
-        
-        sheet.present(from: topController) { result in
-            Task {
-                await handlePaymentResult(result)
-            }
-        }
-    }
-    
-    func handlePaymentResult(_ result: PaymentSheetResult) async {
-        await MainActor.run {
-            isProcessing = false
-            
-            switch result {
-            case .completed:
-                onSuccess()
-            case .canceled:
-                errorMessage = "Payment method addition canceled"
-            case .failed(let error):
-                errorMessage = error.localizedDescription
             }
         }
     }
@@ -792,4 +784,3 @@ struct PlanCard: View {
         )
     }
 }
-
