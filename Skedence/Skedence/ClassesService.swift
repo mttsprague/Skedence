@@ -169,13 +169,15 @@ final class ClassesService: ObservableObject {
         guard let uid = Auth.auth().currentUser?.uid else { return false }
         
         do {
-            let doc = try await db.collection("classes")
+            // Query by userId field, not document ID
+            let snapshot = try await db.collection("classes")
                 .document(classId)
                 .collection("participants")
-                .document(uid)
-                .getDocument()
+                .whereField("userId", isEqualTo: uid)
+                .limit(to: 1)
+                .getDocuments()
             
-            return doc.exists
+            return !snapshot.documents.isEmpty
         } catch {
             return false
         }
@@ -208,15 +210,19 @@ final class ClassesService: ObservableObject {
                 let classData = doc.data()
                 print("📚 Checking class '\(classData["title"] ?? "unknown")' (id: \(doc.documentID))")
                 
-                let participantDoc = try await db.collection("classes")
+                // Query participants subcollection by userId field (not document ID)
+                // This is because the backend uses auto-generated IDs to allow multiple registrations
+                let participantsSnapshot = try await db.collection("classes")
                     .document(doc.documentID)
                     .collection("participants")
-                    .document(uid)
-                    .getDocument()
+                    .whereField("userId", isEqualTo: uid)
+                    .limit(to: 1)
+                    .getDocuments()
                 
-                print("📚 User registered for this class: \(participantDoc.exists)")
+                let isRegistered = !participantsSnapshot.documents.isEmpty
+                print("📚 User registered for this class: \(isRegistered)")
                 
-                if participantDoc.exists,
+                if isRegistered,
                    let groupClass = decodeClass(id: doc.documentID, data: doc.data()) {
                     print("📚 ✅ Adding class '\(groupClass.title)' to myRegisteredClasses")
                     registeredClasses.append(groupClass)
