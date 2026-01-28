@@ -169,9 +169,12 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
-        // Get orgId from user document or orgMembers
+        // Get orgId from user document - try both fields for backwards compatibility
         const userData = userDoc.data();
         orgId = userData?.orgId as string | undefined;
+        if (!orgId) {
+          orgId = userData?.organizationId as string | undefined;
+        }
 
         if (!orgId) {
           // Fallback: check orgMembers collection
