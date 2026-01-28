@@ -30,9 +30,11 @@ struct MyUpcomingLessonsView: View {
     
     private var upcomingClasses: [GroupClass] {
         let now = Date()
-        return classesService.myRegisteredClasses
+        let filtered = classesService.myRegisteredClasses
             .filter { $0.startTime >= now }
             .sorted { $0.startTime < $1.startTime }
+        print("📆 MyUpcomingLessonsView upcomingClasses: myRegisteredClasses.count=\(classesService.myRegisteredClasses.count), filtered.count=\(filtered.count)")
+        return filtered
     }
     
     private enum ScheduleItem: Identifiable {
@@ -58,7 +60,9 @@ struct MyUpcomingLessonsView: View {
         var items: [ScheduleItem] = []
         items.append(contentsOf: upcoming.map { .lesson($0) })
         items.append(contentsOf: upcomingClasses.map { .classItem($0) })
-        return items.sorted { $0.date < $1.date }
+        let sorted = items.sorted { $0.date < $1.date }
+        print("📆 MyUpcomingLessonsView allUpcoming: lessons=\(upcoming.count), classes=\(upcomingClasses.count), total=\(sorted.count)")
+        return sorted
     }    
     private func canCancelItem(_ item: ScheduleItem) -> Bool {
         // Use org settings for minimum cancellation hours
