@@ -446,7 +446,8 @@ private struct SignedInProfileScreen: View {
             // View Your Schedule button
             NavigationLink {
                 MyUpcomingLessonsView(bookingsService: bookingsService,
-                                      trainersService: trainersService)
+                                      trainersService: trainersService,
+                                      classesService: classesService)
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "calendar.badge.clock")

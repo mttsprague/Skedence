@@ -11,7 +11,7 @@ struct MyUpcomingLessonsView: View {
     @EnvironmentObject var auth: AuthManager
     @ObservedObject var bookingsService: BookingsService
     @ObservedObject var trainersService: TrainersService
-    @StateObject private var classesService = ClassesService()
+    @ObservedObject var classesService: ClassesService
     @StateObject private var cancellationService = CancellationService()
     @StateObject private var packagesService = PackagesService()
     @StateObject private var settingsService = SettingsService()
