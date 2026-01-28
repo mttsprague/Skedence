@@ -80,7 +80,6 @@ struct BookView: View {
     
     // Get total remaining lessons for a specific lesson package type
     private func totalRemainingForLessons(packageType: String) -> Int {
-        let now = Date()
         return availableLessonPackages.filter { $0.packageType == packageType }
             .reduce(0) { $0 + $1.lessonsRemaining }
     }
@@ -903,7 +902,7 @@ private struct ClassCard: View {
             }
         }
         .buttonStyle(.plain)
-        .task {
+        .task(id: classesService.registrationChangeToken) {
             if let id = classItem.id {
                 isRegistered = await classesService.isRegistered(for: id)
             } else {

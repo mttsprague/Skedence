@@ -448,7 +448,7 @@ private struct ClassPreviewRow: View {
                     .foregroundStyle(AppTheme.textTertiary)
             }
         }
-        .task {
+        .task(id: classesService.registrationChangeToken) {
             if let id = groupClass.id {
                 isRegistered = await classesService.isRegistered(for: id)
             } else {

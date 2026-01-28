@@ -18,6 +18,7 @@ final class ClassesService: ObservableObject {
     @Published private(set) var myRegisteredClasses: [GroupClass] = []
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
+    @Published var registrationChangeToken = UUID() // Triggers UI refresh after registration
     
     private let db = Firestore.firestore()
     private let functions = Functions.functions()
@@ -101,6 +102,15 @@ final class ClassesService: ObservableObject {
         
         if let message = (result.data as? [String: Any])?["message"] as? String {
             print("Registration success: \(message)")
+        }
+        
+        // Trigger UI refresh
+        registrationChangeToken = UUID()
+        
+        // Reload registered classes
+        if let classDoc = try? await db.collection("classes").document(classId).getDocument(),
+           let orgId = classDoc.data()?["orgId"] as? String {
+            await loadMyRegisteredClasses(orgId: orgId)
         }
     }
     
