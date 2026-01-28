@@ -28,6 +28,7 @@ interface LessonPackage {
   id: string;
   userId: string;
   packageName: string;
+  packageType: string;
   remainingLessons: number;
   totalLessons: number;
 }
@@ -47,6 +48,7 @@ export default function BookingsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [packages, setPackages] = useState<LessonPackage[]>([]);
+  const [rawPackages, setRawPackages] = useState<LessonPackage[]>([]); // Store original packages for booking
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -55,7 +57,7 @@ export default function BookingsPage() {
   // Form state
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedTrainer, setSelectedTrainer] = useState('');
-  const [selectedPackage, setSelectedPackage] = useState('');
+  const [selectedPackageType, setSelectedPackageType] = useState(''); // Store packageType instead of ID
   const [selectedSlot, setSelectedSlot] = useState('');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
@@ -131,77 +133,101 @@ export default function BookingsPage() {
     loadData();
   }, [orgId]);
 
+  // Function to load packages for the selected client
+  const loadPackages = async (clientId: string) => {
+    console.log('Bookings: Loading packages for client:', clientId, 'orgId:', orgId);
+    try {
+      if (!orgId) {
+        console.error('Bookings: orgId is not available');
+        return;
+      }
+      
+      // Try new organization path first
+      console.log('Bookings: Querying path: organizations/' + orgId + '/users/' + clientId + '/packages');
+      let allPackagesSnapshot = await getDocs(
+        collection(db, 'organizations', orgId, 'users', clientId, 'packages')
+      );
+      
+      // Fall back to old path if no packages found
+      if (allPackagesSnapshot.empty) {
+        console.log('Bookings: No packages in new path, trying old path: users/' + clientId + '/lessonPackages');
+        allPackagesSnapshot = await getDocs(
+          collection(db, 'users', clientId, 'lessonPackages')
+        );
+      }
+      
+      console.log('Bookings: Total packages in collection:', allPackagesSnapshot.size);
+      
+      const packagesData = allPackagesSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          console.log('Bookings: Package', doc.id, '- remainingLessons:', data.remainingLessons, 'totalLessons:', data.totalLessons, 'name:', data.packageName || data.name, 'type:', data.packageType);
+          
+          // If remainingLessons is undefined, assume it equals totalLessons (unused package)
+          const remaining = data.remainingLessons !== undefined ? data.remainingLessons : data.totalLessons || 0;
+          
+          return {
+            id: doc.id,
+            userId: clientId,
+            packageName: data.packageName || data.name || data.packageType || 'Unknown Package',
+            packageType: data.packageType || 'unknown',
+            remainingLessons: remaining,
+            totalLessons: data.totalLessons || 0,
+          };
+        })
+        .filter(pkg => pkg.remainingLessons > 0); // Only show packages with lessons remaining
+      
+      console.log('Bookings: Packages with lessons remaining:', packagesData);
+      
+      // Store raw packages for booking
+      setRawPackages(packagesData);
+      
+      // Group packages by packageType and sum remaining lessons
+      const groupedPackages = new Map<string, LessonPackage>();
+      packagesData.forEach(pkg => {
+        if (groupedPackages.has(pkg.packageType)) {
+          const existing = groupedPackages.get(pkg.packageType)!;
+          existing.remainingLessons += pkg.remainingLessons;
+          existing.totalLessons += pkg.totalLessons;
+        } else {
+          groupedPackages.set(pkg.packageType, { ...pkg });
+        }
+      });
+      
+      const consolidatedPackages = Array.from(groupedPackages.values());
+      console.log('Bookings: Consolidated packages:', consolidatedPackages);
+      
+      setPackages(consolidatedPackages);
+      if (consolidatedPackages.length > 0) {
+        console.log('Bookings: Setting selectedPackageType to:', consolidatedPackages[0].packageType);
+        setSelectedPackageType(consolidatedPackages[0].packageType);
+      } else {
+        console.log('Bookings: No packages with remaining lessons');
+      }
+    } catch (error) {
+      console.error('Bookings: Error loading passes:', error);
+      setPackages([]);
+      setRawPackages([]);
+    }
+  };
+
   // Load packages when client changes
   useEffect(() => {
     console.log('Bookings: selectedClient changed to:', selectedClient);
     if (!selectedClient) {
       console.log('Bookings: No client selected, skipping package load');
       setPackages([]);
+      setRawPackages([]);
       return;
     }
     if (!orgId) {
       console.log('Bookings: No orgId, skipping package load');
       setPackages([]);
+      setRawPackages([]);
       return;
     }
 
-    async function loadPackages() {
-      console.log('Bookings: Loading packages for client:', selectedClient, 'orgId:', orgId);
-      try {
-        if (!orgId) {
-          console.error('Bookings: orgId is not available');
-          return;
-        }
-        
-        // Try new organization path first
-        console.log('Bookings: Querying path: organizations/' + orgId + '/users/' + selectedClient + '/packages');
-        let allPackagesSnapshot = await getDocs(
-          collection(db, 'organizations', orgId, 'users', selectedClient, 'packages')
-        );
-        
-        // Fall back to old path if no packages found
-        if (allPackagesSnapshot.empty) {
-          console.log('Bookings: No packages in new path, trying old path: users/' + selectedClient + '/lessonPackages');
-          allPackagesSnapshot = await getDocs(
-            collection(db, 'users', selectedClient, 'lessonPackages')
-          );
-        }
-        
-        console.log('Bookings: Total packages in collection:', allPackagesSnapshot.size);
-        
-        const packagesData = allPackagesSnapshot.docs
-          .map(doc => {
-            const data = doc.data();
-            console.log('Bookings: Package', doc.id, '- remainingLessons:', data.remainingLessons, 'totalLessons:', data.totalLessons, 'name:', data.packageName || data.name);
-            
-            // If remainingLessons is undefined, assume it equals totalLessons (unused package)
-            const remaining = data.remainingLessons !== undefined ? data.remainingLessons : data.totalLessons || 0;
-            
-            return {
-              id: doc.id,
-              userId: selectedClient,
-              packageName: data.packageName || data.name || data.packageType || 'Unknown Package',
-              remainingLessons: remaining,
-              totalLessons: data.totalLessons || 0,
-            };
-          })
-          .filter(pkg => pkg.remainingLessons > 0); // Only show packages with lessons remaining
-        
-        console.log('Bookings: Packages with lessons remaining:', packagesData);
-        setPackages(packagesData);
-        if (packagesData.length > 0) {
-          console.log('Bookings: Setting selectedPackage to:', packagesData[0].id);
-          setSelectedPackage(packagesData[0].id);
-        } else {
-          console.log('Bookings: No packages with remaining lessons');
-        }
-      } catch (error) {
-        console.error('Bookings: Error loading passes:', error);
-        setPackages([]);
-      }
-    }
-
-    loadPackages();
+    loadPackages(selectedClient);
   }, [selectedClient, orgId]);
 
   // Load slots when trainer or date changes
@@ -236,8 +262,19 @@ export default function BookingsPage() {
   }, [orgId, selectedTrainer, selectedDate]);
 
   const handleCreateBooking = async () => {
-    if (!selectedClient || !selectedTrainer || !selectedSlot || !selectedPackage) {
+    if (!selectedClient || !selectedTrainer || !selectedSlot || !selectedPackageType) {
       alert('Please fill in all fields');
+      return;
+    }
+
+    // Find the first package of the selected type with remaining lessons
+    const packageToUse = rawPackages.find(pkg => 
+      pkg.packageType === selectedPackageType && 
+      pkg.remainingLessons > 0
+    );
+
+    if (!packageToUse) {
+      alert('No available package found for the selected type');
       return;
     }
 
@@ -249,7 +286,7 @@ export default function BookingsPage() {
       await bookLesson({
         trainerId: selectedTrainer,
         slotId: selectedSlot,
-        lessonPackageId: selectedPackage,
+        lessonPackageId: packageToUse.id,
       });
 
       setSuccess(true);
@@ -273,17 +310,7 @@ export default function BookingsPage() {
       if (slotsData.length > 0) setSelectedSlot(slotsData[0].id);
 
       // Reload packages to update remaining lessons
-      const packagesQuery = query(
-        collection(db, 'lessonPackages'),
-        where('userId', '==', selectedClient),
-        where('remainingLessons', '>', 0)
-      );
-      const packagesSnapshot = await getDocs(packagesQuery);
-      const packagesData = packagesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as LessonPackage[];
-      setPackages(packagesData);
+      await loadPackages(selectedClient);
 
       setTimeout(() => setSuccess(false), 3000);
     } catch (error: any) {
@@ -296,7 +323,7 @@ export default function BookingsPage() {
 
   const selectedClientData = clients.find(c => c.id === selectedClient);
   const selectedTrainerData = trainers.find(t => t.id === selectedTrainer);
-  const selectedPackageData = packages.find(p => p.id === selectedPackage);
+  const selectedPackageData = packages.find(p => p.packageType === selectedPackageType);
   const selectedSlotData = slots.find(s => s.id === selectedSlot);
 
   return (
@@ -353,13 +380,13 @@ export default function BookingsPage() {
                     </div>
                   ) : (
                     <select
-                      value={selectedPackage}
-                      onChange={(e) => setSelectedPackage(e.target.value)}
+                      value={selectedPackageType}
+                      onChange={(e) => setSelectedPackageType(e.target.value)}
                       className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
                     >
                       {packages.map(pkg => (
-                        <option key={pkg.id} value={pkg.id}>
-                          {pkg.packageName} ({pkg.remainingLessons} of {pkg.totalLessons} remaining)
+                        <option key={pkg.packageType} value={pkg.packageType}>
+                          {pkg.packageName} ({pkg.remainingLessons} left)
                         </option>
                       ))}
                     </select>
@@ -488,7 +515,7 @@ export default function BookingsPage() {
                       {selectedPackageData.packageName}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {selectedPackageData.remainingLessons} of {selectedPackageData.totalLessons} lessons remaining
+                      {selectedPackageData.remainingLessons} left
                     </p>
                   </div>
                 )}

@@ -72,6 +72,24 @@ struct BookView: View {
         return sorted
     }
     
+    // Get unique package types from available packages (for grouping in dropdown)
+    private var uniquePackageTypes: [String] {
+        let types = Set(availableLessonPackages.map { $0.packageType })
+        return Array(types).sorted()
+    }
+    
+    // Get total remaining lessons for a specific lesson package type
+    private func totalRemainingForLessons(packageType: String) -> Int {
+        let now = Date()
+        return availableLessonPackages.filter { $0.packageType == packageType }
+            .reduce(0) { $0 + $1.lessonsRemaining }
+    }
+    
+    // Get the first package of a specific type (for booking)
+    private func firstPackage(ofType packageType: String) -> LessonPackage? {
+        return availableLessonPackages.first { $0.packageType == packageType }
+    }
+    
     // Get available class passes (for booking classes)
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
@@ -455,16 +473,20 @@ struct BookView: View {
 
                     CardView(padding: Spacing.md) {
                         Menu {
-                            ForEach(availableLessonPackages) { package in
+                            ForEach(uniquePackageTypes, id: \.self) { packageType in
                                 Button {
-                                    selectedPackage = package
+                                    // Select the first package of this type
+                                    selectedPackage = firstPackage(ofType: packageType)
                                 } label: {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(displayPackageTitle(package))
-                                            .font(.bodyMedium)
-                                        Text("\(package.lessonsRemaining) left")
-                                            .font(.caption)
-                                            .foregroundStyle(AppTheme.textSecondary)
+                                    if let firstPkg = firstPackage(ofType: packageType) {
+                                        let totalRemaining = totalRemainingForLessons(packageType: packageType)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(displayPackageTitle(firstPkg))
+                                                .font(.bodyMedium)
+                                            Text("(\(totalRemaining) left)")
+                                                .font(.caption)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
                                     }
                                 }
                             }
@@ -480,12 +502,22 @@ struct BookView: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    Text(selectedPackage != nil ? displayPackageTitle(selectedPackage!) : "Choose a pass")
-                                        .font(.headingSmall)
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                    Text(selectedPackage != nil ? "\(selectedPackage!.lessonsRemaining) left" : "Select which pass to use")
-                                        .font(.bodySmall)
-                                        .foregroundStyle(AppTheme.textSecondary)
+                                    if let pkg = selectedPackage {
+                                        let totalRemaining = totalRemainingForLessons(packageType: pkg.packageType)
+                                        Text(displayPackageTitle(pkg))
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Text("(\(totalRemaining) left)")
+                                            .font(.bodySmall)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    } else {
+                                        Text("Choose a pass")
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Text("Select which pass to use")
+                                            .font(.bodySmall)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.up.chevron.down")
