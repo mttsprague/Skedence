@@ -883,6 +883,9 @@ struct CreateClassView: View {
     @State private var isCreating = false
     @State private var errorMessage: String?
     @State private var showLocationError = false
+    @State private var isRecurring = false
+    @State private var recurringEndDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
+    @State private var selectedDays: Set<Int> = [] // 1=Sunday, 2=Monday, etc.
     
     var body: some View {
         NavigationView {
@@ -915,8 +918,47 @@ struct CreateClassView: View {
                 }
                 
                 Section("Schedule") {
-                    DatePicker("Start Time", selection: $startDate)
-                    DatePicker("End Time", selection: $endDate)
+                    DatePicker("Start Time", selection: $startDate, in: Date()...)
+                    DatePicker("End Time", selection: $endDate, in: startDate...)
+                }
+                
+                Section("Recurring") {
+                    Toggle("Repeat Weekly", isOn: $isRecurring)
+                    
+                    if isRecurring {
+                        DatePicker("Repeat Until", selection: $recurringEndDate, in: startDate..., displayedComponents: .date)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Repeat On")
+                                .font(.callout)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            
+                            HStack(spacing: 8) {
+                                ForEach(["Su", "M", "T", "W", "Th", "F", "Sa"], id: \.self) { day in
+                                    let dayIndex = ["Su": 1, "M": 2, "T": 3, "W": 4, "Th": 5, "F": 6, "Sa": 7][day]!
+                                    Button {
+                                        if selectedDays.contains(dayIndex) {
+                                            selectedDays.remove(dayIndex)
+                                        } else {
+                                            selectedDays.insert(dayIndex)
+                                        }
+                                    } label: {
+                                        Text(day)
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .frame(width: 36, height: 36)
+                                            .background(selectedDays.contains(dayIndex) ? AppTheme.primary : Color(.systemGray5))
+                                            .foregroundStyle(selectedDays.contains(dayIndex) ? .white : AppTheme.textSecondary)
+                                            .cornerRadius(18)
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Text("Only the next 3 upcoming classes will be visible")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
                 }
                 
                 Section("Capacity") {
@@ -988,6 +1030,11 @@ struct CreateClassView: View {
             return
         }
         
+        if isRecurring && selectedDays.isEmpty {
+            errorMessage = "Please select at least one day to repeat"
+            return
+        }
+        
         isCreating = true
         errorMessage = nil
         
@@ -998,18 +1045,54 @@ struct CreateClassView: View {
                 return
             }
             
-            try await adminService.createClass(
-                orgId: orgId,
-                title: title,
-                description: description,
-                startTime: startDate,
-                endTime: endDate,
-                maxParticipants: maxParticipants,
-                location: location.name,
-                trainerId: trainerId,
-                trainerName: trainerName,
-                priceInCents: 0
-            )
+            if isRecurring {
+                // Generate recurring classes, but only create the next 3 occurrences
+                var occurrences: [Date] = []
+                var currentDate = startDate
+                let calendar = Calendar.current
+                
+                while currentDate <= recurringEndDate && occurrences.count < 3 {
+                    let weekday = calendar.component(.weekday, from: currentDate)
+                    if selectedDays.contains(weekday) {
+                        occurrences.append(currentDate)
+                    }
+                    currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+                }
+                
+                // Create each occurrence
+                for occurrence in occurrences {
+                    let duration = endDate.timeIntervalSince(startDate)
+                    let occurrenceEnd = occurrence.addingTimeInterval(duration)
+                    
+                    try await adminService.createClass(
+                        orgId: orgId,
+                        title: title,
+                        description: description,
+                        startTime: occurrence,
+                        endTime: occurrenceEnd,
+                        maxParticipants: maxParticipants,
+                        location: location.name,
+                        trainerId: trainerId,
+                        trainerName: trainerName,
+                        priceInCents: 0
+                    )
+                }
+            } else {
+                // Create single class
+                try await adminService.createClass(
+                    orgId: orgId,
+                    title: title,
+                    description: description,
+                    startTime: startDate,
+                    endTime: endDate,
+                    maxParticipants: maxParticipants,
+                    location: location.name,
+                    trainerId: trainerId,
+                    trainerName: trainerName,
+                    priceInCents: 0
+                )
+            }
+            
             onCreated()
             dismiss()
         } catch {
@@ -1057,7 +1140,7 @@ struct EditClassView: View {
                     Picker("Select Trainer", selection: $selectedTrainer) {
                         Text("Select a trainer").tag(nil as Trainer?)
                         ForEach(trainersService.trainers) { trainer in
-                            Text(trainer.name ?? "Unknown").tag(trainer as Trainer?)
+                            Text(trainer.displayName).tag(trainer as Trainer?)
                         }
                     }
                 }
@@ -1109,7 +1192,7 @@ struct EditClassView: View {
             // Load trainers if not already loaded
             Task {
                 if let orgId = auth.currentOrgId {
-                    await trainersService.loadTrainers(orgId: orgId)
+                    await trainersService.loadAll(orgId: orgId)
                     
                     // Match trainer after loading
                     if let trainer = trainersService.trainers.first(where: { $0.id == classItem.trainerId }) {
