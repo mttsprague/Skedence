@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { Location } from '@/types/location';
 
@@ -36,6 +36,15 @@ interface GroupClass {
   recurringPattern?: string;
 }
 
+interface Participant {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  registeredAt: Timestamp;
+  classPassPackageId?: string;
+}
+
 export default function ClassesPage() {
   const { orgId } = useAuth();
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -45,6 +54,9 @@ export default function ClassesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState<GroupClass | null>(null);
   const [saving, setSaving] = useState(false);
+  const [viewingParticipants, setViewingParticipants] = useState<GroupClass | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -232,6 +244,30 @@ export default function ClassesPage() {
     } catch (error) {
       console.error('Error deleting class:', error);
       alert('Error deleting class');
+    }
+  };
+
+  const handleViewParticipants = async (cls: GroupClass) => {
+    setViewingParticipants(cls);
+    setLoadingParticipants(true);
+    
+    try {
+      // Query participants subcollection (schema uses auto-generated IDs with userId field)
+      const participantsQuery = query(collection(db, 'classes', cls.id, 'participants'));
+      const participantsSnapshot = await getDocs(participantsQuery);
+      const participantsData = participantsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Participant[];
+      
+      setParticipants(participantsData.sort((a, b) => 
+        b.registeredAt.seconds - a.registeredAt.seconds
+      ));
+    } catch (error) {
+      console.error('Error loading participants:', error);
+      setParticipants([]);
+    } finally {
+      setLoadingParticipants(false);
     }
   };
 
@@ -523,6 +559,13 @@ export default function ClassesPage() {
 
                         <div className="flex gap-2">
                           <button
+                            onClick={() => handleViewParticipants(cls)}
+                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="View Participants"
+                          >
+                            <Eye className="h-5 w-5" />
+                          </button>
+                          <button
                             onClick={() => handleEdit(cls)}
                             className="p-2 text-gray-400 hover:text-[#3258A3] hover:bg-blue-50 rounded-lg transition-colors"
                           >
@@ -544,6 +587,81 @@ export default function ClassesPage() {
           </>
         )}
       </div>
+
+      {/* Participants Dialog */}
+      {viewingParticipants && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Class Participants</h2>
+                <p className="text-sm text-gray-600 mt-1">{viewingParticipants.title}</p>
+                <p className="text-sm text-gray-500">
+                  {format(viewingParticipants.startTime.toDate(), 'EEE, MMM d, yyyy • h:mm a')}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setViewingParticipants(null);
+                  setParticipants([]);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
+              {loadingParticipants ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3258A3] mx-auto"></div>
+                  <p className="text-gray-500 mt-2">Loading participants...</p>
+                </div>
+              ) : participants.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">No participants registered yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {participants.map((participant, index) => (
+                    <div
+                      key={participant.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-[#3258A3] text-white flex items-center justify-center font-semibold">
+                          {participant.firstName?.charAt(0)}{participant.lastName?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {participant.firstName} {participant.lastName}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Registered {format(participant.registeredAt.toDate(), 'MMM d, yyyy • h:mm a')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        #{index + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Total Participants:</span>
+                  <span className="text-lg font-bold text-[#3258A3]">
+                    {participants.length} / {viewingParticipants.maxParticipants}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
