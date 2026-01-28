@@ -122,6 +122,9 @@ struct MyUpcomingLessonsView: View {
                                   })
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
+                            .onAppear {
+                                print("🎯 ClassRow appeared for: \(classItem.title)")
+                            }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 if isCancellable {
                                     Button(role: .destructive) {
