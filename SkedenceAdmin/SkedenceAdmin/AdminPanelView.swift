@@ -934,24 +934,13 @@ struct CreateClassView: View {
                                 .foregroundStyle(AppTheme.textSecondary)
                             
                             HStack(spacing: 8) {
-                                ForEach(["Su", "M", "T", "W", "Th", "F", "Sa"], id: \.self) { day in
-                                    let dayIndex = ["Su": 1, "M": 2, "T": 3, "W": 4, "Th": 5, "F": 6, "Sa": 7][day]!
-                                    Button {
-                                        if selectedDays.contains(dayIndex) {
-                                            selectedDays.remove(dayIndex)
-                                        } else {
-                                            selectedDays.insert(dayIndex)
-                                        }
-                                    } label: {
-                                        Text(day)
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                            .frame(width: 36, height: 36)
-                                            .background(selectedDays.contains(dayIndex) ? AppTheme.primary : Color(.systemGray5))
-                                            .foregroundStyle(selectedDays.contains(dayIndex) ? .white : AppTheme.textSecondary)
-                                            .cornerRadius(18)
-                                    }
-                                }
+                                DayButton(day: "Su", dayIndex: 1, selectedDays: $selectedDays)
+                                DayButton(day: "M", dayIndex: 2, selectedDays: $selectedDays)
+                                DayButton(day: "T", dayIndex: 3, selectedDays: $selectedDays)
+                                DayButton(day: "W", dayIndex: 4, selectedDays: $selectedDays)
+                                DayButton(day: "Th", dayIndex: 5, selectedDays: $selectedDays)
+                                DayButton(day: "F", dayIndex: 6, selectedDays: $selectedDays)
+                                DayButton(day: "Sa", dayIndex: 7, selectedDays: $selectedDays)
                             }
                         }
                         
@@ -1763,5 +1752,30 @@ private extension View {
     @available(iOS, introduced: 13.0, deprecated: 17.0)
     func onChangePreiOS17<Value: Equatable>(of value: Value, perform action: @escaping (Value) -> Void) -> some View {
         self.onChange(of: value, perform: action)
+    }
+}
+
+struct DayButton: View {
+    let day: String
+    let dayIndex: Int
+    @Binding var selectedDays: Set<Int>
+    
+    var body: some View {
+        Button {
+            if selectedDays.contains(dayIndex) {
+                selectedDays.remove(dayIndex)
+            } else {
+                selectedDays.insert(dayIndex)
+            }
+        } label: {
+            Text(day)
+                .font(.caption)
+                .fontWeight(.medium)
+                .frame(width: 36, height: 36)
+                .background(selectedDays.contains(dayIndex) ? AppTheme.primary : Color(.systemGray5))
+                .foregroundStyle(selectedDays.contains(dayIndex) ? .white : AppTheme.textSecondary)
+                .cornerRadius(18)
+        }
+        .buttonStyle(.plain)
     }
 }
