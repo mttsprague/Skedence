@@ -172,6 +172,15 @@ final class AdminService: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Unauthorized"])
         }
         
+        // Get the class data FIRST to know which trainer to clean up
+        let classDoc = try await db.collection("classes").document(classId).getDocument()
+        guard let classData = classDoc.data() else {
+            throw NSError(domain: "AdminService", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Class not found"])
+        }
+        
+        let trainerId = classData["trainerId"] as? String
+        
         // Delete all participants subcollection documents first
         let participantsSnapshot = try await db.collection("classes")
             .document(classId)
@@ -185,24 +194,18 @@ final class AdminService: ObservableObject {
         // Delete the class document
         try await db.collection("classes").document(classId).delete()
         
-        // Remove class bookings from the assigned trainer's schedule only
-        // Get the class data first to know which trainer
-        let classDoc = try await db.collection("classes").document(classId).getDocument()
-        guard let classData = classDoc.data(),
-              let trainerId = classData["trainerId"] as? String else {
-            // Class already deleted or no trainer assigned, just return
-            return
-        }
-        
-        let schedulesQuery = db.collection("trainers").document(trainerId)
-            .collection("schedules")
-            .whereField("classId", isEqualTo: classId)
-            .whereField("isClassBooking", isEqualTo: true)
-        
-        let schedulesSnapshot = try await schedulesQuery.getDocuments()
-        
-        for scheduleDoc in schedulesSnapshot.documents {
-            try await scheduleDoc.reference.delete()
+        // Remove class bookings from the assigned trainer's schedule
+        if let trainerId = trainerId {
+            let schedulesQuery = db.collection("trainers").document(trainerId)
+                .collection("schedules")
+                .whereField("classId", isEqualTo: classId)
+                .whereField("isClassBooking", isEqualTo: true)
+            
+            let schedulesSnapshot = try await schedulesQuery.getDocuments()
+            
+            for scheduleDoc in schedulesSnapshot.documents {
+                try await scheduleDoc.reference.delete()
+            }
         }
     }
     
