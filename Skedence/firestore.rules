@@ -428,7 +428,7 @@ service cloud.firestore {
         && isOrgTrainer(request.resource.data.orgId);
       
       allow update, delete: if belongsToUserOrg() 
-        && isOrgTrainer(resource.data.orgId);
+        && (isOrgAdmin(resource.data.orgId) || isOrgTrainer(resource.data.orgId));
       
       // Participants subcollection
       match /participants/{participantId} {
