@@ -3,6 +3,23 @@
 ## Overview
 The Skedence app now includes an admin system for managing group volleyball classes. Admins can create, open/close registration, and delete classes through a dedicated Admin tab.
 
+## Firebase Configuration
+
+### GoogleService-Info.plist
+The app uses Firebase for authentication and database. The configuration file is located at:
+```
+Skedence/Skedence/GoogleService-Info.plist
+```
+
+**Important Notes:**
+- This file is excluded from Git for security (contains API keys)
+- Bundle ID must match: `Matthew-Sprague.Skedence-Volleyball`
+- Download from Firebase Console: Project Settings → iOS App → GoogleService-Info.plist
+- Place in `Skedence/Skedence/` directory
+- Xcode will automatically include it in the app bundle
+
+If you see a bundle ID mismatch warning, ensure the plist file has the correct bundle identifier.
+
 ## Firebase Setup
 
 ### 1. Grant Admin Access to a User
