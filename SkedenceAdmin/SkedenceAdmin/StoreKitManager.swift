@@ -152,8 +152,9 @@ class StoreKitManager: ObservableObject {
                     // Successful purchase
                     print("✅ Purchase successful: \(product.id)")
                     
-                    // Cancel any other active subscriptions before setting the new one
-                    await finishOtherSubscriptions(except: transaction.productID)
+                    // In sandbox, multiple subscriptions can coexist
+                    // In production, Apple automatically supersedes old subscriptions
+                    // Don't manually finish old transactions - let Apple handle it
                     
                     // Update local state with THIS transaction (don't scan all)
                     purchasedProductIDs.insert(product.id)
@@ -252,27 +253,6 @@ class StoreKitManager: ObservableObject {
     }
     
     // MARK: - Helper Methods
-    
-    private func finishOtherSubscriptions(except currentProductID: String) async {
-        var canceledCount = 0
-        
-        // Iterate through all active entitlements
-        for await result in StoreKit.Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result else { continue }
-            
-            // If it's one of our subscription products but NOT the current one
-            if Self.productIDs.contains(transaction.productID) && transaction.productID != currentProductID {
-                await transaction.finish()
-                purchasedProductIDs.remove(transaction.productID)
-                canceledCount += 1
-                print("🗑️ Finished old subscription: \(transaction.productID)")
-            }
-        }
-        
-        if canceledCount > 0 {
-            print("✅ Finished \(canceledCount) old subscription(s)")
-        }
-    }
     
     private func checkTrialEligibility(productID: String) async -> Bool {
         // Check if user has ever subscribed to this product
@@ -389,7 +369,38 @@ class StoreKitManager: ObservableObject {
     
     private func handleTransactionUpdate(_ transaction: StoreKit.Transaction) async {
         print("📱 Transaction update received: \(transaction.productID)")
-        await checkSubscriptionStatus()
+        
+        // Only update if this is the most recent subscription
+        // Check if we already have a newer subscription
+        if let currentStatus = subscriptionStatus,
+           let currentExpiration = currentStatus.expirationDate,
+           let newExpiration = transaction.expirationDate,
+           newExpiration <= currentExpiration {
+            print("⏭️  Ignoring older transaction update for: \(transaction.productID)")
+            return
+        }
+        
+        // This is the most recent subscription, update status
+        let planName = planName(from: transaction.productID)
+        let isIntroductory: Bool
+        if #available(iOS 17.2, macOS 14.2, watchOS 10.2, tvOS 17.2, *) {
+            isIntroductory = (transaction.offer?.type == .introductory)
+        } else {
+            isIntroductory = (transaction.offerType == .introductory)
+        }
+        
+        subscriptionStatus = SubscriptionStatus(
+            productID: transaction.productID,
+            planName: planName,
+            expirationDate: transaction.expirationDate,
+            isInTrialPeriod: isIntroductory,
+            willAutoRenew: transaction.revocationDate == nil
+        )
+        
+        print("✅ Active subscription updated: \(planName) via transaction observer")
+        
+        // Sync to backend
+        await syncSubscriptionToBackend(transaction: transaction)
     }
     
     // MARK: - Product Display Helpers
