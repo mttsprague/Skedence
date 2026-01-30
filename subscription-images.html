@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence Subscription Images</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f7;
+            padding: 40px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            justify-content: center;
+        }
+        
+        .subscription-card {
+            width: 400px;
+            height: 600px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 50px 40px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .subscription-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .starter {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .studio {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .academy {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .enterprise {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .badge {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .plan-name {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+        
+        .price {
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            opacity: 0.95;
+        }
+        
+        .price span {
+            font-size: 18px;
+            opacity: 0.8;
+        }
+        
+        .features {
+            list-style: none;
+            margin-bottom: 30px;
+        }
+        
+        .features li {
+            padding: 12px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            opacity: 0.95;
+        }
+        
+        .features li::before {
+            content: '✓';
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .trial-info {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .instructions {
+            width: 100%;
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .instructions h2 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+        
+        .instructions p {
+            color: #666;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h2>📸 Screenshot Instructions</h2>
+        <p>
+            Take screenshots of each card individually (400x600px recommended).<br>
+            Use Cmd+Shift+4 (Mac) to capture specific areas.<br>
+            Upload to App Store Connect → Your App → Subscriptions → Each Product
+        </p>
+    </div>
+    
+    <!-- Starter Plan -->
+    <div class="subscription-card starter">
+        <div class="content">
+            <div class="plan-name">Starter</div>
+            <div class="price">$29<span>/month</span></div>
+            
+            <ul class="features">
+                <li>1 trainer account</li>
+                <li>1 location</li>
+                <li>Unlimited clients</li>
+                <li>Unlimited bookings</li>
+                <li>Payment processing</li>
+                <li>Client mobile app</li>
+                <li>Email support</li>
+            </ul>
+        </div>
+        
+        <div class="trial-info">
+            14-Day Free Trial
+        </div>
+    </div>
+    
+    <!-- Studio Plan -->
+    <div class="subscription-card studio">
+        <div class="badge">POPULAR</div>
+        <div class="content">
+            <div class="plan-name">Studio</div>
+            <div class="price">$99<span>/month</span></div>
+            
+            <ul class="features">
+                <li>Up to 5 trainers</li>
+                <li>3 locations</li>
+                <li>Everything in Starter</li>
+                <li>Group class management</li>
+                <li>Advanced analytics</li>
+                <li>Priority support</li>
+                <li>Custom branding</li>
+            </ul>
+        </div>
+        
+        <div class="trial-info">
+            14-Day Free Trial
+        </div>
+    </div>
+    
+    <!-- Academy Plan -->
+    <div class="subscription-card academy">
+        <div class="content">
+            <div class="plan-name">Academy</div>
+            <div class="price">$249<span>/month</span></div>
+            
+            <ul class="features">
+                <li>Up to 15 trainers</li>
+                <li>10 locations</li>
+                <li>Everything in Studio</li>
+                <li>Roles & permissions</li>
+                <li>Advanced permissions</li>
+                <li>API access</li>
+                <li>Dedicated support</li>
+            </ul>
+        </div>
+        
+        <div class="trial-info">
+            14-Day Free Trial
+        </div>
+    </div>
+    
+    <!-- Enterprise Plan -->
+    <div class="subscription-card enterprise">
+        <div class="content">
+            <div class="plan-name">Enterprise</div>
+            <div class="price">$499<span>/month</span></div>
+            
+            <ul class="features">
+                <li>Unlimited trainers</li>
+                <li>Unlimited locations</li>
+                <li>Everything in Academy</li>
+                <li>Custom domain</li>
+                <li>White-label branding</li>
+                <li>SLA guarantees</li>
+                <li>Custom integrations</li>
+            </ul>
+        </div>
+        
+        <div class="trial-info">
+            14-Day Free Trial
+        </div>
+    </div>
+</body>
+</html>
