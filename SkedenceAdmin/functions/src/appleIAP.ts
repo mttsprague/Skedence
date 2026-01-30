@@ -45,7 +45,6 @@ export const validateAppleReceipt = functions.https.onCall(
       }
 
       // Parse dates (Apple returns milliseconds timestamps)
-      const purchaseDate = new Date(parseInt(latestReceiptInfo.purchase_date_ms));
       const expiresDate = new Date(parseInt(latestReceiptInfo.expires_date_ms));
       const isTrialPeriod = latestReceiptInfo.is_trial_period === "true";
 
@@ -104,15 +103,19 @@ export const validateAppleReceipt = functions.https.onCall(
 
 /**
  * Validate receipt with Apple's verifyReceipt endpoint
+ * @param {string} receiptData - Base64 encoded receipt data from iOS
+ * @return {Promise<any>} Validated receipt data from Apple
  */
 async function validateReceiptWithApple(receiptData: string): Promise<any> {
+  const sharedSecret = process.env.APPLE_SHARED_SECRET || "46a188678e0748aba17e3720b314c9d3";
+
   // Try production endpoint first
   let response = await fetch("https://buy.itunes.apple.com/verifyReceipt", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
       "receipt-data": receiptData,
-      "password": functions.config().apple?.shared_secret || process.env.APPLE_SHARED_SECRET,
+      "password": sharedSecret,
       "exclude-old-transactions": true,
     }),
   });
@@ -127,7 +130,7 @@ async function validateReceiptWithApple(receiptData: string): Promise<any> {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         "receipt-data": receiptData,
-        "password": functions.config().apple?.shared_secret || process.env.APPLE_SHARED_SECRET,
+        "password": sharedSecret,
         "exclude-old-transactions": true,
       }),
     });
@@ -144,6 +147,8 @@ async function validateReceiptWithApple(receiptData: string): Promise<any> {
 
 /**
  * Map Apple product ID to plan name
+ * @param {string} productID - Apple product identifier
+ * @return {string} Plan name (starter, studio, academy, enterprise, or free)
  */
 function mapProductIDToPlan(productID: string): string {
   const planMap: {[key: string]: string} = {
@@ -180,7 +185,6 @@ export const appleWebhook = functions.https.onRequest(async (req, res) => {
       return;
     }
 
-    const productID = latestReceipt.product_id;
     const transactionID = latestReceipt.transaction_id;
     const expiresDate = new Date(parseInt(latestReceipt.expires_date_ms));
 
@@ -201,70 +205,69 @@ export const appleWebhook = functions.https.onRequest(async (req, res) => {
 
     // Handle different notification types
     switch (notificationType) {
-      case "INITIAL_BUY":
-      case "DID_RENEW":
-        await db.collection("organizations").doc(orgId).set(
-          {
-            billing: {
-              status: "active",
-              currentPeriodEnd: admin.firestore.Timestamp.fromDate(expiresDate),
-              cancelAtPeriodEnd: false,
-              lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    case "INITIAL_BUY":
+    case "DID_RENEW":
+      await db.collection("organizations").doc(orgId).set(
+        {
+          billing: {
+            status: "active",
+            currentPeriodEnd: admin.firestore.Timestamp.fromDate(expiresDate),
+            cancelAtPeriodEnd: false,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           },
-          {merge: true}
-        );
-        console.log(`✅ Renewed subscription for org ${orgId}`);
-        break;
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true}
+      );
+      console.log(`✅ Renewed subscription for org ${orgId}`);
+      break;
 
-      case "DID_FAIL_TO_RENEW":
-        await db.collection("organizations").doc(orgId).set(
-          {
-            billing: {
-              status: "past_due",
-              lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    case "DID_FAIL_TO_RENEW":
+      await db.collection("organizations").doc(orgId).set(
+        {
+          billing: {
+            status: "past_due",
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           },
-          {merge: true}
-        );
-        console.log(`⚠️ Renewal failed for org ${orgId}`);
-        break;
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true}
+      );
+      console.log(`⚠️ Renewal failed for org ${orgId}`);
+      break;
 
-      case "CANCEL":
-      case "DID_CHANGE_RENEWAL_STATUS":
-        const autoRenewStatus = notification.auto_renew_status === "true";
-        await db.collection("organizations").doc(orgId).set(
-          {
-            billing: {
-              cancelAtPeriodEnd: !autoRenewStatus,
-              lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    case "CANCEL":
+    case "DID_CHANGE_RENEWAL_STATUS": {
+      const autoRenewStatus = notification.auto_renew_status === "true";
+      await db.collection("organizations").doc(orgId).set(
+        {
+          billing: {
+            cancelAtPeriodEnd: !autoRenewStatus,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           },
-          {merge: true}
-        );
-        console.log(`🔄 Updated renewal status for org ${orgId}: ${autoRenewStatus}`);
-        break;
-
-      case "REFUND":
-        await db.collection("organizations").doc(orgId).set(
-          {
-            billing: {
-              status: "canceled",
-              plan: "free",
-              lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true}
+      );
+      console.log(`🔄 Updated renewal status for org ${orgId}: ${autoRenewStatus}`);
+      break;
+    }
+      await db.collection("organizations").doc(orgId).set(
+        {
+          billing: {
+            status: "canceled",
+            plan: "free",
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           },
-          {merge: true}
-        );
-        console.log(`💰 Refund processed for org ${orgId}`);
-        break;
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true}
+      );
+      console.log(`💰 Refund processed for org ${orgId}`);
+      break;
 
-      default:
-        console.log(`ℹ️ Unhandled notification type: ${notificationType}`);
+    default:
+      console.log(`ℹ️ Unhandled notification type: ${notificationType}`);
     }
 
     res.status(200).send("OK");
