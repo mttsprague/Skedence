@@ -317,14 +317,17 @@ export const bookLesson = functions.https.onCall(
             }
 
             // Check location booking limit if location is specified
-            if (trainerSlotData.location) {
+            if (trainerSlotData.location && trainerSlotData.startTime) {
               const maxBookingsPerLocation = settings?.maxBookingsPerLocation ?? 5;
+              const slotStartTime = trainerSlotData.startTime.toDate();
 
-              // Count current booked sessions at this location (status = 'booked', not 'open')
+              // Count concurrent booked sessions at this location and time
+              // We need to check for bookings that overlap with this time slot
               const locationBookingsQuery = await db
                 .collectionGroup("schedules")
                 .where("orgId", "==", orgId)
                 .where("location", "==", trainerSlotData.location)
+                .where("startTime", "==", trainerSlotData.startTime)
                 .where("status", "==", "booked")
                 .get();
 

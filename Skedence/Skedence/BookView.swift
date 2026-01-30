@@ -703,10 +703,11 @@ struct BookView: View {
                 signedAt: Date()
             )
             
-            // Generate PDF
+            // Generate PDF with custom waiver text from settings
             guard let pdfData = WaiverPDFGenerator.generateWaiverPDF(
                 signature: signature,
-                organizationName: auth.organizationName ?? "Your Organization"
+                organizationName: auth.organizationName ?? "Your Organization",
+                customWaiverText: settingsService.settings?.waiverText
             ) else {
                 print("Failed to generate waiver PDF")
                 throw NSError(domain: "WaiverError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to generate PDF"])
@@ -1376,7 +1377,7 @@ struct WaiverAgreementCheckboxView: View {
                     CardView {
                         VStack(alignment: .leading, spacing: Spacing.md) {
                             ScrollView {
-                                Text(waiverText.isEmpty ? "No waiver text configured." : waierText)
+                                Text(waiverText.isEmpty ? "No waiver text configured." : waiverText)
                                     .font(.bodySmall)
                                     .foregroundStyle(AppTheme.textSecondary)
                                     .lineSpacing(4)
