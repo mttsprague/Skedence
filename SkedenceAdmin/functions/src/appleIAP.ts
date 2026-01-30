@@ -39,6 +39,7 @@ export const validateAppleReceipt = functions.https.onCall(
       );
 
       if (!latestReceiptInfo) {
+        console.error("❌ No receipt info found. Receipt data:", JSON.stringify(receiptData, null, 2));
         throw new functions.https.HttpsError(
           "not-found",
           "No receipt info found for product"
@@ -48,6 +49,8 @@ export const validateAppleReceipt = functions.https.onCall(
       // Parse dates (Apple returns milliseconds timestamps)
       const expiresDate = new Date(parseInt(latestReceiptInfo.expires_date_ms));
       const isTrialPeriod = latestReceiptInfo.is_trial_period === "true";
+
+      console.log(`📝 Receipt info - Product: ${productID}, Trial: ${isTrialPeriod}, Expires: ${expiresDate.toISOString()}`);
 
       // Map product ID to plan name
       const planName = mapProductIDToPlan(productID);

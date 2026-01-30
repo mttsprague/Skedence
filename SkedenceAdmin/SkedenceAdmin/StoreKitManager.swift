@@ -133,13 +133,13 @@ class StoreKitManager: ObservableObject {
             // Check if eligible for free trial
             let isEligibleForTrial = await checkTrialEligibility(productID: product.id)
             
-            let options: Set<Product.PurchaseOption> = []
+            var options: Set<Product.PurchaseOption> = []
             
             // Add promotional offer if eligible for trial
-            if isEligibleForTrial, let offerID = Self.trialOfferIDs[product.id] {
-                // Note: For promotional offers to work, you need to sign the offer
-                // This requires App Store Connect API key setup
-                print("ℹ️ User eligible for trial: \(offerID)")
+            if isEligibleForTrial {
+                // In sandbox, trials work automatically without explicit offer code
+                // The subscription group in App Store Connect handles this
+                print("ℹ️ User eligible for 14-day free trial")
             }
             
             let result = try await product.purchase(options: options)
@@ -177,11 +177,12 @@ class StoreKitManager: ObservableObject {
                     
                     print("✅ Active subscription set: \(planName) (just purchased)")
                     
+                    // Sync to backend BEFORE finishing the transaction
+                    // This ensures receipt is still available
+                    await syncSubscriptionToBackend(transaction: transaction)
+                    
                     // Finish the transaction
                     await transaction.finish()
-                    
-                    // Sync to backend
-                    await syncSubscriptionToBackend(transaction: transaction)
                     
                     return true
                     
