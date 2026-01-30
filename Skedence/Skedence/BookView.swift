@@ -37,6 +37,8 @@ struct BookView: View {
     @State private var selectedPackage: LessonPackage?
     @State private var showSubscriptionSheet = false
     @State private var showBookingInstructions = false
+    @State private var showWaiverAgreement = false
+    @State private var pendingBookingSuccess = false
 
     enum Mode: String, CaseIterable { case lessons = "Lessons", classes = "Classes" }
 
@@ -193,6 +195,21 @@ struct BookView: View {
                 }
                 .sheet(isPresented: $showBookingInstructions) {
                     BookingInstructionsSheet()
+                }
+                .sheet(isPresented: $showWaiverAgreement) {
+                    WaiverAgreementCheckboxView(
+                        waiverText: settingsService.settings?.waiverText ?? "",
+                        userProfile: usersService.currentUser,
+                        onAgree: {
+                            Task {
+                                await handleWaiverAgreement()
+                            }
+                        },
+                        onCancel: {
+                            showWaiverAgreement = false
+                            pendingBookingSuccess = false
+                        }
+                    )
                 }
         }
     }
@@ -680,11 +697,11 @@ struct BookView: View {
               let slotId = selectedSlot?.id,
               let slot = selectedSlot else { return }
         
-        // Check if slot is within 5 hours
+        // Check if slot is within minimum booking hours
         if !canBookSlot(slot) {
             bookingAlert = .init(
                 title: "Booking Not Available",
-                message: "Lessons cannot be booked within 5 hours of the start time. Please contact Jeff Schmitz for assistance."
+                message: "Lessons cannot be booked within \(settingsService.settings?.minBookingHours ?? 4) hours of the start time. Please contact your trainer for assistance."
             )
             return
         }
@@ -712,18 +729,23 @@ struct BookView: View {
                 clientId: Auth.auth().currentUser?.uid ?? ""
             )
             
-            // Create success message with trainer name
-            let trainerName = selectedTrainer?.name ?? "your trainer"
-            bookingAlert = .init(
-                title: "Booking Confirmed! 🎉",
-                message: "You have successfully booked with \(trainerName). See you soon!"
-            )
+            // Check if waiver is required and not signed
+            if let userId = Auth.auth().currentUser?.uid {
+                let waiverCheck = try await settingsService.checkWaiverRequirement(
+                    userId: userId,
+                    settings: settingsService.settings
+                )
+                
+                if waiverCheck.required && !waiverCheck.signed {
+                    // Show waiver agreement sheet
+                    pendingBookingSuccess = true
+                    showWaiverAgreement = true
+                    return
+                }
+            }
             
-            // Refresh data after server writes complete
-            await packagesService.loadMyPackages()
-            await loadDayIfPossible()
-            await loadMonthIfPossible()
-            selectedSlot = nil
+            // Show success message if no waiver needed
+            await finishBookingSuccess()
         } catch {
             let cleanMessage: String
             var navigateToPasses = false
@@ -741,6 +763,61 @@ struct BookView: View {
                     selectedTab = 2 // Profile tab
                 } : nil
             )
+        }
+    }
+    
+    private func finishBookingSuccess() async {
+        // Create success message with trainer name
+        let trainerName = selectedTrainer?.name ?? "your trainer"
+        bookingAlert = .init(
+            title: "Booking Confirmed! 🎉",
+            message: "You have successfully booked with \(trainerName). See you soon!"
+        )
+        
+        // Refresh data after server writes complete
+        await packagesService.loadMyPackages()
+        await loadDayIfPossible()
+        await loadMonthIfPossible()
+        selectedSlot = nil
+    }
+    
+    private func handleWaiverAgreement() async {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            showWaiverAgreement = false
+            pendingBookingSuccess = false
+            return
+        }
+        
+        do {
+            // Save simple agreement record (not full PDF)
+            let db = Firestore.firestore()
+            let agreementData: [String: Any] = [
+                "userId": userId,
+                "agreedAt": Timestamp(date: Date()),
+                "type": "waiver_agreement"
+            ]
+            
+            try await db.collection("users")
+                .document(userId)
+                .collection("documents")
+                .addDocument(data: agreementData)
+            
+            // Log analytics
+            if let orgId = auth.currentOrgId {
+                AnalyticsService.shared.logWaiverSigned(userId: userId, orgId: orgId)
+            }
+            
+            showWaiverAgreement = false
+            
+            // Show booking success
+            if pendingBookingSuccess {
+                await finishBookingSuccess()
+                pendingBookingSuccess = false
+            }
+        } catch {
+            print("Failed to save waiver agreement: \(error)")
+            showWaiverAgreement = false
+            pendingBookingSuccess = false
         }
     }
 
@@ -1468,6 +1545,187 @@ private struct InstructionStepCard: View {
                 }
                 
                 Spacer(minLength: 0)
+            }
+        }
+    }
+}
+
+// MARK: - Waiver Agreement Checkbox View
+
+struct WaiverAgreementCheckboxView: View {
+    let waiverText: String
+    let userProfile: UserProfile?
+    let onAgree: () -> Void
+    let onCancel: () -> Void
+    
+    @State private var hasAgreed = false
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // Header
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Liability Waiver")
+                            .font(.displaySmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        Text("Please read and agree to continue")
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding(.top, Spacing.md)
+                    
+                    // Waiver Content
+                    CardView {
+                        VStack(alignment: .leading, spacing: Spacing.md) {
+                            ScrollView {
+                                Text(waiverText.isEmpty ? "No waiver text configured." : waiverText)
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .lineSpacing(4)
+                            }
+                            .frame(height: 400)
+                            .padding(Spacing.sm)
+                            .background(Color(UIColor.systemGray6))
+                            .cornerRadius(CornerRadius.sm)
+                        }
+                    }
+                    
+                    // Parent/Guardian Information
+                    if let profile = userProfile {
+                        CardView {
+                            VStack(alignment: .leading, spacing: Spacing.md) {
+                                HStack(spacing: Spacing.xs) {
+                                    Image(systemName: "person.text.rectangle.fill")
+                                        .foregroundStyle(AppTheme.primary)
+                                        .font(.title3)
+                                    
+                                    Text("Parent/Guardian Information")
+                                        .font(.headingSmall)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: Spacing.sm) {
+                                    if let firstName = profile.firstName, let lastName = profile.lastName {
+                                        HStack(spacing: Spacing.xs) {
+                                            Image(systemName: "person.fill")
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                                .frame(width: 24)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Name")
+                                                    .font(.caption)
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                                Text("\(firstName) \(lastName)")
+                                                    .font(.bodyMedium)
+                                                    .foregroundStyle(AppTheme.textPrimary)
+                                            }
+                                        }
+                                    }
+                                    
+                                    if let email = profile.emailAddress, !email.isEmpty {
+                                        Divider()
+                                        
+                                        HStack(spacing: Spacing.xs) {
+                                            Image(systemName: "envelope.fill")
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                                .frame(width: 24)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Email")
+                                                    .font(.caption)
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                                Text(email)
+                                                    .font(.bodyMedium)
+                                                    .foregroundStyle(AppTheme.textPrimary)
+                                            }
+                                        }
+                                    }
+                                    
+                                    if let phone = profile.phoneNumber, !phone.isEmpty {
+                                        Divider()
+                                        
+                                        HStack(spacing: Spacing.xs) {
+                                            Image(systemName: "phone.fill")
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                                .frame(width: 24)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Phone")
+                                                    .font(.caption)
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                                Text(phone)
+                                                    .font(.bodyMedium)
+                                                    .foregroundStyle(AppTheme.textPrimary)
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(.top, Spacing.xs)
+                            }
+                        }
+                        .background(Color(red: 0.95, green: 0.97, blue: 1.0))
+                    }
+                    
+                    // Agreement Checkbox
+                    CardView {
+                        Button {
+                            hasAgreed.toggle()
+                        } label: {
+                            HStack(spacing: Spacing.sm) {
+                                Image(systemName: hasAgreed ? "checkmark.square.fill" : "square")
+                                    .font(.title2)
+                                    .foregroundStyle(hasAgreed ? AppTheme.primary : AppTheme.textSecondary)
+                                
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text("I have read, understood, and agree to the terms above.")
+                                        .font(.bodyMedium)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                        .multilineTextAlignment(.leading)
+                                    
+                                    if userProfile != nil {
+                                        Text("By checking this box, I confirm the information above is correct and I agree on behalf of the participant(s).")
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                                
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    // Agree Button
+                    Button {
+                        onAgree()
+                        dismiss()
+                    } label: {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("I Agree")
+                        }
+                        .font(.headingSmall)
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(!hasAgreed)
+                    .padding(.bottom, Spacing.xl)
+                }
+                .padding(.horizontal, Spacing.lg)
+            }
+            .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
+            .navigationTitle("Waiver Agreement")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        onCancel()
+                        dismiss()
+                    }
+                }
             }
         }
     }
