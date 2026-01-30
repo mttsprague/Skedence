@@ -23,6 +23,9 @@ export * from "./stripe-direct";
 // Export billing/subscription functions
 export * from "./billing";
 
+// Export Apple In-App Purchase functions
+export * from "./appleIAP";
+
 // Export Stripe Connect webhook
 export * from "./stripe-connect-webhook";
 
