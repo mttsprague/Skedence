@@ -152,6 +152,9 @@ class StoreKitManager: ObservableObject {
                     // Successful purchase
                     print("✅ Purchase successful: \(product.id)")
                     
+                    // Cancel any other active subscriptions before setting the new one
+                    await finishOtherSubscriptions(except: transaction.productID)
+                    
                     // Update local state with THIS transaction (don't scan all)
                     purchasedProductIDs.insert(product.id)
                     
@@ -248,6 +251,27 @@ class StoreKitManager: ObservableObject {
     }
     
     // MARK: - Helper Methods
+    
+    private func finishOtherSubscriptions(except currentProductID: String) async {
+        var canceledCount = 0
+        
+        // Iterate through all active entitlements
+        for await result in StoreKit.Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else { continue }
+            
+            // If it's one of our subscription products but NOT the current one
+            if Self.productIDs.contains(transaction.productID) && transaction.productID != currentProductID {
+                await transaction.finish()
+                purchasedProductIDs.remove(transaction.productID)
+                canceledCount += 1
+                print("🗑️ Finished old subscription: \(transaction.productID)")
+            }
+        }
+        
+        if canceledCount > 0 {
+            print("✅ Finished \(canceledCount) old subscription(s)")
+        }
+    }
     
     private func checkTrialEligibility(productID: String) async -> Bool {
         // Check if user has ever subscribed to this product
