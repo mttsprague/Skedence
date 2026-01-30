@@ -10,6 +10,11 @@ import Foundation
 import StoreKit
 import FirebaseFunctions
 import FirebaseAuth
+import FirebaseFirestore
+#if canImport(UIKit)
+import UIKit
+#endif
+import Combine
 
 @MainActor
 class StoreKitManager: ObservableObject {
@@ -47,7 +52,6 @@ class StoreKitManager: ObservableObject {
     init() {
         transactionUpdateTask = observeTransactionUpdates()
     }
-    
     deinit {
         transactionUpdateTask?.cancel()
     }
@@ -72,15 +76,23 @@ class StoreKitManager: ObservableObject {
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             
-            // Found an active subscription
-            if let product = products.first(where: { $0.id == transaction.productID }) {
+            // Found an active subscription (ensure it's one of our known product IDs)
+            if Self.productIDs.contains(transaction.productID) {
                 let planName = planName(from: transaction.productID)
+                
+                let isIntroductory: Bool
+                if #available(iOS 17.2, macOS 14.2, watchOS 10.2, tvOS 17.2, *) {
+                    isIntroductory = (transaction.offer?.type == .introductory)
+                } else {
+                    // Fallback for earlier OS versions
+                    isIntroductory = (transaction.offerType == .introductory)
+                }
                 
                 subscriptionStatus = SubscriptionStatus(
                     productID: transaction.productID,
                     planName: planName,
                     expirationDate: transaction.expirationDate,
-                    isInTrialPeriod: transaction.offerType == .introductory,
+                    isInTrialPeriod: isIntroductory,
                     willAutoRenew: transaction.revocationDate == nil
                 )
                 
@@ -107,7 +119,7 @@ class StoreKitManager: ObservableObject {
             // Check if eligible for free trial
             let isEligibleForTrial = await checkTrialEligibility(productID: product.id)
             
-            var options: Set<Product.PurchaseOption> = []
+            let options: Set<Product.PurchaseOption> = []
             
             // Add promotional offer if eligible for trial
             if isEligibleForTrial, let offerID = Self.trialOfferIDs[product.id] {
@@ -189,7 +201,8 @@ class StoreKitManager: ObservableObject {
     // MARK: - Manage Subscription (opens App Store)
     
     func manageSubscription() async {
-        if let scene = await UIApplication.shared.connectedScenes.first as? UIWindowScene {
+        #if canImport(UIKit)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
             do {
                 try await AppStore.showManageSubscriptions(in: scene)
             } catch {
@@ -197,6 +210,9 @@ class StoreKitManager: ObservableObject {
                 errorMessage = "Could not open subscription management."
             }
         }
+        #else
+        // Not supported on this platform
+        #endif
     }
     
     // MARK: - Helper Methods
@@ -227,9 +243,41 @@ class StoreKitManager: ObservableObject {
     }
     
     private func syncSubscriptionToBackend(transaction: Transaction) async {
-        guard let user = Auth.auth().currentUser,
-              let receipt = await getReceiptData() else {
-            print("❌ Cannot sync: No user or receipt")
+        guard let currentUser = Auth.auth().currentUser else {
+            print("❌ Cannot sync: No authenticated user")
+            return
+        }
+        
+        // Get organization ID
+        let db = Firestore.firestore()
+        let orgId: String?
+        
+        do {
+            let userDoc = try await db.collection("users").document(currentUser.uid).getDocument()
+            if let orgs = userDoc.data()?["organizations"] as? [String], !orgs.isEmpty {
+                orgId = orgs.first
+            } else {
+                orgId = nil
+            }
+        } catch {
+            print("❌ Cannot sync: Failed to get user's organization - \(error)")
+            return
+        }
+        
+        guard let organizationId = orgId else {
+            print("❌ Cannot sync: User has no organization")
+            return
+        }
+        
+        // Get receipt - try both methods for sandbox/production compatibility
+        let receipt: String
+        if let bundleReceipt = await getReceiptData() {
+            receipt = bundleReceipt
+        } else if let jwsRepresentation = await getJWSRepresentation(for: transaction) {
+            // StoreKit 2 JWS token (works better in sandbox)
+            receipt = jwsRepresentation
+        } else {
+            print("❌ Cannot sync: No receipt available")
             return
         }
         
@@ -237,7 +285,8 @@ class StoreKitManager: ObservableObject {
         let data: [String: Any] = [
             "receipt": receipt,
             "productID": transaction.productID,
-            "transactionID": String(transaction.id)
+            "transactionID": String(transaction.id),
+            "organizationId": organizationId
         ]
         
         do {
@@ -247,6 +296,11 @@ class StoreKitManager: ObservableObject {
             print("❌ Failed to sync to backend: \(error)")
             // Don't show error to user - subscription still works locally
         }
+    }
+    
+    private func getJWSRepresentation(for transaction: Transaction) async -> String? {
+        // Get the JWS representation which works in sandbox
+        return transaction.jsonRepresentation.data(using: .utf8)?.base64EncodedString()
     }
     
     private func getReceiptData() async -> String? {

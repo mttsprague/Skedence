@@ -13,8 +13,9 @@ export const validateAppleReceipt = functions.https.onCall(
     receipt: string;
     productID: string;
     transactionID: string;
+    organizationId?: string;
   }>) => {
-    const {receipt, productID, transactionID} = request.data;
+    const {receipt, productID, transactionID, organizationId} = request.data;
     const userId = request.auth?.uid;
 
     if (!userId) {
@@ -51,10 +52,13 @@ export const validateAppleReceipt = functions.https.onCall(
       // Map product ID to plan name
       const planName = mapProductIDToPlan(productID);
 
-      // Find user's organization
-      const userDoc = await db.collection("users").doc(userId).get();
-      const userData = userDoc.data();
-      const orgId = userData?.organizations?.[0];
+      // Get organization ID - use provided one or look it up
+      let orgId = organizationId;
+      if (!orgId) {
+        const userDoc = await db.collection("users").doc(userId).get();
+        const userData = userDoc.data();
+        orgId = userData?.organizations?.[0];
+      }
 
       if (!orgId) {
         throw new functions.https.HttpsError(
@@ -82,7 +86,7 @@ export const validateAppleReceipt = functions.https.onCall(
         {merge: true}
       );
 
-      console.log(`✅ Synced Apple subscription for org ${orgId}: ${planName}`);
+      console.log(`✅ Synced Apple subscription for org ${orgId}: ${planName} (trial: ${isTrialPeriod})`);
 
       return {
         success: true,
