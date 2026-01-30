@@ -72,38 +72,52 @@ class StoreKitManager: ObservableObject {
     // MARK: - Check Subscription Status
     
     func checkSubscriptionStatus() async {
-        // Check for active subscription
+        // Check for active subscription - find the most recent one
+        var mostRecentTransaction: StoreKit.Transaction?
+        var mostRecentDate: Date?
+        
         for await result in StoreKit.Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             
             // Found an active subscription (ensure it's one of our known product IDs)
             if Self.productIDs.contains(transaction.productID) {
-                let planName = planName(from: transaction.productID)
+                let transactionDate = transaction.purchaseDate
                 
-                let isIntroductory: Bool
-                if #available(iOS 17.2, macOS 14.2, watchOS 10.2, tvOS 17.2, *) {
-                    isIntroductory = (transaction.offer?.type == .introductory)
-                } else {
-                    // Fallback for earlier OS versions
-                    isIntroductory = (transaction.offerType == .introductory)
+                // Keep track of the most recent transaction
+                if mostRecentDate == nil || transactionDate > mostRecentDate! {
+                    mostRecentDate = transactionDate
+                    mostRecentTransaction = transaction
                 }
-                
-                subscriptionStatus = SubscriptionStatus(
-                    productID: transaction.productID,
-                    planName: planName,
-                    expirationDate: transaction.expirationDate,
-                    isInTrialPeriod: isIntroductory,
-                    willAutoRenew: transaction.revocationDate == nil
-                )
-                
-                purchasedProductIDs.insert(transaction.productID)
-                
-                // Sync to backend
-                await syncSubscriptionToBackend(transaction: transaction)
-                
-                print("✅ Active subscription found: \(planName)")
-                return
             }
+        }
+        
+        // Use the most recent transaction
+        if let transaction = mostRecentTransaction {
+            let planName = planName(from: transaction.productID)
+            
+            let isIntroductory: Bool
+            if #available(iOS 17.2, macOS 14.2, watchOS 10.2, tvOS 17.2, *) {
+                isIntroductory = (transaction.offer?.type == .introductory)
+            } else {
+                // Fallback for earlier OS versions
+                isIntroductory = (transaction.offerType == .introductory)
+            }
+            
+            subscriptionStatus = SubscriptionStatus(
+                productID: transaction.productID,
+                planName: planName,
+                expirationDate: transaction.expirationDate,
+                isInTrialPeriod: isIntroductory,
+                willAutoRenew: transaction.revocationDate == nil
+            )
+            
+            purchasedProductIDs.insert(transaction.productID)
+            
+            // Sync to backend
+            await syncSubscriptionToBackend(transaction: transaction)
+            
+            print("✅ Active subscription found: \(planName) (purchased: \(transaction.purchaseDate))")
+            return
         }
         
         // No active subscription
