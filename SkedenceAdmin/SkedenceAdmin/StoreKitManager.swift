@@ -152,9 +152,27 @@ class StoreKitManager: ObservableObject {
                     // Successful purchase
                     print("✅ Purchase successful: \(product.id)")
                     
-                    // Update local state
+                    // Update local state with THIS transaction (don't scan all)
                     purchasedProductIDs.insert(product.id)
-                    await checkSubscriptionStatus()
+                    
+                    // Set subscription status directly from the purchased transaction
+                    let planName = planName(from: transaction.productID)
+                    let isIntroductory: Bool
+                    if #available(iOS 17.2, macOS 14.2, watchOS 10.2, tvOS 17.2, *) {
+                        isIntroductory = (transaction.offer?.type == .introductory)
+                    } else {
+                        isIntroductory = (transaction.offerType == .introductory)
+                    }
+                    
+                    subscriptionStatus = SubscriptionStatus(
+                        productID: transaction.productID,
+                        planName: planName,
+                        expirationDate: transaction.expirationDate,
+                        isInTrialPeriod: isIntroductory,
+                        willAutoRenew: transaction.revocationDate == nil
+                    )
+                    
+                    print("✅ Active subscription set: \(planName) (just purchased)")
                     
                     // Finish the transaction
                     await transaction.finish()
