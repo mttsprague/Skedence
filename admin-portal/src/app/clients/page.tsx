@@ -107,32 +107,101 @@ export default function ClientsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {filteredClients.map((client) => (
-              <Card key={client.id} className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer touch-manipulation">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3258A3] to-[#4A7CC7] flex items-center justify-center text-white font-bold text-lg">
-                      {client.firstName?.[0]}{client.lastName?.[0]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">
-                        {client.firstName} {client.lastName}
-                      </h3>
-                      {(client.email || client.emailAddress) && (
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
-                          <Mail className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                          <span className="truncate">{client.email || client.emailAddress}</span>
+            {filteredClients.map((client) => {
+              // Get athletes list (prioritize new format, fallback to legacy)
+              const athletes = client.athletes || [];
+              const legacyAthletes = [
+                client.athleteFirstName && { firstName: client.athleteFirstName, lastName: client.athleteLastName, birthday: client.athleteBirthday, position: client.athletePosition },
+                client.athlete2FirstName && { firstName: client.athlete2FirstName, lastName: client.athlete2LastName, birthday: client.athlete2Birthday, position: client.athlete2Position },
+                client.athlete3FirstName && { firstName: client.athlete3FirstName, lastName: client.athlete3LastName, birthday: client.athlete3Birthday, position: client.athlete3Position },
+              ].filter(Boolean);
+              const displayAthletes = athletes.length > 0 ? athletes : legacyAthletes;
+              
+              return (
+                <Card key={client.id} className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer touch-manipulation">
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="space-y-3">
+                      {/* Parent/Guardian Header */}
+                      <div className="flex items-start space-x-4 pb-3 border-b">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3258A3] to-[#4A7CC7] flex items-center justify-center text-white font-bold text-lg">
+                          {client.firstName?.[0]}{client.lastName?.[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-900 truncate">
+                            {client.firstName} {client.lastName}
+                          </h3>
+                          {(client.email || client.emailAddress) && (
+                            <div className="flex items-center text-sm text-gray-600 mt-1">
+                              <Mail className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                              <span className="truncate">{client.email || client.emailAddress}</span>
+                            </div>
+                          )}
+                          {client.phone && (
+                            <div className="flex items-center text-sm text-gray-600 mt-1">
+                              <Phone className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                              <span>{client.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Athletes Section */}
+                      {displayAthletes.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Athletes</div>
+                          {displayAthletes.map((athlete: any, idx: number) => (
+                            <div key={idx} className="text-sm space-y-0.5 bg-gray-50 p-2 rounded">
+                              <div className="font-medium text-gray-900">
+                                {athlete.firstName} {athlete.lastName}
+                              </div>
+                              {athlete.birthday && (
+                                <div className="text-gray-600 text-xs">DOB: {athlete.birthday}</div>
+                              )}
+                              {athlete.schoolClubTeam && (
+                                <div className="text-gray-600 text-xs">Team: {athlete.schoolClubTeam}</div>
+                              )}
+                              {athlete.experienceLevel && (
+                                <div className="text-gray-600 text-xs">Level: {athlete.experienceLevel}</div>
+                              )}
+                              {athlete.position && (
+                                <div className="text-gray-600 text-xs">Position: {athlete.position}</div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       )}
-                      {client.phone && (
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
-                          <Phone className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                          <span>{client.phone}</span>
+                      
+                      {/* Emergency Contact */}
+                      {client.emergencyContactName && (
+                        <div className="text-sm">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Emergency Contact</div>
+                          <div className="text-gray-900">{client.emergencyContactName}</div>
+                          {client.emergencyContactNumber && (
+                            <div className="text-gray-600 text-xs">{client.emergencyContactNumber}</div>
+                          )}
                         </div>
                       )}
+                      
+                      {/* Referral */}
+                      {client.referredBy && (
+                        <div className="text-sm">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Referred By</div>
+                          <div className="text-gray-900">{client.referredBy}</div>
+                        </div>
+                      )}
+                      
+                      {/* Notes */}
+                      {client.notesForCoach && (
+                        <div className="text-sm">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes</div>
+                          <div className="text-gray-600 text-xs line-clamp-2">{client.notesForCoach}</div>
+                        </div>
+                      )}
+                      
+                      {/* Join Date */}
                       {client.createdAt && (
-                        <div className="flex items-center text-sm text-gray-500 mt-2">
-                          <Calendar className="h-4 w-4 mr-1.5" />
+                        <div className="flex items-center text-xs text-gray-500 pt-2 border-t">
+                          <Calendar className="h-3 w-3 mr-1.5" />
                           <span>
                             Joined {client.createdAt instanceof Date 
                               ? client.createdAt.toLocaleDateString() 
@@ -141,10 +210,10 @@ export default function ClientsPage() {
                         </div>
                       )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
 

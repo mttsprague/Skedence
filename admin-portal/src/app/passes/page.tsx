@@ -141,7 +141,7 @@ export default function PassesPage() {
       try {
         // Try new organization path first
         let packagesSnap = await getDocs(
-          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
+          collection(db, 'organizations', orgId!, 'users', selectedClient.userId, 'packages')
         );
         
         // Fall back to old path if no packages found
@@ -195,7 +195,7 @@ export default function PassesPage() {
 
         // Write to new organization path
         await addDoc(
-          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
+          collection(db, 'organizations', orgId!, 'users', selectedClient.userId, 'packages'),
           passData
         );
 

@@ -200,10 +200,13 @@ struct InAppSubscriptionView: View {
                     product: product,
                     isCurrentPlan: storeKit.isCurrentSubscription(product),
                     onSelect: {
+                        print("🔵 Plan selected: \(product.id)")
                         Task {
                             isPurchasing = true
+                            print("🔵 Starting purchase for: \(product.id)")
                             let success = await storeKit.purchase(product, organizationId: orgId)
                             isPurchasing = false
+                            print("🔵 Purchase result: \(success ? "success" : "failed")")
                             if success {
                                 showingSuccess = true
                             }

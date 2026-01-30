@@ -14,8 +14,10 @@ export const validateAppleReceipt = functions.https.onCall(
     productID: string;
     transactionID: string;
     organizationId?: string;
+    isTrialPeriod?: boolean;
+    expiresAt?: string;
   }>) => {
-    const {receipt, productID, transactionID, organizationId} = request.data;
+    const {receipt, productID, transactionID, organizationId, isTrialPeriod, expiresAt} = request.data;
     const userId = request.auth?.uid;
 
     if (!userId) {
@@ -30,28 +32,37 @@ export const validateAppleReceipt = functions.https.onCall(
     }
 
     try {
-      // Validate receipt with Apple
-      const receiptData = await validateReceiptWithApple(receipt);
+      // If we have StoreKit 2 data (isTrialPeriod and expiresAt), use it directly
+      // This is more reliable than parsing legacy verifyReceipt responses
+      let expiresDate: Date;
+      let isTrial: boolean;
 
-      // Find the latest receipt info for this product
-      const latestReceiptInfo = receiptData.latest_receipt_info?.find(
-        (info: any) => info.product_id === productID
-      );
+      if (expiresAt && isTrialPeriod !== undefined) {
+        // Use StoreKit 2 data directly
+        expiresDate = new Date(expiresAt);
+        isTrial = isTrialPeriod;
+        console.log(`✅ Using StoreKit 2 data - Product: ${productID}, Trial: ${isTrial}, Expires: ${expiresDate.toISOString()}`);
+      } else {
+        // Fall back to verifyReceipt API (legacy)
+        const receiptData = await validateReceiptWithApple(receipt);
 
-      if (!latestReceiptInfo) {
-        console.error("❌ No receipt info found. Receipt data:", JSON.stringify(receiptData, null, 2));
-        throw new functions.https.HttpsError(
-          "not-found",
-          "No receipt info found for product"
+        const latestReceiptInfo = receiptData.latest_receipt_info?.find(
+          (info: any) => info.product_id === productID
         );
+
+        if (!latestReceiptInfo) {
+          console.error("❌ No receipt info found. Receipt data:", JSON.stringify(receiptData, null, 2));
+          throw new functions.https.HttpsError(
+            "not-found",
+            "No receipt info found for product"
+          );
+        }
+
+        expiresDate = new Date(parseInt(latestReceiptInfo.expires_date_ms));
+        isTrial = latestReceiptInfo.is_trial_period === "true";
+
+        console.log(`📝 Using verifyReceipt data - Product: ${productID}, Trial: ${isTrial}, Expires: ${expiresDate.toISOString()}`);
       }
-
-      // Parse dates (Apple returns milliseconds timestamps)
-      const expiresDate = new Date(parseInt(latestReceiptInfo.expires_date_ms));
-      const isTrialPeriod = latestReceiptInfo.is_trial_period === "true";
-
-      console.log(`📝 Receipt info - Product: ${productID}, Trial: ${isTrialPeriod}, Expires: ${expiresDate.toISOString()}`);
-
       // Map product ID to plan name
       const planName = mapProductIDToPlan(productID);
 
@@ -78,7 +89,7 @@ export const validateAppleReceipt = functions.https.onCall(
             plan: planName,
             status: "active",
             currentPeriodEnd: admin.firestore.Timestamp.fromDate(expiresDate),
-            trialEndsAt: isTrialPeriod ? admin.firestore.Timestamp.fromDate(expiresDate) : null,
+            trialEndsAt: isTrial ? admin.firestore.Timestamp.fromDate(expiresDate) : null,
             cancelAtPeriodEnd: false,
             appleTransactionId: transactionID,
             appleProductId: productID,
@@ -89,14 +100,14 @@ export const validateAppleReceipt = functions.https.onCall(
         {merge: true}
       );
 
-      console.log(`✅ Synced Apple subscription for org ${orgId}: ${planName} (trial: ${isTrialPeriod})`);
+      console.log(`✅ Synced Apple subscription for org ${orgId}: ${planName} (trial: ${isTrial})`);
 
       return {
         success: true,
         plan: planName,
         status: "active",
         expiresAt: expiresDate.toISOString(),
-        isTrialPeriod,
+        isTrialPeriod: isTrial,
       };
     } catch (error: any) {
       console.error("❌ Failed to validate Apple receipt:", error);

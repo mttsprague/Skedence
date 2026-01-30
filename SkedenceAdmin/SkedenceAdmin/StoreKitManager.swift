@@ -41,6 +41,13 @@ class StoreKitManager: ObservableObject {
     
     private var transactionUpdateTask: Task<Void, Never>?
     
+    // Store the user's active subscription choice in UserDefaults
+    private var activeSubscriptionKey = "activeSubscriptionProductID"
+    private var activeSubscriptionProductID: String? {
+        get { UserDefaults.standard.string(forKey: activeSubscriptionKey) }
+        set { UserDefaults.standard.set(newValue, forKey: activeSubscriptionKey) }
+    }
+    
     struct SubscriptionStatus {
         let productID: String
         let planName: String
@@ -72,7 +79,44 @@ class StoreKitManager: ObservableObject {
     // MARK: - Check Subscription Status
     
     func checkSubscriptionStatus() async {
-        // Check for active subscription - find the most recent one
+        // If user has explicitly chosen a subscription, use that one
+        if let activeProductID = activeSubscriptionProductID {
+            print("🎯 User's active choice: \(activeProductID), looking for it...")
+            
+            // Find the transaction for the user's chosen subscription
+            for await result in StoreKit.Transaction.currentEntitlements {
+                guard case .verified(let transaction) = result else { continue }
+                
+                if transaction.productID == activeProductID {
+                    let planName = planName(from: transaction.productID)
+                    
+                    let isIntroductory: Bool
+                    if #available(iOS 17.2, macOS 14.2, watchOS 10.2, tvOS 17.2, *) {
+                        isIntroductory = (transaction.offer?.type == .introductory)
+                    } else {
+                        isIntroductory = (transaction.offerType == .introductory)
+                    }
+                    
+                    subscriptionStatus = SubscriptionStatus(
+                        productID: transaction.productID,
+                        planName: planName,
+                        expirationDate: transaction.expirationDate,
+                        isInTrialPeriod: isIntroductory,
+                        willAutoRenew: transaction.revocationDate == nil
+                    )
+                    
+                    purchasedProductIDs.insert(transaction.productID)
+                    await syncSubscriptionToBackend(transaction: transaction)
+                    
+                    print("✅ Active subscription found: \(planName) (purchased: \(transaction.purchaseDate))")
+                    return
+                }
+            }
+            
+            print("⚠️ User's chosen subscription \(activeProductID) not found in entitlements, scanning all...")
+        }
+        
+        // Fallback: Check for active subscription - find the most recent one
         var mostRecentTransaction: StoreKit.Transaction?
         var mostRecentDate: Date?
         
@@ -129,11 +173,13 @@ class StoreKitManager: ObservableObject {
     // MARK: - Purchase Subscription
     
     func purchase(_ product: Product, organizationId: String) async -> Bool {
+        print("🛒 purchase() called for product: \(product.id), org: \(organizationId)")
         do {
             // Check if eligible for free trial
             let isEligibleForTrial = await checkTrialEligibility(productID: product.id)
+            print("🎫 Trial eligibility: \(isEligibleForTrial)")
             
-            var options: Set<Product.PurchaseOption> = []
+            let options: Set<Product.PurchaseOption> = []
             
             // Add promotional offer if eligible for trial
             if isEligibleForTrial {
@@ -142,7 +188,9 @@ class StoreKitManager: ObservableObject {
                 print("ℹ️ User eligible for 14-day free trial")
             }
             
+            print("💳 About to call product.purchase() with options: \(options)")
             let result = try await product.purchase(options: options)
+            print("📦 Purchase result received")
             
             switch result {
             case .success(let verification):
@@ -152,15 +200,18 @@ class StoreKitManager: ObservableObject {
                     // Successful purchase
                     print("✅ Purchase successful: \(product.id)")
                     
-                    // In sandbox, multiple subscriptions can coexist
-                    // In production, Apple automatically supersedes old subscriptions
-                    // Don't manually finish old transactions - let Apple handle it
+                    // Cancel all other active subscriptions before activating this one
+                    await cancelOtherSubscriptions(except: product.id)
                     
-                    // Update local state with THIS transaction (don't scan all)
+                    // Store user's choice persistently - this is what matters most
+                    activeSubscriptionProductID = product.id
+                    print("💾 Saved active subscription choice: \(product.id)")
+                    
+                    // Use the product the user clicked, not what StoreKit returned
+                    // In sandbox, transactions can be stale or wrong, so trust user intent
                     purchasedProductIDs.insert(product.id)
                     
-                    // Set subscription status directly from the purchased transaction
-                    let planName = planName(from: transaction.productID)
+                    let planName = planName(from: product.id)
                     let isIntroductory: Bool
                     if #available(iOS 17.2, macOS 14.2, watchOS 10.2, tvOS 17.2, *) {
                         isIntroductory = (transaction.offer?.type == .introductory)
@@ -169,7 +220,7 @@ class StoreKitManager: ObservableObject {
                     }
                     
                     subscriptionStatus = SubscriptionStatus(
-                        productID: transaction.productID,
+                        productID: product.id,  // Use what user clicked, not transaction.productID
                         planName: planName,
                         expirationDate: transaction.expirationDate,
                         isInTrialPeriod: isIntroductory,
@@ -179,7 +230,6 @@ class StoreKitManager: ObservableObject {
                     print("✅ Active subscription set: \(planName) (just purchased)")
                     
                     // Sync to backend BEFORE finishing the transaction
-                    // This ensures receipt is still available
                     await syncSubscriptionToBackend(transaction: transaction)
                     
                     // Finish the transaction
@@ -254,6 +304,27 @@ class StoreKitManager: ObservableObject {
     
     // MARK: - Helper Methods
     
+    private func cancelOtherSubscriptions(except productID: String) async {
+        print("🗑️ Canceling other subscriptions (keeping: \(productID))...")
+        
+        var canceledCount = 0
+        for await result in StoreKit.Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else { continue }
+            
+            // Skip the one we just purchased
+            if transaction.productID == productID {
+                continue
+            }
+            
+            // Finish the transaction
+            print("   Finishing old subscription: \(transaction.productID)")
+            await transaction.finish()
+            canceledCount += 1
+        }
+        
+        print("✅ Finished \(canceledCount) old subscription(s)")
+    }
+    
     private func checkTrialEligibility(productID: String) async -> Bool {
         // Check if user has ever subscribed to this product
         for await result in StoreKit.Transaction.all {
@@ -323,13 +394,29 @@ class StoreKitManager: ObservableObject {
             return
         }
         
+        // Get trial status from StoreKit 2 transaction (more reliable than verifyReceipt)
+        let isInTrial: Bool
+        if #available(iOS 17.2, macOS 14.2, watchOS 10.2, tvOS 17.2, *) {
+            isInTrial = (transaction.offer?.type == .introductory)
+        } else {
+            isInTrial = (transaction.offerType == .introductory)
+        }
+        
         let functions = Functions.functions()
-        let data: [String: Any] = [
+        var data: [String: Any] = [
             "receipt": receipt,
             "productID": transaction.productID,
             "transactionID": String(transaction.id),
-            "organizationId": organizationId
+            "organizationId": organizationId,
+            "isTrialPeriod": isInTrial  // Pass trial status from StoreKit 2
         ]
+        
+        // Add expiration date if available
+        if let expirationDate = transaction.expirationDate {
+            data["expiresAt"] = ISO8601DateFormatter().string(from: expirationDate)
+        }
+        
+        print("📤 Syncing to backend - Trial: \(isInTrial), Expires: \(transaction.expirationDate?.description ?? "unknown")")
         
         do {
             let result = try await functions.httpsCallable("validateAppleReceipt").call(data)

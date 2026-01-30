@@ -1,5 +1,14 @@
 // Firestore types based on existing Skedence Firebase structure
 
+export interface AthleteInfo {
+  firstName?: string;
+  lastName?: string;
+  birthday?: string;
+  schoolClubTeam?: string;
+  experienceLevel?: string;
+  position?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -15,6 +24,27 @@ export interface User {
   stripeCustomerId?: string;
   createdAt?: Date;
   isActive?: boolean; // For trainer status
+  
+  // Enhanced profile fields
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
+  referredBy?: string;
+  notesForCoach?: string;
+  athletes?: AthleteInfo[];
+  
+  // Legacy athlete fields (for backward compatibility)
+  athleteFirstName?: string;
+  athleteLastName?: string;
+  athleteBirthday?: string;
+  athletePosition?: string;
+  athlete2FirstName?: string;
+  athlete2LastName?: string;
+  athlete2Birthday?: string;
+  athlete2Position?: string;
+  athlete3FirstName?: string;
+  athlete3LastName?: string;
+  athlete3Birthday?: string;
+  athlete3Position?: string;
 }
 
 export interface Trainer extends User {

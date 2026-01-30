@@ -86,7 +86,7 @@ export default function DashboardPage() {
           try {
             // Try new organization path first
             let packagesSnap = await getDocs(
-              collection(db, 'organizations', orgId, 'users', memberData.userId, 'packages')
+              collection(db, 'organizations', orgId!, 'users', memberData.userId, 'packages')
             );
             
             // Fall back to old path if no packages found

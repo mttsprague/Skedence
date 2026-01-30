@@ -115,6 +115,7 @@ export default function ClassesPage() {
           id: doc.id,
           ...doc.data(),
         })) as GroupClass[];
+        // Sort chronologically - earliest (next upcoming) first
         setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
       } catch (error) {
         console.error('Error loading data:', error);
@@ -172,6 +173,7 @@ export default function ClassesPage() {
           id: doc.id,
           ...doc.data(),
         })) as GroupClass[];
+        // Sort chronologically - earliest (next upcoming) first
         setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
       } else {
         // Create class document(s)
@@ -243,6 +245,7 @@ export default function ClassesPage() {
           id: doc.id,
           ...doc.data(),
         })) as GroupClass[];
+        // Sort chronologically - earliest (next upcoming) first
         setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
       }
 

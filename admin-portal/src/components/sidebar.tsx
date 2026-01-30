@@ -18,7 +18,8 @@ import {
   X,
   Package,
   DollarSign,
-  CreditCard
+  CreditCard,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const navigation = [
   { name: 'Passes', href: '/passes', icon: Package },
   { name: 'Pricing', href: '/pricing', icon: DollarSign },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Waiver', href: '/waiver', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

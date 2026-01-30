@@ -46,11 +46,37 @@ final class UsersService: ObservableObject {
     }
 
     private func decodeUserProfile(id: String, data: [String: Any]) -> UserProfile {
-        UserProfile(
+        // Decode athletes array if available
+        var athletes: [AthleteInfo]? = nil
+        if let athletesData = data["athletes"] as? [[String: Any]] {
+            athletes = athletesData.compactMap { athleteDict in
+                AthleteInfo(
+                    firstName: athleteDict["firstName"] as? String,
+                    lastName: athleteDict["lastName"] as? String,
+                    birthday: athleteDict["birthday"] as? String,
+                    schoolClubTeam: athleteDict["schoolClubTeam"] as? String,
+                    experienceLevel: athleteDict["experienceLevel"] as? String,
+                    position: athleteDict["position"] as? String
+                )
+            }
+        }
+        
+        return UserProfile(
             id: id,
             emailAddress: data["emailAddress"] as? String,
             firstName: data["firstName"] as? String,
             lastName: data["lastName"] as? String,
+            phoneNumber: data["phoneNumber"] as? String,
+            photoURL: data["photoURL"] as? String,
+            active: data["active"] as? Bool,
+            createdAt: Self.date(from: data["createdAt"]),
+            updatedAt: Self.date(from: data["updatedAt"]),
+            emergencyContactName: data["emergencyContactName"] as? String,
+            emergencyContactNumber: data["emergencyContactNumber"] as? String,
+            referredBy: data["referredBy"] as? String,
+            notesForCoach: data["notesForCoach"] as? String,
+            athletes: athletes,
+            // Legacy fields for backward compatibility
             athleteFirstName: data["athleteFirstName"] as? String,
             athleteLastName: data["athleteLastName"] as? String,
             athleteBirthday: data["athleteBirthday"] as? String,
@@ -62,13 +88,7 @@ final class UsersService: ObservableObject {
             athlete3Birthday: data["athlete3Birthday"] as? String,
             athletePosition: data["athletePosition"] as? String,
             athlete2Position: data["athlete2Position"] as? String,
-            athlete3Position: data["athlete3Position"] as? String,
-            notesForCoach: data["notesForCoach"] as? String,
-            phoneNumber: data["phoneNumber"] as? String,
-            photoURL: data["photoURL"] as? String,
-            active: data["active"] as? Bool,
-            createdAt: Self.date(from: data["createdAt"]),
-            updatedAt: Self.date(from: data["updatedAt"])
+            athlete3Position: data["athlete3Position"] as? String
         )
     }
 
@@ -85,6 +105,82 @@ final class UsersService: ObservableObject {
         return currentUser
     }
     
+    // New method that accepts a UserProfile object directly
+    func updateCurrentUser(_ profile: UserProfile) async throws {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            throw NSError(domain: "UsersService", code: 401, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
+        }
+        
+        var updateData: [String: Any] = [
+            "updatedAt": FieldValue.serverTimestamp()
+        ]
+        
+        // Add parent/guardian fields
+        if let firstName = profile.firstName {
+            updateData["firstName"] = firstName
+        }
+        if let lastName = profile.lastName {
+            updateData["lastName"] = lastName
+        }
+        if let emailAddress = profile.emailAddress {
+            updateData["emailAddress"] = emailAddress
+        }
+        if let phoneNumber = profile.phoneNumber {
+            updateData["phoneNumber"] = phoneNumber
+        }
+        
+        // Add emergency contact fields
+        if let emergencyContactName = profile.emergencyContactName {
+            updateData["emergencyContactName"] = emergencyContactName
+        }
+        if let emergencyContactNumber = profile.emergencyContactNumber {
+            updateData["emergencyContactNumber"] = emergencyContactNumber
+        }
+        
+        // Add referral field
+        if let referredBy = profile.referredBy {
+            updateData["referredBy"] = referredBy
+        }
+        
+        // Add notes
+        if let notesForCoach = profile.notesForCoach {
+            updateData["notesForCoach"] = notesForCoach
+        }
+        
+        // Add athletes array
+        if let athletes = profile.athletes {
+            let athletesData: [[String: Any]] = athletes.map { athlete in
+                var athleteDict: [String: Any] = [:]
+                if let firstName = athlete.firstName {
+                    athleteDict["firstName"] = firstName
+                }
+                if let lastName = athlete.lastName {
+                    athleteDict["lastName"] = lastName
+                }
+                if let birthday = athlete.birthday {
+                    athleteDict["birthday"] = birthday
+                }
+                if let schoolClubTeam = athlete.schoolClubTeam {
+                    athleteDict["schoolClubTeam"] = schoolClubTeam
+                }
+                if let experienceLevel = athlete.experienceLevel {
+                    athleteDict["experienceLevel"] = experienceLevel
+                }
+                if let position = athlete.position {
+                    athleteDict["position"] = position
+                }
+                return athleteDict
+            }
+            updateData["athletes"] = athletesData
+        }
+        
+        try await db.collection("users").document(uid).updateData(updateData)
+        
+        // Reload the profile after update
+        await loadCurrentUserIfAvailable()
+    }
+    
+    // Legacy method - kept for backward compatibility
     func updateUserProfile(
         firstName: String,
         lastName: String,

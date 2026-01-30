@@ -23,10 +23,8 @@ final class SettingsService: ObservableObject {
         defer { isLoading = false }
         
         do {
-            // Settings are stored in organizations/{orgId}/settings/{orgId}
+            // Settings are stored directly in organizations/{orgId} document
             let doc = try await db.collection("organizations")
-                .document(orgId)
-                .collection("settings")
                 .document(orgId)
                 .getDocument()
             
@@ -35,15 +33,18 @@ final class SettingsService: ObservableObject {
                 let minBookingHours = data["minBookingHours"] as? Int ?? 4
                 let minCancellationHours = data["minCancellationHours"] as? Int ?? 24
                 let maxBookingsPerLocation = data["maxBookingsPerLocation"] as? Int ?? 5
+                let requireWaiver = data["requireWaiver"] as? Bool ?? true
+                let waiverText = data["waiverText"] as? String ?? ""
                 let updatedAt = data["updatedAt"] as? Timestamp
-                let storedOrgId = data["orgId"] as? String ?? orgId
                 
                 self.settings = OrgSettings(
                     id: doc.documentID,
-                    orgId: storedOrgId,
+                    orgId: orgId,
                     minBookingHours: minBookingHours,
                     minCancellationHours: minCancellationHours,
                     maxBookingsPerLocation: maxBookingsPerLocation,
+                    requireWaiver: requireWaiver,
+                    waiverText: waiverText,
                     updatedAt: updatedAt
                 )
             } else {
@@ -70,6 +71,18 @@ final class SettingsService: ObservableObject {
         guard let settings = settings else { return false } // Allow cancellation if no settings
         let hoursUntilLesson = lessonStartTime.timeIntervalSinceNow / 3600
         return hoursUntilLesson <= Double(settings.minCancellationHours)
+    }
+    
+    // Helper to check if waiver is required and whether user has signed it
+    func checkWaiverRequirement(userId: String, settings: OrgSettings?) async throws -> (required: Bool, signed: Bool) {
+        guard let settings = settings, settings.requireWaiver else {
+            // Waiver not required for this organization
+            return (required: false, signed: true)
+        }
+        
+        // Check if user has signed waiver
+        let hasSigned = try await DocumentsService.shared.hasSignedWaiver(userId: userId)
+        return (required: true, signed: hasSigned)
     }
 }
 

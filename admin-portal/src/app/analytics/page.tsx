@@ -48,9 +48,9 @@ export default function AnalyticsPage() {
           const memberData = memberDoc.data();
           if (memberData.role !== 'client') continue;
           
-          // Try new organization path first
+          // Try new organization path first (only if orgId is available)
           let packagesSnap = await getDocs(
-            collection(db, 'organizations', orgId, 'users', memberData.userId, 'packages')
+            collection(db, 'organizations', orgId!, 'users', memberData.userId, 'packages')
           );
           
           // Fall back to old path if no packages found

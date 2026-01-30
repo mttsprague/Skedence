@@ -14,11 +14,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { startOfWeek, addDays, setHours, setMinutes } from 'date-fns';
 import { User, Users } from 'lucide-react';
 
+interface AthleteInfo {
+  firstName?: string;
+  lastName?: string;
+  birthday?: string;
+  schoolClubTeam?: string;
+  experienceLevel?: string;
+  position?: string;
+}
+
 interface Booking {
   id: string;
   clientId?: string;
   clientUID?: string;
   clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
+  referredBy?: string;
+  notesForCoach?: string;
+  athletes?: AthleteInfo[];
   trainerId: string;
   startTime: Date;
   endTime: Date;
@@ -142,12 +158,27 @@ export default function SchedulePage() {
         const actualClientId = data.clientUID || data.clientId;
         
         let clientName = 'Unknown Client';
+        let clientEmail: string | undefined;
+        let clientPhone: string | undefined;
+        let emergencyContactName: string | undefined;
+        let emergencyContactNumber: string | undefined;
+        let referredBy: string | undefined;
+        let notesForCoach: string | undefined;
+        let athletes: AthleteInfo[] | undefined;
+        
         if (actualClientId) {
           try {
             const clientDoc = await getDoc(doc(db, 'users', actualClientId));
             if (clientDoc.exists()) {
               const clientData = clientDoc.data();
               clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim();
+              clientEmail = clientData.emailAddress || clientData.email;
+              clientPhone = clientData.phoneNumber;
+              emergencyContactName = clientData.emergencyContactName;
+              emergencyContactNumber = clientData.emergencyContactNumber;
+              referredBy = clientData.referredBy;
+              notesForCoach = clientData.notesForCoach;
+              athletes = clientData.athletes;
             }
           } catch (err) {
             console.error('Error fetching client:', err);
@@ -163,6 +194,13 @@ export default function SchedulePage() {
           endTime: data.endTime.toDate(),
           status: data.status || 'confirmed',
           clientName,
+          clientEmail,
+          clientPhone,
+          emergencyContactName,
+          emergencyContactNumber,
+          referredBy,
+          notesForCoach,
+          athletes,
         });
       }
       setBookings(bookingsData);
@@ -569,23 +607,98 @@ export default function SchedulePage() {
 
       {/* Booking Detail Dialog */}
       <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Booking Details</DialogTitle>
           </DialogHeader>
           {selectedBooking && (
-            <div className="space-y-4 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <User className="h-6 w-6 text-blue-600" />
+            <div className="space-y-5 py-4">
+              {/* Client Header */}
+              <div className="flex items-center gap-3 pb-4 border-b">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-xl">
+                  {selectedBooking.clientName?.split(' ').map(n => n[0]).join('')}
                 </div>
-                <div>
-                  <div className="font-semibold">{selectedBooking.clientName}</div>
-                  <div className="text-sm text-gray-600">
+                <div className="flex-1">
+                  <div className="text-xl font-semibold">{selectedBooking.clientName}</div>
+                  <div className="text-sm text-gray-600 mt-1">
                     {new Date(selectedBooking.startTime).toLocaleString()}
                   </div>
                 </div>
               </div>
+              
+              {/* Contact Information */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-gray-900">Contact Information</h3>
+                {selectedBooking.clientEmail && (
+                  <div className="text-sm">
+                    <span className="text-gray-600">Email:</span> {selectedBooking.clientEmail}
+                  </div>
+                )}
+                {selectedBooking.clientPhone && (
+                  <div className="text-sm">
+                    <span className="text-gray-600">Phone:</span> {selectedBooking.clientPhone}
+                  </div>
+                )}
+              </div>
+              
+              {/* Athletes */}
+              {selectedBooking.athletes && selectedBooking.athletes.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-900">Athletes</h3>
+                  <div className="space-y-3">
+                    {selectedBooking.athletes.map((athlete, idx) => (
+                      <div key={idx} className="bg-gray-50 p-3 rounded-lg space-y-1">
+                        <div className="font-medium text-gray-900">
+                          {athlete.firstName} {athlete.lastName}
+                        </div>
+                        {athlete.birthday && (
+                          <div className="text-sm text-gray-600">DOB: {athlete.birthday}</div>
+                        )}
+                        {athlete.schoolClubTeam && (
+                          <div className="text-sm text-gray-600">Team: {athlete.schoolClubTeam}</div>
+                        )}
+                        {athlete.experienceLevel && (
+                          <div className="text-sm text-gray-600">Experience: {athlete.experienceLevel}</div>
+                        )}
+                        {athlete.position && (
+                          <div className="text-sm text-gray-600">Position: {athlete.position}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Emergency Contact */}
+              {selectedBooking.emergencyContactName && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-900">Emergency Contact</h3>
+                  <div className="text-sm">
+                    <div className="text-gray-900">{selectedBooking.emergencyContactName}</div>
+                    {selectedBooking.emergencyContactNumber && (
+                      <div className="text-gray-600">{selectedBooking.emergencyContactNumber}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Referral */}
+              {selectedBooking.referredBy && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-900">Referred By</h3>
+                  <div className="text-sm text-gray-900">{selectedBooking.referredBy}</div>
+                </div>
+              )}
+              
+              {/* Notes for Coach */}
+              {selectedBooking.notesForCoach && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-900">Notes for Coach</h3>
+                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                    {selectedBooking.notesForCoach}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

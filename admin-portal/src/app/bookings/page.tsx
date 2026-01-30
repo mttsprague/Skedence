@@ -145,7 +145,7 @@ export default function BookingsPage() {
       // Try new organization path first
       console.log('Bookings: Querying path: organizations/' + orgId + '/users/' + clientId + '/packages');
       let allPackagesSnapshot = await getDocs(
-        collection(db, 'organizations', orgId, 'users', clientId, 'packages')
+        collection(db, 'organizations', orgId!, 'users', clientId, 'packages')
       );
       
       // Fall back to old path if no packages found

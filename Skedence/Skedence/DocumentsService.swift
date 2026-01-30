@@ -129,7 +129,7 @@ final class DocumentsService {
         let snapshot = try await db.collection("users")
             .document(userId)
             .collection("documents")
-            .whereField("type", isEqualTo: "waiver")
+            .whereField("type", in: ["waiver", "waiver_agreement"])
             .limit(to: 1)
             .getDocuments()
         
