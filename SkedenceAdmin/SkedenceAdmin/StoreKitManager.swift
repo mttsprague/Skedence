@@ -73,7 +73,7 @@ class StoreKitManager: ObservableObject {
     
     func checkSubscriptionStatus() async {
         // Check for active subscription
-        for await result in Transaction.currentEntitlements {
+        for await result in StoreKit.Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             
             // Found an active subscription (ensure it's one of our known product IDs)
@@ -219,7 +219,7 @@ class StoreKitManager: ObservableObject {
     
     private func checkTrialEligibility(productID: String) async -> Bool {
         // Check if user has ever subscribed to this product
-        for await result in Transaction.all {
+        for await result in StoreKit.Transaction.all {
             guard case .verified(let transaction) = result else { continue }
             
             if transaction.productID == productID {
@@ -242,30 +242,35 @@ class StoreKitManager: ObservableObject {
         }
     }
     
-    private func syncSubscriptionToBackend(transaction: Transaction) async {
+    private func syncSubscriptionToBackend(transaction: StoreKit.Transaction) async {
         guard let currentUser = Auth.auth().currentUser else {
             print("❌ Cannot sync: No authenticated user")
             return
         }
         
-        // Get organization ID
+        // Get organization ID from orgMembers collection (same as AuthManager)
         let db = Firestore.firestore()
         let orgId: String?
         
         do {
-            let userDoc = try await db.collection("users").document(currentUser.uid).getDocument()
-            if let orgs = userDoc.data()?["organizations"] as? [String], !orgs.isEmpty {
-                orgId = orgs.first
+            let snapshot = try await db.collection("orgMembers")
+                .whereField("userId", isEqualTo: currentUser.uid)
+                .whereField("isActive", isEqualTo: true)
+                .limit(to: 1)
+                .getDocuments()
+            
+            if let doc = snapshot.documents.first {
+                orgId = doc.data()["orgId"] as? String
             } else {
                 orgId = nil
             }
         } catch {
-            print("❌ Cannot sync: Failed to get user's organization - \(error)")
+            print("❌ Cannot sync: Failed to query orgMembers - \(error)")
             return
         }
         
         guard let organizationId = orgId else {
-            print("❌ Cannot sync: User has no organization")
+            print("❌ Cannot sync: User has no active organization in orgMembers")
             return
         }
         
@@ -298,9 +303,10 @@ class StoreKitManager: ObservableObject {
         }
     }
     
-    private func getJWSRepresentation(for transaction: Transaction) async -> String? {
+    private func getJWSRepresentation(for transaction: StoreKit.Transaction) async -> String? {
         // Get the JWS representation which works in sandbox
-        return transaction.jsonRepresentation.data(using: .utf8)?.base64EncodedString()
+        // jsonRepresentation is Data; base64-encode it to a String
+        return transaction.jsonRepresentation.base64EncodedString()
     }
     
     private func getReceiptData() async -> String? {
@@ -315,7 +321,7 @@ class StoreKitManager: ObservableObject {
     
     private func observeTransactionUpdates() -> Task<Void, Never> {
         Task.detached { [weak self] in
-            for await result in Transaction.updates {
+            for await result in StoreKit.Transaction.updates {
                 guard case .verified(let transaction) = result else { continue }
                 
                 await self?.handleTransactionUpdate(transaction)
@@ -324,7 +330,7 @@ class StoreKitManager: ObservableObject {
         }
     }
     
-    private func handleTransactionUpdate(_ transaction: Transaction) async {
+    private func handleTransactionUpdate(_ transaction: StoreKit.Transaction) async {
         print("📱 Transaction update received: \(transaction.productID)")
         await checkSubscriptionStatus()
     }
