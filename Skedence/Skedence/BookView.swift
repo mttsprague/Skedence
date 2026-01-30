@@ -8,6 +8,7 @@
 import SwiftUI
 import StripePaymentSheet
 import FirebaseAuth
+import FirebaseFirestore
 
 struct BookView: View {
     @EnvironmentObject var auth: AuthManager
@@ -57,81 +58,59 @@ struct BookView: View {
     // Get available lesson packages (excluding class passes)
     private var availableLessonPackages: [LessonPackage] {
         let now = Date()
-        
-        // Get all valid package types from current pricing structure
         let validPackageTypes = getCurrentPackageTypes(category: "pass")
-        
         let filtered = packagesService.packages.filter { pkg -> Bool in
-            let canBook = pkg.canBookLessons // Only pass packages, not class packages
+            let canBook = pkg.canBookLessons
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
             let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
             return canBook && hasRemaining && notExpired && isCurrentPackage
         }
-        let sorted = filtered.sorted { (a, b) -> Bool in
-            return a.expirationDate < b.expirationDate
-        }
+        let sorted = filtered.sorted { $0.expirationDate < $1.expirationDate }
         return sorted
     }
     
-    // Get unique package types from available packages (for grouping in dropdown)
     private var uniquePackageTypes: [String] {
         let types = Set(availableLessonPackages.map { $0.packageType })
         return Array(types).sorted()
     }
     
-    // Get total remaining lessons for a specific lesson package type
     private func totalRemainingForLessons(packageType: String) -> Int {
         return availableLessonPackages.filter { $0.packageType == packageType }
             .reduce(0) { $0 + $1.lessonsRemaining }
     }
     
-    // Get the first package of a specific type (for booking)
     private func firstPackage(ofType packageType: String) -> LessonPackage? {
         return availableLessonPackages.first { $0.packageType == packageType }
     }
     
-    // Get available class passes (for booking classes)
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
-        
-        // Get all valid package types from current pricing structure
         let validPackageTypes = getCurrentPackageTypes(category: "class")
-        
-        // Debug: Print all packages
         print("🔍 DEBUG availableClassPasses: All packages count: \(packagesService.packages.count)")
         print("🔍 Valid package types from pricing structure: \(validPackageTypes)")
         for pkg in packagesService.packages {
             print("🔍 Package: type=\(pkg.packageType), category=\(pkg.packageCategory ?? "nil"), name=\(pkg.packageName ?? "nil"), canBookClasses=\(pkg.canBookClasses), remaining=\(pkg.lessonsRemaining)")
         }
-        
         let filtered = packagesService.packages.filter { pkg -> Bool in
-            let canBook = pkg.canBookClasses // Only class packages
+            let canBook = pkg.canBookClasses
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
             let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
             print("🔍 Package \(pkg.packageType): canBook=\(canBook), hasRemaining=\(hasRemaining), notExpired=\(notExpired), isCurrentPackage=\(isCurrentPackage)")
             return canBook && hasRemaining && notExpired && isCurrentPackage
         }
-        
         print("🔍 DEBUG availableClassPasses: Filtered class passes count: \(filtered.count)")
-        
-        let sorted = filtered.sorted { (a, b) -> Bool in
-            return a.expirationDate < b.expirationDate
-        }
+        let sorted = filtered.sorted { $0.expirationDate < $1.expirationDate }
         return sorted
     }
     
-    // Helper to get all valid package types/IDs from current pricing structure
     private func getCurrentPackageTypes(category: String) -> Set<String> {
         guard let pricing = pricingService.pricingStructure else { return [] }
-        
         var packageTypes = Set<String>()
         for tier in pricing.tiers {
             for package in tier.packages {
-                // Match by category if specified
                 if category == "pass" && package.packageCategory.rawValue == "pass" {
-                    // Add both the package ID and packageType for matching
                     packageTypes.insert(package.id)
                     packageTypes.insert(package.packageType)
                 } else if category == "class" && package.packageCategory.rawValue == "class" {
@@ -140,7 +119,6 @@ struct BookView: View {
                 }
             }
         }
-        
         print("🔍 getCurrentPackageTypes(\(category)): Found \(packageTypes.count) valid types: \(packageTypes)")
         return packageTypes
     }
@@ -148,12 +126,9 @@ struct BookView: View {
     var body: some View {
         mainContent
             .navigationViewStyle(.stack)
-            .task {
-                await loadInitialData()
-            }
+            .task { await loadInitialData() }
             .onAppear {
                 setupInitialMode()
-                // Reload classes when view appears if in classes mode
                 if mode == .classes, let orgId = auth.currentOrgId {
                     Task { await classesService.loadOpenClasses(orgId: orgId) }
                 }
@@ -182,28 +157,20 @@ struct BookView: View {
                     Alert(
                         title: Text(alert.title),
                         message: Text(alert.message),
-                        dismissButton: .default(Text("OK")) {
-                            alert.action?()
-                        }
+                        dismissButton: .default(Text("OK")) { alert.action?() }
                     )
                 }
                 .sheet(item: $selectedClass) { classItem in
                     classRegistrationSheet(for: classItem)
                 }
-                .sheet(isPresented: $showSubscriptionSheet) {
-                    SubscriptionRequiredView()
-                }
-                .sheet(isPresented: $showBookingInstructions) {
-                    BookingInstructionsSheet()
-                }
+                .sheet(isPresented: $showSubscriptionSheet) { SubscriptionRequiredView() }
+                .sheet(isPresented: $showBookingInstructions) { BookingInstructionsSheet() }
                 .sheet(isPresented: $showWaiverAgreement) {
                     WaiverAgreementCheckboxView(
                         waiverText: settingsService.settings?.waiverText ?? "",
                         userProfile: usersService.currentUser,
                         onAgree: {
-                            Task {
-                                await handleWaiverAgreement()
-                            }
+                            Task { await handleWaiverAgreement() }
                         },
                         onCancel: {
                             showWaiverAgreement = false
@@ -217,12 +184,7 @@ struct BookView: View {
     private var contentView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                // Clients should never see subscription warnings
-                // Backend enforces subscription limits
-                
                 modePicker
-                
-                // Show lessons or classes based on mode
                 if mode == .lessons {
                     lessonsContent
                 } else {
@@ -267,22 +229,17 @@ struct BookView: View {
     
     private func loadInitialData() async {
         guard let orgId = auth.currentOrgId else { return }
-        
-        // Load settings and pricing structure first
         await settingsService.loadSettings(orgId: orgId)
         await pricingService.loadPricingStructure(for: orgId)
-        
         if trainersService.trainers.isEmpty {
             await trainersService.loadAll(orgId: orgId)
         }
-        // Auto-select Jeff (or first trainer) once trainers are available
         if selectedTrainer == nil {
             if let jeff = trainersService.trainers.first(where: { isJeff($0) }) {
                 selectedTrainer = jeff
             } else {
                 selectedTrainer = trainersService.trainers.first
             }
-            // After selecting default trainer, load availability
             await loadMonthIfPossible()
             await loadDayIfPossible()
         }
@@ -290,7 +247,6 @@ struct BookView: View {
     }
     
     private func setupInitialMode() {
-        // Sync mode with initialMode binding
         mode = initialMode == 1 ? .classes : .lessons
     }
     
@@ -298,7 +254,6 @@ struct BookView: View {
         if availableLessonPackages.count == 1 {
             selectedPackage = availableLessonPackages.first
         } else if let selected = selectedPackage, !availableLessonPackages.contains(where: { $0.id == selected.id }) {
-            // Reset if selected package is no longer available
             selectedPackage = nil
         }
     }
@@ -312,7 +267,6 @@ struct BookView: View {
                     Text("Select Trainer")
                         .font(.headingMedium)
                         .foregroundStyle(AppTheme.textPrimary)
-                    
                     Button {
                         showBookingInstructions = true
                     } label: {
@@ -345,7 +299,6 @@ struct BookView: View {
                     } label: {
                         HStack(spacing: Spacing.md) {
                             TrainerAvatarView(trainer: selectedTrainer, size: 48)
-
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(selectedTrainer?.name ?? "")
                                     .font(.headingSmall)
@@ -395,8 +348,7 @@ struct BookView: View {
                     if scheduleService.isLoadingDay {
                         HStack {
                             Spacer()
-                            ProgressView()
-                                .tint(AppTheme.primary)
+                            ProgressView().tint(AppTheme.primary)
                             Spacer()
                         }
                         .padding(Spacing.xl)
@@ -420,14 +372,13 @@ struct BookView: View {
                             } label: {
                                 HStack(spacing: Spacing.md) {
                                     ZStack {
-                                        RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                        RoundedRectangle(cornerRadius: CornerRadius.xs)
                                             .fill(isSelected ? AppTheme.primary.opacity(0.15) : AppTheme.primary.opacity(0.08))
                                             .frame(width: 48, height: 48)
                                         Image(systemName: isBookable ? "clock" : "clock.badge.exclamationmark")
                                             .font(.system(size: 20, weight: .semibold))
                                             .foregroundStyle(isBookable ? (isSelected ? AppTheme.primary : AppTheme.textSecondary) : AppTheme.textTertiary)
                                     }
-                                    
                                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                                         Text(slot.startTime.formatted(date: .omitted, time: .shortened))
                                             .font(.headingSmall)
@@ -447,9 +398,7 @@ struct BookView: View {
                                                 .foregroundStyle(AppTheme.textTertiary)
                                         }
                                     }
-                                    
                                     Spacer()
-                                    
                                     ZStack {
                                         Circle()
                                             .stroke(isSelected ? AppTheme.primary : AppTheme.textTertiary, lineWidth: 2)
@@ -463,10 +412,10 @@ struct BookView: View {
                                 }
                                 .padding(Spacing.md)
                                 .background(
-                                    RoundedRectangle(cornerRadius: CornerRadius.md, style: .continuous)
+                                    RoundedRectangle(cornerRadius: CornerRadius.md)
                                         .fill(Color.platformBackground)
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: CornerRadius.md, style: .continuous)
+                                            RoundedRectangle(cornerRadius: CornerRadius.md)
                                                 .stroke(isSelected ? AppTheme.primary.opacity(0.3) : Color.clear, lineWidth: 2)
                                         )
                                 )
@@ -479,7 +428,6 @@ struct BookView: View {
                 }
             }
             
-            // Package selection (only show if user has multiple available passes)
             if !availableLessonPackages.isEmpty {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text("Select Pass to Use")
@@ -491,7 +439,6 @@ struct BookView: View {
                         Menu {
                             ForEach(uniquePackageTypes, id: \.self) { packageType in
                                 Button {
-                                    // Select the first package of this type
                                     selectedPackage = firstPackage(ofType: packageType)
                                 } label: {
                                     if let firstPkg = firstPackage(ofType: packageType) {
@@ -506,14 +453,13 @@ struct BookView: View {
                         } label: {
                             HStack(spacing: Spacing.md) {
                                 ZStack {
-                                    RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                    RoundedRectangle(cornerRadius: CornerRadius.xs)
                                         .fill(AppTheme.primary.opacity(0.08))
                                         .frame(width: 48, height: 48)
                                     Image(systemName: "ticket")
                                         .font(.system(size: 20, weight: .semibold))
                                         .foregroundStyle(AppTheme.primary)
                                 }
-                                
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                                     if let pkg = selectedPackage {
                                         let totalRemaining = totalRemainingForLessons(packageType: pkg.packageType)
@@ -555,8 +501,7 @@ struct BookView: View {
             } label: {
                 HStack(spacing: Spacing.sm) {
                     if bookingInFlight {
-                        ProgressView()
-                            .tint(.white)
+                        ProgressView().tint(.white)
                     } else if !packagesService.hasAvailableLessons {
                         Image(systemName: "cart.badge.plus")
                     }
@@ -579,15 +524,9 @@ struct BookView: View {
                 .font(.headingMedium)
                 .foregroundStyle(AppTheme.textPrimary)
             .padding(.horizontal, Spacing.lg)
-            
             if classesService.isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .tint(AppTheme.primary)
-                    Spacer()
-                }
-                .padding(Spacing.xl)
+                HStack { Spacer(); ProgressView().tint(AppTheme.primary); Spacer() }
+                    .padding(Spacing.xl)
             } else if classesService.classes.isEmpty {
                 EmptyStateView(
                     icon: "calendar",
@@ -601,9 +540,7 @@ struct BookView: View {
                     ForEach(classesService.classes) { classItem in
                         ClassCard(
                             classItem: classItem,
-                            onTap: {
-                                selectedClass = classItem
-                            },
+                            onTap: { selectedClass = classItem },
                             classesService: classesService
                         )
                         .padding(.horizontal, Spacing.lg)
@@ -619,33 +556,23 @@ struct BookView: View {
     }
     
     private func formatPackageName(_ package: LessonPackage) -> String {
-        // Use packageName if available, otherwise fall back to packageType
         let baseName: String
         if let name = package.packageName, !name.isEmpty {
             baseName = name
         } else {
-            // Fallback for legacy packages without name
             switch package.packageType {
-            case "private":
-                baseName = "Private Lesson Pass"
-            case "2_athlete":
-                baseName = "2-Athlete Pass"
-            case "3_athlete":
-                baseName = "3-Athlete Pass"
-            case "class_pass":
-                baseName = "Class Pass"
-            default:
-                baseName = "\(package.totalLessons)-Lesson Pass"
+            case "private": baseName = "Private Lesson Pass"
+            case "2_athlete": baseName = "2-Athlete Pass"
+            case "3_athlete": baseName = "3-Athlete Pass"
+            case "class_pass": baseName = "Class Pass"
+            default: baseName = "\(package.totalLessons)-Lesson Pass"
             }
         }
         return "\(baseName) (\(package.lessonsRemaining) remaining)"
     }
 
     private func displayPackageTitle(_ package: LessonPackage) -> String {
-        if let name = package.packageName, !name.isEmpty {
-            return name
-        }
-        // Try pricing structure title by packageType
+        if let name = package.packageName, !name.isEmpty { return name }
         if let pricing = pricingService.pricingStructure {
             for tier in pricing.tiers {
                 if let match = tier.packages.first(where: { $0.packageType == package.packageType }) {
@@ -653,7 +580,6 @@ struct BookView: View {
                 }
             }
         }
-        // Fallback
         return package.packageType.replacingOccurrences(of: "_", with: " ").capitalized
     }
 
@@ -665,7 +591,6 @@ struct BookView: View {
     }
     
     private func canBookSlot(_ slot: AvailabilitySlot) -> Bool {
-        // Use org settings for minimum booking hours
         let minHours = settingsService.settings?.minBookingHours ?? 4
         let now = Date()
         let minimumBookingTime = now.addingTimeInterval(Double(minHours) * 60 * 60)
@@ -673,12 +598,8 @@ struct BookView: View {
     }
     
     private var bookButtonText: String {
-        if mode == .classes {
-            return "Confirm Booking"
-        }
-        if !packagesService.hasAvailableLessons {
-            return "Purchase Passes to Continue"
-        }
+        if mode == .classes { return "Confirm Booking" }
+        if !packagesService.hasAvailableLessons { return "Purchase Passes to Continue" }
         return bookingInFlight ? "Booking..." : "Confirm Booking"
     }
 
@@ -696,8 +617,6 @@ struct BookView: View {
         guard let trainerId = selectedTrainer?.id,
               let slotId = selectedSlot?.id,
               let slot = selectedSlot else { return }
-        
-        // Check if slot is within minimum booking hours
         if !canBookSlot(slot) {
             bookingAlert = .init(
                 title: "Booking Not Available",
@@ -705,8 +624,6 @@ struct BookView: View {
             )
             return
         }
-        
-        // If user has multiple passes, ensure they've selected one
         if availableLessonPackages.count > 1 && selectedPackage == nil {
             bookingAlert = .init(
                 title: "Select a Pass",
@@ -714,37 +631,27 @@ struct BookView: View {
             )
             return
         }
-        
         bookingInFlight = true
         defer { bookingInFlight = false }
         do {
-            // Use selected package if available, otherwise pass empty string for auto-selection
             let packageId = selectedPackage?.id ?? ""
             _ = try await bookingManager.bookLesson(trainerId: trainerId, slotId: slotId, lessonPackageId: packageId)
-            
-            // Track booking creation event
             AnalyticsService.shared.logBookingCreated(
                 bookingId: "\(trainerId)_\(slotId)",
                 trainerId: trainerId,
                 clientId: Auth.auth().currentUser?.uid ?? ""
             )
-            
-            // Check if waiver is required and not signed
             if let userId = Auth.auth().currentUser?.uid {
                 let waiverCheck = try await settingsService.checkWaiverRequirement(
                     userId: userId,
                     settings: settingsService.settings
                 )
-                
                 if waiverCheck.required && !waiverCheck.signed {
-                    // Show waiver agreement sheet
                     pendingBookingSuccess = true
                     showWaiverAgreement = true
                     return
                 }
             }
-            
-            // Show success message if no waiver needed
             await finishBookingSuccess()
         } catch {
             let cleanMessage: String
@@ -760,21 +667,18 @@ struct BookView: View {
                 message: cleanMessage,
                 action: navigateToPasses ? {
                     profileTab = "PASSES"
-                    selectedTab = 2 // Profile tab
+                    selectedTab = 2
                 } : nil
             )
         }
     }
     
     private func finishBookingSuccess() async {
-        // Create success message with trainer name
         let trainerName = selectedTrainer?.name ?? "your trainer"
         bookingAlert = .init(
             title: "Booking Confirmed! 🎉",
             message: "You have successfully booked with \(trainerName). See you soon!"
         )
-        
-        // Refresh data after server writes complete
         await packagesService.loadMyPackages()
         await loadDayIfPossible()
         await loadMonthIfPossible()
@@ -782,34 +686,43 @@ struct BookView: View {
     }
     
     private func handleWaiverAgreement() async {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let profile = usersService.currentUser else {
             showWaiverAgreement = false
             pendingBookingSuccess = false
             return
         }
-        
         do {
-            // Save simple agreement record (not full PDF)
-            let db = Firestore.firestore()
-            let agreementData: [String: Any] = [
-                "userId": userId,
-                "agreedAt": Timestamp(date: Date()),
-                "type": "waiver_agreement"
-            ]
+            // Create waiver signature from user profile
+            let signature = WaiverSignature(
+                firstName: profile.firstName ?? "",
+                lastName: profile.lastName ?? "",
+                email: profile.emailAddress ?? "",
+                phoneNumber: profile.phoneNumber ?? "",
+                isMinor: true, // Assume minor since most clients are minors
+                signedAt: Date()
+            )
             
-            try await db.collection("users")
-                .document(userId)
-                .collection("documents")
-                .addDocument(data: agreementData)
+            // Generate PDF
+            guard let pdfData = WaiverPDFGenerator.generateWaiverPDF(
+                signature: signature,
+                organizationName: auth.organizationName ?? "Your Organization"
+            ) else {
+                print("Failed to generate waiver PDF")
+                throw NSError(domain: "WaiverError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to generate PDF"])
+            }
             
-            // Log analytics
+            // Save waiver document with PDF
+            _ = try await DocumentsService.shared.saveWaiverDocument(
+                userId: userId,
+                pdfData: pdfData,
+                signature: signature
+            )
+            
             if let orgId = auth.currentOrgId {
                 AnalyticsService.shared.logWaiverSigned(userId: userId, orgId: orgId)
             }
-            
             showWaiverAgreement = false
-            
-            // Show booking success
             if pendingBookingSuccess {
                 await finishBookingSuccess()
                 pendingBookingSuccess = false
@@ -826,7 +739,6 @@ struct BookView: View {
         let title: String
         let message: String
         let action: (() -> Void)?
-        
         init(title: String, message: String, action: (() -> Void)? = nil) {
             self.title = title
             self.message = message
@@ -862,16 +774,10 @@ private struct TrainerAvatarView: View {
             if let url = trainerImageURL(from: trainer) {
                 AsyncImage(url: url) { phase in
                     switch phase {
-                    case .empty:
-                        placeholder
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        placeholder
-                    @unknown default:
-                        placeholder
+                    case .empty: placeholder
+                    case .success(let image): image.resizable().scaledToFill()
+                    case .failure: placeholder
+                    @unknown default: placeholder
                     }
                 }
             } else {
@@ -916,21 +822,17 @@ private struct ClassCard: View {
         Button(action: onTap) {
             CardView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
-                    // Title and Status
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: Spacing.xs) {
                             Text(classItem.title)
                                 .font(.headingMedium)
                                 .foregroundStyle(AppTheme.secondary)
                                 .fontWeight(.semibold)
-                            
                             if isRegistered {
                                 BadgeView(text: "✓ You're Registered", color: AppTheme.success)
                             }
                         }
-                        
                         Spacer()
-                        
                         if !isRegistered {
                             if classItem.isFull {
                                 BadgeView(text: "Full", color: AppTheme.error)
@@ -939,32 +841,24 @@ private struct ClassCard: View {
                             }
                         }
                     }
-                    
-                    // Description
                     Text(classItem.description)
                         .font(.bodyMedium)
                         .foregroundStyle(AppTheme.textSecondary)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
-                    
                     Divider()
-                    
-                    // Class Details
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         DetailRow(icon: "calendar", text: classItem.startTime.formatted(date: .abbreviated, time: .omitted))
                         DetailRow(icon: "clock", text: classItem.startTime.formatted(date: .omitted, time: .shortened))
                         DetailRow(icon: "mappin.circle", text: classItem.location)
                         DetailRow(icon: "person.fill", text: classItem.trainerName)
                     }
-                    
                     if !isRegistered {
                         Divider()
-                        
                         Button(action: onTap) {
                             HStack {
                                 Image(systemName: "person.badge.plus")
-                                Text("Register")
-                                    .fontWeight(.semibold)
+                                Text("Register").fontWeight(.semibold)
                             }
                             .font(.bodyMedium)
                             .foregroundStyle(.white)
@@ -989,11 +883,9 @@ private struct ClassCard: View {
     }
 }
 
-// Helper view for detail rows
 private struct DetailRow: View {
     let icon: String
     let text: String
-    
     var body: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: icon)
@@ -1025,45 +917,34 @@ private struct ClassRegistrationSheet: View {
     @State private var selectedClassPass: LessonPackage?
     @State private var registrationCount = 0
     
-    // Get available class passes (for booking classes)
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
-        
-        // Get all valid package types from current pricing structure
         let validPackageTypes = getCurrentPackageTypes(category: "class")
-        
-        // Debug: Print all packages
         print("🔍 DEBUG ClassRegistrationSheet: All packages count: \(packagesService.packages.count)")
         print("🔍 Valid class package types from pricing structure: \(validPackageTypes)")
         for pkg in packagesService.packages {
             print("🔍 ClassRegistrationSheet Package: type=\(pkg.packageType), category=\(pkg.packageCategory ?? "nil"), name=\(pkg.packageName ?? "nil"), canBookClasses=\(pkg.canBookClasses), remaining=\(pkg.lessonsRemaining)")
         }
-        
         let filtered = packagesService.packages.filter { pkg -> Bool in
-            let canBook = pkg.canBookClasses // Only class packages
+            let canBook = pkg.canBookClasses
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
-            let hasClassCategory = pkg.packageCategory == "class" // Must have class category
+            let hasClassCategory = pkg.packageCategory == "class"
             let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
             print("🔍 ClassRegistrationSheet Package \(pkg.packageType): canBook=\(canBook), hasRemaining=\(hasRemaining), notExpired=\(notExpired), hasClassCategory=\(hasClassCategory), isCurrentPackage=\(isCurrentPackage)")
             return canBook && hasRemaining && notExpired && hasClassCategory && isCurrentPackage
         }
-        
         print("🔍 DEBUG ClassRegistrationSheet: Filtered class passes count: \(filtered.count)")
-        
-        // Group by packageType and pick the one expiring soonest for each type
         var packagesByType: [String: LessonPackage] = [:]
         for pkg in filtered.sorted(by: { $0.expirationDate < $1.expirationDate }) {
             if packagesByType[pkg.packageType] == nil {
                 packagesByType[pkg.packageType] = pkg
             }
         }
-        
         let grouped = Array(packagesByType.values).sorted { $0.expirationDate < $1.expirationDate }
         return grouped
     }
     
-    // Get total remaining lessons for a specific package type
     private func totalRemaining(for packageType: String) -> Int {
         let now = Date()
         return packagesService.packages.filter { pkg in
@@ -1075,59 +956,39 @@ private struct ClassRegistrationSheet: View {
         }.reduce(0) { $0 + $1.lessonsRemaining }
     }
     
-    // Helper to get all valid package types/IDs from current pricing structure
     private func getCurrentPackageTypes(category: String) -> Set<String> {
         guard let pricing = pricingService.pricingStructure else { return [] }
-        
         var packageTypes = Set<String>()
         for tier in pricing.tiers {
-            for package in tier.packages {
-                // Match by category if specified
-                if category == "class" && package.packageCategory.rawValue == "class" {
-                    // Add both the package ID and packageType for matching
-                    packageTypes.insert(package.id)
-                    packageTypes.insert(package.packageType)
-                }
+            for package in tier.packages where category == "class" && package.packageCategory.rawValue == "class" {
+                packageTypes.insert(package.id)
+                packageTypes.insert(package.packageType)
             }
         }
-        
         print("🔍 ClassRegistrationSheet getCurrentPackageTypes(\(category)): Found \(packageTypes.count) valid types: \(packageTypes)")
         return packageTypes
     }
     
-    // Find available class pass (legacy - kept for backward compatibility)
-    private var availableClassPass: LessonPackage? {
-        availableClassPasses.first
-    }
+    private var availableClassPass: LessonPackage? { availableClassPasses.first }
     
     private func formatPackageName(_ package: LessonPackage) -> String {
-        // Use packageName if available, otherwise fall back to packageType
         let baseName: String
         if let name = package.packageName, !name.isEmpty {
             baseName = name
         } else {
-            // Fallback for legacy packages without name
             switch package.packageType {
-            case "private":
-                baseName = "Private Lesson Pass"
-            case "2_athlete":
-                baseName = "2-Athlete Pass"
-            case "3_athlete":
-                baseName = "3-Athlete Pass"
-            case "class_pass":
-                baseName = "Class Pass"
-            default:
-                baseName = "\(package.totalLessons)-Lesson Pass"
+            case "private": baseName = "Private Lesson Pass"
+            case "2_athlete": baseName = "2-Athlete Pass"
+            case "3_athlete": baseName = "3-Athlete Pass"
+            case "class_pass": baseName = "Class Pass"
+            default: baseName = "\(package.totalLessons)-Lesson Pass"
             }
         }
         return "\(baseName) (\(package.lessonsRemaining) remaining)"
     }
     
-    // Local version for this sheet using its pricingService
     private func displayPackageTitle(_ package: LessonPackage) -> String {
-        if let name = package.packageName, !name.isEmpty {
-            return name
-        }
+        if let name = package.packageName, !name.isEmpty { return name }
         if let pricing = pricingService.pricingStructure {
             for tier in pricing.tiers {
                 if let match = tier.packages.first(where: { $0.packageType == package.packageType }) {
@@ -1146,12 +1007,10 @@ private struct ClassRegistrationSheet: View {
                         Text(classItem.title)
                             .font(.displaySmall)
                             .foregroundStyle(AppTheme.primary)
-                        
                         Text(classItem.description)
                             .font(.bodyLarge)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
-                    
                     CardView {
                         VStack(alignment: .leading, spacing: Spacing.md) {
                             HStack(spacing: Spacing.xxs) {
@@ -1159,33 +1018,25 @@ private struct ClassRegistrationSheet: View {
                                 Text(classItem.startTime.formatted(date: .long, time: .omitted))
                                     .font(.bodyLarge)
                             }
-                            
                             Divider()
-                            
                             HStack(spacing: Spacing.xxs) {
                                 Image(systemName: "clock")
                                 Text("\(classItem.startTime.formatted(date: .omitted, time: .shortened)) - \(classItem.endTime.formatted(date: .omitted, time: .shortened))")
                                     .font(.bodyLarge)
                             }
-                            
                             Divider()
-                            
                             HStack(spacing: Spacing.xxs) {
                                 Image(systemName: "mappin.circle")
                                 Text(classItem.location)
                                     .font(.bodyLarge)
                             }
-                            
                             Divider()
-                            
                             HStack(spacing: Spacing.xxs) {
                                 Image(systemName: "person.fill")
                                 Text(classItem.trainerName)
                                     .font(.bodyLarge)
                             }
-                            
                             Divider()
-                            
                             HStack(spacing: Spacing.xxs) {
                                 Image(systemName: "person.2")
                                 Text("\(classItem.currentParticipants) / \(classItem.maxParticipants) registered")
@@ -1194,7 +1045,6 @@ private struct ClassRegistrationSheet: View {
                         }
                         .foregroundStyle(AppTheme.textPrimary)
                     }
-                    
                     if let errorMessage = errorMessage {
                         CardView {
                             HStack(spacing: Spacing.sm) {
@@ -1206,7 +1056,6 @@ private struct ClassRegistrationSheet: View {
                             }
                         }
                     }
-                    
                     if registrationSuccessful {
                         CardView {
                             VStack(spacing: Spacing.md) {
@@ -1216,14 +1065,12 @@ private struct ClassRegistrationSheet: View {
                                 Text("Registration Successful!")
                                     .font(.headingMedium)
                                     .foregroundStyle(AppTheme.success)
-                                Text(registrationCount > 1 ? 
-                                    "You've registered \(registrationCount) athletes for \(classItem.title). Register another or close to finish." :
-                                    "You're all set for \(classItem.title). Register another athlete or close to finish.")
+                                Text(registrationCount > 1 ?
+                                     "You've registered \(registrationCount) athletes for \(classItem.title). Register another or close to finish." :
+                                     "You're all set for \(classItem.title). Register another athlete or close to finish.")
                                     .font(.bodyMedium)
                                     .foregroundStyle(AppTheme.textSecondary)
                                     .multilineTextAlignment(.center)
-                                
-                                // Register Another Button
                                 Button {
                                     registrationSuccessful = false
                                     errorMessage = nil
@@ -1242,12 +1089,10 @@ private struct ClassRegistrationSheet: View {
                         }
                     } else if !classItem.isFull {
                         if !availableClassPasses.isEmpty {
-                            // Always show class pass selector
                             VStack(alignment: .leading, spacing: Spacing.md) {
                                 Text("Select Class Pass to Use")
                                     .font(.headingMedium)
                                     .foregroundStyle(AppTheme.textPrimary)
-
                                 CardView(padding: Spacing.md) {
                                     Menu {
                                         ForEach(availableClassPasses) { package in
@@ -1261,14 +1106,13 @@ private struct ClassRegistrationSheet: View {
                                     } label: {
                                         HStack(spacing: Spacing.md) {
                                             ZStack {
-                                                RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                RoundedRectangle(cornerRadius: CornerRadius.xs)
                                                     .fill(AppTheme.secondary.opacity(0.08))
                                                     .frame(width: 48, height: 48)
                                                 Image(systemName: "ticket")
                                                     .font(.system(size: 20, weight: .semibold))
                                                     .foregroundStyle(AppTheme.secondary)
                                             }
-                                            
                                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                                 Text(selectedClassPass != nil ? displayPackageTitle(selectedClassPass!) : "Choose a class pass")
                                                     .font(.headingSmall)
@@ -1285,14 +1129,11 @@ private struct ClassRegistrationSheet: View {
                                     }
                                 }
                             }
-                            
                             Button {
                                 Task { await registerWithClassPass() }
                             } label: {
                                 HStack(spacing: Spacing.sm) {
-                                    if isRegistering {
-                                        ProgressView().tint(.white)
-                                    }
+                                    if isRegistering { ProgressView().tint(.white) }
                                     Text(isRegistering ? "Registering..." : "Use Class Pass & Register")
                                 }
                             }
@@ -1339,7 +1180,6 @@ private struct ClassRegistrationSheet: View {
         }
         .navigationViewStyle(.stack)
         .task {
-            // Load packages and pricing structure to check for class passes
             if packagesService.packages.isEmpty {
                 await packagesService.loadMyPackages()
             }
@@ -1351,49 +1191,33 @@ private struct ClassRegistrationSheet: View {
     
     private func registerWithClassPass() async {
         guard let classId = classItem.id else { return }
-        // Use selected pass if available, otherwise use first available pass
         let passToUse = selectedClassPass ?? availableClassPasses.first
         guard let classPass = passToUse, let passId = classPass.id else {
             errorMessage = "No valid class pass found"
             return
         }
-        
         isRegistering = true
         errorMessage = nil
-        
         guard let orgId = auth.currentOrgId else {
             errorMessage = "Organization not found"
             isRegistering = false
             return
         }
-        
         do {
             try await classesService.registerForClassWithPass(
                 classId: classId,
                 classPassPackageId: passId,
                 orgId: orgId
             )
-            
-            // Track class registration event
-            AnalyticsService.shared.logClassRegistered(
-                classId: classId,
-                className: classItem.title
-            )
-            
-            // Success! Reload packages
+            AnalyticsService.shared.logClassRegistered(classId: classId, className: classItem.title)
             await packagesService.loadMyPackages()
-            // Note: loadMyRegisteredClasses is now called inside registerForClassWithPass
-            
             registrationSuccessful = true
             registrationCount += 1
             errorMessage = nil
-            
-            // Don't dismiss - allow registering another athlete
             onRegistered()
         } catch {
             errorMessage = "Registration failed: \(error.localizedDescription)"
         }
-        
         isRegistering = false
     }
 }
@@ -1402,26 +1226,20 @@ private struct ClassRegistrationSheet: View {
 
 private struct BookingInstructionsSheet: View {
     @Environment(\.dismiss) private var dismiss
-    
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
-                    // Header
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("How to Book a Lesson")
                             .font(.headingLarge)
                             .foregroundStyle(AppTheme.textPrimary)
-                        
                         Text("Follow these simple steps to schedule your session")
                             .font(.bodyLarge)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
                     .padding(.horizontal, Spacing.lg)
-                    
-                    // Steps
                     VStack(spacing: Spacing.lg) {
-                        // Step 1
                         InstructionStepCard(
                             stepNumber: 1,
                             icon: "person.circle.fill",
@@ -1429,8 +1247,6 @@ private struct BookingInstructionsSheet: View {
                             description: "Choose from our professional trainers. Tap the trainer card to see all available options.",
                             color: AppTheme.primary
                         )
-                        
-                        // Step 2
                         InstructionStepCard(
                             stepNumber: 2,
                             icon: "calendar",
@@ -1438,8 +1254,6 @@ private struct BookingInstructionsSheet: View {
                             description: "Browse the calendar and select a day that works for you. Available dates are highlighted.",
                             color: AppTheme.secondary
                         )
-                        
-                        // Step 3
                         InstructionStepCard(
                             stepNumber: 3,
                             icon: "clock.fill",
@@ -1447,8 +1261,6 @@ private struct BookingInstructionsSheet: View {
                             description: "Select from available time slots. Each slot shows the duration and start time.",
                             color: AppTheme.primary
                         )
-                        
-                        // Step 4
                         InstructionStepCard(
                             stepNumber: 4,
                             icon: "checkmark.circle.fill",
@@ -1458,19 +1270,15 @@ private struct BookingInstructionsSheet: View {
                         )
                     }
                     .padding(.horizontal, Spacing.lg)
-                    
-                    // Info note
                     CardView(padding: Spacing.md) {
                         HStack(spacing: Spacing.sm) {
                             Image(systemName: "info.circle.fill")
                                 .font(.system(size: 20))
                                 .foregroundStyle(AppTheme.primary)
-                            
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text("Need Lessons?")
                                     .font(.headingSmall)
                                     .foregroundStyle(AppTheme.textPrimary)
-                                
                                 Text("Purchase lesson packages from the Profile tab before booking.")
                                     .font(.bodyMedium)
                                     .foregroundStyle(AppTheme.textSecondary)
@@ -1498,19 +1306,15 @@ private struct BookingInstructionsSheet: View {
     }
 }
 
-// MARK: - Instruction Step Card
-
 private struct InstructionStepCard: View {
     let stepNumber: Int
     let icon: String
     let title: String
     let description: String
     let color: Color
-    
     var body: some View {
         CardView(padding: Spacing.md) {
             HStack(alignment: .top, spacing: Spacing.md) {
-                // Step number with icon
                 ZStack {
                     Circle()
                         .fill(
@@ -1521,29 +1325,24 @@ private struct InstructionStepCard: View {
                             )
                         )
                         .frame(width: 56, height: 56)
-                    
                     VStack(spacing: 2) {
                         Image(systemName: icon)
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(.white)
-                        
                         Text("\(stepNumber)")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.white.opacity(0.9))
                     }
                 }
-                
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(title)
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
-                    
                     Text(description)
                         .font(.bodyMedium)
                         .foregroundStyle(AppTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                
                 Spacer(minLength: 0)
             }
         }
@@ -1565,23 +1364,19 @@ struct WaiverAgreementCheckboxView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
-                    // Header
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Liability Waiver")
                             .font(.displaySmall)
                             .foregroundStyle(AppTheme.textPrimary)
-                        
                         Text("Please read and agree to continue")
                             .font(.bodyMedium)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
                     .padding(.top, Spacing.md)
-                    
-                    // Waiver Content
                     CardView {
                         VStack(alignment: .leading, spacing: Spacing.md) {
                             ScrollView {
-                                Text(waiverText.isEmpty ? "No waiver text configured." : waiverText)
+                                Text(waiverText.isEmpty ? "No waiver text configured." : waierText)
                                     .font(.bodySmall)
                                     .foregroundStyle(AppTheme.textSecondary)
                                     .lineSpacing(4)
@@ -1592,8 +1387,6 @@ struct WaiverAgreementCheckboxView: View {
                             .cornerRadius(CornerRadius.sm)
                         }
                     }
-                    
-                    // Parent/Guardian Information
                     if let profile = userProfile {
                         CardView {
                             VStack(alignment: .leading, spacing: Spacing.md) {
@@ -1601,64 +1394,43 @@ struct WaiverAgreementCheckboxView: View {
                                     Image(systemName: "person.text.rectangle.fill")
                                         .foregroundStyle(AppTheme.primary)
                                         .font(.title3)
-                                    
                                     Text("Parent/Guardian Information")
                                         .font(.headingSmall)
                                         .foregroundStyle(AppTheme.textPrimary)
                                 }
-                                
                                 VStack(alignment: .leading, spacing: Spacing.sm) {
                                     if let firstName = profile.firstName, let lastName = profile.lastName {
                                         HStack(spacing: Spacing.xs) {
                                             Image(systemName: "person.fill")
                                                 .foregroundStyle(AppTheme.textSecondary)
                                                 .frame(width: 24)
-                                            
                                             VStack(alignment: .leading, spacing: 2) {
-                                                Text("Name")
-                                                    .font(.caption)
-                                                    .foregroundStyle(AppTheme.textSecondary)
-                                                Text("\(firstName) \(lastName)")
-                                                    .font(.bodyMedium)
-                                                    .foregroundStyle(AppTheme.textPrimary)
+                                                Text("Name").font(.caption).foregroundStyle(AppTheme.textSecondary)
+                                                Text("\(firstName) \(lastName)").font(.bodyMedium).foregroundStyle(AppTheme.textPrimary)
                                             }
                                         }
                                     }
-                                    
                                     if let email = profile.emailAddress, !email.isEmpty {
                                         Divider()
-                                        
                                         HStack(spacing: Spacing.xs) {
                                             Image(systemName: "envelope.fill")
                                                 .foregroundStyle(AppTheme.textSecondary)
                                                 .frame(width: 24)
-                                            
                                             VStack(alignment: .leading, spacing: 2) {
-                                                Text("Email")
-                                                    .font(.caption)
-                                                    .foregroundStyle(AppTheme.textSecondary)
-                                                Text(email)
-                                                    .font(.bodyMedium)
-                                                    .foregroundStyle(AppTheme.textPrimary)
+                                                Text("Email").font(.caption).foregroundStyle(AppTheme.textSecondary)
+                                                Text(email).font(.bodyMedium).foregroundStyle(AppTheme.textPrimary)
                                             }
                                         }
                                     }
-                                    
                                     if let phone = profile.phoneNumber, !phone.isEmpty {
                                         Divider()
-                                        
                                         HStack(spacing: Spacing.xs) {
                                             Image(systemName: "phone.fill")
                                                 .foregroundStyle(AppTheme.textSecondary)
                                                 .frame(width: 24)
-                                            
                                             VStack(alignment: .leading, spacing: 2) {
-                                                Text("Phone")
-                                                    .font(.caption)
-                                                    .foregroundStyle(AppTheme.textSecondary)
-                                                Text(phone)
-                                                    .font(.bodyMedium)
-                                                    .foregroundStyle(AppTheme.textPrimary)
+                                                Text("Phone").font(.caption).foregroundStyle(AppTheme.textSecondary)
+                                                Text(phone).font(.bodyMedium).foregroundStyle(AppTheme.textPrimary)
                                             }
                                         }
                                     }
@@ -1668,8 +1440,6 @@ struct WaiverAgreementCheckboxView: View {
                         }
                         .background(Color(red: 0.95, green: 0.97, blue: 1.0))
                     }
-                    
-                    // Agreement Checkbox
                     CardView {
                         Button {
                             hasAgreed.toggle()
@@ -1678,13 +1448,11 @@ struct WaiverAgreementCheckboxView: View {
                                 Image(systemName: hasAgreed ? "checkmark.square.fill" : "square")
                                     .font(.title2)
                                     .foregroundStyle(hasAgreed ? AppTheme.primary : AppTheme.textSecondary)
-                                
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                                     Text("I have read, understood, and agree to the terms above.")
                                         .font(.bodyMedium)
                                         .foregroundStyle(AppTheme.textPrimary)
                                         .multilineTextAlignment(.leading)
-                                    
                                     if userProfile != nil {
                                         Text("By checking this box, I confirm the information above is correct and I agree on behalf of the participant(s).")
                                             .font(.caption)
@@ -1692,14 +1460,11 @@ struct WaiverAgreementCheckboxView: View {
                                             .multilineTextAlignment(.leading)
                                     }
                                 }
-                                
                                 Spacer()
                             }
                         }
                         .buttonStyle(.plain)
                     }
-                    
-                    // Agree Button
                     Button {
                         onAgree()
                         dismiss()
@@ -1744,7 +1509,6 @@ private extension View {
                 action(oldValue, newValue)
             }
         } else {
-            // Fallback to the deprecated single-parameter variant without warnings here.
             self.onChange(of: value) { newValue in
                 action(newValue, newValue)
             }
