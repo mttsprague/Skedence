@@ -1183,59 +1183,64 @@ struct BookView: View {
                     }
                     .padding(.horizontal, Spacing.lg)
                 }
-                
-                // Show existing second athlete info (when not new athlete)
-                if !isNewAthlete && secondAthleteName != nil && secondAthleteName != "New Athlete" {
+            }
+            
+            // Second Athlete Form (shown when any second athlete selected - new or existing)
+            if secondAthleteName != nil && secondAthleteName != "New Athlete" && isOnlyParticipant == false {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text(isNewAthlete ? "New Athlete Information" : "Second Participant Information")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, Spacing.lg)
+                    
                     CardView(padding: Spacing.md) {
-                        VStack(alignment: .leading, spacing: Spacing.sm) {
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                Text("Participant Info Loaded")
+                        VStack(spacing: Spacing.md) {
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Birthday")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("MM/DD/YYYY", text: $newAthleteBirthday)
+                                    .textFieldStyle(.plain)
                                     .font(.bodyMedium)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(AppTheme.textPrimary)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
                             }
                             
-                            if !newAthleteBirthday.isEmpty || !newAthleteSchoolClubTeam.isEmpty || !newAthleteExperienceLevel.isEmpty {
-                                Divider()
-                                    .padding(.vertical, Spacing.xxs)
-                                
-                                VStack(alignment: .leading, spacing: Spacing.xs) {
-                                    if !newAthleteBirthday.isEmpty {
-                                        HStack {
-                                            Image(systemName: "calendar")
-                                                .font(.system(size: 12))
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                                .frame(width: 16)
-                                            Text("Birthday: \(newAthleteBirthday)")
-                                                .font(.bodySmall)
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                        }
-                                    }
-                                    if !newAthleteSchoolClubTeam.isEmpty {
-                                        HStack {
-                                            Image(systemName: "building.2")
-                                                .font(.system(size: 12))
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                                .frame(width: 16)
-                                            Text(newAthleteSchoolClubTeam)
-                                                .font(.bodySmall)
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                        }
-                                    }
-                                    if !newAthleteExperienceLevel.isEmpty {
-                                        HStack {
-                                            Image(systemName: "star.fill")
-                                                .font(.system(size: 12))
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                                .frame(width: 16)
-                                            Text(newAthleteExperienceLevel)
-                                                .font(.bodySmall)
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                        }
-                                    }
-                                }
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("School/Club Team")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter school or club team", text: $newAthleteSchoolClubTeam)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Experience Level")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Beginner, Intermediate, Advanced", text: $newAthleteExperienceLevel)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Position (Optional)")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("e.g., Forward, Midfielder, etc.", text: $newAthletePosition)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
                             }
                         }
                     }
@@ -1919,43 +1924,55 @@ struct BookView: View {
     
     // Check if athlete has a waiver on file
     private func checkAthleteHasWaiver(userId: String, athleteName: String) async throws -> Bool {
+        print("🔍 Checking waiver for athlete: '\(athleteName)' userId: \(userId)")
         let documents = try await DocumentsService.shared.fetchDocuments(userId: userId)
+        print("📄 Found \(documents.count) documents for user")
         
         // Parse the athlete name parts for flexible matching
         let nameComponents = athleteName.components(separatedBy: " ")
         let firstName = nameComponents.first?.lowercased() ?? ""
         let lastName = nameComponents.last?.lowercased() ?? ""
+        print("🔍 Parsed name - First: '\(firstName)', Last: '\(lastName)'")
         
         // Check if any waiver document exists for this athlete
         for doc in documents {
+            print("📄 Checking document: type=\(doc.type), name=\(doc.name), athleteName=\(doc.athleteName ?? "nil"), signedBy=\(doc.signedBy ?? "nil")")
             if doc.type == "waiver" {
                 // Check for athlete-specific waiver
                 if let docAthleteName = doc.athleteName?.lowercased() {
+                    print("   Comparing doc athleteName '\(docAthleteName)' with athlete '\(athleteName.lowercased())'")
                     // Check if the document's athlete name contains this athlete's first or last name
                     if !firstName.isEmpty && docAthleteName.contains(firstName) {
+                        print("✅ MATCH: Document athleteName contains firstName")
                         return true
                     }
                     if !lastName.isEmpty && docAthleteName.contains(lastName) {
+                        print("✅ MATCH: Document athleteName contains lastName")
                         return true
                     }
                     // Also check exact match
                     if docAthleteName == athleteName.lowercased() {
+                        print("✅ MATCH: Exact athleteName match")
                         return true
                     }
                 }
                 
                 // Also check signedBy field as fallback (legacy waivers)
                 if let signedByName = doc.signedBy?.lowercased() {
+                    print("   Checking signedBy: '\(signedByName)'")
                     if !firstName.isEmpty && signedByName.contains(firstName) {
+                        print("✅ MATCH: SignedBy contains firstName")
                         return true
                     }
                     if !lastName.isEmpty && signedByName.contains(lastName) {
+                        print("✅ MATCH: SignedBy contains lastName")
                         return true
                     }
                 }
             }
         }
         
+        print("❌ NO WAIVER FOUND for athlete: \(athleteName)")
         return false
     }
     
