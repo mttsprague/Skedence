@@ -1928,44 +1928,30 @@ struct BookView: View {
         let documents = try await DocumentsService.shared.fetchDocuments(userId: userId)
         print("📄 Found \(documents.count) documents for user")
         
-        // Parse the athlete name parts for flexible matching
-        let nameComponents = athleteName.components(separatedBy: " ")
-        let firstName = nameComponents.first?.lowercased() ?? ""
-        let lastName = nameComponents.last?.lowercased() ?? ""
-        print("🔍 Parsed name - First: '\(firstName)', Last: '\(lastName)'")
+        // Normalize the athlete name for comparison
+        let normalizedAthleteName = athleteName.lowercased().trimmingCharacters(in: .whitespaces)
+        print("🔍 Normalized athlete name: '\(normalizedAthleteName)'")
         
         // Check if any waiver document exists for this athlete
         for doc in documents {
             print("📄 Checking document: type=\(doc.type), name=\(doc.name), athleteName=\(doc.athleteName ?? "nil"), signedBy=\(doc.signedBy ?? "nil")")
             if doc.type == "waiver" {
-                // Check for athlete-specific waiver
-                if let docAthleteName = doc.athleteName?.lowercased() {
-                    print("   Comparing doc athleteName '\(docAthleteName)' with athlete '\(athleteName.lowercased())'")
-                    // Check if the document's athlete name contains this athlete's first or last name
-                    if !firstName.isEmpty && docAthleteName.contains(firstName) {
-                        print("✅ MATCH: Document athleteName contains firstName")
-                        return true
-                    }
-                    if !lastName.isEmpty && docAthleteName.contains(lastName) {
-                        print("✅ MATCH: Document athleteName contains lastName")
-                        return true
-                    }
-                    // Also check exact match
-                    if docAthleteName == athleteName.lowercased() {
+                // Check for exact athlete name match
+                if let docAthleteName = doc.athleteName?.lowercased().trimmingCharacters(in: .whitespaces) {
+                    print("   Comparing doc athleteName '\(docAthleteName)' with athlete '\(normalizedAthleteName)'")
+                    
+                    // Require exact match
+                    if docAthleteName == normalizedAthleteName {
                         print("✅ MATCH: Exact athleteName match")
                         return true
                     }
                 }
                 
-                // Also check signedBy field as fallback (legacy waivers)
-                if let signedByName = doc.signedBy?.lowercased() {
-                    print("   Checking signedBy: '\(signedByName)'")
-                    if !firstName.isEmpty && signedByName.contains(firstName) {
-                        print("✅ MATCH: SignedBy contains firstName")
-                        return true
-                    }
-                    if !lastName.isEmpty && signedByName.contains(lastName) {
-                        print("✅ MATCH: SignedBy contains lastName")
+                // Fallback: Check signedBy field for exact match (legacy waivers without athleteName)
+                if doc.athleteName == nil, let signedByName = doc.signedBy?.lowercased().trimmingCharacters(in: .whitespaces) {
+                    print("   Checking signedBy (legacy): '\(signedByName)'")
+                    if signedByName == normalizedAthleteName {
+                        print("✅ MATCH: Exact signedBy match (legacy)")
                         return true
                     }
                 }
