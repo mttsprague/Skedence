@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseFirestore
+import FirebaseFunctions
 
 struct SessionDetailView: View {
     let client: Client
@@ -19,6 +20,7 @@ struct SessionDetailView: View {
     @State private var isCancelling = false
     @State private var cancelError: String?
     @State private var showClientCard = false
+    @State private var showCancelSuccess = false
     
     var body: some View {
         NavigationView {
@@ -69,12 +71,17 @@ struct SessionDetailView: View {
                 ClientCardView(client: client, selectedBooking: nil)
             }
             .alert("Cancel Session?", isPresented: $showCancelConfirmation) {
-                Button("Cancel", role: .destructive) {
+                Button("Cancel Session", role: .destructive) {
                     Task { await cancelBooking() }
                 }
                 Button("Keep Session", role: .cancel) {}
             } message: {
-                Text("Are you sure you want to cancel this session? This action cannot be undone.")
+                Text("Are you sure you want to cancel this session? The client's pass will be refunded.")
+            }
+            .alert("Success", isPresented: $showCancelSuccess) {
+                Button("OK") { }
+            } message: {
+                Text("Session cancelled successfully! The client's pass has been refunded.")
             }
             .alert("Error", isPresented: .constant(cancelError != nil)) {
                 Button("OK") { cancelError = nil }
@@ -350,11 +357,38 @@ struct SessionDetailView: View {
     
     // MARK: - Actions
     private func cancelBooking() async {
+        guard let bookingId = booking.id,
+              let orgId = auth.currentOrgId else {
+            cancelError = "Missing booking or organization information"
+            return
+        }
+        
         isCancelling = true
         defer { isCancelling = false }
         
-        // TODO: Implement cancel booking logic (perform async/throwing work here if needed)
-        dismiss()
+        do {
+            let functions = Functions.functions()
+            let callable = functions.httpsCallable("adminCancelLesson")
+            
+            let data: [String: Any] = [
+                "bookingId": bookingId,
+                "orgId": orgId,
+                "clientId": client.id
+            ]
+            
+            let result = try await callable.call(data)
+            print("✅ Booking cancelled successfully: \(result.data)")
+            
+            // Show success and dismiss
+            showCancelSuccess = true
+            
+            // Dismiss after a short delay
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            dismiss()
+        } catch {
+            print("❌ Error cancelling booking: \(error.localizedDescription)")
+            cancelError = error.localizedDescription
+        }
     }
 }
 

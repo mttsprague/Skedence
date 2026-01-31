@@ -1031,17 +1031,38 @@ export const cancelLesson = functions.https.onCall(
         }
 
         // Get the lesson package and decrement lessonsUsed
-        const packageRef = db
-          .collection("users")
-          .doc(userId)
-          .collection("lessonPackages")
-          .doc(bookingData.packageId);
+        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
+        if (bookingData.packageId && bookingData.orgId) {
+          const newPackageRef = db
+            .collection("organizations")
+            .doc(bookingData.orgId)
+            .collection("users")
+            .doc(userId)
+            .collection("packages")
+            .doc(bookingData.packageId);
 
-        const packageDoc = await transaction.get(packageRef);
-        if (packageDoc.exists) {
-          transaction.update(packageRef, {
-            lessonsUsed: admin.firestore.FieldValue.increment(-1),
-          });
+          const newPackageDoc = await transaction.get(newPackageRef);
+          if (newPackageDoc.exists) {
+            transaction.update(newPackageRef, {
+              lessonsUsed: admin.firestore.FieldValue.increment(-1),
+            });
+            functions.logger.info(`Refunded credit: new path - ${newPackageRef.path}`);
+          } else {
+            // Fallback to OLD path: users/{userId}/lessonPackages
+            const oldPackageRef = db
+              .collection("users")
+              .doc(userId)
+              .collection("lessonPackages")
+              .doc(bookingData.packageId);
+
+            const oldPackageDoc = await transaction.get(oldPackageRef);
+            if (oldPackageDoc.exists) {
+              transaction.update(oldPackageRef, {
+                lessonsUsed: admin.firestore.FieldValue.increment(-1),
+              });
+              functions.logger.info(`Refunded credit: old path - ${oldPackageRef.path}`);
+            }
+          }
         }
 
         // Update trainer's schedule slot back to open
@@ -1164,18 +1185,37 @@ export const adminCancelLesson = functions.https.onCall(
         }
 
         // Get the lesson package and decrement lessonsUsed
+        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
         if (bookingData.packageId) {
-          const packageRef = db
+          const newPackageRef = db
+            .collection("organizations")
+            .doc(orgId)
             .collection("users")
             .doc(clientId)
-            .collection("lessonPackages")
+            .collection("packages")
             .doc(bookingData.packageId);
 
-          const packageDoc = await transaction.get(packageRef);
-          if (packageDoc.exists) {
-            transaction.update(packageRef, {
+          const newPackageDoc = await transaction.get(newPackageRef);
+          if (newPackageDoc.exists) {
+            transaction.update(newPackageRef, {
               lessonsUsed: admin.firestore.FieldValue.increment(-1),
             });
+            functions.logger.info(`Refunded credit: new path - ${newPackageRef.path}`);
+          } else {
+            // Fallback to OLD path: users/{userId}/lessonPackages
+            const oldPackageRef = db
+              .collection("users")
+              .doc(clientId)
+              .collection("lessonPackages")
+              .doc(bookingData.packageId);
+
+            const oldPackageDoc = await transaction.get(oldPackageRef);
+            if (oldPackageDoc.exists) {
+              transaction.update(oldPackageRef, {
+                lessonsUsed: admin.firestore.FieldValue.increment(-1),
+              });
+              functions.logger.info(`Refunded credit: old path - ${oldPackageRef.path}`);
+            }
           }
         }
 
