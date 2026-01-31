@@ -304,27 +304,30 @@ export const sendBookingConfirmation = onDocumentCreated(
       const orgName = org?.name || "Skedence";
       const location = booking.location || "Location TBD";
 
+      // Get timezone from org settings, default to America/New_York
+      const orgTimezone = org?.settings?.timezone || "America/New_York";
+
       const startTime = booking.startTime.toDate();
       const endTime = booking.endTime.toDate();
 
-      // Format options with timezone - use America/Los_Angeles for PST/PDT
+      // Format options with organization's timezone
       const dateOptions: Intl.DateTimeFormatOptions = {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
-        timeZone: "America/Los_Angeles",
+        timeZone: orgTimezone,
       };
       const timeOptions: Intl.DateTimeFormatOptions = {
         hour: "numeric",
         minute: "2-digit",
-        timeZone: "America/Los_Angeles",
+        timeZone: orgTimezone,
       };
       const shortDateOptions: Intl.DateTimeFormatOptions = {
         weekday: "long",
         month: "long",
         day: "numeric",
-        timeZone: "America/Los_Angeles",
+        timeZone: orgTimezone,
       };
 
       await admin.firestore().collection("mail").add({
@@ -571,27 +574,30 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
       const orgName = org?.name || "Skedence";
       const location = classData?.location || "Location TBD";
 
+      // Get timezone from org settings, default to America/New_York
+      const orgTimezone = org?.settings?.timezone || "America/New_York";
+
       const startTime = classData?.startTime.toDate();
       const endTime = classData?.endTime.toDate();
 
-      // Format options with timezone - use America/Los_Angeles for PST/PDT
+      // Format options with organization's timezone
       const dateOptions: Intl.DateTimeFormatOptions = {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
-        timeZone: "America/Los_Angeles",
+        timeZone: orgTimezone,
       };
       const timeOptions: Intl.DateTimeFormatOptions = {
         hour: "numeric",
         minute: "2-digit",
-        timeZone: "America/Los_Angeles",
+        timeZone: orgTimezone,
       };
       const shortDateOptions: Intl.DateTimeFormatOptions = {
         weekday: "long",
         month: "long",
         day: "numeric",
-        timeZone: "America/Los_Angeles",
+        timeZone: orgTimezone,
       };
 
       await admin.firestore().collection("mail").add({
