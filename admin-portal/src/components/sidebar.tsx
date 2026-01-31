@@ -19,13 +19,15 @@ import {
   Package,
   DollarSign,
   CreditCard,
-  FileText
+  FileText,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Activity Feed', href: '/activity', icon: Activity },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Trainers', href: '/trainers', icon: UserCog },
   { name: 'Schedule', href: '/schedule', icon: Calendar },
