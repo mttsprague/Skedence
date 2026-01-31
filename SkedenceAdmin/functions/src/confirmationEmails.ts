@@ -307,6 +307,26 @@ export const sendBookingConfirmation = onDocumentCreated(
       const startTime = booking.startTime.toDate();
       const endTime = booking.endTime.toDate();
 
+      // Format options with timezone - use America/Los_Angeles for PST/PDT
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "America/Los_Angeles",
+      };
+      const timeOptions: Intl.DateTimeFormatOptions = {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "America/Los_Angeles",
+      };
+      const shortDateOptions: Intl.DateTimeFormatOptions = {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        timeZone: "America/Los_Angeles",
+      };
+
       await admin.firestore().collection("mail").add({
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
@@ -317,12 +337,12 @@ export const sendBookingConfirmation = onDocumentCreated(
 
 Hi ${clientName},
 
-You've successfully booked a session at ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} on ${startTime.toLocaleDateString("en-US", {weekday: "long", month: "long", day: "numeric"})} with ${trainerName} through ${orgName}.
+You've successfully booked a session at ${startTime.toLocaleTimeString("en-US", timeOptions)} on ${startTime.toLocaleDateString("en-US", shortDateOptions)} with ${trainerName} through ${orgName}.
 
 SESSION DETAILS
 Trainer: ${trainerName}
-Date: ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}
-Time: ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}
+Date: ${startTime.toLocaleDateString("en-US", dateOptions)}
+Time: ${startTime.toLocaleTimeString("en-US", timeOptions)} - ${endTime.toLocaleTimeString("en-US", timeOptions)}
 Location: ${location}
 
 Need to reschedule or cancel? Please contact us at least 24 hours in advance.
@@ -444,7 +464,7 @@ The ${orgName} Team`,
     
     <div class="content">
       <p style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Hi ${clientName},</p>
-      <p style="font-size: 16px; margin-bottom: 28px;">You've successfully booked a session at <strong>${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}</strong> on <strong>${startTime.toLocaleDateString("en-US", {weekday: "long", month: "long", day: "numeric"})}</strong> with <strong>${trainerName}</strong> through <strong>${orgName}</strong>.</p>
+      <p style="font-size: 16px; margin-bottom: 28px;">You've successfully booked a session at <strong>${startTime.toLocaleTimeString("en-US", timeOptions)}</strong> on <strong>${startTime.toLocaleDateString("en-US", shortDateOptions)}</strong> with <strong>${trainerName}</strong> through <strong>${orgName}</strong>.</p>
       
       <div class="details-box">
         <h3>📋 Session Details</h3>
@@ -461,7 +481,7 @@ The ${orgName} Team`,
           <div class="detail-icon">📅</div>
           <div class="detail-text">
             <strong>Date</strong>
-            ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}
+            ${startTime.toLocaleDateString("en-US", dateOptions)}
           </div>
         </div>
         
@@ -469,7 +489,7 @@ The ${orgName} Team`,
           <div class="detail-icon">🕐</div>
           <div class="detail-text">
             <strong>Time</strong>
-            ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}
+            ${startTime.toLocaleTimeString("en-US", timeOptions)} - ${endTime.toLocaleTimeString("en-US", timeOptions)}
           </div>
         </div>
         
@@ -554,6 +574,26 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
       const startTime = classData?.startTime.toDate();
       const endTime = classData?.endTime.toDate();
 
+      // Format options with timezone - use America/Los_Angeles for PST/PDT
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "America/Los_Angeles",
+      };
+      const timeOptions: Intl.DateTimeFormatOptions = {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "America/Los_Angeles",
+      };
+      const shortDateOptions: Intl.DateTimeFormatOptions = {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        timeZone: "America/Los_Angeles",
+      };
+
       await admin.firestore().collection("mail").add({
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
@@ -564,13 +604,13 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
 
 Hi ${clientName},
 
-You've successfully registered for ${className} at ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} on ${startTime.toLocaleDateString("en-US", {weekday: "long", month: "long", day: "numeric"})} through ${orgName}.
+You've successfully registered for ${className} at ${startTime.toLocaleTimeString("en-US", timeOptions)} on ${startTime.toLocaleDateString("en-US", shortDateOptions)} through ${orgName}.
 
 CLASS DETAILS
 Class: ${className}
 ${classDescription ? classDescription + "\n" : ""}
-Date: ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}
-Time: ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}
+Date: ${startTime.toLocaleDateString("en-US", dateOptions)}
+Time: ${startTime.toLocaleTimeString("en-US", timeOptions)} - ${endTime.toLocaleTimeString("en-US", timeOptions)}
 Location: ${location}
 Instructor: ${instructor}
 
@@ -582,14 +622,14 @@ The ${orgName} Team`,
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #35b3af;">You're Registered!</h2>
             <p>Hi ${clientName},</p>
-            <p>You've successfully registered for <strong>${className}</strong> at <strong>${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}</strong> on <strong>${startTime.toLocaleDateString("en-US", {weekday: "long", month: "long", day: "numeric"})}</strong> through <strong>${orgName}</strong>.</p>
+            <p>You've successfully registered for <strong>${className}</strong> at <strong>${startTime.toLocaleTimeString("en-US", timeOptions)}</strong> on <strong>${startTime.toLocaleDateString("en-US", shortDateOptions)}</strong> through <strong>${orgName}</strong>.</p>
             
             <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Class Details</h3>
               <p><strong>Class:</strong> ${className}</p>
               ${classDescription ? `<p>${classDescription}</p>` : ""}
-              <p><strong>Date:</strong> ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}</p>
-              <p><strong>Time:</strong> ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}</p>
+              <p><strong>Date:</strong> ${startTime.toLocaleDateString("en-US", dateOptions)}</p>
+              <p><strong>Time:</strong> ${startTime.toLocaleTimeString("en-US", timeOptions)} - ${endTime.toLocaleTimeString("en-US", timeOptions)}</p>
               <p><strong>Location:</strong> ${location}</p>
               <p><strong>Instructor:</strong> ${instructor}</p>
             </div>
