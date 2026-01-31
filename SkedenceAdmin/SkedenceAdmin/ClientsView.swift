@@ -121,9 +121,23 @@ private struct ClientRow: View {
                 }
 
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(client.fullName)
-                        .font(.headingSmall)
-                        .foregroundStyle(AppTheme.textPrimary)
+                    HStack(spacing: 8) {
+                        Text(client.fullName)
+                            .font(.headingSmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        if let refCode = client.referenceCode {
+                            Text(refCode)
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(AppTheme.primary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(AppTheme.primary.opacity(0.1))
+                                )
+                        }
+                    }
                     
                     HStack(spacing: Spacing.xxs) {
                         Image(systemName: "envelope.fill")

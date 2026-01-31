@@ -87,8 +87,22 @@ final class AuthManager: ObservableObject {
 
             let db = Firestore.firestore()
             let now = Date()
+            
+            // Build safe, non-empty names for reference code generation
+            let emailPrefix = email.split(separator: "@").first.map(String.init) ?? "USER"
+            let safeFirstName = (firstName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? emailPrefix
+            let safeLastName = (lastName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "CLIENT"
+            
+            // Generate reference code
+            let referenceCode = try await ReferenceCodeGenerator.generateUserCode(
+                firstName: safeFirstName,
+                lastName: safeLastName
+            )
+            print("✅ Generated reference code: \(referenceCode) for \(safeFirstName) \(safeLastName)")
+            
             let data: [String: Any?] = [
                 "emailAddress": email,
+                "referenceCode": referenceCode,
                 "firstName": firstName,
                 "lastName": lastName,
                 "athleteFirstName": athleteFirstName,

@@ -366,10 +366,21 @@ class CreateOrgViewModel: ObservableObject {
             if !ownerEmail.isEmpty {
                 let userId = UUID().uuidString
                 
+                let firstName = ownerFirstName.isEmpty ? "Owner" : ownerFirstName
+                let lastName = ownerLastName.isEmpty ? "" : ownerLastName
+                
+                // Generate reference code
+                let referenceCode = try await ReferenceCodeGenerator.generateUserCode(
+                    firstName: firstName,
+                    lastName: lastName
+                )
+                print("✅ Generated reference code: \(referenceCode) for \(firstName) \(lastName)")
+                
                 let userData: [String: Any] = [
                     "emailAddress": ownerEmail,
-                    "firstName": ownerFirstName.isEmpty ? "Owner" : ownerFirstName,
-                    "lastName": ownerLastName.isEmpty ? "" : ownerLastName,
+                    "referenceCode": referenceCode,
+                    "firstName": firstName,
+                    "lastName": lastName,
                     "orgId": orgId,
                     "active": true,
                     "createdAt": Timestamp(),

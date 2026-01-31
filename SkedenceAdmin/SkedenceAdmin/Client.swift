@@ -9,6 +9,7 @@ import Foundation
 
 struct Client: Identifiable, Codable, Hashable {
     var id: String
+    var referenceCode: String? // Human-readable reference (e.g., "SMITH-J-001")
     var firstName: String
     var lastName: String
     var emailAddress: String

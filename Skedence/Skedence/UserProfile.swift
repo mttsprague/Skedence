@@ -19,6 +19,7 @@ struct AthleteInfo: Codable {
 // /users/{uid}
 struct UserProfile: Identifiable {
     var id: String? // Firebase Auth UID
+    var referenceCode: String? // Human-readable reference (e.g., "SMITH-J-001")
     var emailAddress: String?
     var firstName: String?
     var lastName: String?

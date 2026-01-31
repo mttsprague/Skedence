@@ -104,7 +104,17 @@ struct SessionDetailView: View {
                     .font(.headingMedium)
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                if !client.emailAddress.isEmpty {
+                if let refCode = client.referenceCode {
+                    Text(refCode)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(AppTheme.primary.opacity(0.1))
+                        )
+                } else if !client.emailAddress.isEmpty {
                     Text(client.emailAddress)
                         .font(.bodySmall)
                         .foregroundStyle(AppTheme.textSecondary)

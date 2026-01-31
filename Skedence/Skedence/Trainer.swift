@@ -12,6 +12,7 @@ import Combine
 // /trainers/{trainerId}
 struct Trainer: Identifiable, Hashable {
     var id: String?
+    var referenceCode: String? // Human-readable reference (e.g., "TR-MIKE-001")
     let firstName: String?
     let lastName: String?
     let email: String?
