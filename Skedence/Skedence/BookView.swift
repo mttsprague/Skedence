@@ -198,6 +198,57 @@ struct BookView: View {
         emergencyContactPhone = profile.emergencyContactNumber ?? ""
     }
     
+    // Load second athlete profile data from Firebase
+    private func loadSecondAthleteProfileData() {
+        guard let profile = usersService.currentUser,
+              let athleteName = secondAthleteName,
+              athleteName != "New Athlete" else { return }
+        
+        // Find athlete in new format
+        if let athletesArray = profile.athletes {
+            if let athlete = athletesArray.first(where: { $0.displayName == athleteName }) {
+                newAthleteBirthday = athlete.birthday ?? ""
+                newAthleteSchoolClubTeam = athlete.schoolClubTeam ?? ""
+                newAthleteExperienceLevel = athlete.experienceLevel ?? ""
+                newAthletePosition = athlete.position ?? ""
+                // Use parent/guardian info from main profile
+                newAthleteParentGuardianName = profile.firstName != nil && profile.lastName != nil ? "\(profile.firstName!) \(profile.lastName!)" : ""
+                newAthleteEmergencyContactName = profile.emergencyContactName ?? ""
+                newAthleteEmergencyContactPhone = profile.emergencyContactNumber ?? ""
+                // Set first and last names from the athlete
+                let parts = athleteName.split(separator: " ")
+                newAthleteFirstName = String(parts.first ?? "")
+                newAthleteLastName = parts.count > 1 ? String(parts.last ?? "") : ""
+                return
+            }
+        }
+        
+        // Check legacy format
+        let nameParts = athleteName.split(separator: " ")
+        let firstName = String(nameParts.first ?? "")
+        
+        if profile.athlete2FirstName == firstName {
+            newAthleteBirthday = profile.athlete2Birthday ?? ""
+            newAthleteSchoolClubTeam = profile.athlete2SchoolClubTeam ?? ""
+            newAthleteExperienceLevel = profile.athlete2ExperienceLevel ?? ""
+            newAthletePosition = profile.athlete2Position ?? ""
+            newAthleteFirstName = profile.athlete2FirstName ?? ""
+            newAthleteLastName = profile.athlete2LastName ?? ""
+        } else if profile.athlete3FirstName == firstName {
+            newAthleteBirthday = profile.athlete3Birthday ?? ""
+            newAthleteSchoolClubTeam = profile.athlete3SchoolClubTeam ?? ""
+            newAthleteExperienceLevel = profile.athlete3ExperienceLevel ?? ""
+            newAthletePosition = profile.athlete3Position ?? ""
+            newAthleteFirstName = profile.athlete3FirstName ?? ""
+            newAthleteLastName = profile.athlete3LastName ?? ""
+        }
+        
+        // Parent/guardian info from profile
+        newAthleteParentGuardianName = profile.firstName != nil && profile.lastName != nil ? "\(profile.firstName!) \(profile.lastName!)" : ""
+        newAthleteEmergencyContactName = profile.emergencyContactName ?? ""
+        newAthleteEmergencyContactPhone = profile.emergencyContactNumber ?? ""
+    }
+    
     // Validate that all required athlete information is filled
     private var isAthleteInfoComplete: Bool {
         guard isOnlyParticipant != nil else { return false }
@@ -890,6 +941,7 @@ struct BookView: View {
                                 Button {
                                     secondAthleteName = athleteName
                                     isNewAthlete = false
+                                    loadSecondAthleteProfileData()
                                 } label: {
                                     Text(athleteName)
                                         .font(.bodyMedium)

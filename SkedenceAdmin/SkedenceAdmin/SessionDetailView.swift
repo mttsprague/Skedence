@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseFirestore
 
 struct SessionDetailView: View {
     let client: Client
@@ -273,6 +274,11 @@ struct SessionDetailView: View {
                     }
                     .padding(.leading, 24)
                 }
+                
+                // Waiver Status
+                WaiverStatusView(clientId: client.id, athleteName: name)
+                    .padding(.leading, 24)
+                    .padding(.top, 4)
             }
         }
     }
@@ -355,5 +361,76 @@ struct DestructiveButtonStyle: ButtonStyle {
                     .fill(Color.red)
             )
             .opacity(configuration.isPressed ? 0.8 : 1.0)
+    }
+}
+
+// MARK: - Waiver Status View
+struct WaiverStatusView: View {
+    let clientId: String
+    let athleteName: String
+    
+    @State private var hasWaiver = false
+    @State private var isLoading = true
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            if isLoading {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .frame(width: 16, height: 16)
+                Text("Checking waiver...")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textTertiary)
+            } else if hasWaiver {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.green)
+                Text("Waiver Signed")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.green)
+            } else {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.orange)
+                Text("No Waiver")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.orange)
+            }
+        }
+        .task {
+            await checkWaiverStatus()
+        }
+    }
+    
+    private func checkWaiverStatus() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let db = Firestore.firestore()
+            let documentsSnapshot = try await db.collection("documents")
+                .whereField("userId", isEqualTo: clientId)
+                .whereField("type", isEqualTo: "waiver")
+                .getDocuments()
+            
+            for doc in documentsSnapshot.documents {
+                let data = doc.data()
+                if let docAthleteName = data["athleteName"] as? String {
+                    // Normalize both names for comparison
+                    let normalizedDocName = docAthleteName.trimmingCharacters(in: .whitespaces).lowercased()
+                    let normalizedTargetName = athleteName.trimmingCharacters(in: .whitespaces).lowercased()
+                    
+                    if normalizedDocName == normalizedTargetName {
+                        hasWaiver = true
+                        return
+                    }
+                }
+            }
+            
+            hasWaiver = false
+        } catch {
+            print("Error checking waiver status: \\(error)")
+            hasWaiver = false
+        }
     }
 }
