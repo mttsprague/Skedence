@@ -104,22 +104,9 @@ final class BookingManager: ObservableObject {
     // MARK: - Package selection
 
     private func chooseSoonestExpiringPackageId(for uid: String) async throws -> String? {
-        let snap = try await db.collection("users")
-            .document(uid)
-            .collection("lessonPackages")
-            .order(by: "expirationDate", descending: false) // earliest first
-            .getDocuments()
-
         let now = Date()
-
-        // Decode minimal fields we need to compute remaining and validity
-        struct Pkg {
-            let id: String
-            let total: Int
-            let used: Int
-            let expiration: Date
-        }
-
+        
+        // Helper to decode packages
         func date(from any: Any?) -> Date? {
             if let ts = any as? Timestamp { return ts.dateValue() }
             if let d = any as? Date { return d }
@@ -128,24 +115,67 @@ final class BookingManager: ObservableObject {
             }
             return nil
         }
-
-        let pkgs: [Pkg] = snap.documents.compactMap { doc in
-            let data = doc.data()
-            guard
-                let packageType = data["packageType"] as? String,
-                packageType != "class_pass", // Exclude class passes - they can only be used for classes
-                let total = data["totalLessons"] as? Int,
-                let used = data["lessonsUsed"] as? Int,
-                let exp = date(from: data["expirationDate"])
-            else { return nil }
-            return Pkg(id: doc.documentID, total: total, used: used, expiration: exp)
+        
+        struct Pkg {
+            let id: String
+            let total: Int
+            let used: Int
+            let expiration: Date
         }
-
-        // Pick the first package that is not expired and has remaining > 0
-        let chosen = pkgs.first { pkg in
+        
+        func parsePackages(from snap: QuerySnapshot) -> [Pkg] {
+            return snap.documents.compactMap { doc in
+                let data = doc.data()
+                guard
+                    let packageType = data["packageType"] as? String,
+                    packageType != "class_pass" && packageType != "class", // Exclude class passes
+                    let total = data["totalLessons"] as? Int,
+                    let used = data["lessonsUsed"] as? Int,
+                    let exp = date(from: data["expirationDate"])
+                else { return nil }
+                return Pkg(id: doc.documentID, total: total, used: used, expiration: exp)
+            }
+        }
+        
+        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
+        // Get orgId from user document
+        let userDoc = try await db.collection("users").document(uid).getDocument()
+        if let orgId = userDoc.data()?["orgId"] as? String {
+            let newPathSnap = try await db.collection("organizations")
+                .document(orgId)
+                .collection("users")
+                .document(uid)
+                .collection("packages")
+                .order(by: "expirationDate", descending: false)
+                .getDocuments()
+            
+            let newPathPkgs = parsePackages(from: newPathSnap)
+            let chosen = newPathPkgs.first { pkg in
+                pkg.expiration >= now && (pkg.total - pkg.used) > 0
+            }
+            
+            if let chosenId = chosen?.id {
+                print("📦 BookingManager: Selected package \(chosenId) from NEW path")
+                return chosenId
+            }
+        }
+        
+        // Fallback to OLD path: users/{uid}/lessonPackages
+        let oldPathSnap = try await db.collection("users")
+            .document(uid)
+            .collection("lessonPackages")
+            .order(by: "expirationDate", descending: false)
+            .getDocuments()
+        
+        let oldPathPkgs = parsePackages(from: oldPathSnap)
+        let chosen = oldPathPkgs.first { pkg in
             pkg.expiration >= now && (pkg.total - pkg.used) > 0
         }
-
+        
+        if let chosenId = chosen?.id {
+            print("📦 BookingManager: Selected package \(chosenId) from OLD path")
+        }
+        
         return chosen?.id
     }
 

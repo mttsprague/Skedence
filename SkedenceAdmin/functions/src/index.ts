@@ -1295,11 +1295,17 @@ export const cancelClassRegistration = functions.https.onCall(
         const classDoc = await transaction.get(classRef);
         const participantDoc = await transaction.get(participantRef);
 
+        // If class doesn't exist (was deleted by admin), we still consider it a successful unregister
+        // The client just wants to remove it from their schedule
         if (!classDoc.exists) {
-          throw new functions.https.HttpsError(
-            "not-found",
-            "Class not found."
+          functions.logger.info(
+            `Class ${classId} no longer exists (likely deleted by admin). User ${userId} unregister successful.`
           );
+          // If there's still a participant doc somehow, delete it
+          if (participantDoc.exists) {
+            transaction.delete(participantDoc.ref);
+          }
+          return; // Exit transaction early - nothing else to do
         }
 
         if (!participantDoc.exists) {
@@ -1318,17 +1324,37 @@ export const cancelClassRegistration = functions.https.onCall(
         }
 
         // Get the class pass package and decrement lessonsUsed
-        const classPassRef = db
-          .collection("users")
-          .doc(userId)
-          .collection("lessonPackages")
-          .doc(participantData.classPassPackageId);
+        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
+        const userDocRef = db.collection("users").doc(userId);
+        const userDoc = await transaction.get(userDocRef);
+        const orgId = userDoc.data()?.orgId;
+
+        let classPassRef: admin.firestore.DocumentReference;
+        if (orgId) {
+          classPassRef = db
+            .collection("organizations")
+            .doc(orgId)
+            .collection("users")
+            .doc(userId)
+            .collection("packages")
+            .doc(participantData.classPassPackageId);
+        } else {
+          // Fallback to OLD path
+          classPassRef = db
+            .collection("users")
+            .doc(userId)
+            .collection("lessonPackages")
+            .doc(participantData.classPassPackageId);
+        }
 
         const classPassDoc = await transaction.get(classPassRef);
         if (classPassDoc.exists) {
           transaction.update(classPassRef, {
             lessonsUsed: admin.firestore.FieldValue.increment(-1),
           });
+          functions.logger.info(
+            `Refunded 1 class credit to user ${userId} from package ${participantData.classPassPackageId}`
+          );
         }
 
         // Decrement class participants count
