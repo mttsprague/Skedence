@@ -392,30 +392,58 @@ struct TrainerWeekView: View {
         
         // Handle regular client booking
         if slot.isBooked, let clientId = slot.clientId {
-            // Check cache first
-            if let cached = viewModel.clientsById[clientId] {
-                let booking = ClientBooking(
-                    id: slot.id,
-                    trainerId: slot.trainerId,
-                    trainerName: trainerViewModel.trainer?.displayName ?? "Trainer",
-                    startTime: slot.startTime,
-                    endTime: slot.endTime,
-                    status: "confirmed",
-                    bookedAt: slot.bookedAt,
-                    isClassBooking: slot.isClassBooking,
-                    classId: slot.classId,
-                    athleteName: slot.athleteName,
-                    secondAthleteName: slot.secondAthleteName,
-                    location: slot.location,
-                    lessonNotes: slot.lessonNotes,
-                    packageTypeName: slot.packageTypeName ?? "Session"
-                )
-                self.sessionDetailContext = SessionDetailContext(client: cached, booking: booking)
-                return
-            }
-            
             // Fetch data BEFORE showing sheet
             Task {
+                // Try to fetch full booking details
+                var booking: ClientBooking?
+                
+                do {
+                    let db = Firestore.firestore()
+                    let bookingsSnapshot = try await db.collection("bookings")
+                        .whereField("clientId", isEqualTo: clientId)
+                        .whereField("trainerId", isEqualTo: slot.trainerId)
+                        .whereField("startTime", isEqualTo: Timestamp(date: slot.startTime))
+                        .limit(to: 1)
+                        .getDocuments()
+                    
+                    if let bookingDoc = bookingsSnapshot.documents.first {
+                        let data = bookingDoc.data()
+                        booking = ClientBooking(
+                            id: bookingDoc.documentID,
+                            trainerId: slot.trainerId,
+                            trainerName: trainerViewModel.trainer?.displayName ?? "Trainer",
+                            startTime: slot.startTime,
+                            endTime: slot.endTime,
+                            status: data["status"] as? String ?? "confirmed",
+                            location: slot.location,
+                            bookedAt: (data["bookedAt"] as? Timestamp)?.dateValue() ?? slot.bookedAt,
+                            isClassBooking: slot.isClassBooking,
+                            classId: slot.classId,
+                            athleteName: data["athleteName"] as? String,
+                            secondAthleteName: data["secondAthleteName"] as? String,
+                            lessonNotes: data["lessonNotes"] as? String
+                        )
+                    }
+                } catch {
+                    print("⚠️ Error fetching booking details: \(error)")
+                }
+                
+                // Fallback to basic booking info if not found
+                if booking == nil {
+                    booking = ClientBooking(
+                        id: slot.id,
+                        trainerId: slot.trainerId,
+                        trainerName: trainerViewModel.trainer?.displayName ?? "Trainer",
+                        startTime: slot.startTime,
+                        endTime: slot.endTime,
+                        status: "confirmed",
+                        location: slot.location,
+                        bookedAt: slot.bookedAt,
+                        isClassBooking: slot.isClassBooking,
+                        classId: slot.classId
+                    )
+                }
+                
                 let fetched = try? await FirestoreService.shared.fetchClient(by: clientId)
                 await MainActor.run {
                     let client = fetched ?? Client(
@@ -431,24 +459,7 @@ struct TrainerWeekView: View {
                         viewModel.clientsById[clientId] = fetched
                     }
                     
-                    let booking = ClientBooking(
-                        id: slot.id,
-                        trainerId: slot.trainerId,
-                        trainerName: trainerViewModel.trainer?.displayName ?? "Trainer",
-                        startTime: slot.startTime,
-                        endTime: slot.endTime,
-                        status: "confirmed",
-                        bookedAt: slot.bookedAt,
-                        isClassBooking: slot.isClassBooking,
-                        classId: slot.classId,
-                        athleteName: slot.athleteName,
-                        secondAthleteName: slot.secondAthleteName,
-                        location: slot.location,
-                        lessonNotes: slot.lessonNotes,
-                        packageTypeName: slot.packageTypeName ?? "Session"
-                    )
-                    
-                    self.sessionDetailContext = SessionDetailContext(client: client, booking: booking)
+                    self.sessionDetailContext = SessionDetailContext(client: client, booking: booking!)
                 }
             }
         }
