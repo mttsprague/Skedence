@@ -67,6 +67,16 @@ struct BookView: View {
     @State private var showWaiverAgreement = false
     @State private var pendingBookingSuccess = false
     @State private var pendingNewAthleteWaiver = false
+    
+    // Trainer filter state
+    @State private var showTrainerFilter = false
+    @State private var filterStartDate = Date()
+    @State private var filterEndDate = Date().addingTimeInterval(2 * 24 * 60 * 60) // 2 days later
+    @State private var filterStartTime = Calendar.current.date(bySettingHour: 16, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var filterEndTime = Calendar.current.date(bySettingHour: 19, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var filteredTrainers: [Trainer] = []
+    @State private var isSearchingTrainers = false
+    @State private var hasSearched = false
 
     enum Mode: String, CaseIterable { case lessons = "Lessons", classes = "Classes" }
 
@@ -461,6 +471,169 @@ struct BookView: View {
     
     private var lessonsContent: some View {
         Group {
+            // Trainer Availability Filter
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack {
+                    Text("Filter availability by trainer:")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Spacer()
+                    Button {
+                        withAnimation {
+                            showTrainerFilter.toggle()
+                        }
+                    } label: {
+                        Image(systemName: showTrainerFilter ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppTheme.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, Spacing.lg)
+                
+                if showTrainerFilter {
+                    CardView(padding: Spacing.md) {
+                        VStack(spacing: Spacing.md) {
+                            // Date Range
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Date Range")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                HStack(spacing: Spacing.sm) {
+                                    DatePicker("From", selection: $filterStartDate, displayedComponents: .date)
+                                        .datePickerStyle(.compact)
+                                        .labelsHidden()
+                                        .frame(maxWidth: .infinity)
+                                    Text("to")
+                                        .font(.bodySmall)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    DatePicker("To", selection: $filterEndDate, displayedComponents: .date)
+                                        .datePickerStyle(.compact)
+                                        .labelsHidden()
+                                        .frame(maxWidth: .infinity)
+                                }
+                            }
+                            
+                            // Time Range
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Time Range")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                HStack(spacing: Spacing.sm) {
+                                    DatePicker("From", selection: $filterStartTime, displayedComponents: .hourAndMinute)
+                                        .datePickerStyle(.compact)
+                                        .labelsHidden()
+                                        .frame(maxWidth: .infinity)
+                                    Text("to")
+                                        .font(.bodySmall)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    DatePicker("To", selection: $filterEndTime, displayedComponents: .hourAndMinute)
+                                        .datePickerStyle(.compact)
+                                        .labelsHidden()
+                                        .frame(maxWidth: .infinity)
+                                }
+                            }
+                            
+                            // Search Button
+                            Button {
+                                Task {
+                                    await searchTrainersWithAvailability()
+                                }
+                            } label: {
+                                HStack {
+                                    if isSearchingTrainers {
+                                        ProgressView()
+                                            .tint(.white)
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: "magnifyingglass")
+                                            .font(.system(size: 16, weight: .semibold))
+                                    }
+                                    Text(isSearchingTrainers ? "Searching..." : "Find Trainers")
+                                        .font(.headingSmall)
+                                }
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(
+                                    RoundedRectangle(cornerRadius: CornerRadius.md)
+                                        .fill(AppTheme.primary)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isSearchingTrainers)
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                    
+                    // Filtered Results
+                    if hasSearched {
+                        if filteredTrainers.isEmpty {
+                            CardView(padding: Spacing.md) {
+                                VStack(spacing: Spacing.sm) {
+                                    Image(systemName: "calendar.badge.exclamationmark")
+                                        .font(.system(size: 32))
+                                        .foregroundStyle(AppTheme.textTertiary)
+                                    Text("No trainers available")
+                                        .font(.bodyMedium)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    Text("Try adjusting your date or time range")
+                                        .font(.bodySmall)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, Spacing.md)
+                            }
+                            .padding(.horizontal, Spacing.lg)
+                        } else {
+                            CardView(padding: Spacing.md) {
+                                VStack(alignment: .leading, spacing: Spacing.sm) {
+                                    Text("\(filteredTrainers.count) Trainer\(filteredTrainers.count == 1 ? "" : "s") Available")
+                                        .font(.headingSmall)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    
+                                    ForEach(filteredTrainers, id: \.id) { trainer in
+                                        Button {
+                                            selectedTrainer = trainer
+                                            hasSearched = false
+                                            showTrainerFilter = false
+                                            selectedSlot = nil
+                                            Task {
+                                                await loadMonthIfPossible()
+                                                await loadDayIfPossible()
+                                            }
+                                        } label: {
+                                            HStack(spacing: Spacing.md) {
+                                                TrainerAvatarView(trainer: trainer, size: 40)
+                                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                                    Text(trainer.name ?? "Unnamed")
+                                                        .font(.bodyMedium)
+                                                        .foregroundStyle(AppTheme.textPrimary)
+                                                    Text("Professional Trainer")
+                                                        .font(.bodySmall)
+                                                        .foregroundStyle(AppTheme.textSecondary)
+                                                }
+                                                Spacer()
+                                                Image(systemName: "chevron.right")
+                                                    .font(.system(size: 14, weight: .semibold))
+                                                    .foregroundStyle(AppTheme.textTertiary)
+                                            }
+                                            .padding(Spacing.sm)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: CornerRadius.sm)
+                                                    .fill(Color.platformSecondaryBackground)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, Spacing.lg)
+                        }
+                    }
+                }
+            }
+            
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack {
                     Text("Select Trainer")
@@ -1281,6 +1454,70 @@ struct BookView: View {
     private func loadMonthIfPossible() async {
         guard let trainerId = selectedTrainer?.id, let orgId = auth.currentOrgId else { return }
         await scheduleService.loadMonthAvailability(for: trainerId, monthStart: monthStart, orgId: orgId)
+    }
+    
+    private func searchTrainersWithAvailability() async {
+        guard let orgId = auth.currentOrgId else { return }
+        
+        isSearchingTrainers = true
+        defer {
+            isSearchingTrainers = false
+            hasSearched = true
+        }
+        
+        var trainersWithAvailability: [Trainer] = []
+        
+        // Get time components from filter times
+        let calendar = Calendar.current
+        let startHour = calendar.component(.hour, from: filterStartTime)
+        let startMinute = calendar.component(.minute, from: filterStartTime)
+        let endHour = calendar.component(.hour, from: filterEndTime)
+        let endMinute = calendar.component(.minute, from: filterEndTime)
+        
+        // Iterate through each trainer
+        for trainer in trainersService.trainers {
+            var hasAvailability = false
+            
+            // Check each date in the range
+            var currentDate = filterStartDate
+            while currentDate <= filterEndDate {
+                // Load the trainer's schedule for this date
+                await scheduleService.loadOpenSlots(for: trainer.id!, on: currentDate, orgId: orgId)
+                
+                // Check if any slots match the time range
+                for slot in scheduleService.daySlots {
+                    let slotHour = calendar.component(.hour, from: slot.startTime)
+                    let slotMinute = calendar.component(.minute, from: slot.startTime)
+                    
+                    // Convert times to minutes for easier comparison
+                    let slotStartMinutes = slotHour * 60 + slotMinute
+                    let filterStartMinutes = startHour * 60 + startMinute
+                    let filterEndMinutes = endHour * 60 + endMinute
+                    
+                    // Check if slot falls within the time range and is bookable
+                    if slotStartMinutes >= filterStartMinutes && slotStartMinutes < filterEndMinutes && canBookSlot(slot) {
+                        hasAvailability = true
+                        break
+                    }
+                }
+                
+                if hasAvailability {
+                    break
+                }
+                
+                // Move to next day
+                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+                if currentDate > filterEndDate {
+                    break
+                }
+            }
+            
+            if hasAvailability {
+                trainersWithAvailability.append(trainer)
+            }
+        }
+        
+        filteredTrainers = trainersWithAvailability
     }
 
     private func performBooking() async {
