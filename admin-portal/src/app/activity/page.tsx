@@ -48,22 +48,24 @@ export default function ActivityPage() {
         // In production, you'd want a dedicated activity_logs collection
         const logs: ActivityLog[] = [];
         
-        // Get recent bookings
+        // Get recent bookings - query without orderBy first to check if data exists
+        console.log('🔍 Fetching bookings for orgId:', orgId);
         const bookingsQuery = query(
           collection(db, 'bookings'),
           where('orgId', '==', orgId),
-          orderBy('bookedAt', 'desc'),
           limit(50)
         );
         const bookingsSnap = await getDocs(bookingsQuery);
+        console.log('📊 Found bookings:', bookingsSnap.size);
         
         for (const doc of bookingsSnap.docs) {
           const data = doc.data();
+          console.log('📝 Booking data:', { id: doc.id, clientId: data.clientId, trainerId: data.trainerId, bookedAt: data.bookedAt });
           const status = data.status || 'confirmed';
           
           // Fetch client name
-          let clientName = 'Unknown Client';
-          if (data.clientId) {
+          let clientName = data.clientName || 'Unknown Client';
+          if (data.clientId && !clientName) {
             try {
               const clientDoc = await getDocs(
                 query(collection(db, 'users'), where('__name__', '==', data.clientId), limit(1))
@@ -78,8 +80,8 @@ export default function ActivityPage() {
           }
           
           // Fetch trainer name
-          let trainerName = 'Trainer';
-          if (data.trainerId) {
+          let trainerName = data.trainerName || 'Trainer';
+          if (data.trainerId && !trainerName) {
             try {
               const trainerDoc = await getDocs(
                 query(collection(db, 'trainers'), where('__name__', '==', data.trainerId), limit(1))
@@ -93,13 +95,14 @@ export default function ActivityPage() {
             }
           }
           
-          const timestamp = data.bookedAt?.toDate() || new Date();
+          // Try different timestamp fields
+          const timestamp = data.bookedAt?.toDate() || data.createdAt?.toDate() || data.timestamp?.toDate() || new Date();
           
           if (status === 'cancelled') {
             logs.push({
               id: doc.id,
               type: 'booking_canceled',
-              actorId: data.clientId || 'unknown',
+              actorId: data.clientId || data.clientUID || 'unknown',
               actorName: clientName,
               actorRole: 'client',
               targetId: data.trainerId,
@@ -115,7 +118,7 @@ export default function ActivityPage() {
             logs.push({
               id: doc.id,
               type: 'booking_created',
-              actorId: data.clientId || 'unknown',
+              actorId: data.clientId || data.clientUID || 'unknown',
               actorName: clientName,
               actorRole: 'client',
               targetId: data.trainerId,
@@ -129,6 +132,8 @@ export default function ActivityPage() {
             });
           }
         }
+        
+        console.log('✅ Created activity logs:', logs.length);
         
         // Sort all logs by timestamp
         logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
