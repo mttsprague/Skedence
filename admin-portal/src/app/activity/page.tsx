@@ -4,24 +4,24 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { 
   Calendar, 
-  DollarSign, 
-  Package, 
-  UserPlus, 
   XCircle, 
-  Clock,
-  Users,
   Activity as ActivityIcon,
-  GraduationCap
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  X as XIcon
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays } from 'date-fns';
 
 interface ActivityLog {
   id: string;
-  type: 'booking_created' | 'booking_canceled' | 'pass_purchased' | 'class_purchased' | 'availability_created' | 'client_added' | 'trainer_added';
+  type: 'booking_created' | 'booking_canceled';
   actorId: string;
   actorName: string;
   actorRole: 'owner' | 'trainer' | 'client';
@@ -35,7 +35,11 @@ interface ActivityLog {
 export default function ActivityPage() {
   const { orgId } = useAuth();
   const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [filteredActivities, setFilteredActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (!orgId) return;
@@ -43,59 +47,23 @@ export default function ActivityPage() {
     async function loadActivities() {
       try {
         setLoading(true);
-        
-        // For now, we'll construct activity logs from existing data
-        // In production, you'd want a dedicated activity_logs collection
         const logs: ActivityLog[] = [];
         
-        // Get recent bookings - query without orderBy first to check if data exists
         console.log('🔍 Fetching bookings for orgId:', orgId);
         const bookingsQuery = query(
           collection(db, 'bookings'),
           where('orgId', '==', orgId),
-          limit(50)
+          limit(200)
         );
         const bookingsSnap = await getDocs(bookingsQuery);
         console.log('📊 Found bookings:', bookingsSnap.size);
         
         for (const doc of bookingsSnap.docs) {
           const data = doc.data();
-          console.log('📝 Booking data:', { id: doc.id, clientId: data.clientId, trainerId: data.trainerId, bookedAt: data.bookedAt });
           const status = data.status || 'confirmed';
           
-          // Fetch client name
-          let clientName = data.clientName || 'Unknown Client';
-          if (data.clientId && !clientName) {
-            try {
-              const clientDoc = await getDocs(
-                query(collection(db, 'users'), where('__name__', '==', data.clientId), limit(1))
-              );
-              if (!clientDoc.empty) {
-                const clientData = clientDoc.docs[0].data();
-                clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim() || 'Client';
-              }
-            } catch (e) {
-              console.error('Error fetching client:', e);
-            }
-          }
-          
-          // Fetch trainer name
-          let trainerName = data.trainerName || 'Trainer';
-          if (data.trainerId && !trainerName) {
-            try {
-              const trainerDoc = await getDocs(
-                query(collection(db, 'trainers'), where('__name__', '==', data.trainerId), limit(1))
-              );
-              if (!trainerDoc.empty) {
-                const trainerData = trainerDoc.docs[0].data();
-                trainerName = trainerData.displayName || trainerData.firstName || 'Trainer';
-              }
-            } catch (e) {
-              console.error('Error fetching trainer:', e);
-            }
-          }
-          
-          // Try different timestamp fields
+          const clientName = data.clientName || 'Unknown Client';
+          const trainerName = data.trainerName || 'Trainer';
           const timestamp = data.bookedAt?.toDate() || data.createdAt?.toDate() || data.timestamp?.toDate() || new Date();
           
           if (status === 'cancelled') {
@@ -134,11 +102,9 @@ export default function ActivityPage() {
         }
         
         console.log('✅ Created activity logs:', logs.length);
-        
-        // Sort all logs by timestamp
         logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-        
         setActivities(logs);
+        filterActivitiesByDate(logs, selectedDate);
       } catch (error) {
         console.error('Error loading activities:', error);
       } finally {
@@ -149,22 +115,69 @@ export default function ActivityPage() {
     loadActivities();
   }, [orgId]);
 
+  useEffect(() => {
+    if (isSearching && searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const results = activities.filter(activity => 
+        activity.actorName.toLowerCase().includes(query) ||
+        activity.targetName?.toLowerCase().includes(query) ||
+        activity.details.toLowerCase().includes(query)
+      );
+      setFilteredActivities(results);
+    } else {
+      filterActivitiesByDate(activities, selectedDate);
+    }
+  }, [selectedDate, searchQuery, isSearching, activities]);
+
+  const filterActivitiesByDate = (logs: ActivityLog[], date: Date) => {
+    const dayStart = startOfDay(date);
+    const dayEnd = endOfDay(date);
+    
+    const filtered = logs.filter(activity => {
+      const activityTime = activity.timestamp.getTime();
+      return activityTime >= dayStart.getTime() && activityTime <= dayEnd.getTime();
+    });
+    
+    setFilteredActivities(filtered);
+  };
+
+  const handlePreviousDay = () => {
+    setSelectedDate(prev => subDays(prev, 1));
+    setIsSearching(false);
+    setSearchQuery('');
+  };
+
+  const handleNextDay = () => {
+    setSelectedDate(prev => addDays(prev, 1));
+    setIsSearching(false);
+    setSearchQuery('');
+  };
+
+  const handleToday = () => {
+    setSelectedDate(new Date());
+    setIsSearching(false);
+    setSearchQuery('');
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setIsSearching(query.length > 0);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setIsSearching(false);
+  };
+
+  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+
   const getActivityIcon = (type: ActivityLog['type']) => {
     switch (type) {
       case 'booking_created':
         return <Calendar className="h-5 w-5 text-green-600" />;
       case 'booking_canceled':
         return <XCircle className="h-5 w-5 text-red-600" />;
-      case 'pass_purchased':
-        return <Package className="h-5 w-5 text-blue-600" />;
-      case 'class_purchased':
-        return <GraduationCap className="h-5 w-5 text-purple-600" />;
-      case 'availability_created':
-        return <Clock className="h-5 w-5 text-indigo-600" />;
-      case 'client_added':
-        return <Users className="h-5 w-5 text-teal-600" />;
-      case 'trainer_added':
-        return <UserPlus className="h-5 w-5 text-orange-600" />;
       default:
         return <ActivityIcon className="h-5 w-5 text-gray-600" />;
     }
@@ -207,35 +220,166 @@ export default function ActivityPage() {
           </p>
         </div>
 
+        {/* Date Navigation & Search */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Date Navigation */}
+          <Card className="flex-1">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousDay}
+                  disabled={isSearching}
+                  className="w-10 h-10 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <div className="flex-1 text-center">
+                  <div className="text-lg font-semibold text-gray-900">
+                    {format(selectedDate, 'MMMM d, yyyy')}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {isToday ? 'Today' : format(selectedDate, 'EEEE')}
+                  </div>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextDay}
+                  disabled={isToday || isSearching}
+                  className="w-10 h-10 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {!isToday && !isSearching && (
+                <div className="mt-4 text-center">
+                  <Button variant="ghost" size="sm" onClick={handleToday}>
+                    Jump to Today
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Search */}
+          <Card className="flex-1">
+            <CardContent className="pt-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search activities..."
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {isSearching && (
+                <p className="mt-2 text-sm text-gray-600">
+                  Found {filteredActivities.length} result{filteredActivities.length !== 1 ? 's' : ''}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Stats Summary */}
+        {!isSearching && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-green-100 rounded-full">
+                    <Calendar className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Bookings</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {filteredActivities.filter(a => a.type === 'booking_created').length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-red-100 rounded-full">
+                    <XCircle className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Cancellations</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {filteredActivities.filter(a => a.type === 'booking_canceled').length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <ActivityIcon className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Total Activity</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {filteredActivities.length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Activity Timeline */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ActivityIcon className="h-5 w-5" />
-              Recent Activity
+              {isSearching ? 'Search Results' : format(selectedDate, 'MMMM d, yyyy')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {activities.length === 0 ? (
+            {filteredActivities.length === 0 ? (
               <div className="text-center py-12">
                 <ActivityIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No recent activity</p>
+                <p className="text-gray-600">
+                  {isSearching 
+                    ? 'No activities match your search' 
+                    : `No activity on ${format(selectedDate, 'MMMM d, yyyy')}`
+                  }
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {activities.map((activity, index) => (
+                {filteredActivities.map((activity, index) => (
                   <div
                     key={activity.id}
                     className={`flex gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors ${
-                      index !== activities.length - 1 ? 'border-b border-gray-100' : ''
+                      index !== filteredActivities.length - 1 ? 'border-b border-gray-100' : ''
                     }`}
                   >
-                    {/* Icon */}
                     <div className="flex-shrink-0 mt-1">
                       {getActivityIcon(activity.type)}
                     </div>
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
@@ -265,28 +409,6 @@ export default function ActivityPage() {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Future Enhancement Notice */}
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex gap-3">
-              <ActivityIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-blue-900 mb-1">Activity Tracking</h3>
-                <p className="text-sm text-blue-800">
-                  This feed currently shows booking activity. In future updates, it will include:
-                </p>
-                <ul className="mt-2 text-sm text-blue-700 space-y-1 list-disc list-inside">
-                  <li>Pass and class purchases</li>
-                  <li>Trainer availability changes</li>
-                  <li>New client and trainer registrations</li>
-                  <li>Payment transactions</li>
-                  <li>Profile updates and more</li>
-                </ul>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
