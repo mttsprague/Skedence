@@ -503,6 +503,7 @@ struct BookView: View {
                                     DatePicker("From", selection: $filterStartDate, displayedComponents: .date)
                                         .datePickerStyle(.compact)
                                         .labelsHidden()
+                                        .environment(\.locale, Locale(identifier: "en_US"))
                                         .frame(maxWidth: .infinity)
                                     Text("to")
                                         .font(.bodySmall)
@@ -510,6 +511,7 @@ struct BookView: View {
                                     DatePicker("To", selection: $filterEndDate, displayedComponents: .date)
                                         .datePickerStyle(.compact)
                                         .labelsHidden()
+                                        .environment(\.locale, Locale(identifier: "en_US"))
                                         .frame(maxWidth: .infinity)
                                 }
                             }
