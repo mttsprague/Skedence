@@ -58,8 +58,15 @@ final class DocumentsService {
         let documentId = UUID().uuidString
         let now = Date()
         
+        // Create descriptive name with athlete name if provided
+        let documentName = if let athleteName = athleteName {
+            "\(athleteName) Waiver"
+        } else {
+            "Release of Liability Waiver"
+        }
+        
         var documentData: [String: Any] = [
-            "name": "Release of Liability Waiver",
+            "name": documentName,
             "type": "waiver",
             "uploadedAt": Timestamp(date: now),
             "url": downloadURL.absoluteString,

@@ -572,17 +572,35 @@ struct BookView: View {
                             CardView(padding: Spacing.md) {
                                 VStack(spacing: Spacing.sm) {
                                     Image(systemName: "calendar.badge.exclamationmark")
-                                        .font(.system(size: 32))
+                                        .font(.system(size: 40))
                                         .foregroundStyle(AppTheme.textTertiary)
-                                    Text("No trainers available")
-                                        .font(.bodyMedium)
+                                    Text("No Trainers Available")
+                                        .font(.headingSmall)
                                         .foregroundStyle(AppTheme.textPrimary)
-                                    Text("Try adjusting your date or time range")
+                                    Text("No trainers have availability during your selected time frame:")
+                                        .font(.bodyMedium)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                        .multilineTextAlignment(.center)
+                                    
+                                    VStack(spacing: Spacing.xxs) {
+                                        Text("\(filterStartDate.formatted(date: .abbreviated, time: .omitted)) - \(filterEndDate.formatted(date: .abbreviated, time: .omitted))")
+                                            .font(.bodyMedium)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Text("\(filterStartTime.formatted(date: .omitted, time: .shortened)) - \(filterEndTime.formatted(date: .omitted, time: .shortened))")
+                                            .font(.bodyMedium)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                    }
+                                    .padding(.vertical, Spacing.xs)
+                                    
+                                    Text("Try expanding your date or time range")
                                         .font(.bodySmall)
                                         .foregroundStyle(AppTheme.textSecondary)
+                                        .multilineTextAlignment(.center)
                                 }
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, Spacing.md)
+                                .padding(.vertical, Spacing.lg)
                             }
                             .padding(.horizontal, Spacing.lg)
                         } else {
@@ -1459,6 +1477,13 @@ struct BookView: View {
     private func searchTrainersWithAvailability() async {
         guard let orgId = auth.currentOrgId else { return }
         
+        // Validate date range
+        guard filterStartDate <= filterEndDate else {
+            filteredTrainers = []
+            hasSearched = true
+            return
+        }
+        
         isSearchingTrainers = true
         defer {
             isSearchingTrainers = false
@@ -1466,48 +1491,61 @@ struct BookView: View {
         }
         
         var trainersWithAvailability: [Trainer] = []
+        let calendar = Calendar.current
         
         // Get time components from filter times
-        let calendar = Calendar.current
         let startHour = calendar.component(.hour, from: filterStartTime)
         let startMinute = calendar.component(.minute, from: filterStartTime)
         let endHour = calendar.component(.hour, from: filterEndTime)
         let endMinute = calendar.component(.minute, from: filterEndTime)
         
+        // Convert to minutes for easier comparison
+        let filterStartMinutes = startHour * 60 + startMinute
+        let filterEndMinutes = endHour * 60 + endMinute
+        
+        // Validate time range
+        guard filterStartMinutes < filterEndMinutes else {
+            filteredTrainers = []
+            return
+        }
+        
+        // Calculate number of days to check (limit to reasonable range)
+        let daysDifference = calendar.dateComponents([.day], from: filterStartDate, to: filterEndDate).day ?? 0
+        let maxDaysToCheck = min(daysDifference + 1, 14) // Limit to 2 weeks max
+        
         // Iterate through each trainer
         for trainer in trainersService.trainers {
+            guard let trainerId = trainer.id else { continue }
+            
             var hasAvailability = false
             
-            // Check each date in the range
-            var currentDate = filterStartDate
-            while currentDate <= filterEndDate {
+            // Check each date in the range (up to max)
+            for dayOffset in 0..<maxDaysToCheck {
+                guard let checkDate = calendar.date(byAdding: .day, value: dayOffset, to: filterStartDate) else { continue }
+                
+                // Skip if date is beyond end date
+                if checkDate > filterEndDate { break }
+                
                 // Load the trainer's schedule for this date
-                await scheduleService.loadOpenSlots(for: trainer.id!, on: currentDate, orgId: orgId)
+                await scheduleService.loadOpenSlots(for: trainerId, on: checkDate, orgId: orgId)
                 
                 // Check if any slots match the time range
                 for slot in scheduleService.daySlots {
                     let slotHour = calendar.component(.hour, from: slot.startTime)
                     let slotMinute = calendar.component(.minute, from: slot.startTime)
-                    
-                    // Convert times to minutes for easier comparison
                     let slotStartMinutes = slotHour * 60 + slotMinute
-                    let filterStartMinutes = startHour * 60 + startMinute
-                    let filterEndMinutes = endHour * 60 + endMinute
                     
                     // Check if slot falls within the time range and is bookable
-                    if slotStartMinutes >= filterStartMinutes && slotStartMinutes < filterEndMinutes && canBookSlot(slot) {
+                    if slotStartMinutes >= filterStartMinutes && 
+                       slotStartMinutes < filterEndMinutes && 
+                       canBookSlot(slot) {
                         hasAvailability = true
                         break
                     }
                 }
                 
+                // Early exit if we found availability for this trainer
                 if hasAvailability {
-                    break
-                }
-                
-                // Move to next day
-                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
-                if currentDate > filterEndDate {
                     break
                 }
             }
@@ -1517,7 +1555,15 @@ struct BookView: View {
             }
         }
         
-        filteredTrainers = trainersWithAvailability
+        // Sort results: prioritize trainers with more availability
+        filteredTrainers = trainersWithAvailability.sorted { lhs, rhs in
+            let lhsPriority = isJeff(lhs) ? 0 : 1
+            let rhsPriority = isJeff(rhs) ? 0 : 1
+            if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+            let ln = lhs.name ?? ""
+            let rn = rhs.name ?? ""
+            return ln.localizedCaseInsensitiveCompare(rn) == .orderedAscending
+        }
     }
 
     private func performBooking() async {

@@ -408,8 +408,10 @@ struct WaiverStatusView: View {
         
         do {
             let db = Firestore.firestore()
-            let documentsSnapshot = try await db.collection("documents")
-                .whereField("userId", isEqualTo: clientId)
+            // Query the correct subcollection: users/{userId}/documents
+            let documentsSnapshot = try await db.collection("users")
+                .document(clientId)
+                .collection("documents")
                 .whereField("type", isEqualTo: "waiver")
                 .getDocuments()
             
