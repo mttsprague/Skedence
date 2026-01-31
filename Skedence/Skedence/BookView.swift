@@ -1181,6 +1181,64 @@ struct BookView: View {
                     }
                     .padding(.horizontal, Spacing.lg)
                 }
+                
+                // Show existing second athlete info (when not new athlete)
+                if !isNewAthlete && secondAthleteName != nil && secondAthleteName != "New Athlete" {
+                    CardView(padding: Spacing.md) {
+                        VStack(alignment: .leading, spacing: Spacing.sm) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("Participant Info Loaded")
+                                    .font(.bodyMedium)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                            
+                            if !newAthleteBirthday.isEmpty || !newAthleteSchoolClubTeam.isEmpty || !newAthleteExperienceLevel.isEmpty {
+                                Divider()
+                                    .padding(.vertical, Spacing.xxs)
+                                
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                    if !newAthleteBirthday.isEmpty {
+                                        HStack {
+                                            Image(systemName: "calendar")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                                .frame(width: 16)
+                                            Text("Birthday: \(newAthleteBirthday)")
+                                                .font(.bodySmall)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                    }
+                                    if !newAthleteSchoolClubTeam.isEmpty {
+                                        HStack {
+                                            Image(systemName: "building.2")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                                .frame(width: 16)
+                                            Text(newAthleteSchoolClubTeam)
+                                                .font(.bodySmall)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                    }
+                                    if !newAthleteExperienceLevel.isEmpty {
+                                        HStack {
+                                            Image(systemName: "star.fill")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                                .frame(width: 16)
+                                            Text(newAthleteExperienceLevel)
+                                                .font(.bodySmall)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
             }
             
             // New Athlete Form (shown when "New Athlete" is selected)
@@ -1632,6 +1690,19 @@ struct BookView: View {
                     if !athleteHasWaiver {
                         pendingBookingSuccess = true
                         pendingNewAthleteWaiver = false // Waiver is for selectedAthleteName
+                        showWaiverAgreement = true
+                        return
+                    }
+                }
+                
+                // Check if second athlete needs waiver (for existing athletes)
+                if !isNewAthlete && secondAthleteName != nil && secondAthleteName != "New Athlete" {
+                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: secondAthleteName!)
+                    if !athleteHasWaiver {
+                        pendingBookingSuccess = true
+                        pendingNewAthleteWaiver = false
+                        // Store the second athlete name for waiver
+                        selectedAthleteName = secondAthleteName
                         showWaiverAgreement = true
                         return
                     }
