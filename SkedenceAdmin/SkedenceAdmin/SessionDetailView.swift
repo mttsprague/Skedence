@@ -357,8 +357,8 @@ struct SessionDetailView: View {
     
     // MARK: - Actions
     private func cancelBooking() async {
-        guard let bookingId = booking.id,
-              let orgId = auth.currentOrgId else {
+        let bookingId = booking.id
+        guard let orgId = auth.currentOrgId else {
             cancelError = "Missing booking or organization information"
             return
         }
@@ -475,7 +475,7 @@ struct WaiverStatusView: View {
             
             hasWaiver = false
         } catch {
-            print("Error checking waiver status: \\(error)")
+            print("Error checking waiver status: \(error)")
             hasWaiver = false
         }
     }
