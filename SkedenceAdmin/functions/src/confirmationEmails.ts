@@ -61,19 +61,24 @@ export const sendPurchaseConfirmation = onDocumentCreated(
         }
       }
 
-      // Format package name
-      const packageTypeNames: { [key: string]: string } = {
-        "single": "Single Lesson",
-        "five_pack": "5-Lesson Package",
-        "ten_pack": "10-Lesson Package",
-        "two_athlete": "2-Athlete Lesson",
-        "three_athlete": "3-Athlete Lesson",
-        "class_pass": "Class Pass",
-        "private": "Private Lesson",
-        "2_athlete": "2-Athlete Lesson",
-        "3_athlete": "3-Athlete Lesson",
-      };
-      packageName = packageTypeNames[packageData.packageType] || packageData.packageType;
+      // Use packageName field if available, otherwise format packageType
+      if (packageData.packageName) {
+        packageName = packageData.packageName;
+      } else {
+        // Fallback: Format packageType into readable name
+        const packageTypeNames: { [key: string]: string } = {
+          "single": "Single Lesson",
+          "five_pack": "5-Lesson Package",
+          "ten_pack": "10-Lesson Package",
+          "two_athlete": "2-Athlete Lesson",
+          "three_athlete": "3-Athlete Lesson",
+          "class_pass": "Class Pass",
+          "private": "Private Lesson",
+          "2_athlete": "2-Athlete Lesson",
+          "3_athlete": "3-Athlete Lesson",
+        };
+        packageName = packageTypeNames[packageData.packageType] || packageData.packageType;
+      }
 
       await admin.firestore().collection("mail").add({
         to: clientEmail,
@@ -277,10 +282,10 @@ export const sendBookingConfirmation = onDocumentCreated(
     const booking = snap.data();
 
     try {
-      // Fetch related data
+      // Fetch related data - Note: trainers are in trainers collection, not users
       const [clientDoc, trainerDoc, orgDoc] = await Promise.all([
-        admin.firestore().collection("users").doc(booking.clientId).get(),
-        admin.firestore().collection("users").doc(booking.trainerId).get(),
+        admin.firestore().collection("users").doc(booking.clientUID || booking.clientId).get(),
+        admin.firestore().collection("trainers").doc(booking.trainerId).get(),
         admin.firestore().collection("organizations").doc(booking.orgId).get(),
       ]);
 
@@ -289,14 +294,15 @@ export const sendBookingConfirmation = onDocumentCreated(
       const org = orgDoc.data();
 
       if (!client?.emailAddress && !client?.email) {
-        console.log("No email found for client:", booking.clientId);
+        console.log("No email found for client:", booking.clientUID || booking.clientId);
         return;
       }
 
       const clientEmail = client.emailAddress || client.email;
-      const clientName = `${client.firstName || ""} ${client.lastName || ""}`.trim() || "there";
-      const trainerName = `${trainer?.firstName || ""} ${trainer?.lastName || ""}`.trim() || "Your Trainer";
+      const clientName = booking.clientName || `${client.firstName || ""} ${client.lastName || ""}`.trim() || "there";
+      const trainerName = booking.trainerName || `${trainer?.firstName || ""} ${trainer?.lastName || ""}`.trim() || "Your Trainer";
       const orgName = org?.name || "Skedence";
+      const location = booking.location || "Location TBD";
 
       const startTime = booking.startTime.toDate();
       const endTime = booking.endTime.toDate();
@@ -317,7 +323,7 @@ SESSION DETAILS
 Trainer: ${trainerName}
 Date: ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}
 Time: ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}
-${booking.location ? `Location: ${booking.location}` : ""}
+Location: ${location}
 
 Need to reschedule or cancel? Please contact us at least 24 hours in advance.
 
@@ -467,15 +473,13 @@ The ${orgName} Team`,
           </div>
         </div>
         
-        ${booking.location ? `
         <div class="detail-row">
           <div class="detail-icon">📍</div>
           <div class="detail-text">
             <strong>Location</strong>
-            ${booking.location}
+            ${location}
           </div>
         </div>
-        ` : ""}
       </div>
       
       <div class="info-box">
@@ -526,8 +530,7 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
       // Fetch related data
       const [clientDoc, classDoc, orgDoc] = await Promise.all([
         admin.firestore().collection("users").doc(participant.userId).get(),
-        admin.firestore().collection("organizations").doc(orgId)
-          .collection("classes").doc(classId).get(),
+        admin.firestore().collection("classes").doc(classId).get(),
         admin.firestore().collection("organizations").doc(orgId).get(),
       ]);
 
@@ -541,9 +544,12 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
       }
 
       const clientEmail = client.emailAddress || client.email;
-      const clientName = `${client.firstName || ""} ${client.lastName || ""}`.trim() || "there";
-      const className = classData?.title || "Class";
+      const clientName = participant.userName || `${client.firstName || ""} ${client.lastName || ""}`.trim() || "there";
+      const className = classData?.name || classData?.title || "Class";
+      const classDescription = classData?.description || "";
+      const instructor = classData?.trainerName || "Staff";
       const orgName = org?.name || "Skedence";
+      const location = classData?.location || "Location TBD";
 
       const startTime = classData?.startTime.toDate();
       const endTime = classData?.endTime.toDate();
@@ -562,11 +568,11 @@ You've successfully registered for ${className} at ${startTime.toLocaleTimeStrin
 
 CLASS DETAILS
 Class: ${className}
-${classData?.description ? classData.description : ""}
+${classDescription ? classDescription + "\n" : ""}
 Date: ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}
 Time: ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}
-${classData?.location ? `Location: ${classData.location}` : ""}
-Instructor: ${classData?.trainerName || "Staff"}
+Location: ${location}
+Instructor: ${instructor}
 
 We're looking forward to seeing you there!
 
@@ -581,11 +587,11 @@ The ${orgName} Team`,
             <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Class Details</h3>
               <p><strong>Class:</strong> ${className}</p>
-              ${classData?.description ? `<p>${classData.description}</p>` : ""}
+              ${classDescription ? `<p>${classDescription}</p>` : ""}
               <p><strong>Date:</strong> ${startTime.toLocaleDateString("en-US", {weekday: "long", year: "numeric", month: "long", day: "numeric"})}</p>
               <p><strong>Time:</strong> ${startTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})} - ${endTime.toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit"})}</p>
-              ${classData?.location ? `<p><strong>Location:</strong> ${classData.location}</p>` : ""}
-              <p><strong>Instructor:</strong> ${classData?.trainerName || "Staff"}</p>
+              <p><strong>Location:</strong> ${location}</p>
+              <p><strong>Instructor:</strong> ${instructor}</p>
             </div>
             
             <p style="text-align: center; margin: 32px 0;">

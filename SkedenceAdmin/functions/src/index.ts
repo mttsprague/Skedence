@@ -195,6 +195,7 @@ export const bookLesson = functions.https.onCall(
 
         // Try to get lesson package from new path first, then fallback to old path
         let lessonPackageDoc;
+        let packagePath = "unknown";
         if (orgId) {
           // New path: organizations/{orgId}/users/{userId}/packages/{packageId}
           const newPathRef = db.collection("organizations")
@@ -204,6 +205,10 @@ export const bookLesson = functions.https.onCall(
             .collection("packages")
             .doc(lessonPackageId);
           lessonPackageDoc = await transaction.get(newPathRef);
+          if (lessonPackageDoc.exists) {
+            packagePath = "NEW";
+            functions.logger.info(`📦 bookLesson: Found package ${lessonPackageId} in NEW path`);
+          }
         }
 
         if (!lessonPackageDoc || !lessonPackageDoc.exists) {
@@ -212,6 +217,10 @@ export const bookLesson = functions.https.onCall(
             .collection("lessonPackages")
             .doc(lessonPackageId);
           lessonPackageDoc = await transaction.get(oldPathRef);
+          if (lessonPackageDoc.exists) {
+            packagePath = "OLD";
+            functions.logger.info(`📦 bookLesson: Found package ${lessonPackageId} in OLD path (fallback)`);
+          }
         }
 
         // STEP 10: Check trainer's organization billing status and quota
@@ -367,11 +376,19 @@ export const bookLesson = functions.https.onCall(
         }
 
         if (lessonPackageData.lessonsUsed >= lessonPackageData.totalLessons) {
+          functions.logger.error(
+            `📦 bookLesson: Package ${lessonPackageId} exhausted from ${packagePath} path. ` +
+            `Used: ${lessonPackageData.lessonsUsed}/${lessonPackageData.totalLessons}`
+          );
           throw new functions.https.HttpsError(
             "failed-precondition",
             "Lesson package has no lessons remaining."
           );
         }
+        functions.logger.info(
+          `📦 bookLesson: Using package ${lessonPackageId} from ${packagePath} path. ` +
+          `Remaining: ${lessonPackageData.totalLessons - lessonPackageData.lessonsUsed}/${lessonPackageData.totalLessons}`
+        );
         if (
           lessonPackageData.expirationDate &&
           lessonPackageData.expirationDate.toDate() < new Date()
@@ -1295,6 +1312,11 @@ export const cancelClassRegistration = functions.https.onCall(
         const classDoc = await transaction.get(classRef);
         const participantDoc = await transaction.get(participantRef);
 
+        functions.logger.info(
+          `📋 cancelClassRegistration: classId=${classId}, userId=${userId}, ` +
+          `classExists=${classDoc.exists}, participantExists=${participantDoc.exists}`
+        );
+
         // If class doesn't exist (was deleted by admin), we still consider it a successful unregister
         // The client just wants to remove it from their schedule
         if (!classDoc.exists) {
@@ -1304,11 +1326,16 @@ export const cancelClassRegistration = functions.https.onCall(
           // If there's still a participant doc somehow, delete it
           if (participantDoc.exists) {
             transaction.delete(participantDoc.ref);
+            functions.logger.info(`Deleted orphaned participant doc for user ${userId} in class ${classId}`);
           }
           return; // Exit transaction early - nothing else to do
         }
 
         if (!participantDoc.exists) {
+          functions.logger.error(
+            `User ${userId} tried to cancel class ${classId} but is not registered. ` +
+            `Class exists but participant doc missing.`
+          );
           throw new functions.https.HttpsError(
             "not-found",
             "You are not registered for this class."
