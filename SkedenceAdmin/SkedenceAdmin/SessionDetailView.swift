@@ -17,6 +17,7 @@ struct SessionDetailView: View {
     @State private var showCancelConfirmation = false
     @State private var isCancelling = false
     @State private var cancelError: String?
+    @State private var showClientCard = false
     
     var body: some View {
         NavigationView {
@@ -25,6 +26,9 @@ struct SessionDetailView: View {
                     // Header with client name
                     headerSection
                         .padding(.top, 8)
+                    
+                    // View Client Card button
+                    viewClientCardButton
                     
                     // Session details card
                     sessionDetailsCard
@@ -59,6 +63,9 @@ struct SessionDetailView: View {
                             .foregroundStyle(AppTheme.textTertiary)
                     }
                 }
+            }
+            .sheet(isPresented: $showClientCard) {
+                ClientCardView(client: client, selectedBooking: nil)
             }
             .alert("Cancel Session?", isPresented: $showCancelConfirmation) {
                 Button("Cancel", role: .destructive) {
@@ -105,6 +112,32 @@ struct SessionDetailView: View {
             
             Spacer()
         }
+    }
+    
+    // MARK: - View Client Card Button
+    private var viewClientCardButton: some View {
+        Button {
+            showClientCard = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "person.text.rectangle")
+                    .font(.system(size: 15, weight: .medium))
+                Text("View Client Card")
+                    .font(.system(size: 15, weight: .medium))
+            }
+            .foregroundStyle(AppTheme.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(AppTheme.primary.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(AppTheme.primary.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
     
     // MARK: - Session Details Card
