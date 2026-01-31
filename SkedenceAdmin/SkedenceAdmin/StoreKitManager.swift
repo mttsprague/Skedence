@@ -179,8 +179,6 @@ class StoreKitManager: ObservableObject {
             let isEligibleForTrial = await checkTrialEligibility(productID: product.id)
             print("🎫 Trial eligibility: \(isEligibleForTrial)")
             
-            let options: Set<Product.PurchaseOption> = []
-            
             // Add promotional offer if eligible for trial
             if isEligibleForTrial {
                 // In sandbox, trials work automatically without explicit offer code
@@ -188,8 +186,8 @@ class StoreKitManager: ObservableObject {
                 print("ℹ️ User eligible for 14-day free trial")
             }
             
-            print("💳 About to call product.purchase() with options: \(options)")
-            let result = try await product.purchase(options: options)
+            print("💳 About to call product.purchase()")
+            let result = try await product.purchase()
             print("📦 Purchase result received")
             
             switch result {

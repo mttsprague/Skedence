@@ -61,7 +61,10 @@ final class BookingsService: ObservableObject {
             location: data["location"] as? String,
             // Accept createdAt/updatedAt or fall back to bookedAt
             createdAt: Self.date(from: data["createdAt"] ?? data["bookedAt"]),
-            updatedAt: Self.date(from: data["updatedAt"] ?? data["bookedAt"])
+            updatedAt: Self.date(from: data["updatedAt"] ?? data["bookedAt"]),
+            athleteName: data["athleteName"] as? String,
+            secondAthleteName: data["secondAthleteName"] as? String,
+            lessonNotes: data["lessonNotes"] as? String
         )
     }
 

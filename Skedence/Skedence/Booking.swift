@@ -21,4 +21,11 @@ struct Booking: Identifiable {
     let location: String? // Dynamic location from schedule slot
     let createdAt: Date?
     let updatedAt: Date?
+    
+    // Participant information
+    let athleteName: String?
+    let secondAthleteName: String?
+    
+    // Lesson notes
+    let lessonNotes: String?
 }

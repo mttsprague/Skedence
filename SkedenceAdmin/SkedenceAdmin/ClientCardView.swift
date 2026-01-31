@@ -394,6 +394,42 @@ struct ClientCardView: View {
                                         .foregroundStyle(AppTheme.textPrimary)
                                 }
                             }
+                            
+                            // Show athlete names if present in booking
+                            if let athleteName = nextBooking.athleteName, !athleteName.isEmpty {
+                                HStack(spacing: Spacing.xs) {
+                                    Image(systemName: "figure.run")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(AppTheme.primary)
+                                    Text(athleteName)
+                                        .font(.bodyMedium)
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    if let secondName = nextBooking.secondAthleteName, !secondName.isEmpty {
+                                        Text("+ \(secondName)")
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                    }
+                                }
+                            }
+                            
+                            // Show lesson-specific notes if present
+                            if let notes = nextBooking.lessonNotes, !notes.isEmpty {
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    HStack(spacing: Spacing.xs) {
+                                        Image(systemName: "note.text")
+                                            .font(.system(size: 14))
+                                            .foregroundStyle(AppTheme.secondary)
+                                        Text("Lesson Notes:")
+                                            .font(.labelSmall)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(AppTheme.secondary)
+                                    }
+                                    Text(notes)
+                                        .font(.bodySmall)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                        .padding(.leading, 20)
+                                }
+                            }
                         }
                     }
                 }

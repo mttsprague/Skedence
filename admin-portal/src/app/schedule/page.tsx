@@ -35,6 +35,9 @@ interface Booking {
   referredBy?: string;
   notesForCoach?: string;
   athletes?: AthleteInfo[];
+  athleteName?: string; // Participant name for this lesson
+  secondAthleteName?: string; // Second participant name
+  lessonNotes?: string; // Lesson-specific notes from client
   trainerId: string;
   startTime: Date;
   endTime: Date;

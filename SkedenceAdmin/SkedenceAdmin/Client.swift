@@ -14,18 +14,32 @@ struct Client: Identifiable, Codable, Hashable {
     var emailAddress: String
     var phoneNumber: String
     var photoURL: String?
+    
+    // Athlete 1
     var athleteFirstName: String?
     var athleteLastName: String?
     var athleteBirthday: String?
+    var athletePosition: String?
+    var athleteSchoolClubTeam: String?
+    var athleteExperienceLevel: String?
+    
+    // Athlete 2
     var athlete2FirstName: String?
     var athlete2LastName: String?
     var athlete2Birthday: String?
+    var athlete2Position: String?
+    var athlete2SchoolClubTeam: String?
+    var athlete2ExperienceLevel: String?
+    
+    // Athlete 3
     var athlete3FirstName: String?
     var athlete3LastName: String?
     var athlete3Birthday: String?
-    var athletePosition: String?
-    var athlete2Position: String?
     var athlete3Position: String?
+    var athlete3SchoolClubTeam: String?
+    var athlete3ExperienceLevel: String?
+    
+    // Notes
     var notesForCoach: String?
 
     var fullName: String { "\(firstName) \(lastName)" }
@@ -37,17 +51,23 @@ struct Client: Identifiable, Codable, Hashable {
     }
     
     var athleteFullName: String? {
-        guard let first = athleteFirstName, let last = athleteLastName else { return nil }
-        return "\(first) \(last)"
+        let f = (athleteFirstName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let l = (athleteLastName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let fullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+        return fullName.isEmpty ? nil : fullName
     }
     
     var athlete2FullName: String? {
-        guard let first = athlete2FirstName, let last = athlete2LastName else { return nil }
-        return "\(first) \(last)"
+        let f = (athlete2FirstName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let l = (athlete2LastName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let fullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+        return fullName.isEmpty ? nil : fullName
     }
     
     var athlete3FullName: String? {
-        guard let first = athlete3FirstName, let last = athlete3LastName else { return nil }
-        return "\(first) \(last)"
+        let f = (athlete3FirstName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let l = (athlete3LastName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let fullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+        return fullName.isEmpty ? nil : fullName
     }
 }

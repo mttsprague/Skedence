@@ -173,7 +173,7 @@ private struct SignedInProfileScreen: View {
                     }
                     .padding(Spacing.lg)
                 }
-                .navigationTitle("Package Details")
+                .navigationTitle("Details")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {

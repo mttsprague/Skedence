@@ -4,16 +4,27 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
-import { Search, Mail, Phone, MapPin, Calendar } from 'lucide-react';
+import { Save, X, User as UserIcon } from 'lucide-react';
+
+interface AthleteInfo {
+  firstName?: string;
+  lastName?: string;
+  birthday?: string;
+  schoolClubTeam?: string;
+  experienceLevel?: string;
+  position?: string;
+}
 
 export default function ClientsPage() {
   const { orgId } = useAuth();
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedClient, setSelectedClient] = useState<User | null>(null);
+  const [editedClient, setEditedClient] = useState<User | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!orgId) return;
@@ -21,21 +32,16 @@ export default function ClientsPage() {
     async function loadClients() {
       try {
         console.log('Clients: Loading for orgId:', orgId);
-        // Query orgMembers to find all members in this org
         const membersQuery = query(
           collection(db, 'orgMembers'),
           where('orgId', '==', orgId)
         );
         const membersSnapshot = await getDocs(membersQuery);
-        console.log('Clients: Found', membersSnapshot.size, 'org members');
         
         const clientPromises = membersSnapshot.docs.map(async (memberDoc) => {
           const memberData = memberDoc.data();
-          console.log('Clients: Member role:', memberData.role, 'userId:', memberData.userId);
-          // Only include clients (not trainers/admins)
           if (memberData.role !== 'client') return null;
           
-          // Get user details from users collection
           const userDoc = await getDoc(doc(db, 'users', memberData.userId));
           if (!userDoc.exists()) return null;
           
@@ -45,10 +51,29 @@ export default function ClientsPage() {
             firstName: userData.firstName || '',
             lastName: userData.lastName || '',
             email: userData.emailAddress || userData.email || '',
+            emailAddress: userData.emailAddress || userData.email || '',
             phone: userData.phoneNumber || '',
+            phoneNumber: userData.phoneNumber || '',
             role: memberData.role,
             createdAt: memberData.joinedAt,
             isActive: userData.isActive !== false,
+            athletes: userData.athletes || [],
+            athleteFirstName: userData.athleteFirstName,
+            athleteLastName: userData.athleteLastName,
+            athleteBirthday: userData.athleteBirthday,
+            athletePosition: userData.athletePosition,
+            athlete2FirstName: userData.athlete2FirstName,
+            athlete2LastName: userData.athlete2LastName,
+            athlete2Birthday: userData.athlete2Birthday,
+            athlete2Position: userData.athlete2Position,
+            athlete3FirstName: userData.athlete3FirstName,
+            athlete3LastName: userData.athlete3LastName,
+            athlete3Birthday: userData.athlete3Birthday,
+            athlete3Position: userData.athlete3Position,
+            emergencyContactName: userData.emergencyContactName,
+            emergencyContactNumber: userData.emergencyContactNumber,
+            referredBy: userData.referredBy,
+            notesForCoach: userData.notesForCoach,
           } as User;
         });
         
@@ -56,7 +81,6 @@ export default function ClientsPage() {
           .filter((c): c is User => c !== null)
           .sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
         
-        console.log('Clients: Loaded', clientsData.length, 'clients');
         setClients(clientsData);
       } catch (error) {
         console.error('Clients: Error loading:', error);
@@ -68,156 +92,388 @@ export default function ClientsPage() {
     loadClients();
   }, [orgId]);
 
-  const filteredClients = clients.filter(client => {
-    const search = searchQuery.toLowerCase();
-    const fullName = `${client.firstName || ''} ${client.lastName || ''}`.toLowerCase();
-    const email = (client.email || client.emailAddress || '').toLowerCase();
-    return fullName.includes(search) || email.includes(search);
-  });
+  const handleClientSelect = (client: User) => {
+    setSelectedClient(client);
+    setEditedClient(JSON.parse(JSON.stringify(client)));
+  };
+
+  const handleSave = async () => {
+    if (!editedClient || !editedClient.id) return;
+    
+    setSaving(true);
+    try {
+      const userRef = doc(db, 'users', editedClient.id);
+      
+      const updateData: any = {
+        firstName: editedClient.firstName || '',
+        lastName: editedClient.lastName || '',
+        emailAddress: editedClient.emailAddress || editedClient.email || '',
+        phoneNumber: editedClient.phoneNumber || editedClient.phone || '',
+        emergencyContactName: editedClient.emergencyContactName || '',
+        emergencyContactNumber: editedClient.emergencyContactNumber || '',
+        referredBy: editedClient.referredBy || '',
+        notesForCoach: editedClient.notesForCoach || '',
+      };
+      
+      if (editedClient.athletes && editedClient.athletes.length > 0) {
+        updateData.athletes = editedClient.athletes;
+      }
+      
+      updateData.athleteFirstName = editedClient.athleteFirstName || '';
+      updateData.athleteLastName = editedClient.athleteLastName || '';
+      updateData.athleteBirthday = editedClient.athleteBirthday || '';
+      updateData.athletePosition = editedClient.athletePosition || '';
+      updateData.athlete2FirstName = editedClient.athlete2FirstName || '';
+      updateData.athlete2LastName = editedClient.athlete2LastName || '';
+      updateData.athlete2Birthday = editedClient.athlete2Birthday || '';
+      updateData.athlete2Position = editedClient.athlete2Position || '';
+      updateData.athlete3FirstName = editedClient.athlete3FirstName || '';
+      updateData.athlete3LastName = editedClient.athlete3LastName || '';
+      updateData.athlete3Birthday = editedClient.athlete3Birthday || '';
+      updateData.athlete3Position = editedClient.athlete3Position || '';
+      
+      await updateDoc(userRef, updateData);
+      
+      setClients(prev => prev.map(c => c.id === editedClient.id ? editedClient : c));
+      setSelectedClient(editedClient);
+      
+      alert('Client profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating client:', error);
+      alert('Failed to update client profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedClient(selectedClient ? JSON.parse(JSON.stringify(selectedClient)) : null);
+  };
+
+  const updateEditedClient = (field: string, value: any) => {
+    if (!editedClient) return;
+    setEditedClient({ ...editedClient, [field]: value });
+  };
+
+  const updateAthlete = (index: number, field: string, value: string) => {
+    if (!editedClient) return;
+    const athletes = [...(editedClient.athletes || [])];
+    if (!athletes[index]) {
+      athletes[index] = {};
+    }
+    athletes[index] = { ...athletes[index], [field]: value };
+    setEditedClient({ ...editedClient, athletes });
+  };
+
+  const addAthlete = () => {
+    if (!editedClient) return;
+    const athletes = [...(editedClient.athletes || []), {}];
+    setEditedClient({ ...editedClient, athletes });
+  };
+
+  const removeAthlete = (index: number) => {
+    if (!editedClient) return;
+    const athletes = (editedClient.athletes || []).filter((_, i) => i !== index);
+    setEditedClient({ ...editedClient, athletes });
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <div className="space-y-4 sm:space-y-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Clients</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage your client list and view details</p>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage your client list and edit profiles</p>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            type="text"
-            placeholder="Search clients by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent touch-manipulation text-base"
-          />
-        </div>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Client to View/Edit
+            </label>
+            <div className="relative">
+              <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <select
+                value={selectedClient?.id || ''}
+                onChange={(e) => {
+                  const client = clients.find(c => c.id === e.target.value);
+                  if (client) handleClientSelect(client);
+                }}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-base bg-white"
+              >
+                <option value="">-- Select a client --</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>
+                    {client.firstName} {client.lastName} {client.email ? `(${client.email})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </CardContent>
+        </Card>
 
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
-          </div>
-        ) : filteredClients.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <p className="text-gray-500">
-              {searchQuery ? 'No clients found matching your search.' : 'No clients yet.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {filteredClients.map((client) => {
-              // Get athletes list (prioritize new format, fallback to legacy)
-              const athletes = client.athletes || [];
-              const legacyAthletes = [
-                client.athleteFirstName && { firstName: client.athleteFirstName, lastName: client.athleteLastName, birthday: client.athleteBirthday, position: client.athletePosition },
-                client.athlete2FirstName && { firstName: client.athlete2FirstName, lastName: client.athlete2LastName, birthday: client.athlete2Birthday, position: client.athlete2Position },
-                client.athlete3FirstName && { firstName: client.athlete3FirstName, lastName: client.athlete3LastName, birthday: client.athlete3Birthday, position: client.athlete3Position },
-              ].filter(Boolean);
-              const displayAthletes = athletes.length > 0 ? athletes : legacyAthletes;
-              
-              return (
-                <Card key={client.id} className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer touch-manipulation">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="space-y-3">
-                      {/* Parent/Guardian Header */}
-                      <div className="flex items-start space-x-4 pb-3 border-b">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3258A3] to-[#4A7CC7] flex items-center justify-center text-white font-bold text-lg">
-                          {client.firstName?.[0]}{client.lastName?.[0]}
+        {selectedClient && editedClient && (
+          <Card>
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Client Profile</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCancel}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="px-4 py-2 text-sm font-medium text-white bg-[#3258A3] rounded-lg hover:bg-[#2a4a8a] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Parent/Guardian Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                      <input
+                        type="text"
+                        value={editedClient.firstName || ''}
+                        onChange={(e) => updateEditedClient('firstName', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        value={editedClient.lastName || ''}
+                        onChange={(e) => updateEditedClient('lastName', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={editedClient.emailAddress || editedClient.email || ''}
+                        onChange={(e) => {
+                          updateEditedClient('emailAddress', e.target.value);
+                          updateEditedClient('email', e.target.value);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={editedClient.phoneNumber || editedClient.phone || ''}
+                        onChange={(e) => {
+                          updateEditedClient('phoneNumber', e.target.value);
+                          updateEditedClient('phone', e.target.value);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Athletes</h3>
+                    <button
+                      onClick={addAthlete}
+                      className="px-3 py-1 text-sm font-medium text-white bg-[#3258A3] rounded-lg hover:bg-[#2a4a8a]"
+                    >
+                      + Add Athlete
+                    </button>
+                  </div>
+                  
+                  {(editedClient.athletes || []).map((athlete: AthleteInfo, index: number) => (
+                    <div key={index} className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium text-gray-900">Athlete {index + 1}</h4>
+                        <button
+                          onClick={() => removeAthlete(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                          <input
+                            type="text"
+                            value={athlete.firstName || ''}
+                            onChange={(e) => updateAthlete(index, 'firstName', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">
-                            {client.firstName} {client.lastName}
-                          </h3>
-                          {(client.email || client.emailAddress) && (
-                            <div className="flex items-center text-sm text-gray-600 mt-1">
-                              <Mail className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                              <span className="truncate">{client.email || client.emailAddress}</span>
-                            </div>
-                          )}
-                          {client.phone && (
-                            <div className="flex items-center text-sm text-gray-600 mt-1">
-                              <Phone className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                              <span>{client.phone}</span>
-                            </div>
-                          )}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                          <input
+                            type="text"
+                            value={athlete.lastName || ''}
+                            onChange={(e) => updateAthlete(index, 'lastName', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                          <input
+                            type="text"
+                            placeholder="MM/DD/YYYY"
+                            value={athlete.birthday || ''}
+                            onChange={(e) => updateAthlete(index, 'birthday', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">School/Club Team</label>
+                          <input
+                            type="text"
+                            value={athlete.schoolClubTeam || ''}
+                            onChange={(e) => updateAthlete(index, 'schoolClubTeam', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
+                          <input
+                            type="text"
+                            value={athlete.experienceLevel || ''}
+                            onChange={(e) => updateAthlete(index, 'experienceLevel', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                          <input
+                            type="text"
+                            value={athlete.position || ''}
+                            onChange={(e) => updateAthlete(index, 'position', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
                         </div>
                       </div>
-                      
-                      {/* Athletes Section */}
-                      {displayAthletes.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Athletes</div>
-                          {displayAthletes.map((athlete: any, idx: number) => (
-                            <div key={idx} className="text-sm space-y-0.5 bg-gray-50 p-2 rounded">
-                              <div className="font-medium text-gray-900">
-                                {athlete.firstName} {athlete.lastName}
-                              </div>
-                              {athlete.birthday && (
-                                <div className="text-gray-600 text-xs">DOB: {athlete.birthday}</div>
-                              )}
-                              {athlete.schoolClubTeam && (
-                                <div className="text-gray-600 text-xs">Team: {athlete.schoolClubTeam}</div>
-                              )}
-                              {athlete.experienceLevel && (
-                                <div className="text-gray-600 text-xs">Level: {athlete.experienceLevel}</div>
-                              )}
-                              {athlete.position && (
-                                <div className="text-gray-600 text-xs">Position: {athlete.position}</div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Emergency Contact */}
-                      {client.emergencyContactName && (
-                        <div className="text-sm">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Emergency Contact</div>
-                          <div className="text-gray-900">{client.emergencyContactName}</div>
-                          {client.emergencyContactNumber && (
-                            <div className="text-gray-600 text-xs">{client.emergencyContactNumber}</div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Referral */}
-                      {client.referredBy && (
-                        <div className="text-sm">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Referred By</div>
-                          <div className="text-gray-900">{client.referredBy}</div>
-                        </div>
-                      )}
-                      
-                      {/* Notes */}
-                      {client.notesForCoach && (
-                        <div className="text-sm">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes</div>
-                          <div className="text-gray-600 text-xs line-clamp-2">{client.notesForCoach}</div>
-                        </div>
-                      )}
-                      
-                      {/* Join Date */}
-                      {client.createdAt && (
-                        <div className="flex items-center text-xs text-gray-500 pt-2 border-t">
-                          <Calendar className="h-3 w-3 mr-1.5" />
-                          <span>
-                            Joined {client.createdAt instanceof Date 
-                              ? client.createdAt.toLocaleDateString() 
-                              : new Date((client.createdAt as any).seconds * 1000).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                  ))}
+                  
+                  {(!editedClient.athletes || editedClient.athletes.length === 0) && (
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h4 className="font-medium text-gray-900 mb-3">Athlete 1 (Legacy)</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                          <input
+                            type="text"
+                            value={editedClient.athleteFirstName || ''}
+                            onChange={(e) => updateEditedClient('athleteFirstName', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                          <input
+                            type="text"
+                            value={editedClient.athleteLastName || ''}
+                            onChange={(e) => updateEditedClient('athleteLastName', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                          <input
+                            type="text"
+                            placeholder="MM/DD/YYYY"
+                            value={editedClient.athleteBirthday || ''}
+                            onChange={(e) => updateEditedClient('athleteBirthday', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                          <input
+                            type="text"
+                            value={editedClient.athletePosition || ''}
+                            onChange={(e) => updateEditedClient('athletePosition', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={editedClient.emergencyContactName || ''}
+                        onChange={(e) => updateEditedClient('emergencyContactName', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={editedClient.emergencyContactNumber || ''}
+                        onChange={(e) => updateEditedClient('emergencyContactNumber', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
+                      <input
+                        type="text"
+                        value={editedClient.referredBy || ''}
+                        onChange={(e) => updateEditedClient('referredBy', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes for Coach</label>
+                      <textarea
+                        value={editedClient.notesForCoach || ''}
+                        onChange={(e) => updateEditedClient('notesForCoach', e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Stats Summary */}
         <div className="bg-white rounded-lg border p-4 sm:p-6">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Summary</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
@@ -226,8 +482,8 @@ export default function ClientsPage() {
               <p className="text-2xl font-bold text-[#3258A3] mt-1">{clients.length}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Active Search</p>
-              <p className="text-2xl font-bold text-[#3258A3] mt-1">{filteredClients.length}</p>
+              <p className="text-sm text-gray-600">Selected</p>
+              <p className="text-2xl font-bold text-[#3258A3] mt-1">{selectedClient ? 1 : 0}</p>
             </div>
           </div>
         </div>

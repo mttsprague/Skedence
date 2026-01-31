@@ -89,6 +89,9 @@ struct ClientBooking: Identifiable, Codable {
     var classId: String?
     var packageId: String?
     var packageType: String?
+    var athleteName: String? // Name of athlete for this lesson
+    var secondAthleteName: String? // Second participant name
+    var lessonNotes: String? // Lesson-specific notes from client
     
     var formattedDate: String {
         let formatter = DateFormatter()

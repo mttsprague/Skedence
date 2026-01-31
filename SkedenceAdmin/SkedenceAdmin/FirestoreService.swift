@@ -511,12 +511,19 @@ final class FirestoreService {
             let photoURL = data["photoURL"] as? String
             let athleteFirstName = data["athleteFirstName"] as? String
             let athleteLastName = data["athleteLastName"] as? String
+            let athleteBirthday = data["athleteBirthday"] as? String
+            let athletePosition = data["athletePosition"] as? String
+            let athleteSchoolClubTeam = data["athleteSchoolClubTeam"] as? String
+            let athleteExperienceLevel = data["athleteExperienceLevel"] as? String
             let athlete2FirstName = data["athlete2FirstName"] as? String
             let athlete2LastName = data["athlete2LastName"] as? String
+            let athlete2Birthday = data["athlete2Birthday"] as? String
+            let athlete2Position = data["athlete2Position"] as? String
+            let athlete2SchoolClubTeam = data["athlete2SchoolClubTeam"] as? String
+            let athlete2ExperienceLevel = data["athlete2ExperienceLevel"] as? String
             let athlete3FirstName = data["athlete3FirstName"] as? String
             let athlete3LastName = data["athlete3LastName"] as? String
-            let athletePosition = data["athletePosition"] as? String
-            let athlete2Position = data["athlete2Position"] as? String
+            let athlete3Birthday = data["athlete3Birthday"] as? String
             let athlete3Position = data["athlete3Position"] as? String
             let notesForCoach = data["notesForCoach"] as? String
             return Client(
@@ -528,12 +535,19 @@ final class FirestoreService {
                 photoURL: photoURL,
                 athleteFirstName: athleteFirstName,
                 athleteLastName: athleteLastName,
+                athleteBirthday: athleteBirthday,
+                athletePosition: athletePosition,
+                athleteSchoolClubTeam: athleteSchoolClubTeam,
+                athleteExperienceLevel: athleteExperienceLevel,
                 athlete2FirstName: athlete2FirstName,
                 athlete2LastName: athlete2LastName,
+                athlete2Birthday: athlete2Birthday,
+                athlete2Position: athlete2Position,
+                athlete2SchoolClubTeam: athlete2SchoolClubTeam,
+                athlete2ExperienceLevel: athlete2ExperienceLevel,
                 athlete3FirstName: athlete3FirstName,
                 athlete3LastName: athlete3LastName,
-                athletePosition: athletePosition,
-                athlete2Position: athlete2Position,
+                athlete3Birthday: athlete3Birthday,
                 athlete3Position: athlete3Position,
                 notesForCoach: notesForCoach
             )
@@ -569,13 +583,22 @@ final class FirestoreService {
         let photoURL = data["photoURL"] as? String
         let athleteFirstName = data["athleteFirstName"] as? String
         let athleteLastName = data["athleteLastName"] as? String
+        let athleteBirthday = data["athleteBirthday"] as? String
+        let athletePosition = data["athletePosition"] as? String
+        let athleteSchoolClubTeam = data["athleteSchoolClubTeam"] as? String
+        let athleteExperienceLevel = data["athleteExperienceLevel"] as? String
         let athlete2FirstName = data["athlete2FirstName"] as? String
         let athlete2LastName = data["athlete2LastName"] as? String
+        let athlete2Birthday = data["athlete2Birthday"] as? String
+        let athlete2Position = data["athlete2Position"] as? String
+        let athlete2SchoolClubTeam = data["athlete2SchoolClubTeam"] as? String
+        let athlete2ExperienceLevel = data["athlete2ExperienceLevel"] as? String
         let athlete3FirstName = data["athlete3FirstName"] as? String
         let athlete3LastName = data["athlete3LastName"] as? String
-        let athletePosition = data["athletePosition"] as? String
-        let athlete2Position = data["athlete2Position"] as? String
+        let athlete3Birthday = data["athlete3Birthday"] as? String
         let athlete3Position = data["athlete3Position"] as? String
+        let athlete3SchoolClubTeam = data["athlete3SchoolClubTeam"] as? String
+        let athlete3ExperienceLevel = data["athlete3ExperienceLevel"] as? String
         let notesForCoach = data["notesForCoach"] as? String
         return Client(
             id: snap.documentID,
@@ -586,13 +609,22 @@ final class FirestoreService {
             photoURL: photoURL,
             athleteFirstName: athleteFirstName,
             athleteLastName: athleteLastName,
+            athleteBirthday: athleteBirthday,
+            athletePosition: athletePosition,
+            athleteSchoolClubTeam: athleteSchoolClubTeam,
+            athleteExperienceLevel: athleteExperienceLevel,
             athlete2FirstName: athlete2FirstName,
             athlete2LastName: athlete2LastName,
+            athlete2Birthday: athlete2Birthday,
+            athlete2Position: athlete2Position,
+            athlete2SchoolClubTeam: athlete2SchoolClubTeam,
+            athlete2ExperienceLevel: athlete2ExperienceLevel,
             athlete3FirstName: athlete3FirstName,
             athlete3LastName: athlete3LastName,
-            athletePosition: athletePosition,
-            athlete2Position: athlete2Position,
+            athlete3Birthday: athlete3Birthday,
             athlete3Position: athlete3Position,
+            athlete3SchoolClubTeam: athlete3SchoolClubTeam,
+            athlete3ExperienceLevel: athlete3ExperienceLevel,
             notesForCoach: notesForCoach
         )
         #else

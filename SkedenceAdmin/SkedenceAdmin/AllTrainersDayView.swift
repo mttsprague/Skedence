@@ -73,13 +73,13 @@ struct AllTrainersDayView: View {
     @ObservedObject var scheduleViewModel: ScheduleViewModel
     @StateObject private var viewModel = AllTrainersDayViewModel()
     
-    // Client card sheet context
-    private struct ClientCardContext: Identifiable {
+    // Session detail sheet context (for bookings)
+    private struct SessionDetailContext: Identifiable {
         let id = UUID()
         let client: Client
-        let booking: ClientBooking?
+        let booking: ClientBooking
     }
-    @State private var clientCardContext: ClientCardContext?
+    @State private var sessionDetailContext: SessionDetailContext?
     
     // Class participants sheet
     @State private var selectedClassId: String?
@@ -191,8 +191,8 @@ struct AllTrainersDayView: View {
                         .font(.headline)
                 }
             }
-            .sheet(item: $clientCardContext) { context in
-                ClientCardView(client: context.client, selectedBooking: context.booking)
+            .sheet(item: $sessionDetailContext) { context in
+                SessionDetailView(client: context.client, booking: context.booking)
             }
             .sheet(item: $editorContext) { context in
                 if let orgId = auth.currentOrgId {
@@ -331,7 +331,7 @@ struct AllTrainersDayView: View {
             return
         }
         
-        // Handle regular client booking - show ClientCardView
+        // Handle regular client booking - show SessionDetailView
         if slot.isBooked, let clientId = slot.clientId {
             // Check cache first
             if let client = scheduleViewModel.clientsById[clientId] {
@@ -349,10 +349,15 @@ struct AllTrainersDayView: View {
                     status: "confirmed",
                     bookedAt: slot.bookedAt,
                     isClassBooking: slot.isClassBooking,
-                    classId: slot.classId
+                    classId: slot.classId,
+                    athleteName: slot.athleteName,
+                    secondAthleteName: slot.secondAthleteName,
+                    location: slot.location,
+                    lessonNotes: slot.lessonNotes,
+                    packageTypeName: slot.packageTypeName ?? "Session"
                 )
                 
-                self.clientCardContext = ClientCardContext(client: client, booking: booking)
+                self.sessionDetailContext = SessionDetailContext(client: client, booking: booking)
                 return
             }
             
@@ -386,10 +391,15 @@ struct AllTrainersDayView: View {
                         status: "confirmed",
                         bookedAt: slot.bookedAt,
                         isClassBooking: slot.isClassBooking,
-                        classId: slot.classId
+                        classId: slot.classId,
+                        athleteName: slot.athleteName,
+                        secondAthleteName: slot.secondAthleteName,
+                        location: slot.location,
+                        lessonNotes: slot.lessonNotes,
+                        packageTypeName: slot.packageTypeName ?? "Session"
                     )
                     
-                    self.clientCardContext = ClientCardContext(client: client, booking: booking)
+                    self.sessionDetailContext = SessionDetailContext(client: client, booking: booking)
                 }
             }
         }

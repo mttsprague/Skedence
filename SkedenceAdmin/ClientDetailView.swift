@@ -183,6 +183,121 @@ struct ClientDetailView: View {
                 }
             }
             
+            // Show athlete names if present
+            if let athleteName = booking.athleteName, !athleteName.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "figure.run")
+                            .font(.labelSmall)
+                            .foregroundStyle(AppTheme.primary)
+                        Text(athleteName)
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        if let secondName = booking.secondAthleteName, !secondName.isEmpty {
+                            Text("+ \(secondName)")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textPrimary)
+                        }
+                    }
+                    
+                    // Show athlete profile details
+                    if let school = client.athleteSchoolClubTeam, !school.isEmpty {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "building.2")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text(school)
+                                .font(.bodySmall)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        .padding(.leading, 20)
+                    }
+                    
+                    if let experience = client.athleteExperienceLevel, !experience.isEmpty {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "star.fill")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text(experience)
+                                .font(.bodySmall)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        .padding(.leading, 20)
+                    }
+                    
+                    if let position = client.athletePosition, !position.isEmpty {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "sportscourt")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text(position)
+                                .font(.bodySmall)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        .padding(.leading, 20)
+                    }
+                    
+                    // Show second athlete profile details if present
+                    if let secondName = booking.secondAthleteName, !secondName.isEmpty {
+                        if let school = client.athlete2SchoolClubTeam, !school.isEmpty {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "building.2")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text("\(secondName) - \(school)")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            .padding(.leading, 20)
+                        }
+                        
+                        if let experience = client.athlete2ExperienceLevel, !experience.isEmpty {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "star.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text("\(secondName) - \(experience)")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            .padding(.leading, 20)
+                        }
+                        
+                        if let position = client.athlete2Position, !position.isEmpty {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "sportscourt")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text("\(secondName) - \(position)")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            .padding(.leading, 20)
+                        }
+                    }
+                }
+            }
+            
+            // Show lesson-specific notes if present
+            if let notes = booking.lessonNotes, !notes.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "note.text")
+                            .font(.labelSmall)
+                            .foregroundStyle(AppTheme.secondary)
+                        Text("Lesson Notes")
+                            .font(.labelSmall)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(AppTheme.secondary)
+                    }
+                    Text(notes)
+                        .font(.bodySmall)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .padding(.leading, 20)
+                }
+                .padding(.top, Spacing.xs)
+            }
+            
             // Cancel button for admins/owners for upcoming bookings
             if auth.isAdmin && booking.startTime > Date() {
                 Button(action: {
@@ -715,7 +830,10 @@ class ClientScheduleLoader: ObservableObject {
                     status: status,
                     bookedAt: (data["bookedAt"] as? Timestamp)?.dateValue(),
                     isClassBooking: data["isClassBooking"] as? Bool,
-                    classId: data["classId"] as? String
+                    classId: data["classId"] as? String,
+                    athleteName: data["athleteName"] as? String,
+                    secondAthleteName: data["secondAthleteName"] as? String,
+                    lessonNotes: data["lessonNotes"] as? String
                 )
                 
                 if startTime >= now {

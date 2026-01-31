@@ -16,13 +16,13 @@ struct TrainerWeekView: View {
     
     @StateObject private var trainerViewModel = TrainerWeekViewModel()
     
-    // Client card sheet context
-    private struct ClientCardContext: Identifiable {
+    // Session detail sheet context (for bookings)
+    private struct SessionDetailContext: Identifiable {
         let id = UUID()
         let client: Client
-        let booking: ClientBooking?
+        let booking: ClientBooking
     }
-    @State private var clientCardContext: ClientCardContext?
+    @State private var sessionDetailContext: SessionDetailContext?
     
     // Class participants sheet
     @State private var selectedClassId: String?
@@ -113,8 +113,8 @@ struct TrainerWeekView: View {
                     .font(.headline)
             }
         }
-        .sheet(item: $clientCardContext) { context in
-            ClientCardView(client: context.client, selectedBooking: context.booking)
+        .sheet(item: $sessionDetailContext) { context in
+            SessionDetailView(client: context.client, booking: context.booking)
         }
         .sheet(item: $editorContext) { context in
             // Admin can create availability for this trainer
@@ -403,9 +403,14 @@ struct TrainerWeekView: View {
                     status: "confirmed",
                     bookedAt: slot.bookedAt,
                     isClassBooking: slot.isClassBooking,
-                    classId: slot.classId
+                    classId: slot.classId,
+                    athleteName: slot.athleteName,
+                    secondAthleteName: slot.secondAthleteName,
+                    location: slot.location,
+                    lessonNotes: slot.lessonNotes,
+                    packageTypeName: slot.packageTypeName ?? "Session"
                 )
-                self.clientCardContext = ClientCardContext(client: cached, booking: booking)
+                self.sessionDetailContext = SessionDetailContext(client: cached, booking: booking)
                 return
             }
             
@@ -435,10 +440,15 @@ struct TrainerWeekView: View {
                         status: "confirmed",
                         bookedAt: slot.bookedAt,
                         isClassBooking: slot.isClassBooking,
-                        classId: slot.classId
+                        classId: slot.classId,
+                        athleteName: slot.athleteName,
+                        secondAthleteName: slot.secondAthleteName,
+                        location: slot.location,
+                        lessonNotes: slot.lessonNotes,
+                        packageTypeName: slot.packageTypeName ?? "Session"
                     )
                     
-                    self.clientCardContext = ClientCardContext(client: client, booking: booking)
+                    self.sessionDetailContext = SessionDetailContext(client: client, booking: booking)
                 }
             }
         }

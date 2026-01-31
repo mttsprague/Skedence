@@ -13,7 +13,7 @@ final class BookingManager: ObservableObject {
 
     // If lessonPackageId is provided and non-empty, use it directly.
     // Otherwise, automatically choose the package with the closest expiration date.
-    func bookLesson(trainerId: String, slotId: String, lessonPackageId: String) async throws -> Booking {
+    func bookLesson(trainerId: String, slotId: String, lessonPackageId: String, athleteName: String? = nil, secondAthleteName: String? = nil, lessonNotes: String? = nil) async throws -> Booking {
         guard let user = Auth.auth().currentUser else { throw BookingCallError.notAuthenticated }
         let uid = user.uid
 
@@ -39,11 +39,23 @@ final class BookingManager: ObservableObject {
         print("  clientName: \(user.displayName ?? "N/A")")
 
         // 2) Call Cloud Function using the chosen package.
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "trainerId": trainerId,
             "slotId": slotId,
             "lessonPackageId": packageId
         ]
+        
+        // Add optional fields if provided
+        if let athleteName = athleteName {
+            payload["athleteName"] = athleteName
+        }
+        if let secondAthleteName = secondAthleteName {
+            payload["secondAthleteName"] = secondAthleteName
+        }
+        if let lessonNotes = lessonNotes, !lessonNotes.isEmpty {
+            payload["lessonNotes"] = lessonNotes
+        }
+        
         let result = try await functions.httpsCallable("bookLesson").call(payload)
 
         // 3) Decode server response
@@ -78,7 +90,10 @@ final class BookingManager: ObservableObject {
                 status: "confirmed",
                 location: nil,
                 createdAt: nil,
-                updatedAt: nil
+                updatedAt: nil,
+                athleteName: athleteName,
+                secondAthleteName: secondAthleteName,
+                lessonNotes: lessonNotes
             )
         }
 
@@ -157,7 +172,10 @@ final class BookingManager: ObservableObject {
             // Accept either createdAt/updatedAt or bookedAt (server currently writes bookedAt)
             location: dict["location"] as? String,
             createdAt: date(from: dict["createdAt"] ?? dict["bookedAt"]),
-            updatedAt: date(from: dict["updatedAt"] ?? dict["bookedAt"])
+            updatedAt: date(from: dict["updatedAt"] ?? dict["bookedAt"]),
+            athleteName: dict["athleteName"] as? String,
+            secondAthleteName: dict["secondAthleteName"] as? String,
+            lessonNotes: dict["lessonNotes"] as? String
         )
     }
 }

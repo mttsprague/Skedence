@@ -101,16 +101,15 @@ struct EditProfileView: View {
                         ))
                         .autocapitalization(.words)
                         
-                        Picker("Experience Level", selection: Binding(
+                        TextField("Experience Level", text: Binding(
                             get: { athletes[index].experienceLevel ?? "" },
                             set: { athletes[index].experienceLevel = $0 }
-                        )) {
-                            Text("Select Level").tag("")
-                            Text("Beginner").tag("Beginner")
-                            Text("Intermediate").tag("Intermediate")
-                            Text("Advanced").tag("Advanced")
-                            Text("Elite").tag("Elite")
+                        ))
+                        .placeholder(when: (athletes[index].experienceLevel ?? "").isEmpty) {
+                            Text("Beginner, Intermediate, Advanced")
+                                .foregroundColor(.gray.opacity(0.5))
                         }
+                        .autocapitalization(.words)
                         
                         TextField("Position (Optional)", text: Binding(
                             get: { athletes[index].position ?? "" },
@@ -239,8 +238,8 @@ struct EditProfileView: View {
                     firstName: profile.athleteFirstName,
                     lastName: profile.athleteLastName,
                     birthday: profile.athleteBirthday,
-                    schoolClubTeam: nil,
-                    experienceLevel: nil,
+                    schoolClubTeam: profile.athleteSchoolClubTeam,
+                    experienceLevel: profile.athleteExperienceLevel,
                     position: profile.athletePosition
                 ))
             }
@@ -251,8 +250,8 @@ struct EditProfileView: View {
                     firstName: profile.athlete2FirstName,
                     lastName: profile.athlete2LastName,
                     birthday: profile.athlete2Birthday,
-                    schoolClubTeam: nil,
-                    experienceLevel: nil,
+                    schoolClubTeam: profile.athlete2SchoolClubTeam,
+                    experienceLevel: profile.athlete2ExperienceLevel,
                     position: profile.athlete2Position
                 ))
             }
@@ -263,8 +262,8 @@ struct EditProfileView: View {
                     firstName: profile.athlete3FirstName,
                     lastName: profile.athlete3LastName,
                     birthday: profile.athlete3Birthday,
-                    schoolClubTeam: nil,
-                    experienceLevel: nil,
+                    schoolClubTeam: profile.athlete3SchoolClubTeam,
+                    experienceLevel: profile.athlete3ExperienceLevel,
                     position: profile.athlete3Position
                 ))
             }
@@ -320,8 +319,26 @@ struct EditProfileView: View {
     // Date formatting helpers
     private func dateFromString(_ string: String) -> Date? {
         let formatter = DateFormatter()
+        
+        // Try yyyy-MM-dd format first (standard format)
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: string)
+        if let date = formatter.date(from: string) {
+            return date
+        }
+        
+        // Try MM/DD/YYYY format (common user input)
+        formatter.dateFormat = "MM/dd/yyyy"
+        if let date = formatter.date(from: string) {
+            return date
+        }
+        
+        // Try M/D/YYYY format (short date)
+        formatter.dateFormat = "M/d/yyyy"
+        if let date = formatter.date(from: string) {
+            return date
+        }
+        
+        return nil
     }
     
     private func stringFromDate(_ date: Date) -> String {
@@ -333,4 +350,18 @@ struct EditProfileView: View {
 
 #Preview {
     EditProfileView()
+}
+
+// Extension to add placeholder text to TextField
+extension View {
+    func placeholder<Content: View>(
+        when shouldShow: Bool,
+        alignment: Alignment = .leading,
+        @ViewBuilder placeholder: () -> Content) -> some View {
+
+        ZStack(alignment: alignment) {
+            placeholder().opacity(shouldShow ? 1 : 0)
+            self
+        }
+    }
 }

@@ -10,7 +10,7 @@ import PDFKit
 
 struct WaiverPDFGenerator {
     
-    static func generateWaiverPDF(signature: WaiverSignature, organizationName: String = "Your Organization", customWaiverText: String? = nil) -> Data? {
+    static func generateWaiverPDF(signature: WaiverSignature, organizationName: String = "Your Organization", customWaiverText: String? = nil, athleteName: String? = nil) -> Data? {
         let acronym = organizationName.split(separator: " ").map { String($0.prefix(1)) }.joined()
         
         let pdfMetaData = [
@@ -203,6 +203,13 @@ struct WaiverPDFGenerator {
             "Name:".draw(at: CGPoint(x: leftMargin, y: currentY), withAttributes: fieldAttributes)
             signature.fullName.draw(at: CGPoint(x: leftMargin + 60, y: currentY), withAttributes: valueAttributes)
             currentY += 25
+            
+            // Athlete Name (if provided)
+            if let athleteName = athleteName {
+                "Athlete:".draw(at: CGPoint(x: leftMargin, y: currentY), withAttributes: fieldAttributes)
+                athleteName.draw(at: CGPoint(x: leftMargin + 60, y: currentY), withAttributes: valueAttributes)
+                currentY += 25
+            }
             
             // Email
             "Email:".draw(at: CGPoint(x: leftMargin, y: currentY), withAttributes: fieldAttributes)

@@ -36,10 +36,37 @@ struct BookView: View {
     @State private var selectedClass: GroupClass?
     @State private var showingClassRegistration = false
     @State private var selectedPackage: LessonPackage?
+    @State private var selectedAthleteName: String?
+    @State private var isOnlyParticipant: Bool?
+    @State private var secondAthleteName: String?
+    @State private var isNewAthlete = false
+    @State private var lessonNotes = ""
+    
+    // Athlete profile info (for editing if blank)
+    @State private var athleteBirthday = ""
+    @State private var athleteSchoolClubTeam = ""
+    @State private var athleteExperienceLevel = ""
+    @State private var athletePosition = ""
+    @State private var parentGuardianName = ""
+    @State private var emergencyContactName = ""
+    @State private var emergencyContactPhone = ""
+    
+    // New athlete fields
+    @State private var newAthleteFirstName = ""
+    @State private var newAthleteLastName = ""
+    @State private var newAthleteBirthday = ""
+    @State private var newAthleteSchoolClubTeam = ""
+    @State private var newAthleteExperienceLevel = ""
+    @State private var newAthletePosition = ""
+    @State private var newAthleteParentGuardianName = ""
+    @State private var newAthleteEmergencyContactName = ""
+    @State private var newAthleteEmergencyContactPhone = ""
+    
     @State private var showSubscriptionSheet = false
     @State private var showBookingInstructions = false
     @State private var showWaiverAgreement = false
     @State private var pendingBookingSuccess = false
+    @State private var pendingNewAthleteWaiver = false
 
     enum Mode: String, CaseIterable { case lessons = "Lessons", classes = "Classes" }
 
@@ -82,6 +109,127 @@ struct BookView: View {
     
     private func firstPackage(ofType packageType: String) -> LessonPackage? {
         return availableLessonPackages.first { $0.packageType == packageType }
+    }
+    
+    // Get all athletes from user profile (both new and legacy format)
+    private var allAthletes: [String] {
+        var athletes: [String] = []
+        
+        guard let profile = usersService.currentUser else { return athletes }
+        
+        // New format: athletes array
+        if let athletesArray = profile.athletes {
+            for athlete in athletesArray {
+                let name = athlete.displayName
+                if !name.isEmpty {
+                    athletes.append(name)
+                }
+            }
+        }
+        
+        // Legacy format: individual fields
+        let legacyAthletes = [
+            (profile.athleteFirstName, profile.athleteLastName),
+            (profile.athlete2FirstName, profile.athlete2LastName),
+            (profile.athlete3FirstName, profile.athlete3LastName)
+        ]
+        
+        for (firstName, lastName) in legacyAthletes {
+            let f = (firstName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let l = (lastName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let fullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+            if !fullName.isEmpty {
+                athletes.append(fullName)
+            }
+        }
+        
+        return athletes
+    }
+    
+    // Get remaining athletes excluding the first selected one
+    private var remainingAthletes: [String] {
+        guard let firstAthlete = selectedAthleteName else { return allAthletes }
+        return allAthletes.filter { $0 != firstAthlete }
+    }
+    
+    // Load athlete profile data from Firebase
+    private func loadAthleteProfileData() {
+        guard let profile = usersService.currentUser,
+              let athleteName = selectedAthleteName else { return }
+        
+        // Find athlete in new format
+        if let athletesArray = profile.athletes {
+            if let athlete = athletesArray.first(where: { $0.displayName == athleteName }) {
+                athleteBirthday = athlete.birthday ?? ""
+                athleteSchoolClubTeam = athlete.schoolClubTeam ?? ""
+                athleteExperienceLevel = athlete.experienceLevel ?? ""
+                athletePosition = athlete.position ?? ""
+                parentGuardianName = profile.firstName != nil && profile.lastName != nil ? "\(profile.firstName!) \(profile.lastName!)" : ""
+                emergencyContactName = profile.emergencyContactName ?? ""
+                emergencyContactPhone = profile.emergencyContactNumber ?? ""
+                return
+            }
+        }
+        
+        // Check legacy format
+        let nameParts = athleteName.split(separator: " ")
+        let firstName = String(nameParts.first ?? "")
+        
+        if profile.athleteFirstName == firstName {
+            athleteBirthday = profile.athleteBirthday ?? ""
+            athleteSchoolClubTeam = profile.athleteSchoolClubTeam ?? ""
+            athleteExperienceLevel = profile.athleteExperienceLevel ?? ""
+            athletePosition = profile.athletePosition ?? ""
+        } else if profile.athlete2FirstName == firstName {
+            athleteBirthday = profile.athlete2Birthday ?? ""
+            athleteSchoolClubTeam = profile.athlete2SchoolClubTeam ?? ""
+            athleteExperienceLevel = profile.athlete2ExperienceLevel ?? ""
+            athletePosition = profile.athlete2Position ?? ""
+        } else if profile.athlete3FirstName == firstName {
+            athleteBirthday = profile.athlete3Birthday ?? ""
+            athleteSchoolClubTeam = profile.athlete3SchoolClubTeam ?? ""
+            athleteExperienceLevel = profile.athlete3ExperienceLevel ?? ""
+            athletePosition = profile.athlete3Position ?? ""
+        }
+        
+        // Parent/guardian info from profile
+        parentGuardianName = profile.firstName != nil && profile.lastName != nil ? "\(profile.firstName!) \(profile.lastName!)" : ""
+        emergencyContactName = profile.emergencyContactName ?? ""
+        emergencyContactPhone = profile.emergencyContactNumber ?? ""
+    }
+    
+    // Validate that all required athlete information is filled
+    private var isAthleteInfoComplete: Bool {
+        guard isOnlyParticipant != nil else { return false }
+        
+        // Check primary athlete info
+        let primaryInfoComplete = !athleteBirthday.isEmpty &&
+                                  !athleteSchoolClubTeam.isEmpty &&
+                                  !athleteExperienceLevel.isEmpty &&
+                                  !parentGuardianName.isEmpty &&
+                                  !emergencyContactName.isEmpty &&
+                                  !emergencyContactPhone.isEmpty
+        
+        guard primaryInfoComplete else { return false }
+        
+        // If multiple participants, check second athlete
+        if isOnlyParticipant == false {
+            guard secondAthleteName != nil else { return false }
+            
+            // If new athlete, validate all new athlete fields
+            if isNewAthlete {
+                return !newAthleteFirstName.isEmpty &&
+                       !newAthleteLastName.isEmpty &&
+                       !newAthleteBirthday.isEmpty &&
+                       !newAthleteSchoolClubTeam.isEmpty &&
+                       !newAthleteExperienceLevel.isEmpty &&
+                       !newAthleteParentGuardianName.isEmpty &&
+                       !newAthleteEmergencyContactName.isEmpty &&
+                       !newAthleteEmergencyContactPhone.isEmpty
+            }
+        }
+        
+        return true
     }
     
     private var availableClassPasses: [LessonPackage] {
@@ -440,6 +588,7 @@ struct BookView: View {
                             ForEach(uniquePackageTypes, id: \.self) { packageType in
                                 Button {
                                     selectedPackage = firstPackage(ofType: packageType)
+                                    selectedAthleteName = nil  // Reset athlete selection when package changes
                                 } label: {
                                     if let firstPkg = firstPackage(ofType: packageType) {
                                         let totalRemaining = totalRemainingForLessons(packageType: packageType)
@@ -489,6 +638,465 @@ struct BookView: View {
                 }
             }
 
+            // Athlete Selection (shown after package selection)
+            if selectedPackage != nil && !allAthletes.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("Who is the session for?")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, Spacing.lg)
+
+                    CardView(padding: Spacing.md) {
+                        Menu {
+                            ForEach(allAthletes, id: \.self) { athleteName in
+                                Button {
+                                    selectedAthleteName = athleteName
+                                    loadAthleteProfileData()
+                                } label: {
+                                    Text(athleteName)
+                                        .font(.bodyMedium)
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: Spacing.md) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: CornerRadius.xs)
+                                        .fill(AppTheme.primary.opacity(0.08))
+                                        .frame(width: 48, height: 48)
+                                    Image(systemName: "person")
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundStyle(AppTheme.primary)
+                                }
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    if let athleteName = selectedAthleteName {
+                                        Text(athleteName)
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Text("Selected athlete")
+                                            .font(.bodySmall)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    } else {
+                                        Text("Select Athlete")
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Text("Choose who this session is for")
+                                            .font(.bodySmall)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.textTertiary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
+            }
+            
+            // Is athlete the only participant?
+            if selectedAthleteName != nil {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("Is \(selectedAthleteName ?? "") the only participant?")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, Spacing.lg)
+                    
+                    HStack(spacing: Spacing.md) {
+                        Button {
+                            isOnlyParticipant = true
+                            secondAthleteName = nil
+                            isNewAthlete = false
+                            loadAthleteProfileData()
+                        } label: {
+                            HStack {
+                                ZStack {
+                                    Circle()
+                                        .stroke(isOnlyParticipant == true ? AppTheme.primary : AppTheme.textTertiary, lineWidth: 2)
+                                        .frame(width: 24, height: 24)
+                                    if isOnlyParticipant == true {
+                                        Circle()
+                                            .fill(AppTheme.primary)
+                                            .frame(width: 12, height: 12)
+                                    }
+                                }
+                                Text("Yes")
+                                    .font(.bodyLarge)
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                            .padding(Spacing.md)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: CornerRadius.md)
+                                    .fill(Color.platformBackground)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: CornerRadius.md)
+                                            .stroke(isOnlyParticipant == true ? AppTheme.primary.opacity(0.3) : Color.clear, lineWidth: 2)
+                                    )
+                            )
+                            .lightShadow()
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            isOnlyParticipant = false
+                            loadAthleteProfileData()
+                        } label: {
+                            HStack {
+                                ZStack {
+                                    Circle()
+                                        .stroke(isOnlyParticipant == false ? AppTheme.primary : AppTheme.textTertiary, lineWidth: 2)
+                                        .frame(width: 24, height: 24)
+                                    if isOnlyParticipant == false {
+                                        Circle()
+                                            .fill(AppTheme.primary)
+                                            .frame(width: 12, height: 12)
+                                    }
+                                }
+                                Text("No")
+                                    .font(.bodyLarge)
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                            .padding(Spacing.md)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: CornerRadius.md)
+                                    .fill(Color.platformBackground)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: CornerRadius.md)
+                                            .stroke(isOnlyParticipant == false ? AppTheme.primary.opacity(0.3) : Color.clear, lineWidth: 2)
+                                    )
+                            )
+                            .lightShadow()
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
+            }
+            
+            // Athlete Profile Information (shown when participant is selected)
+            if isOnlyParticipant != nil {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("\(selectedAthleteName ?? "Athlete") Information")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, Spacing.lg)
+                    
+                    CardView(padding: Spacing.md) {
+                        VStack(spacing: Spacing.md) {
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Birthday")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("MM/DD/YYYY", text: $athleteBirthday)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("School/Club Team")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter school or club team", text: $athleteSchoolClubTeam)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Experience Level")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Beginner, Intermediate, Advanced", text: $athleteExperienceLevel)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Position (Optional)")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("e.g., Forward, Midfielder, etc.", text: $athletePosition)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Parent/Guardian Name")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter parent/guardian name", text: $parentGuardianName)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Emergency Contact Name")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter emergency contact", text: $emergencyContactName)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Emergency Contact Phone")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("(555) 555-5555", text: $emergencyContactPhone)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .keyboardType(.phonePad)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
+            }
+            
+            // Second Athlete Selection (shown when isOnlyParticipant is false)
+            if isOnlyParticipant == false {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("Select Second Participant")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, Spacing.lg)
+                    
+                    CardView(padding: Spacing.md) {
+                        Menu {
+                            ForEach(remainingAthletes, id: \.self) { athleteName in
+                                Button {
+                                    secondAthleteName = athleteName
+                                    isNewAthlete = false
+                                } label: {
+                                    Text(athleteName)
+                                        .font(.bodyMedium)
+                                }
+                            }
+                            Button {
+                                secondAthleteName = "New Athlete"
+                                isNewAthlete = true
+                            } label: {
+                                Text("New Athlete")
+                                    .font(.bodyMedium)
+                            }
+                        } label: {
+                            HStack(spacing: Spacing.md) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: CornerRadius.xs)
+                                        .fill(AppTheme.primary.opacity(0.08))
+                                        .frame(width: 48, height: 48)
+                                    Image(systemName: "person.2")
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundStyle(AppTheme.primary)
+                                }
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    if let athleteName = secondAthleteName {
+                                        Text(athleteName)
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Text("Second participant")
+                                            .font(.bodySmall)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    } else {
+                                        Text("Select Athlete")
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Text("Choose second participant")
+                                            .font(.bodySmall)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.textTertiary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
+            }
+            
+            // New Athlete Form (shown when "New Athlete" is selected)
+            if isNewAthlete {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("New Athlete Information")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, Spacing.lg)
+                    
+                    CardView(padding: Spacing.md) {
+                        VStack(spacing: Spacing.md) {
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("First Name")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter first name", text: $newAthleteFirstName)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Last Name")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter last name", text: $newAthleteLastName)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Birthday")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("MM/DD/YYYY", text: $newAthleteBirthday)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("School/Club Team")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter school or club team", text: $newAthleteSchoolClubTeam)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Experience Level")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Beginner, Intermediate, Advanced", text: $newAthleteExperienceLevel)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Position (Optional)")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("e.g., Forward, Midfielder, etc.", text: $newAthletePosition)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Parent/Guardian Name")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter parent/guardian name", text: $newAthleteParentGuardianName)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Emergency Contact Name")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("Enter emergency contact", text: $newAthleteEmergencyContactName)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                Text("Emergency Contact Phone")
+                                    .font(.bodySmall)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("(555) 555-5555", text: $newAthleteEmergencyContactPhone)
+                                    .textFieldStyle(.plain)
+                                    .font(.bodyMedium)
+                                    .keyboardType(.phonePad)
+                                    .padding(Spacing.sm)
+                                    .background(Color.platformSecondaryBackground)
+                                    .cornerRadius(CornerRadius.sm)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
+            }
+            
+            // Lesson Notes (shown after participant selection)
+            if isOnlyParticipant != nil {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("Notes for This Lesson")
+                        .font(.headingMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, Spacing.lg)
+                    
+                    CardView(padding: Spacing.md) {
+                        TextEditor(text: $lessonNotes)
+                            .font(.bodyMedium)
+                            .frame(minHeight: 100)
+                            .scrollContentBackground(.hidden)
+                            .background(Color.platformSecondaryBackground)
+                            .cornerRadius(CornerRadius.sm)
+                            .overlay(
+                                Group {
+                                    if lessonNotes.isEmpty {
+                                        Text("Add any notes for the trainer about this lesson...")
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                            .padding(.horizontal, Spacing.sm)
+                                            .padding(.vertical, Spacing.sm + 4)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+                            )
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
+            }
+
             Button {
                 if !packagesService.hasAvailableLessons {
                     bookingAlert = .init(
@@ -509,10 +1117,20 @@ struct BookView: View {
                 }
             }
             .buttonStyle(PrimaryButtonStyle())
-            .disabled(bookingInFlight || selectedTrainer == nil || selectedSlot == nil || (availableLessonPackages.count > 0 && selectedPackage == nil))
-            .opacity((selectedTrainer != nil && selectedSlot != nil && (availableLessonPackages.isEmpty || selectedPackage != nil)) ? 1.0 : 0.5)
+            .disabled(bookingInFlight || selectedTrainer == nil || selectedSlot == nil || (availableLessonPackages.count > 0 && selectedPackage == nil) || (!allAthletes.isEmpty && selectedAthleteName == nil) || !isAthleteInfoComplete)
+            .opacity((selectedTrainer != nil && selectedSlot != nil && (availableLessonPackages.isEmpty || selectedPackage != nil) && (allAthletes.isEmpty || selectedAthleteName != nil) && isAthleteInfoComplete) ? 1.0 : 0.5)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.md)
+            
+            // Show warning when no passes available in lessons mode
+            if mode == .lessons && !packagesService.hasAvailableLessons {
+                Text("Purchase passes in your Profile to book a session")
+                    .font(.bodySmall)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.top, Spacing.xs)
+            }
         }
     }
     
@@ -631,27 +1249,81 @@ struct BookView: View {
             )
             return
         }
+        
         bookingInFlight = true
         defer { bookingInFlight = false }
+        
         do {
+            // Save new athlete if needed
+            if isNewAthlete {
+                try await saveNewAthleteToProfile()
+            }
+            
+            // Save athlete information to profile if provided during booking
+            if let athleteName = selectedAthleteName {
+                try await saveAthleteInfoToProfile(athleteName: athleteName)
+            }
+            
             let packageId = selectedPackage?.id ?? ""
-            _ = try await bookingManager.bookLesson(trainerId: trainerId, slotId: slotId, lessonPackageId: packageId)
+            let athleteForBooking = selectedAthleteName
+            let secondAthleteForBooking = isOnlyParticipant == false ? secondAthleteName : nil
+            let notesForBooking = lessonNotes.isEmpty ? nil : lessonNotes
+            
+            _ = try await bookingManager.bookLesson(
+                trainerId: trainerId,
+                slotId: slotId,
+                lessonPackageId: packageId,
+                athleteName: athleteForBooking,
+                secondAthleteName: secondAthleteForBooking,
+                lessonNotes: notesForBooking
+            )
+            
             AnalyticsService.shared.logBookingCreated(
                 bookingId: "\(trainerId)_\(slotId)",
                 trainerId: trainerId,
                 clientId: Auth.auth().currentUser?.uid ?? ""
             )
+            
+            // Check waivers for all athletes involved
             if let userId = Auth.auth().currentUser?.uid {
                 let waiverCheck = try await settingsService.checkWaiverRequirement(
                     userId: userId,
                     settings: settingsService.settings
                 )
+                
+                // Check if selected athlete needs waiver
+                if let athleteName = selectedAthleteName {
+                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
+                    if !athleteHasWaiver {
+                        pendingBookingSuccess = true
+                        pendingNewAthleteWaiver = false // Waiver is for selectedAthleteName
+                        showWaiverAgreement = true
+                        return
+                    }
+                }
+                
+                // Check if second athlete needs waiver (for new athletes)
+                if isNewAthlete && secondAthleteName != nil {
+                    let f = newAthleteFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let l = newAthleteLastName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let athleteName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
+                    if !athleteHasWaiver {
+                        pendingBookingSuccess = true
+                        pendingNewAthleteWaiver = true
+                        showWaiverAgreement = true
+                        return
+                    }
+                }
+                
+                // Legacy waiver check
                 if waiverCheck.required && !waiverCheck.signed {
                     pendingBookingSuccess = true
                     showWaiverAgreement = true
                     return
                 }
             }
+            
             await finishBookingSuccess()
         } catch {
             let cleanMessage: String
@@ -673,6 +1345,212 @@ struct BookView: View {
         }
     }
     
+    // Save new athlete to user profile
+    private func saveNewAthleteToProfile() async throws {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let profile = usersService.currentUser else { return }
+        
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(userId)
+        
+        // Determine next athlete number
+        let athletes = profile.athletes ?? []
+        let legacyCount = [
+            profile.athleteFirstName != nil,
+            profile.athlete2FirstName != nil,
+            profile.athlete3FirstName != nil
+        ].filter { $0 }.count
+        
+        let totalAthletes = max(athletes.count, legacyCount)
+        
+        // Create new athlete info
+        let newAthlete: [String: Any] = [
+            "firstName": newAthleteFirstName,
+            "lastName": newAthleteLastName,
+            "birthday": newAthleteBirthday,
+            "schoolClubTeam": newAthleteSchoolClubTeam,
+            "experienceLevel": newAthleteExperienceLevel,
+            "position": newAthletePosition
+        ]
+        
+        // Add to athletes array if using new format
+        if !athletes.isEmpty || totalAthletes == 0 {
+            try await userRef.updateData([
+                "athletes": FieldValue.arrayUnion([newAthlete])
+            ])
+        } else {
+            // Use legacy format
+            let athleteNum = totalAthletes + 1
+            let prefix = athleteNum == 1 ? "athlete" : "athlete\(athleteNum)"
+            try await userRef.updateData([
+                "\(prefix)FirstName": newAthleteFirstName,
+                "\(prefix)LastName": newAthleteLastName,
+                "\(prefix)Birthday": newAthleteBirthday
+            ])
+        }
+        
+        // Update parent/emergency contact if provided
+        if !newAthleteParentGuardianName.isEmpty || !newAthleteEmergencyContactName.isEmpty || !newAthleteEmergencyContactPhone.isEmpty {
+            var updates: [String: Any] = [:]
+            if !newAthleteEmergencyContactName.isEmpty {
+                updates["emergencyContactName"] = newAthleteEmergencyContactName
+            }
+            if !newAthleteEmergencyContactPhone.isEmpty {
+                updates["emergencyContactNumber"] = newAthleteEmergencyContactPhone
+            }
+            if !updates.isEmpty {
+                try await userRef.updateData(updates)
+            }
+        }
+        
+        // Reload user profile
+        Task {
+            await usersService.loadCurrentUserIfAvailable()
+        }
+    }
+    
+    // Save athlete info provided during booking to user profile
+    private func saveAthleteInfoToProfile(athleteName: String) async throws {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let profile = usersService.currentUser else { return }
+        
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(userId)
+        
+        // Find the athlete in the profile
+        let athletes = profile.athletes ?? []
+        if let athleteIndex = athletes.firstIndex(where: { athlete in
+            athlete.displayName == athleteName
+        }) {
+            // Update existing athlete in new format
+            var updatedAthletes = athletes
+            var athleteToUpdate = updatedAthletes[athleteIndex]
+            
+            // Update fields if they were provided
+            if !athleteBirthday.isEmpty {
+                athleteToUpdate.birthday = athleteBirthday
+            }
+            if !athleteSchoolClubTeam.isEmpty {
+                athleteToUpdate.schoolClubTeam = athleteSchoolClubTeam
+            }
+            if !athleteExperienceLevel.isEmpty {
+                athleteToUpdate.experienceLevel = athleteExperienceLevel
+            }
+            if !athletePosition.isEmpty {
+                athleteToUpdate.position = athletePosition
+            }
+            
+            updatedAthletes[athleteIndex] = athleteToUpdate
+            
+            try await userRef.updateData([
+                "athletes": updatedAthletes.map { athlete in
+                    [
+                        "firstName": athlete.firstName ?? "",
+                        "lastName": athlete.lastName ?? "",
+                        "birthday": athlete.birthday ?? "",
+                        "schoolClubTeam": athlete.schoolClubTeam ?? "",
+                        "experienceLevel": athlete.experienceLevel ?? "",
+                        "position": athlete.position ?? ""
+                    ] as [String: Any]
+                }
+            ])
+        } else {
+            // Check legacy athlete fields
+            var updates: [String: Any] = [:]
+            
+            let legacyAthleteNames = [
+                (profile.athleteFirstName, profile.athleteLastName, "athlete"),
+                (profile.athlete2FirstName, profile.athlete2LastName, "athlete2"),
+                (profile.athlete3FirstName, profile.athlete3LastName, "athlete3")
+            ]
+            
+            for (firstName, lastName, prefix) in legacyAthleteNames {
+                let f = (firstName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let l = (lastName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let fullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+                if fullName == athleteName {
+                    if !athleteBirthday.isEmpty {
+                        updates["\(prefix)Birthday"] = athleteBirthday
+                    }
+                    if !athleteSchoolClubTeam.isEmpty {
+                        updates["\(prefix)SchoolClubTeam"] = athleteSchoolClubTeam
+                    }
+                    if !athleteExperienceLevel.isEmpty {
+                        updates["\(prefix)ExperienceLevel"] = athleteExperienceLevel
+                    }
+                    if !athletePosition.isEmpty {
+                        updates["\(prefix)Position"] = athletePosition
+                    }
+                    break
+                }
+            }
+            
+            if !updates.isEmpty {
+                try await userRef.updateData(updates)
+            }
+        }
+        
+        // Update emergency contact info if provided
+        var contactUpdates: [String: Any] = [:]
+        if !emergencyContactName.isEmpty {
+            contactUpdates["emergencyContactName"] = emergencyContactName
+        }
+        if !emergencyContactPhone.isEmpty {
+            contactUpdates["emergencyContactNumber"] = emergencyContactPhone
+        }
+        
+        if !contactUpdates.isEmpty {
+            try await userRef.updateData(contactUpdates)
+        }
+        
+        // Reload user profile
+        Task {
+            await usersService.loadCurrentUserIfAvailable()
+        }
+    }
+    
+    // Check if athlete has a waiver on file
+    private func checkAthleteHasWaiver(userId: String, athleteName: String) async throws -> Bool {
+        let documents = try await DocumentsService.shared.fetchDocuments(userId: userId)
+        
+        // Parse the athlete name parts for flexible matching
+        let nameComponents = athleteName.components(separatedBy: " ")
+        let firstName = nameComponents.first?.lowercased() ?? ""
+        let lastName = nameComponents.last?.lowercased() ?? ""
+        
+        // Check if any waiver document exists for this athlete
+        for doc in documents {
+            if doc.type == "waiver" {
+                // Check for athlete-specific waiver
+                if let docAthleteName = doc.athleteName?.lowercased() {
+                    // Check if the document's athlete name contains this athlete's first or last name
+                    if !firstName.isEmpty && docAthleteName.contains(firstName) {
+                        return true
+                    }
+                    if !lastName.isEmpty && docAthleteName.contains(lastName) {
+                        return true
+                    }
+                    // Also check exact match
+                    if docAthleteName == athleteName.lowercased() {
+                        return true
+                    }
+                }
+                
+                // Also check signedBy field as fallback (legacy waivers)
+                if let signedByName = doc.signedBy?.lowercased() {
+                    if !firstName.isEmpty && signedByName.contains(firstName) {
+                        return true
+                    }
+                    if !lastName.isEmpty && signedByName.contains(lastName) {
+                        return true
+                    }
+                }
+            }
+        }
+        
+        return false
+    }
+    
     private func finishBookingSuccess() async {
         let trainerName = selectedTrainer?.name ?? "your trainer"
         bookingAlert = .init(
@@ -682,7 +1560,32 @@ struct BookView: View {
         await packagesService.loadMyPackages()
         await loadDayIfPossible()
         await loadMonthIfPossible()
+        
+        // Clear all booking form fields
         selectedSlot = nil
+        selectedPackage = nil
+        selectedAthleteName = nil
+        isOnlyParticipant = nil
+        secondAthleteName = nil
+        isNewAthlete = false
+        lessonNotes = ""
+        athleteBirthday = ""
+        athleteSchoolClubTeam = ""
+        athleteExperienceLevel = ""
+        parentGuardianName = ""
+        emergencyContactName = ""
+        emergencyContactPhone = ""
+        newAthleteFirstName = ""
+        newAthleteLastName = ""
+        newAthleteBirthday = ""
+        newAthleteSchoolClubTeam = ""
+        newAthleteExperienceLevel = ""
+        newAthleteParentGuardianName = ""
+        newAthleteEmergencyContactName = ""
+        newAthleteEmergencyContactPhone = ""
+        
+        // Dismiss keyboard
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
     
     private func handleWaiverAgreement() async {
@@ -703,11 +1606,22 @@ struct BookView: View {
                 signedAt: Date()
             )
             
+            // Determine athlete name for waiver
+            let athleteForWaiver: String?
+            if pendingNewAthleteWaiver {
+                let f = newAthleteFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let l = newAthleteLastName.trimmingCharacters(in: .whitespacesAndNewlines)
+                athleteForWaiver = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+            } else {
+                athleteForWaiver = selectedAthleteName
+            }
+            
             // Generate PDF with custom waiver text from settings
             guard let pdfData = WaiverPDFGenerator.generateWaiverPDF(
                 signature: signature,
                 organizationName: auth.organizationName ?? "Your Organization",
-                customWaiverText: settingsService.settings?.waiverText
+                customWaiverText: settingsService.settings?.waiverText,
+                athleteName: athleteForWaiver
             ) else {
                 print("Failed to generate waiver PDF")
                 throw NSError(domain: "WaiverError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to generate PDF"])
@@ -717,7 +1631,8 @@ struct BookView: View {
             _ = try await DocumentsService.shared.saveWaiverDocument(
                 userId: userId,
                 pdfData: pdfData,
-                signature: signature
+                signature: signature,
+                athleteName: athleteForWaiver
             )
             
             if let orgId = auth.currentOrgId {

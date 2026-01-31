@@ -18,6 +18,7 @@ struct UserDocument: Codable, Identifiable {
     var signedBy: String?
     var signatoryEmail: String?
     var isMinor: Bool?
+    var athleteName: String? // Name of athlete this document is for
 }
 
 final class DocumentsService {
@@ -28,7 +29,8 @@ final class DocumentsService {
     func saveWaiverDocument(
         userId: String,
         pdfData: Data,
-        signature: WaiverSignature
+        signature: WaiverSignature,
+        athleteName: String? = nil
     ) async throws -> UserDocument {
         let storage = Storage.storage()
         let db = Firestore.firestore()
@@ -56,7 +58,7 @@ final class DocumentsService {
         let documentId = UUID().uuidString
         let now = Date()
         
-        let documentData: [String: Any] = [
+        var documentData: [String: Any] = [
             "name": "Release of Liability Waiver",
             "type": "waiver",
             "uploadedAt": Timestamp(date: now),
@@ -65,6 +67,10 @@ final class DocumentsService {
             "signatoryEmail": signature.email,
             "isMinor": signature.isMinor
         ]
+        
+        if let athleteName = athleteName {
+            documentData["athleteName"] = athleteName
+        }
         
         // Save to Firestore
         print("📄 Saving waiver metadata to Firestore")
@@ -84,7 +90,8 @@ final class DocumentsService {
             url: downloadURL.absoluteString,
             signedBy: signature.fullName,
             signatoryEmail: signature.email,
-            isMinor: signature.isMinor
+            isMinor: signature.isMinor,
+            athleteName: athleteName
         )
     }
     
@@ -117,7 +124,8 @@ final class DocumentsService {
                 url: url,
                 signedBy: data["signedBy"] as? String,
                 signatoryEmail: data["signatoryEmail"] as? String,
-                isMinor: data["isMinor"] as? Bool
+                isMinor: data["isMinor"] as? Bool,
+                athleteName: data["athleteName"] as? String
             )
         }
     }

@@ -92,6 +92,9 @@ interface BookLessonData {
   trainerId: string;
   slotId: string; // deterministic ID "YYYY-MM-DDTHH"
   lessonPackageId: string;
+  athleteName?: string; // First athlete/participant name
+  secondAthleteName?: string; // Second athlete/participant name (if applicable)
+  lessonNotes?: string; // Notes for trainer about this lesson
 }
 
 /**
@@ -134,7 +137,7 @@ export const bookLesson = functions.https.onCall(
     }
     const userId = request.auth.uid;
 
-    const {trainerId, slotId, lessonPackageId} = request.data;
+    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, lessonNotes} = request.data;
     if (!trainerId || !slotId || !lessonPackageId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
@@ -419,7 +422,7 @@ export const bookLesson = functions.https.onCall(
         const trainerLastName = trainerData.lastName || "";
         const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
 
-        transaction.set(newBookingRef, {
+        const bookingData: any = {
           clientUID: userId,
           trainerId: trainerId,
           slotId: slotId, // deterministic schedule slot doc id
@@ -433,7 +436,20 @@ export const bookLesson = functions.https.onCall(
           scheduleSlotId: slotId,
           location: trainerSlotData.location || "Location TBD", // Copy location from schedule slot
           orgId: orgId || trainerData.orgId, // Add orgId to booking record
-        });
+        };
+
+        // Add optional athlete and notes fields if provided
+        if (athleteName) {
+          bookingData.athleteName = athleteName;
+        }
+        if (secondAthleteName) {
+          bookingData.secondAthleteName = secondAthleteName;
+        }
+        if (lessonNotes) {
+          bookingData.lessonNotes = lessonNotes;
+        }
+
+        transaction.set(newBookingRef, bookingData);
       });
 
       // Increment booking usage counter after successful transaction

@@ -89,6 +89,13 @@ export interface Booking {
   status: 'confirmed' | 'canceled';
   lessonPackageId?: string;
   createdAt?: Date;
+  
+  // Participant information
+  athleteName?: string; // Name of athlete for this lesson
+  secondAthleteName?: string; // Second participant name
+  
+  // Lesson notes
+  lessonNotes?: string; // Lesson-specific notes from client
 }
 
 export interface AvailabilitySlot {

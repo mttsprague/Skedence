@@ -295,11 +295,15 @@ final class AdminService: ObservableObject {
                     let athleteFirst = data["athleteFirstName"] as? String ?? ""
                     let athleteLast = data["athleteLastName"] as? String ?? ""
                     
+                    let f = athleteFirst.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let l = athleteLast.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let athleteFullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+                    
                     users.append(SimpleUser(
                         id: userDoc.documentID,
                         firstName: firstName,
                         lastName: lastName,
-                        athleteName: athleteFirst.isEmpty ? "" : "\(athleteFirst) \(athleteLast)".trimmingCharacters(in: .whitespaces)
+                        athleteName: athleteFullName
                     ))
                 }
             }

@@ -310,7 +310,7 @@ service cloud.firestore {
         // Trainers can manage their own schedules if they belong to the org
         // Admins/owners can manage any trainer's schedules in their org
         allow create, update, delete: if isSignedIn() && (
-          // Trainer managing their own schedule
+          // Trainer managing their own schedule (trainerId == Firebase UID)
           (request.auth.uid == trainerId 
             && 'orgId' in request.resource.data 
             && isMemberOfOrg(request.resource.data.orgId))

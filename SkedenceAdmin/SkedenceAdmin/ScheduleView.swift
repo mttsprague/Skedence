@@ -45,6 +45,14 @@ struct ScheduleView: View {
         let booking: ClientBooking?
     }
     @State private var clientCardContext: ClientCardContext?
+    
+    // Session detail sheet context (for booked lessons)
+    fileprivate struct SessionDetailContext: Identifiable {
+        let id = UUID()
+        let client: Client
+        let booking: ClientBooking
+    }
+    @State private var sessionDetailContext: SessionDetailContext?
 
     @State private var showSubscriptionSheet = false
 
@@ -159,6 +167,7 @@ struct ScheduleView: View {
             clientCardContext: $clientCardContext,
             showSubscriptionSheet: $showSubscriptionSheet,
             classSheetContext: $classSheetContext,
+            sessionDetailContext: $sessionDetailContext,
             auth: auth,
             viewModel: viewModel
         ))
@@ -352,26 +361,60 @@ struct ScheduleView: View {
         
         // Handle regular client booking
         if slot.isBooked, let clientId = slot.clientId {
-            // Check cache first
-            if let cached = viewModel.clientsById[clientId] {
-                let booking = ClientBooking(
-                    id: slot.id,
-                    trainerId: slot.trainerId,
-                    trainerName: auth.trainerDisplayName ?? "Trainer",
-                    startTime: slot.startTime,
-                    endTime: slot.endTime,
-                    status: "confirmed",
-                    bookedAt: slot.bookedAt,
-                    isClassBooking: slot.isClassBooking,
-                    classId: slot.classId
-                )
-                self.clientCardContext = ClientCardContext(client: cached, booking: booking)
-                return
-            }
-
-            // Fetch data BEFORE showing sheet
+            // Fetch the actual booking document to get complete information
             Task {
+                // First, try to get the booking from the bookings collection
+                let db = Firestore.firestore()
+                var booking: ClientBooking?
+                
+                do {
+                    // Query bookings collection for this specific slot
+                    let bookingsSnapshot = try await db.collection("bookings")
+                        .whereField("clientUID", isEqualTo: clientId)
+                        .whereField("trainerId", isEqualTo: slot.trainerId)
+                        .whereField("startTime", isEqualTo: Timestamp(date: slot.startTime))
+                        .limit(to: 1)
+                        .getDocuments()
+                    
+                    if let bookingDoc = bookingsSnapshot.documents.first {
+                        let data = bookingDoc.data()
+                        booking = ClientBooking(
+                            id: bookingDoc.documentID,
+                            trainerId: slot.trainerId,
+                            trainerName: auth.trainerDisplayName ?? "Trainer",
+                            startTime: slot.startTime,
+                            endTime: slot.endTime,
+                            status: data["status"] as? String ?? "confirmed",
+                            bookedAt: (data["bookedAt"] as? Timestamp)?.dateValue() ?? slot.bookedAt,
+                            isClassBooking: slot.isClassBooking,
+                            classId: slot.classId,
+                            athleteName: data["athleteName"] as? String,
+                            secondAthleteName: data["secondAthleteName"] as? String,
+                            lessonNotes: data["lessonNotes"] as? String
+                        )
+                    }
+                } catch {
+                    print("⚠️ Error fetching booking details: \(error)")
+                }
+                
+                // Fallback to basic booking info if not found
+                if booking == nil {
+                    booking = ClientBooking(
+                        id: slot.id,
+                        trainerId: slot.trainerId,
+                        trainerName: auth.trainerDisplayName ?? "Trainer",
+                        startTime: slot.startTime,
+                        endTime: slot.endTime,
+                        status: "confirmed",
+                        bookedAt: slot.bookedAt,
+                        isClassBooking: slot.isClassBooking,
+                        classId: slot.classId
+                    )
+                }
+                
+                // Fetch client info
                 let fetched = try? await FirestoreService.shared.fetchClient(by: clientId)
+                
                 await MainActor.run {
                     let client = fetched ?? Client(
                         id: clientId,
@@ -386,19 +429,8 @@ struct ScheduleView: View {
                         viewModel.clientsById[clientId] = fetched
                     }
                     
-                    let booking = ClientBooking(
-                        id: slot.id,
-                        trainerId: slot.trainerId,
-                        trainerName: auth.trainerDisplayName ?? "Trainer",
-                        startTime: slot.startTime,
-                        endTime: slot.endTime,
-                        status: "confirmed",
-                        bookedAt: slot.bookedAt,
-                        isClassBooking: slot.isClassBooking,
-                        classId: slot.classId
-                    )
-                    
-                    self.clientCardContext = ClientCardContext(client: client, booking: booking)
+                    // Show session detail view instead of client card
+                    self.sessionDetailContext = SessionDetailContext(client: client, booking: booking!)
                 }
             }
         } else {
@@ -877,6 +909,7 @@ private struct SheetModifiers: ViewModifier {
     @Binding var clientCardContext: ScheduleView.ClientCardContext?
     @Binding var showSubscriptionSheet: Bool
     @Binding var classSheetContext: ScheduleView.ClassSheetContext?
+    @Binding var sessionDetailContext: ScheduleView.SessionDetailContext?
     
     let auth: AuthManager
     let viewModel: ScheduleViewModel
@@ -971,6 +1004,10 @@ private struct SheetModifiers: ViewModifier {
             }
             .sheet(item: $clientCardContext) { context in
                 ClientCardView(client: context.client, selectedBooking: context.booking)
+            }
+            .sheet(item: $sessionDetailContext) { context in
+                SessionDetailView(client: context.client, booking: context.booking)
+                    .environmentObject(auth)
             }
             .sheet(isPresented: $showSubscriptionSheet) {
                 if let orgId = auth.currentOrgId {
