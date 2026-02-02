@@ -17,7 +17,6 @@ interface EmailNotificationSettings {
   reminders: boolean;
   followUps: boolean;
   packageReceipt: boolean;
-  appointmentReceipt: boolean;
 }
 
 const defaultSettings: EmailNotificationSettings = {
@@ -27,7 +26,6 @@ const defaultSettings: EmailNotificationSettings = {
   reminders: true,
   followUps: true,
   packageReceipt: true,
-  appointmentReceipt: true,
 };
 
 export default function ClientEmailsPage() {
@@ -167,12 +165,6 @@ export default function ClientEmailsPage() {
               description="Receipt for package or gift certificate purchases"
               enabled={settings.packageReceipt}
               onChange={(value) => updateSetting('packageReceipt', value)}
-            />
-            <EmailToggleRow
-              title="Appointment Receipt"
-              description="Receipt for individual appointment bookings"
-              enabled={settings.appointmentReceipt}
-              onChange={(value) => updateSetting('appointmentReceipt', value)}
             />
           </div>
         </div>
