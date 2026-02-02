@@ -996,7 +996,7 @@ export const cancelLesson = functions.https.onCall(
 
     try {
       const bookingRef = db.collection("bookings").doc(bookingId);
-      
+
       // Store booking data before deletion for email
       let bookingDataForEmail: any = null;
 
@@ -1017,7 +1017,7 @@ export const cancelLesson = functions.https.onCall(
             "Booking data is missing."
           );
         }
-        
+
         // Store for email sending
         bookingDataForEmail = bookingData;
 
@@ -1110,7 +1110,7 @@ export const cancelLesson = functions.https.onCall(
         // Delete the booking
         transaction.delete(bookingRef);
       });
-      
+
       // Send cancellation email after successful transaction
       if (bookingDataForEmail) {
         const {sendCancellationConfirmation} = await import("./confirmationEmails");
@@ -1186,7 +1186,7 @@ export const adminCancelLesson = functions.https.onCall(
       }
 
       const bookingRef = db.collection("bookings").doc(bookingId);
-      
+
       // Store booking data before deletion for email
       let bookingDataForEmail: any = null;
 
@@ -1207,7 +1207,7 @@ export const adminCancelLesson = functions.https.onCall(
             "Booking data is missing."
           );
         }
-        
+
         // Store for email sending
         bookingDataForEmail = bookingData;
 
@@ -1276,7 +1276,7 @@ export const adminCancelLesson = functions.https.onCall(
         // Delete the booking
         transaction.delete(bookingRef);
       });
-      
+
       // Send cancellation email after successful transaction
       if (bookingDataForEmail) {
         const {sendCancellationConfirmation} = await import("./confirmationEmails");

@@ -271,13 +271,13 @@ export const processScheduledEmails = functions.pubsub
 async function sendEmailFromTemplate(bookingId: string, booking: any, template: any) {
   // Check which email type this is and verify it's enabled
   const {isEmailEnabled} = await import("./emailSettings");
-  
+
   // Determine email type from template subject
   let emailType: "reminders" | "followUps" = "reminders";
   if (template.subject.includes("How Was Your Session") || template.subject.includes("follow")) {
     emailType = "followUps";
   }
-  
+
   const emailEnabled = await isEmailEnabled(booking.orgId, emailType);
   if (!emailEnabled) {
     console.log(`${emailType} emails disabled for org ${booking.orgId}, skipping email`);

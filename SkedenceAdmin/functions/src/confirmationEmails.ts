@@ -825,6 +825,8 @@ The Skedence Team`,
 
 /**
  * Send cancellation confirmation email to client
+ * @param {string} bookingId - The ID of the cancelled booking
+ * @param {object} bookingData - The booking data including client, trainer, and time info
  */
 export async function sendCancellationConfirmation(
   bookingId: string,
@@ -919,6 +921,7 @@ export async function sendCancellationConfirmation(
 
 /**
  * Send subscription cancellation email to organization owner
+ * @param {string} orgId - The organization ID
  */
 export async function sendSubscriptionCancellationEmail(orgId: string) {
   try {
@@ -999,6 +1002,9 @@ export async function sendSubscriptionCancellationEmail(orgId: string) {
 
 /**
  * Send reschedule confirmation email to client
+ * @param {string} bookingId - The ID of the rescheduled booking
+ * @param {object} oldBookingData - The original booking time info
+ * @param {object} newBookingData - The new booking data including client, trainer, and time info
  */
 export async function sendRescheduleConfirmation(
   bookingId: string,

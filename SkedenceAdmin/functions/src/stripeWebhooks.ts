@@ -267,7 +267,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   });
 
   console.log(`Subscription canceled for org ${orgId}`);
-  
+
   // Send subscription cancellation email
   const {sendSubscriptionCancellationEmail} = await import("./confirmationEmails");
   await sendSubscriptionCancellationEmail(orgId);

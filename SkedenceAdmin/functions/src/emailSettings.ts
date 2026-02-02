@@ -10,7 +10,7 @@ export interface EmailNotificationSettings {
   bookingConfirmation?: boolean;
   cancellationConfirmation?: boolean;
   rescheduleConfirmation?: boolean;
-  
+
   // Other emails
   reminders?: boolean;
   followUps?: boolean;
@@ -24,9 +24,9 @@ export type EmailType = keyof EmailNotificationSettings;
 
 /**
  * Check if a specific email notification is enabled for an organization
- * @param orgId - Organization ID
- * @param emailType - Type of email to check
- * @returns boolean - true if enabled (or if setting doesn't exist - default enabled)
+ * @param {string} orgId - Organization ID
+ * @param {EmailType} emailType - Type of email to check
+ * @return {Promise<boolean>} boolean - true if enabled (or if setting doesn't exist - default enabled)
  */
 export async function isEmailEnabled(orgId: string, emailType: EmailType): Promise<boolean> {
   try {
@@ -45,12 +45,12 @@ export async function isEmailEnabled(orgId: string, emailType: EmailType): Promi
     }
 
     const settings = settingsDoc.data() as EmailNotificationSettings;
-    
+
     // If setting is undefined, default to enabled
     const isEnabled = settings[emailType] !== false;
-    
+
     console.log(`Email setting for ${orgId} - ${emailType}: ${isEnabled ? "enabled" : "disabled"}`);
-    
+
     return isEnabled;
   } catch (error) {
     console.error(`Error checking email settings for ${orgId}:`, error);
@@ -61,9 +61,10 @@ export async function isEmailEnabled(orgId: string, emailType: EmailType): Promi
 
 /**
  * Convenience function to check and send email
- * @param orgId - Organization ID
- * @param emailType - Type of email
- * @param sendEmailFn - Function to execute if email is enabled
+ * @param {string} orgId - Organization ID
+ * @param {EmailType} emailType - Type of email
+ * @param {Function} sendEmailFn - Function to execute if email is enabled
+ * @return {Promise<void>}
  */
 export async function sendEmailIfEnabled(
   orgId: string,
@@ -71,7 +72,7 @@ export async function sendEmailIfEnabled(
   sendEmailFn: () => Promise<void>
 ): Promise<void> {
   const enabled = await isEmailEnabled(orgId, emailType);
-  
+
   if (enabled) {
     await sendEmailFn();
   } else {
