@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/dashboard-layout';
+import { SchedulingSubmenu } from '@/components/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -280,14 +280,48 @@ export default function ClassesPage() {
   };
 
   const handleDelete = async (classId: string) => {
-    if (!confirm('Are you sure you want to delete this class?')) return;
+    if (!confirm('Are you sure you want to delete this class? This will cancel the class for all registered participants.')) return;
 
     try {
+      // Get all participants first
+      const participantsQuery = query(collection(db, 'classes', classId, 'participants'));
+      const participantsSnapshot = await getDocs(participantsQuery);
+      
+      // Delete participant registrations and update user bookings
+      for (const participantDoc of participantsSnapshot.docs) {
+        const participantData = participantDoc.data();
+        
+        // Remove from user's bookings if they have any related booking
+        if (participantData.userId) {
+          // Query bookings that reference this class
+          const userBookingsQuery = query(
+            collection(db, 'bookings'),
+            where('userId', '==', participantData.userId),
+            where('classId', '==', classId)
+          );
+          const userBookingsSnapshot = await getDocs(userBookingsQuery);
+          
+          // Delete or cancel related bookings
+          for (const bookingDoc of userBookingsSnapshot.docs) {
+            await updateDoc(doc(db, 'bookings', bookingDoc.id), {
+              status: 'cancelled',
+              cancelledAt: Timestamp.now(),
+              cancelReason: 'Class was deleted by administrator'
+            });
+          }
+        }
+        
+        // Delete participant document
+        await deleteDoc(participantDoc.ref);
+      }
+      
+      // Finally, delete the class itself
       await deleteDoc(doc(db, 'classes', classId));
       setClasses(classes.filter(c => c.id !== classId));
+      alert('Class deleted and all participants have been notified of the cancellation.');
     } catch (error) {
       console.error('Error deleting class:', error);
-      alert('Error deleting class');
+      alert('Error deleting class. Please try again.');
     }
   };
 
@@ -343,8 +377,9 @@ export default function ClassesPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <SchedulingSubmenu>
+      <div className="p-6 lg:p-8">
+        <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Class Management</h1>
@@ -706,6 +741,7 @@ export default function ClassesPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+      </div>
+    </SchedulingSubmenu>
   );
 }

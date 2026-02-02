@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/dashboard-layout';
+import { BusinessSettingsSubmenu } from '@/components/business-settings-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Save, Settings as SettingsIcon, Clock, Calendar, MapPin, Users } from 'lucide-react';
+import { Clock, Calendar, MapPin } from 'lucide-react';
 
 interface OrgSettings {
   minBookingHours: number;
@@ -28,8 +28,7 @@ export default function SettingsPage() {
     requireWaiver: true,
   });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
@@ -60,59 +59,41 @@ export default function SettingsPage() {
     loadSettings();
   }, [orgId]);
 
-  const handleSave = async () => {
+  // Auto-save function with debounce
+  const saveSettings = useCallback(async (newSettings: OrgSettings) => {
     if (!orgId) return;
-
-    setSaving(true);
-    setSaveMessage('');
 
     try {
       // Save to organizations/{orgId} document (matches iOS app schema)
-      await setDoc(doc(db, 'organizations', orgId), settings, { merge: true });
-      setSaveMessage('Settings saved successfully!');
-      setTimeout(() => setSaveMessage(''), 3000);
+      await setDoc(doc(db, 'organizations', orgId), newSettings, { merge: true });
+      setLastSaved(new Date());
+      console.log('Settings auto-saved to Firebase');
     } catch (error) {
       console.error('Error saving settings:', error);
-      setSaveMessage('Error saving settings. Please try again.');
-    } finally {
-      setSaving(false);
     }
+  }, [orgId]);
+
+  // Update settings and save immediately
+  const updateSetting = (updates: Partial<OrgSettings>) => {
+    const newSettings = { ...settings, ...updates };
+    setSettings(newSettings);
+    saveSettings(newSettings);
   };
 
   return (
-    <DashboardLayout>
+    <BusinessSettingsSubmenu>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
             <p className="text-gray-600 mt-2">Configure your organization preferences</p>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-6 py-3 bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-          >
-            {saving ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-5 w-5" />
-                Save Changes
-              </>
-            )}
-          </button>
+          {lastSaved && (
+            <div className="text-sm text-gray-500">
+              Last saved: {lastSaved.toLocaleTimeString()}
+            </div>
+          )}
         </div>
-
-        {saveMessage && (
-          <div className={`p-4 rounded-lg ${
-            saveMessage.includes('Error') ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'
-          }`}>
-            {saveMessage}
-          </div>
-        )}
 
         {loading ? (
           <div className="text-center py-12">
@@ -137,7 +118,7 @@ export default function SettingsPage() {
                     type="number"
                     min="0"
                     value={settings.minBookingHours}
-                    onChange={(e) => setSettings({ ...settings, minBookingHours: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => updateSetting({ minBookingHours: parseInt(e.target.value) || 0 })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
                   />
                   <p className="text-sm text-gray-500 mt-1">
@@ -153,7 +134,7 @@ export default function SettingsPage() {
                     type="number"
                     min="0"
                     value={settings.minCancellationHours}
-                    onChange={(e) => setSettings({ ...settings, minCancellationHours: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => updateSetting({ minCancellationHours: parseInt(e.target.value) || 0 })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
                   />
                   <p className="text-sm text-gray-500 mt-1">
@@ -166,7 +147,7 @@ export default function SettingsPage() {
                     <input
                       type="checkbox"
                       checked={settings.allowSameDayBooking}
-                      onChange={(e) => setSettings({ ...settings, allowSameDayBooking: e.target.checked })}
+                      onChange={(e) => updateSetting({ allowSameDayBooking: e.target.checked })}
                       className="w-5 h-5 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
                     />
                     <span className="text-sm font-medium text-gray-700">Allow Same-Day Booking</span>
@@ -193,7 +174,7 @@ export default function SettingsPage() {
                   </label>
                   <select
                     value={settings.defaultSessionLength}
-                    onChange={(e) => setSettings({ ...settings, defaultSessionLength: parseInt(e.target.value) })}
+                    onChange={(e) => updateSetting({ defaultSessionLength: parseInt(e.target.value) })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
                   >
                     <option value={30}>30 minutes</option>
@@ -212,7 +193,7 @@ export default function SettingsPage() {
                     <input
                       type="checkbox"
                       checked={settings.requireWaiver}
-                      onChange={(e) => setSettings({ ...settings, requireWaiver: e.target.checked })}
+                      onChange={(e) => updateSetting({ requireWaiver: e.target.checked })}
                       className="w-5 h-5 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
                     />
                     <span className="text-sm font-medium text-gray-700">Require Waiver Agreement</span>
@@ -235,14 +216,14 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max Bookings Per Location (per time slot)
+                    Max Bookings Per Location (for an individual hour)
                   </label>
                   <input
                     type="number"
                     min="1"
                     max="50"
                     value={settings.maxBookingsPerLocation}
-                    onChange={(e) => setSettings({ ...settings, maxBookingsPerLocation: parseInt(e.target.value) || 1 })}
+                    onChange={(e) => updateSetting({ maxBookingsPerLocation: parseInt(e.target.value) || 1 })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
                   />
                   <p className="text-sm text-gray-500 mt-1">
@@ -254,6 +235,6 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </BusinessSettingsSubmenu>
   );
 }

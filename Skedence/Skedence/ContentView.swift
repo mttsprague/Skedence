@@ -17,6 +17,7 @@ struct AppRootView: View {
     @StateObject private var packagesService = PackagesService()
     @StateObject private var bookingsService = BookingsService()
     @StateObject private var classesService = ClassesService()
+    @StateObject private var intakeFormService = IntakeFormService()
     // Removed subscription status - clients don't see subscription warnings
     
     @State private var selectedTab = 0
@@ -80,6 +81,7 @@ struct AppRootView: View {
                 .environmentObject(packagesService)
                 .environmentObject(bookingsService)
                 .environmentObject(classesService)
+                .environmentObject(intakeFormService)
                 // Removed subscription status from environment
                 .overlay {
                     if !organizationIsActive {
@@ -104,6 +106,11 @@ struct AppRootView: View {
         }
         .task { @MainActor in
             await auth.ensureSignedIn() // Temporary anonymous; replace with Email/Password flow
+            
+            // Load intake form fields once org is available
+            if let orgId = auth.currentOrgId {
+                await intakeFormService.loadFields(orgId: orgId)
+            }
             
             // Set initial tab based on authentication status
             if !hasSetInitialTab {

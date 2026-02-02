@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Save, FileText, AlertCircle } from 'lucide-react';
+import { FileText, AlertCircle } from 'lucide-react';
 
 interface WaiverSettings {
   requireWaiver: boolean;
@@ -20,8 +19,7 @@ export default function WaiverPage() {
     waiverText: '',
   });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
@@ -46,74 +44,47 @@ export default function WaiverPage() {
     loadSettings();
   }, [orgId]);
 
-  const handleSave = async () => {
+  // Auto-save function
+  const saveSettings = useCallback(async (newSettings: WaiverSettings) => {
     if (!orgId) return;
 
-    setSaving(true);
-    setSaveMessage('');
-
     try {
-      await setDoc(doc(db, 'organizations', orgId), {
-        requireWaiver: settings.requireWaiver,
-        waiverText: settings.waiverText,
-      }, { merge: true });
-
-      setSaveMessage('Waiver settings saved successfully!');
-      setTimeout(() => setSaveMessage(''), 3000);
+      await setDoc(doc(db, 'organizations', orgId), newSettings, { merge: true });
+      setLastSaved(new Date());
+      console.log('Waiver settings auto-saved to Firebase');
     } catch (error) {
       console.error('Error saving waiver settings:', error);
-      setSaveMessage('Error saving settings. Please try again.');
-    } finally {
-      setSaving(false);
     }
+  }, [orgId]);
+
+  // Update settings and save immediately
+  const updateSetting = (updates: Partial<WaiverSettings>) => {
+    const newSettings = { ...settings, ...updates };
+    setSettings(newSettings);
+    saveSettings(newSettings);
   };
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Waiver Settings</h1>
-            <p className="text-gray-600 mt-2">Configure liability waiver requirements for your clients</p>
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-6 py-3 bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-          >
-            {saving ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-5 w-5" />
-                Save Changes
-              </>
-            )}
-          </button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Waiver Settings</h1>
+          <p className="text-gray-600 mt-2">Configure liability waiver requirements for your clients</p>
         </div>
-
-        {saveMessage && (
-          <div className={`p-4 rounded-lg ${
-            saveMessage.includes('Error') 
-              ? 'bg-red-50 text-red-800 border border-red-200' 
-              : 'bg-green-50 text-green-800 border border-green-200'
-          }`}>
-            {saveMessage}
+        {lastSaved && (
+          <div className="text-sm text-gray-500">
+            Last saved: {lastSaved.toLocaleTimeString()}
           </div>
         )}
+      </div>
 
         <Card>
           <CardHeader>
@@ -129,7 +100,7 @@ export default function WaiverPage() {
                 <input
                   type="checkbox"
                   checked={settings.requireWaiver}
-                  onChange={(e) => setSettings({ ...settings, requireWaiver: e.target.checked })}
+                  onChange={(e) => updateSetting({ requireWaiver: e.target.checked })}
                   className="w-5 h-5 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
                 />
                 <span className="text-sm font-medium text-gray-700">Require Waiver Agreement</span>
@@ -146,7 +117,7 @@ export default function WaiverPage() {
               </label>
               <textarea
                 value={settings.waiverText}
-                onChange={(e) => setSettings({ ...settings, waiverText: e.target.value })}
+                onChange={(e) => updateSetting({ waiverText: e.target.value })}
                 placeholder="Enter your liability waiver text here. This will be shown to clients after they book their first session if the waiver requirement is enabled."
                 rows={20}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent font-mono text-sm"
@@ -175,8 +146,7 @@ export default function WaiverPage() {
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <p className="text-sm font-medium text-gray-700 mb-2">Sample Waiver Text:</p>
                 <button
-                  onClick={() => setSettings({
-                    ...settings,
+                  onClick={() => updateSetting({
                     waiverText: `RELEASE OF LIABILITY AND WAIVER
 
 I acknowledge that I am voluntarily participating in training sessions, lessons, camps, or related activities. I understand that participation involves inherent risks, including but not limited to physical contact, falls, collisions, equipment impacts, overuse injuries, property damage, and serious injury or death.
@@ -202,6 +172,5 @@ By checking "I Agree," I acknowledge that I have read and understand this Releas
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
-  );
-}
+    );
+  }

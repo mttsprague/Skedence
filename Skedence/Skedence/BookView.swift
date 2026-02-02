@@ -12,6 +12,7 @@ import FirebaseFirestore
 
 struct BookView: View {
     @EnvironmentObject var auth: AuthManager
+    @EnvironmentObject var intakeFormService: IntakeFormService
     // Removed subscription status - clients don't need to check this
     @ObservedObject var trainersService: TrainersService
     @ObservedObject var scheduleService: ScheduleService
@@ -21,6 +22,8 @@ struct BookView: View {
     @StateObject private var classesService = ClassesService()
     @StateObject private var settingsService = SettingsService()
     @StateObject private var pricingService = PricingStructureService()
+    @StateObject private var intakeFormData = IntakeFormData()
+    @StateObject private var newAthleteIntakeData = IntakeFormData()
     
     @Binding var initialMode: Int
     @Binding var selectedTab: Int
@@ -42,25 +45,8 @@ struct BookView: View {
     @State private var isNewAthlete = false
     @State private var lessonNotes = ""
     
-    // Athlete profile info (for editing if blank)
-    @State private var athleteBirthday = ""
-    @State private var athleteSchoolClubTeam = ""
-    @State private var athleteExperienceLevel = ""
-    @State private var athletePosition = ""
-    @State private var parentGuardianName = ""
-    @State private var emergencyContactName = ""
-    @State private var emergencyContactPhone = ""
-    
-    // New athlete fields
-    @State private var newAthleteFirstName = ""
-    @State private var newAthleteLastName = ""
-    @State private var newAthleteBirthday = ""
-    @State private var newAthleteSchoolClubTeam = ""
-    @State private var newAthleteExperienceLevel = ""
-    @State private var newAthletePosition = ""
-    @State private var newAthleteParentGuardianName = ""
-    @State private var newAthleteEmergencyContactName = ""
-    @State private var newAthleteEmergencyContactPhone = ""
+    // NOTE: Athlete profile fields are now managed dynamically via intakeFormData and newAthleteIntakeData
+    // These IntakeFormData objects automatically handle form state based on configured intake fields
     
     @State private var showSubscriptionSheet = false
     @State private var showBookingInstructions = false
@@ -165,47 +151,73 @@ struct BookView: View {
     // Load athlete profile data from Firebase
     private func loadAthleteProfileData() {
         guard let profile = usersService.currentUser,
-              let athleteName = selectedAthleteName else { return }
+              let athleteName = selectedAthleteName else {
+            print("🟠 loadAthleteProfileData: No profile or athleteName")
+            return
+        }
+        
+        print("🟠 loadAthleteProfileData called for: \(athleteName)")
+        
+        // Pre-populate intake form data from profile
+        intakeFormData.populateFromUserProfile(profile)
+        print("🟠 Populated from user profile")
         
         // Find athlete in new format
         if let athletesArray = profile.athletes {
+            print("🟠 Checking athletes array: \(athletesArray.count) athletes")
             if let athlete = athletesArray.first(where: { $0.displayName == athleteName }) {
-                athleteBirthday = athlete.birthday ?? ""
-                athleteSchoolClubTeam = athlete.schoolClubTeam ?? ""
-                athleteExperienceLevel = athlete.experienceLevel ?? ""
-                athletePosition = athlete.position ?? ""
-                parentGuardianName = profile.firstName != nil && profile.lastName != nil ? "\(profile.firstName!) \(profile.lastName!)" : ""
-                emergencyContactName = profile.emergencyContactName ?? ""
-                emergencyContactPhone = profile.emergencyContactNumber ?? ""
+                print("🟠 Found athlete in new format: \(athlete.displayName)")
+                intakeFormData.populateFromAthlete(athlete)
                 return
             }
         }
         
-        // Check legacy format
+        print("🟠 Athlete not found in new format, checking legacy...")
+        
+        // Check legacy format - create AthleteInfo from legacy fields
         let nameParts = athleteName.split(separator: " ")
         let firstName = String(nameParts.first ?? "")
+        print("🟠 Checking legacy format for firstName: \(firstName)")
         
+        var legacyAthlete: AthleteInfo?
         if profile.athleteFirstName == firstName {
-            athleteBirthday = profile.athleteBirthday ?? ""
-            athleteSchoolClubTeam = profile.athleteSchoolClubTeam ?? ""
-            athleteExperienceLevel = profile.athleteExperienceLevel ?? ""
-            athletePosition = profile.athletePosition ?? ""
+            print("🟠 Match found: athleteFirstName")
+            legacyAthlete = AthleteInfo(
+                firstName: profile.athleteFirstName,
+                lastName: profile.athleteLastName,
+                birthday: profile.athleteBirthday,
+                schoolClubTeam: profile.athleteSchoolClubTeam,
+                experienceLevel: profile.athleteExperienceLevel,
+                position: profile.athletePosition
+            )
         } else if profile.athlete2FirstName == firstName {
-            athleteBirthday = profile.athlete2Birthday ?? ""
-            athleteSchoolClubTeam = profile.athlete2SchoolClubTeam ?? ""
-            athleteExperienceLevel = profile.athlete2ExperienceLevel ?? ""
-            athletePosition = profile.athlete2Position ?? ""
+            print("🟠 Match found: athlete2FirstName")
+            legacyAthlete = AthleteInfo(
+                firstName: profile.athlete2FirstName,
+                lastName: profile.athlete2LastName,
+                birthday: profile.athlete2Birthday,
+                schoolClubTeam: profile.athlete2SchoolClubTeam,
+                experienceLevel: profile.athlete2ExperienceLevel,
+                position: profile.athlete2Position
+            )
         } else if profile.athlete3FirstName == firstName {
-            athleteBirthday = profile.athlete3Birthday ?? ""
-            athleteSchoolClubTeam = profile.athlete3SchoolClubTeam ?? ""
-            athleteExperienceLevel = profile.athlete3ExperienceLevel ?? ""
-            athletePosition = profile.athlete3Position ?? ""
+            print("🟠 Match found: athlete3FirstName")
+            legacyAthlete = AthleteInfo(
+                firstName: profile.athlete3FirstName,
+                lastName: profile.athlete3LastName,
+                birthday: profile.athlete3Birthday,
+                schoolClubTeam: profile.athlete3SchoolClubTeam,
+                experienceLevel: profile.athlete3ExperienceLevel,
+                position: profile.athlete3Position
+            )
         }
         
-        // Parent/guardian info from profile
-        parentGuardianName = profile.firstName != nil && profile.lastName != nil ? "\(profile.firstName!) \(profile.lastName!)" : ""
-        emergencyContactName = profile.emergencyContactName ?? ""
-        emergencyContactPhone = profile.emergencyContactNumber ?? ""
+        if let athlete = legacyAthlete {
+            print("🟠 Populating from legacy athlete")
+            intakeFormData.populateFromAthlete(athlete)
+        } else {
+            print("🟠 ❌ No legacy athlete found")
+        }
     }
     
     // Load second athlete profile data from Firebase
@@ -214,21 +226,13 @@ struct BookView: View {
               let athleteName = secondAthleteName,
               athleteName != "New Athlete" else { return }
         
+        // Pre-populate form data from profile
+        newAthleteIntakeData.populateFromUserProfile(profile)
+        
         // Find athlete in new format
         if let athletesArray = profile.athletes {
             if let athlete = athletesArray.first(where: { $0.displayName == athleteName }) {
-                newAthleteBirthday = athlete.birthday ?? ""
-                newAthleteSchoolClubTeam = athlete.schoolClubTeam ?? ""
-                newAthleteExperienceLevel = athlete.experienceLevel ?? ""
-                newAthletePosition = athlete.position ?? ""
-                // Use parent/guardian info from main profile
-                newAthleteParentGuardianName = profile.firstName != nil && profile.lastName != nil ? "\(profile.firstName!) \(profile.lastName!)" : ""
-                newAthleteEmergencyContactName = profile.emergencyContactName ?? ""
-                newAthleteEmergencyContactPhone = profile.emergencyContactNumber ?? ""
-                // Set first and last names from the athlete
-                let parts = athleteName.split(separator: " ")
-                newAthleteFirstName = String(parts.first ?? "")
-                newAthleteLastName = parts.count > 1 ? String(parts.last ?? "") : ""
+                newAthleteIntakeData.populateFromAthlete(athlete)
                 return
             }
         }
@@ -237,59 +241,74 @@ struct BookView: View {
         let nameParts = athleteName.split(separator: " ")
         let firstName = String(nameParts.first ?? "")
         
+        var legacyAthlete: AthleteInfo?
         if profile.athlete2FirstName == firstName {
-            newAthleteBirthday = profile.athlete2Birthday ?? ""
-            newAthleteSchoolClubTeam = profile.athlete2SchoolClubTeam ?? ""
-            newAthleteExperienceLevel = profile.athlete2ExperienceLevel ?? ""
-            newAthletePosition = profile.athlete2Position ?? ""
-            newAthleteFirstName = profile.athlete2FirstName ?? ""
-            newAthleteLastName = profile.athlete2LastName ?? ""
+            legacyAthlete = AthleteInfo(
+                firstName: profile.athlete2FirstName,
+                lastName: profile.athlete2LastName,
+                birthday: profile.athlete2Birthday,
+                schoolClubTeam: profile.athlete2SchoolClubTeam,
+                experienceLevel: profile.athlete2ExperienceLevel,
+                position: profile.athlete2Position
+            )
         } else if profile.athlete3FirstName == firstName {
-            newAthleteBirthday = profile.athlete3Birthday ?? ""
-            newAthleteSchoolClubTeam = profile.athlete3SchoolClubTeam ?? ""
-            newAthleteExperienceLevel = profile.athlete3ExperienceLevel ?? ""
-            newAthletePosition = profile.athlete3Position ?? ""
-            newAthleteFirstName = profile.athlete3FirstName ?? ""
-            newAthleteLastName = profile.athlete3LastName ?? ""
+            legacyAthlete = AthleteInfo(
+                firstName: profile.athlete3FirstName,
+                lastName: profile.athlete3LastName,
+                birthday: profile.athlete3Birthday,
+                schoolClubTeam: profile.athlete3SchoolClubTeam,
+                experienceLevel: profile.athlete3ExperienceLevel,
+                position: profile.athlete3Position
+            )
         }
         
-        // Parent/guardian info from profile
-        newAthleteParentGuardianName = profile.firstName != nil && profile.lastName != nil ? "\(profile.firstName!) \(profile.lastName!)" : ""
-        newAthleteEmergencyContactName = profile.emergencyContactName ?? ""
-        newAthleteEmergencyContactPhone = profile.emergencyContactNumber ?? ""
+        if let athlete = legacyAthlete {
+            newAthleteIntakeData.populateFromAthlete(athlete)
+        }
     }
     
     // Validate that all required athlete information is filled
     private var isAthleteInfoComplete: Bool {
-        guard isOnlyParticipant != nil else { return false }
+        guard isOnlyParticipant != nil else {
+            print("🔴 isAthleteInfoComplete: isOnlyParticipant is nil")
+            return false
+        }
         
-        // Check primary athlete info
-        let primaryInfoComplete = !athleteBirthday.isEmpty &&
-                                  !athleteSchoolClubTeam.isEmpty &&
-                                  !athleteExperienceLevel.isEmpty &&
-                                  !parentGuardianName.isEmpty &&
-                                  !emergencyContactName.isEmpty &&
-                                  !emergencyContactPhone.isEmpty
+        // Check primary athlete info using dynamic form validation
+        print("🔍 Checking primary athlete info...")
+        print("🔍 Total fields: \(intakeFormService.fields.count)")
+        print("🔍 Field values: \(intakeFormData.fieldValues)")
         
-        guard primaryInfoComplete else { return false }
+        for field in intakeFormService.fields {
+            let isComplete = intakeFormData.isFieldComplete(field)
+            print("🔍 Field '\(field.label)' (id: \(field.id), required: \(field.required)): \(isComplete ? "✅" : "❌")")
+        }
+        
+        let primaryInfoComplete = intakeFormData.areAllRequiredFieldsComplete(intakeFormService.fields)
+        print("🔍 Primary athlete info complete: \(primaryInfoComplete)")
+        
+        guard primaryInfoComplete else {
+            print("🔴 Primary athlete info incomplete")
+            return false
+        }
         
         // If multiple participants, check second athlete
         if isOnlyParticipant == false {
-            guard secondAthleteName != nil else { return false }
+            guard secondAthleteName != nil else {
+                print("🔴 Second athlete name is nil")
+                return false
+            }
             
             // If new athlete, validate all new athlete fields
             if isNewAthlete {
-                return !newAthleteFirstName.isEmpty &&
-                       !newAthleteLastName.isEmpty &&
-                       !newAthleteBirthday.isEmpty &&
-                       !newAthleteSchoolClubTeam.isEmpty &&
-                       !newAthleteExperienceLevel.isEmpty &&
-                       !newAthleteParentGuardianName.isEmpty &&
-                       !newAthleteEmergencyContactName.isEmpty &&
-                       !newAthleteEmergencyContactPhone.isEmpty
+                print("🔍 Checking new athlete info...")
+                let newAthleteComplete = newAthleteIntakeData.areAllRequiredFieldsComplete(intakeFormService.fields)
+                print("🔍 New athlete info complete: \(newAthleteComplete)")
+                return newAthleteComplete
             }
         }
         
+        print("✅ All athlete info complete")
         return true
     }
     
@@ -1029,92 +1048,8 @@ struct BookView: View {
                         .padding(.horizontal, Spacing.lg)
                     
                     CardView(padding: Spacing.md) {
-                        VStack(spacing: Spacing.md) {
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Birthday")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("MM/DD/YYYY", text: $athleteBirthday)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("School/Club Team")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter school or club team", text: $athleteSchoolClubTeam)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Experience Level")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Beginner, Intermediate, Advanced", text: $athleteExperienceLevel)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Position (Optional)")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("e.g., Forward, Midfielder, etc.", text: $athletePosition)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Parent/Guardian Name")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter parent/guardian name", text: $parentGuardianName)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Emergency Contact Name")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter emergency contact", text: $emergencyContactName)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Emergency Contact Phone")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("(555) 555-5555", text: $emergencyContactPhone)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .keyboardType(.phonePad)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                        }
+                        // Use dynamic intake form fields
+                        DynamicIntakeFormView(formData: intakeFormData, fields: intakeFormService.fields)
                     }
                     .padding(.horizontal, Spacing.lg)
                 }
@@ -1194,55 +1129,8 @@ struct BookView: View {
                         .padding(.horizontal, Spacing.lg)
                     
                     CardView(padding: Spacing.md) {
-                        VStack(spacing: Spacing.md) {
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Birthday")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("MM/DD/YYYY", text: $newAthleteBirthday)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("School/Club Team")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter school or club team", text: $newAthleteSchoolClubTeam)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Experience Level")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Beginner, Intermediate, Advanced", text: $newAthleteExperienceLevel)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Position (Optional)")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("e.g., Forward, Midfielder, etc.", text: $newAthletePosition)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                        }
+                        // Use dynamic intake form fields for second athlete
+                        DynamicIntakeFormView(formData: newAthleteIntakeData, fields: intakeFormService.fields)
                     }
                     .padding(.horizontal, Spacing.lg)
                 }
@@ -1257,116 +1145,8 @@ struct BookView: View {
                         .padding(.horizontal, Spacing.lg)
                     
                     CardView(padding: Spacing.md) {
-                        VStack(spacing: Spacing.md) {
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("First Name")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter first name", text: $newAthleteFirstName)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Last Name")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter last name", text: $newAthleteLastName)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Birthday")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("MM/DD/YYYY", text: $newAthleteBirthday)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("School/Club Team")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter school or club team", text: $newAthleteSchoolClubTeam)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Experience Level")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Beginner, Intermediate, Advanced", text: $newAthleteExperienceLevel)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Position (Optional)")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("e.g., Forward, Midfielder, etc.", text: $newAthletePosition)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Parent/Guardian Name")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter parent/guardian name", text: $newAthleteParentGuardianName)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Emergency Contact Name")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("Enter emergency contact", text: $newAthleteEmergencyContactName)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text("Emergency Contact Phone")
-                                    .font(.bodySmall)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("(555) 555-5555", text: $newAthleteEmergencyContactPhone)
-                                    .textFieldStyle(.plain)
-                                    .font(.bodyMedium)
-                                    .keyboardType(.phonePad)
-                                    .padding(Spacing.sm)
-                                    .background(Color.platformSecondaryBackground)
-                                    .cornerRadius(CornerRadius.sm)
-                            }
-                        }
+                        // Use dynamic intake form fields for new athlete
+                        DynamicIntakeFormView(formData: newAthleteIntakeData, fields: intakeFormService.fields)
                     }
                     .padding(.horizontal, Spacing.lg)
                 }
@@ -1412,6 +1192,16 @@ struct BookView: View {
                         message: "Please purchase lesson passes to continue booking. Visit the Profile tab to buy lessons."
                     )
                 } else {
+                    // Log button state before booking
+                    print("🎯 BOOKING BUTTON CLICKED")
+                    print("🎯 bookingInFlight: \(bookingInFlight)")
+                    print("🎯 selectedTrainer: \(selectedTrainer != nil)")
+                    print("🎯 selectedSlot: \(selectedSlot != nil)")
+                    print("🎯 availableLessonPackages.count: \(availableLessonPackages.count)")
+                    print("🎯 selectedPackage: \(selectedPackage != nil)")
+                    print("🎯 allAthletes.isEmpty: \(allAthletes.isEmpty)")
+                    print("🎯 selectedAthleteName: \(selectedAthleteName ?? "nil")")
+                    print("🎯 isAthleteInfoComplete: \(isAthleteInfoComplete)")
                     Task { await performBooking() }
                 }
             } label: {
@@ -1427,6 +1217,20 @@ struct BookView: View {
             .buttonStyle(PrimaryButtonStyle())
             .disabled(bookingInFlight || selectedTrainer == nil || selectedSlot == nil || (availableLessonPackages.count > 0 && selectedPackage == nil) || (!allAthletes.isEmpty && selectedAthleteName == nil) || !isAthleteInfoComplete)
             .opacity((selectedTrainer != nil && selectedSlot != nil && (availableLessonPackages.isEmpty || selectedPackage != nil) && (allAthletes.isEmpty || selectedAthleteName != nil) && isAthleteInfoComplete) ? 1.0 : 0.5)
+            .onAppear {
+                // Log button state on appear
+                print("📍 BOOKING BUTTON STATE:")
+                print("📍 bookingInFlight: \(bookingInFlight)")
+                print("📍 selectedTrainer: \(selectedTrainer?.name ?? "nil")")
+                print("📍 selectedSlot: \(selectedSlot != nil)")
+                print("📍 availableLessonPackages.count: \(availableLessonPackages.count)")
+                print("📍 selectedPackage: \(selectedPackage?.packageName ?? "nil")")
+                print("📍 allAthletes: \(allAthletes)")
+                print("📍 selectedAthleteName: \(selectedAthleteName ?? "nil")")
+                print("📍 isAthleteInfoComplete: \(isAthleteInfoComplete)")
+                let isDisabled = bookingInFlight || selectedTrainer == nil || selectedSlot == nil || (availableLessonPackages.count > 0 && selectedPackage == nil) || (!allAthletes.isEmpty && selectedAthleteName == nil) || !isAthleteInfoComplete
+                print("📍 BUTTON IS \(isDisabled ? "DISABLED ❌" : "ENABLED ✅")")
+            }
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.md)
             
@@ -1654,6 +1458,65 @@ struct BookView: View {
         defer { bookingInFlight = false }
         
         do {
+            // Check waivers FIRST, before creating the booking
+            if let userId = Auth.auth().currentUser?.uid {
+                let waiverCheck = try await settingsService.checkWaiverRequirement(
+                    userId: userId,
+                    settings: settingsService.settings
+                )
+                
+                // Check if selected athlete needs waiver
+                if let athleteName = selectedAthleteName {
+                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
+                    if !athleteHasWaiver {
+                        pendingBookingSuccess = false // Booking hasn't been created yet
+                        pendingNewAthleteWaiver = false // Waiver is for selectedAthleteName
+                        showWaiverAgreement = true
+                        return
+                    }
+                }
+                
+                // Check if second athlete needs waiver (for existing athletes)
+                if !isNewAthlete && secondAthleteName != nil && secondAthleteName != "New Athlete" {
+                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: secondAthleteName!)
+                    if !athleteHasWaiver {
+                        pendingBookingSuccess = false // Booking hasn't been created yet
+                        pendingNewAthleteWaiver = false
+                        // Store the second athlete name for waiver
+                        selectedAthleteName = secondAthleteName
+                        showWaiverAgreement = true
+                        return
+                    }
+                }
+                
+                // Check if second athlete needs waiver (for new athletes)
+                if isNewAthlete && secondAthleteName != nil {
+                    let athleteName: String
+                    if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
+                        athleteName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    } else {
+                        let f = (newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                        let l = (newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                        athleteName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+                    }
+                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
+                    if !athleteHasWaiver {
+                        pendingBookingSuccess = false // Booking hasn't been created yet
+                        pendingNewAthleteWaiver = true
+                        showWaiverAgreement = true
+                        return
+                    }
+                }
+                
+                // Legacy waiver check
+                if waiverCheck.required && !waiverCheck.signed {
+                    pendingBookingSuccess = false // Booking hasn't been created yet
+                    showWaiverAgreement = true
+                    return
+                }
+            }
+            
+            // All waivers are signed, now proceed with booking
             // Save new athlete if needed
             if isNewAthlete {
                 try await saveNewAthleteToProfile()
@@ -1683,59 +1546,6 @@ struct BookView: View {
                 trainerId: trainerId,
                 clientId: Auth.auth().currentUser?.uid ?? ""
             )
-            
-            // Check waivers for all athletes involved
-            if let userId = Auth.auth().currentUser?.uid {
-                let waiverCheck = try await settingsService.checkWaiverRequirement(
-                    userId: userId,
-                    settings: settingsService.settings
-                )
-                
-                // Check if selected athlete needs waiver
-                if let athleteName = selectedAthleteName {
-                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
-                    if !athleteHasWaiver {
-                        pendingBookingSuccess = true
-                        pendingNewAthleteWaiver = false // Waiver is for selectedAthleteName
-                        showWaiverAgreement = true
-                        return
-                    }
-                }
-                
-                // Check if second athlete needs waiver (for existing athletes)
-                if !isNewAthlete && secondAthleteName != nil && secondAthleteName != "New Athlete" {
-                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: secondAthleteName!)
-                    if !athleteHasWaiver {
-                        pendingBookingSuccess = true
-                        pendingNewAthleteWaiver = false
-                        // Store the second athlete name for waiver
-                        selectedAthleteName = secondAthleteName
-                        showWaiverAgreement = true
-                        return
-                    }
-                }
-                
-                // Check if second athlete needs waiver (for new athletes)
-                if isNewAthlete && secondAthleteName != nil {
-                    let f = newAthleteFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let l = newAthleteLastName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let athleteName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
-                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
-                    if !athleteHasWaiver {
-                        pendingBookingSuccess = true
-                        pendingNewAthleteWaiver = true
-                        showWaiverAgreement = true
-                        return
-                    }
-                }
-                
-                // Legacy waiver check
-                if waiverCheck.required && !waiverCheck.signed {
-                    pendingBookingSuccess = true
-                    showWaiverAgreement = true
-                    return
-                }
-            }
             
             await finishBookingSuccess()
         } catch {
@@ -1776,14 +1586,35 @@ struct BookView: View {
         
         let totalAthletes = max(athletes.count, legacyCount)
         
+        // Extract athlete info from dynamic form data
+        // Handle both fullName and separate firstName/lastName fields
+        var firstName = ""
+        var lastName = ""
+        
+        if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
+            // Split full name into first and last
+            let parts = fullName.split(separator: " ", maxSplits: 1)
+            firstName = String(parts.first ?? "")
+            lastName = parts.count > 1 ? String(parts.last ?? "") : ""
+        } else {
+            // Use separate fields if available
+            firstName = newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? ""
+            lastName = newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? ""
+        }
+        
+        let birthday = newAthleteIntakeData.fieldValues["athleteBirthday"] as? String ?? ""
+        let schoolTeam = newAthleteIntakeData.fieldValues["schoolTeam"] as? String ?? ""
+        let experienceLevel = newAthleteIntakeData.fieldValues["experienceLevel"] as? String ?? ""
+        let position = newAthleteIntakeData.fieldValues["position"] as? String ?? ""
+        
         // Create new athlete info
         let newAthlete: [String: Any] = [
-            "firstName": newAthleteFirstName,
-            "lastName": newAthleteLastName,
-            "birthday": newAthleteBirthday,
-            "schoolClubTeam": newAthleteSchoolClubTeam,
-            "experienceLevel": newAthleteExperienceLevel,
-            "position": newAthletePosition
+            "firstName": firstName,
+            "lastName": lastName,
+            "birthday": birthday,
+            "schoolClubTeam": schoolTeam,
+            "experienceLevel": experienceLevel,
+            "position": position
         ]
         
         // Add to athletes array if using new format
@@ -1796,24 +1627,25 @@ struct BookView: View {
             let athleteNum = totalAthletes + 1
             let prefix = athleteNum == 1 ? "athlete" : "athlete\(athleteNum)"
             try await userRef.updateData([
-                "\(prefix)FirstName": newAthleteFirstName,
-                "\(prefix)LastName": newAthleteLastName,
-                "\(prefix)Birthday": newAthleteBirthday
+                "\(prefix)FirstName": firstName,
+                "\(prefix)LastName": lastName,
+                "\(prefix)Birthday": birthday
             ])
         }
         
         // Update parent/emergency contact if provided
-        if !newAthleteParentGuardianName.isEmpty || !newAthleteEmergencyContactName.isEmpty || !newAthleteEmergencyContactPhone.isEmpty {
-            var updates: [String: Any] = [:]
-            if !newAthleteEmergencyContactName.isEmpty {
-                updates["emergencyContactName"] = newAthleteEmergencyContactName
-            }
-            if !newAthleteEmergencyContactPhone.isEmpty {
-                updates["emergencyContactNumber"] = newAthleteEmergencyContactPhone
-            }
-            if !updates.isEmpty {
-                try await userRef.updateData(updates)
-            }
+        let emergencyName = newAthleteIntakeData.fieldValues["emergencyContactName"] as? String ?? ""
+        let emergencyPhone = newAthleteIntakeData.fieldValues["emergencyContactNumber"] as? String ?? ""
+        
+        var updates: [String: Any] = [:]
+        if !emergencyName.isEmpty {
+            updates["emergencyContactName"] = emergencyName
+        }
+        if !emergencyPhone.isEmpty {
+            updates["emergencyContactNumber"] = emergencyPhone
+        }
+        if !updates.isEmpty {
+            try await userRef.updateData(updates)
         }
         
         // Reload user profile
@@ -1830,6 +1662,14 @@ struct BookView: View {
         let db = Firestore.firestore()
         let userRef = db.collection("users").document(userId)
         
+        // Extract values from dynamic form data
+        let birthday = intakeFormData.fieldValues["athleteBirthday"] as? String ?? ""
+        let schoolTeam = intakeFormData.fieldValues["schoolTeam"] as? String ?? ""
+        let experienceLevel = intakeFormData.fieldValues["experienceLevel"] as? String ?? ""
+        let position = intakeFormData.fieldValues["position"] as? String ?? ""
+        let emergencyName = intakeFormData.fieldValues["emergencyContactName"] as? String ?? ""
+        let emergencyPhone = intakeFormData.fieldValues["emergencyContactNumber"] as? String ?? ""
+        
         // Find the athlete in the profile
         let athletes = profile.athletes ?? []
         if let athleteIndex = athletes.firstIndex(where: { athlete in
@@ -1840,17 +1680,17 @@ struct BookView: View {
             var athleteToUpdate = updatedAthletes[athleteIndex]
             
             // Update fields if they were provided
-            if !athleteBirthday.isEmpty {
-                athleteToUpdate.birthday = athleteBirthday
+            if !birthday.isEmpty {
+                athleteToUpdate.birthday = birthday
             }
-            if !athleteSchoolClubTeam.isEmpty {
-                athleteToUpdate.schoolClubTeam = athleteSchoolClubTeam
+            if !schoolTeam.isEmpty {
+                athleteToUpdate.schoolClubTeam = schoolTeam
             }
-            if !athleteExperienceLevel.isEmpty {
-                athleteToUpdate.experienceLevel = athleteExperienceLevel
+            if !experienceLevel.isEmpty {
+                athleteToUpdate.experienceLevel = experienceLevel
             }
-            if !athletePosition.isEmpty {
-                athleteToUpdate.position = athletePosition
+            if !position.isEmpty {
+                athleteToUpdate.position = position
             }
             
             updatedAthletes[athleteIndex] = athleteToUpdate
@@ -1882,17 +1722,17 @@ struct BookView: View {
                 let l = (lastName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 let fullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
                 if fullName == athleteName {
-                    if !athleteBirthday.isEmpty {
-                        updates["\(prefix)Birthday"] = athleteBirthday
+                    if !birthday.isEmpty {
+                        updates["\(prefix)Birthday"] = birthday
                     }
-                    if !athleteSchoolClubTeam.isEmpty {
-                        updates["\(prefix)SchoolClubTeam"] = athleteSchoolClubTeam
+                    if !schoolTeam.isEmpty {
+                        updates["\(prefix)SchoolClubTeam"] = schoolTeam
                     }
-                    if !athleteExperienceLevel.isEmpty {
-                        updates["\(prefix)ExperienceLevel"] = athleteExperienceLevel
+                    if !experienceLevel.isEmpty {
+                        updates["\(prefix)ExperienceLevel"] = experienceLevel
                     }
-                    if !athletePosition.isEmpty {
-                        updates["\(prefix)Position"] = athletePosition
+                    if !position.isEmpty {
+                        updates["\(prefix)Position"] = position
                     }
                     break
                 }
@@ -1905,11 +1745,11 @@ struct BookView: View {
         
         // Update emergency contact info if provided
         var contactUpdates: [String: Any] = [:]
-        if !emergencyContactName.isEmpty {
-            contactUpdates["emergencyContactName"] = emergencyContactName
+        if !emergencyName.isEmpty {
+            contactUpdates["emergencyContactName"] = emergencyName
         }
-        if !emergencyContactPhone.isEmpty {
-            contactUpdates["emergencyContactNumber"] = emergencyContactPhone
+        if !emergencyPhone.isEmpty {
+            contactUpdates["emergencyContactNumber"] = emergencyPhone
         }
         
         if !contactUpdates.isEmpty {
@@ -1980,20 +1820,10 @@ struct BookView: View {
         secondAthleteName = nil
         isNewAthlete = false
         lessonNotes = ""
-        athleteBirthday = ""
-        athleteSchoolClubTeam = ""
-        athleteExperienceLevel = ""
-        parentGuardianName = ""
-        emergencyContactName = ""
-        emergencyContactPhone = ""
-        newAthleteFirstName = ""
-        newAthleteLastName = ""
-        newAthleteBirthday = ""
-        newAthleteSchoolClubTeam = ""
-        newAthleteExperienceLevel = ""
-        newAthleteParentGuardianName = ""
-        newAthleteEmergencyContactName = ""
-        newAthleteEmergencyContactPhone = ""
+        
+        // Clear dynamic form data
+        intakeFormData.fieldValues.removeAll()
+        newAthleteIntakeData.fieldValues.removeAll()
         
         // Dismiss keyboard
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -2020,9 +1850,13 @@ struct BookView: View {
             // Determine athlete name for waiver
             let athleteForWaiver: String?
             if pendingNewAthleteWaiver {
-                let f = newAthleteFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let l = newAthleteLastName.trimmingCharacters(in: .whitespacesAndNewlines)
-                athleteForWaiver = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+                if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
+                    athleteForWaiver = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+                } else {
+                    let f = (newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let l = (newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    athleteForWaiver = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+                }
             } else {
                 athleteForWaiver = selectedAthleteName
             }
@@ -2050,14 +1884,75 @@ struct BookView: View {
                 AnalyticsService.shared.logWaiverSigned(userId: userId, orgId: orgId)
             }
             showWaiverAgreement = false
-            if pendingBookingSuccess {
-                await finishBookingSuccess()
-                pendingBookingSuccess = false
+            
+            // Now that waiver is signed, complete the booking if it was pending
+            if !pendingBookingSuccess {
+                // Waiver was shown BEFORE booking was created, so create it now
+                await performActualBooking()
             }
+            
+            pendingBookingSuccess = false
         } catch {
             print("Failed to save waiver agreement: \(error)")
             showWaiverAgreement = false
             pendingBookingSuccess = false
+        }
+    }
+    
+    // Actually create the booking (called after waiver is signed)
+    private func performActualBooking() async {
+        guard let trainerId = selectedTrainer?.id,
+              let slotId = selectedSlot?.id else { return }
+        
+        do {
+            // Save new athlete if needed
+            if isNewAthlete {
+                try await saveNewAthleteToProfile()
+            }
+            
+            // Save athlete information to profile if provided during booking
+            if let athleteName = selectedAthleteName {
+                try await saveAthleteInfoToProfile(athleteName: athleteName)
+            }
+            
+            let packageId = selectedPackage?.id ?? ""
+            let athleteForBooking = selectedAthleteName
+            let secondAthleteForBooking = isOnlyParticipant == false ? secondAthleteName : nil
+            let notesForBooking = lessonNotes.isEmpty ? nil : lessonNotes
+            
+            _ = try await bookingManager.bookLesson(
+                trainerId: trainerId,
+                slotId: slotId,
+                lessonPackageId: packageId,
+                athleteName: athleteForBooking,
+                secondAthleteName: secondAthleteForBooking,
+                lessonNotes: notesForBooking
+            )
+            
+            AnalyticsService.shared.logBookingCreated(
+                bookingId: "\(trainerId)_\(slotId)",
+                trainerId: trainerId,
+                clientId: Auth.auth().currentUser?.uid ?? ""
+            )
+            
+            await finishBookingSuccess()
+        } catch {
+            let cleanMessage: String
+            var navigateToPasses = false
+            if error.localizedDescription.contains("credits") || error.localizedDescription.contains("package") {
+                cleanMessage = "We couldn't complete your booking. That package has no passes remaining."
+                navigateToPasses = true
+            } else {
+                cleanMessage = "We couldn't complete your booking. \(error.localizedDescription)"
+            }
+            bookingAlert = .init(
+                title: "Booking Failed",
+                message: cleanMessage,
+                action: navigateToPasses ? {
+                    profileTab = "PASSES"
+                    selectedTab = 2
+                } : nil
+            )
         }
     }
 

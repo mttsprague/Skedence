@@ -1,0 +1,5 @@
+1:"$Sreact.fragment"
+2:I[4407,["/admin-portal/_next/static/chunks/60df2cc5da34ced1.js","/admin-portal/_next/static/chunks/42a619e61decadcb.js","/admin-portal/_next/static/chunks/d26dfc079cdb448e.js","/admin-portal/_next/static/chunks/195c216f52dae3f8.js"],"ReportsSubmenu"]
+3:I[39756,["/admin-portal/_next/static/chunks/ff1a16fafef87110.js","/admin-portal/_next/static/chunks/a2dfb6fc5208ab9b.js"],"default"]
+4:I[37457,["/admin-portal/_next/static/chunks/ff1a16fafef87110.js","/admin-portal/_next/static/chunks/a2dfb6fc5208ab9b.js"],"default"]
+0:{"buildId":"BxA3FL4mvDFEcX8QNsiAt","rsc":["$","$1","c",{"children":[[["$","script","script-0",{"src":"/admin-portal/_next/static/chunks/d26dfc079cdb448e.js","async":true}],["$","script","script-1",{"src":"/admin-portal/_next/static/chunks/195c216f52dae3f8.js","async":true}]],["$","$L2",null,{"children":["$","$L3",null,{"parallelRouterKey":"children","template":["$","$L4",null,{}]}]}]]}],"loading":null,"isPartial":false}

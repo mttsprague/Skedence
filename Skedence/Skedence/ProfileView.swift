@@ -1199,7 +1199,7 @@ private struct RegisterForm: View {
                 
                 // Organization Code Section
                 VStack(alignment: .leading, spacing: 16) {
-                    SectionHeader(icon: "building.2.fill", title: "Organization Code")
+                    ProfileSectionHeader(icon: "building.2.fill", title: "Organization Code")
                     
                     VStack(spacing: 12) {
                         HStack(spacing: 12) {
@@ -1271,7 +1271,7 @@ private struct RegisterForm: View {
                 
                 // Account Credentials Section
                 VStack(alignment: .leading, spacing: 16) {
-                    SectionHeader(icon: "lock.shield.fill", title: "Account Credentials")
+                    ProfileSectionHeader(icon: "lock.shield.fill", title: "Account Credentials")
                     
                     VStack(spacing: 12) {
                         FormField(
@@ -1307,7 +1307,7 @@ private struct RegisterForm: View {
                 
                 // Parent/Guardian Information Section
                 VStack(alignment: .leading, spacing: 16) {
-                    SectionHeader(icon: "person.fill", title: "Parent/Guardian Information")
+                    ProfileSectionHeader(icon: "person.fill", title: "Parent/Guardian Information")
                     
                     HStack(spacing: 12) {
                         FormField(
@@ -1338,7 +1338,7 @@ private struct RegisterForm: View {
                 
                 // Primary Athlete Section
                 VStack(alignment: .leading, spacing: 16) {
-                    SectionHeader(icon: "person.fill", title: "Primary Athlete")
+                    ProfileSectionHeader(icon: "person.fill", title: "Primary Athlete")
                     
                     HStack(spacing: 12) {
                         FormField(
@@ -1376,7 +1376,7 @@ private struct RegisterForm: View {
                 
                 // Additional Athletes Section
                 VStack(alignment: .leading, spacing: 16) {
-                    SectionHeader(
+                    ProfileSectionHeader(
                         icon: "person.2.fill",
                         title: "Additional Athletes",
                         subtitle: "Optional"
@@ -1460,7 +1460,7 @@ private struct RegisterForm: View {
                 
                 // Notes Section
                 VStack(alignment: .leading, spacing: 16) {
-                    SectionHeader(
+                    ProfileSectionHeader(
                         icon: "note.text",
                         title: "Notes for Coach",
                         subtitle: "Optional"
@@ -1734,7 +1734,7 @@ private struct PaymentMethodCard: View {
 
 // MARK: - Registration Form Components
 
-private struct SectionHeader: View {
+private struct ProfileSectionHeader: View {
     let icon: String
     let title: String
     var subtitle: String? = nil

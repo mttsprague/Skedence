@@ -101,15 +101,15 @@ struct EditProfileView: View {
                         ))
                         .autocapitalization(.words)
                         
-                        TextField("Experience Level", text: Binding(
-                            get: { athletes[index].experienceLevel ?? "" },
+                        Picker("Experience Level", selection: Binding(
+                            get: { athletes[index].experienceLevel ?? "Beginner" },
                             set: { athletes[index].experienceLevel = $0 }
-                        ))
-                        .placeholder(when: (athletes[index].experienceLevel ?? "").isEmpty) {
-                            Text("Beginner, Intermediate, Advanced")
-                                .foregroundColor(.gray.opacity(0.5))
+                        )) {
+                            Text("Beginner").tag("Beginner")
+                            Text("Intermediate").tag("Intermediate")
+                            Text("Advanced").tag("Advanced")
                         }
-                        .autocapitalization(.words)
+                        .pickerStyle(.menu)
                         
                         TextField("Position (Optional)", text: Binding(
                             get: { athletes[index].position ?? "" },

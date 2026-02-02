@@ -1,6 +1,7 @@
 /* eslint-disable quotes */
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
+import {isEmailEnabled} from "./emailSettings";
 
 /**
  * Send confirmation email when a client purchases a lesson package
@@ -18,6 +19,25 @@ export const sendPurchaseConfirmation = onDocumentCreated(
       // Fetch user and organization data
       const userDoc = await admin.firestore().collection("users").doc(userId).get();
       const user = userDoc.data();
+
+      // Get organization ID to check email settings
+      let orgId = packageData.orgId;
+      if (!orgId) {
+        // Try to get orgId from user's orgMembers
+        const orgMemberDoc = await admin.firestore().collection("orgMembers").doc(userId).get();
+        if (orgMemberDoc.exists) {
+          orgId = orgMemberDoc.data()?.orgId;
+        }
+      }
+
+      // Check if package receipt emails are enabled
+      if (orgId) {
+        const emailEnabled = await isEmailEnabled(orgId, "packageReceipt");
+        if (!emailEnabled) {
+          console.log(`Package receipt emails disabled for org ${orgId}, skipping email`);
+          return;
+        }
+      }
 
       if (!user?.emailAddress && !user?.email) {
         console.log("No email found for user:", userId);
@@ -282,6 +302,12 @@ export const sendBookingConfirmation = onDocumentCreated(
     const booking = snap.data();
 
     try {
+      // Check if booking confirmation emails are enabled
+      const emailEnabled = await isEmailEnabled(booking.orgId, "bookingConfirmation");
+      if (!emailEnabled) {
+        console.log(`Booking confirmation emails disabled for org ${booking.orgId}, skipping email`);
+        return;
+      }
       // Fetch related data - Note: trainers are in trainers collection, not users
       const [clientDoc, trainerDoc, orgDoc] = await Promise.all([
         admin.firestore().collection("users").doc(booking.clientUID || booking.clientId).get(),
@@ -550,6 +576,12 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
     const {orgId, classId} = event.params;
 
     try {
+      // Check if booking confirmation emails are enabled (classes use same setting)
+      const emailEnabled = await isEmailEnabled(orgId, "bookingConfirmation");
+      if (!emailEnabled) {
+        console.log(`Class registration emails disabled for org ${orgId}, skipping email`);
+        return;
+      }
       // Fetch related data
       const [clientDoc, classDoc, orgDoc] = await Promise.all([
         admin.firestore().collection("users").doc(participant.userId).get(),
@@ -671,6 +703,7 @@ export const sendSubscriptionConfirmation = onDocumentCreated(
     if (!snap) return;
 
     const org = snap.data();
+    const {orgId} = event.params;
 
     // Only send if billing info exists (not all orgs are created with billing immediately)
     if (!org.billing?.stripeCustomerId) {
@@ -678,6 +711,12 @@ export const sendSubscriptionConfirmation = onDocumentCreated(
     }
 
     try {
+      // Check if subscription receipt emails are enabled
+      const emailEnabled = await isEmailEnabled(orgId, "subscriptionReceipt");
+      if (!emailEnabled) {
+        console.log(`Subscription receipt emails disabled for org ${orgId}, skipping email`);
+        return;
+      }
       // Get owner email
       const ownerIds = org.adminIds || [];
       if (ownerIds.length === 0) return;
@@ -783,3 +822,312 @@ The Skedence Team`,
     }
   }
 );
+
+/**
+ * Send cancellation confirmation email to client
+ */
+export async function sendCancellationConfirmation(
+  bookingId: string,
+  bookingData: {
+    clientUID: string;
+    trainerId: string;
+    startTime: FirebaseFirestore.Timestamp;
+    endTime?: FirebaseFirestore.Timestamp;
+    orgId: string;
+    location?: string;
+    notes?: string;
+  }
+) {
+  try {
+    // Check if cancellation emails are enabled
+    const emailEnabled = await isEmailEnabled(bookingData.orgId, "cancellationConfirmation");
+    if (!emailEnabled) {
+      console.log(`Cancellation email disabled for org ${bookingData.orgId}`);
+      return;
+    }
+
+    // Fetch client info
+    const clientDoc = await admin.firestore().collection("users").doc(bookingData.clientUID).get();
+    const clientData = clientDoc.data();
+    if (!clientData || !clientData.email) {
+      console.error("Client email not found");
+      return;
+    }
+
+    // Fetch trainer info
+    const trainerDoc = await admin.firestore().collection("trainers").doc(bookingData.trainerId).get();
+    const trainerData = trainerDoc.data();
+    const trainerName = trainerData?.name || "Your trainer";
+
+    // Fetch organization info
+    const orgDoc = await admin.firestore().collection("organizations").doc(bookingData.orgId).get();
+    const orgData = orgDoc.data();
+    const orgName = orgData?.name || "Skedence";
+    const orgEmail = orgData?.email || "support@skedence.com";
+
+    // Format dates
+    const startDate = bookingData.startTime.toDate();
+    const formattedDate = startDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const formattedTime = startDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    // Send email
+    await admin.firestore().collection("mail").add({
+      to: clientData.email,
+      from: `${orgName} <no-reply@skedence.com>`,
+      replyTo: orgEmail,
+      message: {
+        subject: `Lesson Cancelled - ${formattedDate}`,
+        text: `Hi ${clientData.firstName || "there"},\n\nYour lesson has been cancelled.\n\nCancelled Lesson Details:\nTrainer: ${trainerName}\nDate: ${formattedDate}\nTime: ${formattedTime}\n${bookingData.location ? `Location: ${bookingData.location}\n` : ""}\n\nIf this was cancelled in error or you'd like to book a new lesson, please contact us.\n\nBest,\n${orgName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Lesson Cancelled</h2>
+            
+            <p>Hi ${clientData.firstName || "there"},</p>
+            
+            <p>Your lesson has been cancelled.</p>
+            
+            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Cancelled Lesson Details</h3>
+              <p><strong>Trainer:</strong> ${trainerName}</p>
+              <p><strong>Date:</strong> ${formattedDate}</p>
+              <p><strong>Time:</strong> ${formattedTime}</p>
+              ${bookingData.location ? `<p><strong>Location:</strong> ${bookingData.location}</p>` : ""}
+            </div>
+            
+            <p>If this was cancelled in error or you'd like to book a new lesson, please contact us.</p>
+            
+            <p>Best,<br>${orgName}</p>
+          </div>
+        `,
+      },
+    });
+
+    console.log(`✅ Cancellation confirmation sent to ${clientData.email} for booking ${bookingId}`);
+  } catch (error) {
+    console.error("Error sending cancellation confirmation:", error);
+  }
+}
+
+/**
+ * Send subscription cancellation email to organization owner
+ */
+export async function sendSubscriptionCancellationEmail(orgId: string) {
+  try {
+    // Check if subscription cancellation emails are enabled
+    const emailEnabled = await isEmailEnabled(orgId, "subscriptionCancellation");
+    if (!emailEnabled) {
+      console.log(`Subscription cancellation email disabled for org ${orgId}`);
+      return;
+    }
+
+    // Fetch organization info
+    const orgDoc = await admin.firestore().collection("organizations").doc(orgId).get();
+    const orgData = orgDoc.data();
+    if (!orgData) {
+      console.error("Organization not found");
+      return;
+    }
+
+    // Get owner email
+    const ownerIds = orgData.adminIds || [];
+    if (ownerIds.length === 0) {
+      console.error("No admin/owner found for organization");
+      return;
+    }
+
+    const ownerDoc = await admin.firestore().collection("users").doc(ownerIds[0]).get();
+    const ownerData = ownerDoc.data();
+    if (!ownerData || !ownerData.email) {
+      console.error("Owner email not found");
+      return;
+    }
+
+    const planName = orgData.billing?.plan || "subscription";
+    const planDisplay = planName.charAt(0).toUpperCase() + planName.slice(1);
+
+    // Send email
+    await admin.firestore().collection("mail").add({
+      to: ownerData.email,
+      from: "Skedence <no-reply@skedence.com>",
+      replyTo: "matt.sprague@skedence.com",
+      message: {
+        subject: `Subscription Cancelled - ${orgData.name}`,
+        text: `Hi ${ownerData.firstName || "there"},\n\nYour ${planDisplay} subscription for ${orgData.name} has been cancelled.\n\nYour account will remain active until the end of your current billing period. After that, you'll still be able to access your data, but won't be able to book new appointments or use premium features.\n\nIf you cancelled by mistake or would like to reactivate your subscription, you can do so anytime from your account settings.\n\nWe're sorry to see you go! If there's anything we could have done better, please let us know by replying to this email.\n\nBest,\nThe Skedence Team`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Subscription Cancelled</h2>
+            
+            <p>Hi ${ownerData.firstName || "there"},</p>
+            
+            <p>Your <strong>${planDisplay}</strong> subscription for <strong>${orgData.name}</strong> has been cancelled.</p>
+            
+            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>What happens next?</strong></p>
+              <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                <li>Your account will remain active until the end of your current billing period</li>
+                <li>After that, you'll still be able to access your data</li>
+                <li>You won't be able to book new appointments or use premium features</li>
+              </ul>
+            </div>
+            
+            <p>If you cancelled by mistake or would like to reactivate your subscription, you can do so anytime from your account settings.</p>
+            
+            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+            
+            <p>We're sorry to see you go! If there's anything we could have done better, please let us know by replying to this email.</p>
+            
+            <p>Best,<br>The Skedence Team</p>
+          </div>
+        `,
+      },
+    });
+
+    console.log(`✅ Subscription cancellation email sent to ${ownerData.email} for org ${orgId}`);
+  } catch (error) {
+    console.error("Error sending subscription cancellation email:", error);
+  }
+}
+
+/**
+ * Send reschedule confirmation email to client
+ */
+export async function sendRescheduleConfirmation(
+  bookingId: string,
+  oldBookingData: {
+    startTime: FirebaseFirestore.Timestamp;
+    endTime?: FirebaseFirestore.Timestamp;
+  },
+  newBookingData: {
+    clientUID: string;
+    trainerId: string;
+    startTime: FirebaseFirestore.Timestamp;
+    endTime?: FirebaseFirestore.Timestamp;
+    orgId: string;
+    location?: string;
+    notes?: string;
+  }
+) {
+  try {
+    // Check if reschedule emails are enabled
+    const emailEnabled = await isEmailEnabled(newBookingData.orgId, "rescheduleConfirmation");
+    if (!emailEnabled) {
+      console.log(`Reschedule email disabled for org ${newBookingData.orgId}`);
+      return;
+    }
+
+    // Fetch client info
+    const clientDoc = await admin.firestore().collection("users").doc(newBookingData.clientUID).get();
+    const clientData = clientDoc.data();
+    if (!clientData || !clientData.email) {
+      console.error("Client email not found");
+      return;
+    }
+
+    // Fetch trainer info
+    const trainerDoc = await admin.firestore().collection("trainers").doc(newBookingData.trainerId).get();
+    const trainerData = trainerDoc.data();
+    const trainerName = trainerData?.name || "Your trainer";
+    const trainerEmail = trainerData?.email || "";
+
+    // Fetch organization info
+    const orgDoc = await admin.firestore().collection("organizations").doc(newBookingData.orgId).get();
+    const orgData = orgDoc.data();
+    const orgName = orgData?.name || "Skedence";
+    const orgEmail = orgData?.email || "support@skedence.com";
+
+    // Format old dates
+    const oldStartDate = oldBookingData.startTime.toDate();
+    const oldFormattedDate = oldStartDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const oldFormattedTime = oldStartDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    // Format new dates
+    const newStartDate = newBookingData.startTime.toDate();
+    const newFormattedDate = newStartDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const newFormattedTime = newStartDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    let endTimeText = "";
+    if (newBookingData.endTime) {
+      const endDate = newBookingData.endTime.toDate();
+      const endFormattedTime = endDate.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      endTimeText = ` - ${endFormattedTime}`;
+    }
+
+    // Send email
+    await admin.firestore().collection("mail").add({
+      to: clientData.email,
+      from: `${orgName} <no-reply@skedence.com>`,
+      replyTo: orgEmail,
+      message: {
+        subject: `Lesson Rescheduled - ${newFormattedDate}`,
+        text: `Hi ${clientData.firstName || "there"},\n\nYour lesson has been rescheduled.\n\nOriginal Time:\nDate: ${oldFormattedDate}\nTime: ${oldFormattedTime}\n\nNew Time:\nDate: ${newFormattedDate}\nTime: ${newFormattedTime}${endTimeText}\nTrainer: ${trainerName}\n${newBookingData.location ? `Location: ${newBookingData.location}\n` : ""}\n\nWe look forward to seeing you at the new time!\n\nBest,\n${orgName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Lesson Rescheduled</h2>
+            
+            <p>Hi ${clientData.firstName || "there"},</p>
+            
+            <p>Your lesson has been rescheduled.</p>
+            
+            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Original Time</h3>
+              <p><strong>Date:</strong> ${oldFormattedDate}</p>
+              <p><strong>Time:</strong> ${oldFormattedTime}</p>
+            </div>
+            
+            <div style="background-color: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">New Time</h3>
+              <p><strong>Date:</strong> ${newFormattedDate}</p>
+              <p><strong>Time:</strong> ${newFormattedTime}${endTimeText}</p>
+              <p><strong>Trainer:</strong> ${trainerName}</p>
+              ${newBookingData.location ? `<p><strong>Location:</strong> ${newBookingData.location}</p>` : ""}
+              ${newBookingData.notes ? `<p><strong>Notes:</strong> ${newBookingData.notes}</p>` : ""}
+            </div>
+            
+            ${trainerEmail ? `
+              <p>Questions? Contact ${trainerName} at <a href="mailto:${trainerEmail}">${trainerEmail}</a></p>
+            ` : ""}
+            
+            <p>We look forward to seeing you at the new time!</p>
+            
+            <p>Best,<br>${orgName}</p>
+          </div>
+        `,
+      },
+    });
+
+    console.log(`✅ Reschedule confirmation sent to ${clientData.email} for booking ${bookingId}`);
+  } catch (error) {
+    console.error("Error sending reschedule confirmation:", error);
+  }
+}

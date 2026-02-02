@@ -996,6 +996,9 @@ export const cancelLesson = functions.https.onCall(
 
     try {
       const bookingRef = db.collection("bookings").doc(bookingId);
+      
+      // Store booking data before deletion for email
+      let bookingDataForEmail: any = null;
 
       await db.runTransaction(async (transaction) => {
         const bookingDoc = await transaction.get(bookingRef);
@@ -1014,6 +1017,9 @@ export const cancelLesson = functions.https.onCall(
             "Booking data is missing."
           );
         }
+        
+        // Store for email sending
+        bookingDataForEmail = bookingData;
 
         // Verify user owns this booking
         if (bookingData.clientUID !== userId) {
@@ -1104,6 +1110,12 @@ export const cancelLesson = functions.https.onCall(
         // Delete the booking
         transaction.delete(bookingRef);
       });
+      
+      // Send cancellation email after successful transaction
+      if (bookingDataForEmail) {
+        const {sendCancellationConfirmation} = await import("./confirmationEmails");
+        await sendCancellationConfirmation(bookingId, bookingDataForEmail);
+      }
 
       functions.logger.info(`User ${userId} cancelled booking ${bookingId}`);
       return {message: "Lesson cancelled successfully!"};
@@ -1174,6 +1186,9 @@ export const adminCancelLesson = functions.https.onCall(
       }
 
       const bookingRef = db.collection("bookings").doc(bookingId);
+      
+      // Store booking data before deletion for email
+      let bookingDataForEmail: any = null;
 
       await db.runTransaction(async (transaction) => {
         const bookingDoc = await transaction.get(bookingRef);
@@ -1192,6 +1207,9 @@ export const adminCancelLesson = functions.https.onCall(
             "Booking data is missing."
           );
         }
+        
+        // Store for email sending
+        bookingDataForEmail = bookingData;
 
         // Verify booking belongs to specified client
         if (bookingData.clientUID !== clientId) {
@@ -1258,6 +1276,12 @@ export const adminCancelLesson = functions.https.onCall(
         // Delete the booking
         transaction.delete(bookingRef);
       });
+      
+      // Send cancellation email after successful transaction
+      if (bookingDataForEmail) {
+        const {sendCancellationConfirmation} = await import("./confirmationEmails");
+        await sendCancellationConfirmation(bookingId, bookingDataForEmail);
+      }
 
       functions.logger.info(
         `Admin ${adminUid} (${role}) cancelled booking ${bookingId} for client ${clientId} in org ${orgId}`
@@ -1271,6 +1295,177 @@ export const adminCancelLesson = functions.https.onCall(
       throw new functions.https.HttpsError(
         "internal",
         "An unexpected error occurred while cancelling the lesson.",
+        (error as Error).message
+      );
+    }
+  }
+);
+
+/**
+ * Reschedule a booked lesson
+ */
+interface RescheduleLessonData {
+  bookingId: string;
+  newSlotId: string;
+  newTrainerId: string;
+  newStartTime: string; // ISO string
+  newEndTime?: string; // ISO string
+  newLocation?: string;
+  newNotes?: string;
+}
+
+export const rescheduleLesson = functions.https.onCall(
+  async (request: functions.https.CallableRequest<RescheduleLessonData>) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be signed in to reschedule a lesson."
+      );
+    }
+    const userId = request.auth.uid;
+    const {bookingId, newSlotId, newTrainerId, newStartTime, newEndTime, newLocation, newNotes} = request.data;
+
+    if (!bookingId || !newSlotId || !newTrainerId || !newStartTime) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields: bookingId, newSlotId, newTrainerId, newStartTime"
+      );
+    }
+
+    try {
+      const bookingRef = db.collection("bookings").doc(bookingId);
+      let oldBookingData: any = null;
+      let newBookingData: any = null;
+
+      await db.runTransaction(async (transaction) => {
+        const bookingDoc = await transaction.get(bookingRef);
+
+        if (!bookingDoc.exists) {
+          throw new functions.https.HttpsError(
+            "not-found",
+            "Booking not found."
+          );
+        }
+
+        const bookingData = bookingDoc.data();
+        if (!bookingData) {
+          throw new functions.https.HttpsError(
+            "internal",
+            "Booking data is missing."
+          );
+        }
+
+        // Store old booking data for email
+        oldBookingData = {
+          startTime: bookingData.startTime,
+          endTime: bookingData.endTime,
+        };
+
+        // Verify user owns this booking
+        if (bookingData.clientUID !== userId) {
+          throw new functions.https.HttpsError(
+            "permission-denied",
+            "You can only reschedule your own bookings."
+          );
+        }
+
+        // Check if new slot is available
+        const newSlotRef = db
+          .collection("trainers")
+          .doc(newTrainerId)
+          .collection("schedules")
+          .doc(newSlotId);
+
+        const newSlotDoc = await transaction.get(newSlotRef);
+        if (!newSlotDoc.exists) {
+          throw new functions.https.HttpsError(
+            "not-found",
+            "New time slot not found."
+          );
+        }
+
+        const newSlotData = newSlotDoc.data();
+        if (newSlotData?.status !== "open") {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            "The selected time slot is not available."
+          );
+        }
+
+        // Free up the old slot
+        if (bookingData.trainerId && bookingData.slotId) {
+          const oldSlotRef = db
+            .collection("trainers")
+            .doc(bookingData.trainerId)
+            .collection("schedules")
+            .doc(bookingData.slotId);
+
+          const oldSlotDoc = await transaction.get(oldSlotRef);
+          if (oldSlotDoc.exists) {
+            transaction.update(oldSlotRef, {
+              status: "open",
+              clientId: null,
+              clientName: null,
+              bookedAt: null,
+            });
+          }
+        }
+
+        // Book the new slot
+        const clientDoc = await transaction.get(db.collection("users").doc(userId));
+        const clientData = clientDoc.data();
+        const clientName = clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() : "Client";
+
+        transaction.update(newSlotRef, {
+          status: "booked",
+          clientId: userId,
+          clientName: clientName,
+          bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Update the booking with new details
+        const updateData: any = {
+          trainerId: newTrainerId,
+          slotId: newSlotId,
+          startTime: admin.firestore.Timestamp.fromDate(new Date(newStartTime)),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        if (newEndTime) {
+          updateData.endTime = admin.firestore.Timestamp.fromDate(new Date(newEndTime));
+        }
+        if (newLocation !== undefined) {
+          updateData.location = newLocation;
+        }
+        if (newNotes !== undefined) {
+          updateData.notes = newNotes;
+        }
+
+        transaction.update(bookingRef, updateData);
+
+        // Store new booking data for email
+        newBookingData = {
+          ...bookingData,
+          ...updateData,
+        };
+      });
+
+      // Send reschedule confirmation email
+      if (oldBookingData && newBookingData) {
+        const {sendRescheduleConfirmation} = await import("./confirmationEmails");
+        await sendRescheduleConfirmation(bookingId, oldBookingData, newBookingData);
+      }
+
+      functions.logger.info(`User ${userId} rescheduled booking ${bookingId}`);
+      return {message: "Lesson rescheduled successfully!"};
+    } catch (error) {
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      functions.logger.error("Error rescheduling lesson:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "An unexpected error occurred while rescheduling the lesson.",
         (error as Error).message
       );
     }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/dashboard-layout';
+import { SchedulingSubmenu } from '@/components/scheduling-submenu';
 import { Card, CardContent } from '@/components/ui/card';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -60,8 +60,9 @@ export default function TrainersPage() {
   });
 
   return (
-    <DashboardLayout>
-      <div className="space-y-4 sm:space-y-6">
+    <SchedulingSubmenu>
+      <div className="p-6 lg:p-8">
+        <div className="space-y-4 sm:space-y-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Trainers</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage trainers and view their schedules</p>
@@ -157,7 +158,8 @@ export default function TrainersPage() {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </DashboardLayout>
+    </SchedulingSubmenu>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/dashboard-layout';
+import { SchedulingSubmenu } from '@/components/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
@@ -316,20 +316,23 @@ export default function PassesPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
+      <SchedulingSubmenu>
+        <div className="p-6 lg:p-8">
+          <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading passes...</p>
           </div>
+          </div>
         </div>
-      </DashboardLayout>
+      </SchedulingSubmenu>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <SchedulingSubmenu>
+      <div className="p-6 lg:p-8">
+        <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Manage Passes</h1>
           <p className="text-gray-600 mt-1">
@@ -502,7 +505,8 @@ export default function PassesPage() {
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
-    </DashboardLayout>
+    </SchedulingSubmenu>
   );
 }

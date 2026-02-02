@@ -4,44 +4,47 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  LayoutDashboard, 
-  Users, 
-  UserCog, 
   Calendar, 
   BarChart3, 
   Settings,
   LogOut,
-  Clock,
-  Plus,
-  GraduationCap,
   Menu,
   X,
-  Package,
-  DollarSign,
-  CreditCard,
   FileText,
-  Activity
+  Activity,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Activity Feed', href: '/activity', icon: Activity },
-  { name: 'Clients', href: '/clients', icon: Users },
-  { name: 'Trainers', href: '/trainers', icon: UserCog },
-  { name: 'Schedule', href: '/schedule', icon: Calendar },
-  { name: 'Book Session', href: '/bookings', icon: Plus },
-  { name: 'Classes', href: '/classes', icon: GraduationCap },
-  { name: 'Passes', href: '/passes', icon: Package },
-  { name: 'Pricing', href: '/pricing', icon: DollarSign },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Waiver', href: '/waiver', icon: FileText },
-  { name: 'Settings', href: '/settings', icon: Settings },
-];
-
-const ownerOnlyNavigation = [
-  { name: 'Stripe Settings', href: '/settings/stripe', icon: CreditCard },
+  { 
+    name: 'Activity Feed', 
+    href: '/activity', 
+    icon: Activity,
+    description: 'Track recent activity and changes'
+  },
+  { 
+    name: 'Scheduling', 
+    href: '/scheduling', 
+    icon: Calendar, 
+    hasSubmenu: true,
+    description: 'Manage calendar, clients, trainers, and bookings'
+  },
+  { 
+    name: 'Reports', 
+    href: '/reports/dashboard', 
+    icon: BarChart3,
+    hasSubmenu: true,
+    description: 'View analytics and business insights'
+  },
+  { 
+    name: 'Business Settings', 
+    href: '/settings', 
+    icon: Settings, 
+    hasSubmenu: true,
+    description: 'Configure business and account settings'
+  },
 ];
 
 export function Sidebar() {
@@ -50,6 +53,25 @@ export function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
+  const isSchedulingActive = () => {
+    return pathname === '/scheduling' || 
+           pathname.startsWith('/clients') ||
+           pathname.startsWith('/trainers') ||
+           pathname.startsWith('/bookings') ||
+           pathname.startsWith('/classes') ||
+           pathname.startsWith('/passes') ||
+           pathname.startsWith('/pricing') ||
+           pathname.startsWith('/schedule');
+  };
+
+  const isReportsActive = () => {
+    return pathname.startsWith('/reports') || pathname === '/analytics';
+  };
+
+  const isBusinessSettingsActive = () => {
+    return pathname.startsWith('/settings') || pathname === '/waiver';
+  };
 
   return (
     <>
@@ -76,7 +98,7 @@ export function Sidebar() {
       {/* Sidebar - Desktop (always visible) & Mobile (slide in) */}
       <div
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-40 flex flex-col h-full w-64 bg-[#3258A3] text-white transition-transform duration-300 ease-in-out",
+          "fixed lg:static inset-y-0 left-0 z-40 flex flex-col h-full w-80 bg-[#3258A3] text-white transition-transform duration-300 ease-in-out",
           "lg:translate-x-0",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
@@ -91,6 +113,9 @@ export function Sidebar() {
           <div className="p-4 border-b border-white/10 mt-16 lg:mt-0">
             <p className="text-sm font-medium truncate">{userData.firstName} {userData.lastName}</p>
             <p className="text-xs text-white/60 truncate">{userData.email}</p>
+            {userData.role && (
+              <p className="text-xs text-white/40 uppercase mt-1">{userData.role}</p>
+            )}
           </div>
         )}
 
@@ -99,7 +124,17 @@ export function Sidebar() {
           <ul className="space-y-2">
             {navigation.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              let isActive = false;
+              
+              if (item.name === 'Scheduling') {
+                isActive = isSchedulingActive();
+              } else if (item.name === 'Reports') {
+                isActive = isReportsActive();
+              } else if (item.name === 'Business Settings') {
+                isActive = isBusinessSettingsActive();
+              } else {
+                isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              }
               
               return (
                 <li key={item.name}>
@@ -107,40 +142,29 @@ export function Sidebar() {
                     href={item.href}
                     onClick={closeMobileMenu}
                     className={cn(
-                      'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors touch-manipulation',
-                      'min-h-[44px]', // Minimum touch target size
+                      'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors touch-manipulation group relative',
+                      'min-h-[56px]',
                       isActive
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/70 hover:bg-white/5 hover:text-white active:bg-white/10'
+                        ? 'bg-white/20 text-white shadow-lg'
+                        : 'text-white/70 hover:bg-white/10 hover:text-white active:bg-white/15'
                     )}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span className="font-medium">{item.name}</span>
-                  </Link>
-                </li>
-              );
-            })}
-
-            {/* Owner-Only Navigation */}
-            {userData?.role === 'owner' && ownerOnlyNavigation.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              
-              return (
-                <li key={item.name}>
-                  <Link
-                    href={item.href}
-                    onClick={closeMobileMenu}
-                    className={cn(
-                      'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors touch-manipulation',
-                      'min-h-[44px]', // Minimum touch target size
-                      isActive
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/70 hover:bg-white/5 hover:text-white active:bg-white/10'
+                    <Icon className="h-6 w-6 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm">{item.name}</div>
+                      <div className={cn(
+                        'text-xs mt-0.5 line-clamp-1',
+                        isActive ? 'text-white/80' : 'text-white/50'
+                      )}>
+                        {item.description}
+                      </div>
+                    </div>
+                    {item.hasSubmenu && (
+                      <ChevronRight className={cn(
+                        'h-5 w-5 flex-shrink-0 transition-transform',
+                        isActive ? 'text-white' : 'text-white/40'
+                      )} />
                     )}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span className="font-medium">{item.name}</span>
                   </Link>
                 </li>
               );
@@ -155,7 +179,7 @@ export function Sidebar() {
               signOut();
               closeMobileMenu();
             }}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-white/70 hover:bg-white/5 hover:text-white active:bg-white/10 transition-colors touch-manipulation min-h-[44px]"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-white/70 hover:bg-white/10 hover:text-white active:bg-white/15 transition-colors touch-manipulation min-h-[56px]"
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
             <span className="font-medium">Sign Out</span>

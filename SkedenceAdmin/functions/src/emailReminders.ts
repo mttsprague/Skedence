@@ -129,6 +129,14 @@ export const scheduleBookingReminders = functions.firestore
 */
 
 async function sendBookingConfirmation(bookingId: string, booking: any) {
+  // Check if booking confirmation emails are enabled
+  const {isEmailEnabled} = await import("./emailSettings");
+  const emailEnabled = await isEmailEnabled(booking.orgId, "bookingConfirmation");
+  if (!emailEnabled) {
+    console.log(`Booking confirmation emails disabled for org ${booking.orgId}, skipping email`);
+    return;
+  }
+
   // Fetch trainer and client details
   const [trainer, client, org] = await Promise.all([
     admin.firestore().collection("organizations").doc(booking.orgId)
@@ -261,6 +269,21 @@ export const processScheduledEmails = functions.pubsub
 */
 
 async function sendEmailFromTemplate(bookingId: string, booking: any, template: any) {
+  // Check which email type this is and verify it's enabled
+  const {isEmailEnabled} = await import("./emailSettings");
+  
+  // Determine email type from template subject
+  let emailType: "reminders" | "followUps" = "reminders";
+  if (template.subject.includes("How Was Your Session") || template.subject.includes("follow")) {
+    emailType = "followUps";
+  }
+  
+  const emailEnabled = await isEmailEnabled(booking.orgId, emailType);
+  if (!emailEnabled) {
+    console.log(`${emailType} emails disabled for org ${booking.orgId}, skipping email`);
+    return;
+  }
+
   // Similar to sendBookingConfirmation but uses the provided template
   const [trainer, client, org] = await Promise.all([
     admin.firestore().collection("organizations").doc(booking.orgId)

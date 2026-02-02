@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/dashboard-layout';
+import { SchedulingSubmenu } from '@/components/scheduling-submenu';
 import { Card, CardContent } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -46,6 +46,40 @@ export default function ClientsPage() {
           if (!userDoc.exists()) return null;
           
           const userData = userDoc.data();
+          console.log('Clients: Loading user', memberData.userId, 'athletes:', userData.athletes, 'isArray:', Array.isArray(userData.athletes));
+          
+          // Convert legacy athlete fields to athletes array if needed
+          let athletesArray: AthleteInfo[] = [];
+          if (Array.isArray(userData.athletes) && userData.athletes.length > 0) {
+            athletesArray = userData.athletes;
+          } else {
+            // Build athletes array from legacy fields
+            if (userData.athleteFirstName || userData.athleteLastName) {
+              athletesArray.push({
+                firstName: userData.athleteFirstName,
+                lastName: userData.athleteLastName,
+                birthday: userData.athleteBirthday,
+                position: userData.athletePosition,
+              });
+            }
+            if (userData.athlete2FirstName || userData.athlete2LastName) {
+              athletesArray.push({
+                firstName: userData.athlete2FirstName,
+                lastName: userData.athlete2LastName,
+                birthday: userData.athlete2Birthday,
+                position: userData.athlete2Position,
+              });
+            }
+            if (userData.athlete3FirstName || userData.athlete3LastName) {
+              athletesArray.push({
+                firstName: userData.athlete3FirstName,
+                lastName: userData.athlete3LastName,
+                birthday: userData.athlete3Birthday,
+                position: userData.athlete3Position,
+              });
+            }
+          }
+          
           return {
             id: memberData.userId,
             firstName: userData.firstName || '',
@@ -57,7 +91,7 @@ export default function ClientsPage() {
             role: memberData.role,
             createdAt: memberData.joinedAt,
             isActive: userData.isActive !== false,
-            athletes: userData.athletes || [],
+            athletes: athletesArray,
             athleteFirstName: userData.athleteFirstName,
             athleteLastName: userData.athleteLastName,
             athleteBirthday: userData.athleteBirthday,
@@ -179,17 +213,20 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-12">
-          <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+      <SchedulingSubmenu>
+        <div className="p-6 lg:p-8">
+          <div className="text-center py-12">
+            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
         </div>
-      </DashboardLayout>
+      </SchedulingSubmenu>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-4 sm:space-y-6">
+    <SchedulingSubmenu>
+      <div className="p-6 lg:p-8">
+        <div className="space-y-4 sm:space-y-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Clients</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage your client list and edit profiles</p>
@@ -318,27 +355,33 @@ export default function ClientsPage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                          <input
-                            type="text"
+                        <label htmlFor={`athlete-${index}-firstName`} className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                        <input
+                          type="text"
+                          id={`athlete-${index}-firstName`}
+                          name={`athlete-${index}-firstName`}
                             value={athlete.firstName || ''}
                             onChange={(e) => updateAthlete(index, 'firstName', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                          <input
-                            type="text"
+                        <label htmlFor={`athlete-${index}-lastName`} className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                        <input
+                          type="text"
+                          id={`athlete-${index}-lastName`}
+                          name={`athlete-${index}-lastName`}
                             value={athlete.lastName || ''}
                             onChange={(e) => updateAthlete(index, 'lastName', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
-                          <input
-                            type="text"
+                        <label htmlFor={`athlete-${index}-birthday`} className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                        <input
+                          type="text"
+                          id={`athlete-${index}-birthday`}
+                          name={`athlete-${index}-birthday`}
                             placeholder="MM/DD/YYYY"
                             value={athlete.birthday || ''}
                             onChange={(e) => updateAthlete(index, 'birthday', e.target.value)}
@@ -346,27 +389,36 @@ export default function ClientsPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">School/Club Team</label>
+                          <label htmlFor={`athlete-${index}-team`} className="block text-sm font-medium text-gray-700 mb-1">School/Club Team</label>
                           <input
                             type="text"
+                            id={`athlete-${index}-team`}
+                            name={`athlete-${index}-team`}
                             value={athlete.schoolClubTeam || ''}
                             onChange={(e) => updateAthlete(index, 'schoolClubTeam', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
-                          <input
-                            type="text"
-                            value={athlete.experienceLevel || ''}
+                          <label htmlFor={`athlete-${index}-experience`} className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
+                          <select
+                            id={`athlete-${index}-experience`}
+                            name={`athlete-${index}-experience`}
+                            value={athlete.experienceLevel || 'Beginner'}
                             onChange={(e) => updateAthlete(index, 'experienceLevel', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
-                          />
+                          >
+                            <option value="Beginner">Beginner</option>
+                            <option value="Intermediate">Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                          </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                          <label htmlFor={`athlete-${index}-position`} className="block text-sm font-medium text-gray-700 mb-1">Position</label>
                           <input
                             type="text"
+                            id={`athlete-${index}-position`}
+                            name={`athlete-${index}-position`}
                             value={athlete.position || ''}
                             onChange={(e) => updateAthlete(index, 'position', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
@@ -381,27 +433,33 @@ export default function ClientsPage() {
                       <h4 className="font-medium text-gray-900 mb-3">Athlete 1 (Legacy)</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                          <label htmlFor="legacy-athlete-firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                           <input
                             type="text"
+                            id="legacy-athlete-firstName"
+                            name="legacy-athlete-firstName"
                             value={editedClient.athleteFirstName || ''}
                             onChange={(e) => updateEditedClient('athleteFirstName', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                          <label htmlFor="legacy-athlete-lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                           <input
                             type="text"
+                            id="legacy-athlete-lastName"
+                            name="legacy-athlete-lastName"
                             value={editedClient.athleteLastName || ''}
                             onChange={(e) => updateEditedClient('athleteLastName', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                          <label htmlFor="legacy-athlete-birthday" className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
                           <input
                             type="text"
+                            id="legacy-athlete-birthday"
+                            name="legacy-athlete-birthday"
                             placeholder="MM/DD/YYYY"
                             value={editedClient.athleteBirthday || ''}
                             onChange={(e) => updateEditedClient('athleteBirthday', e.target.value)}
@@ -409,9 +467,11 @@ export default function ClientsPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                          <label htmlFor="legacy-athlete-position" className="block text-sm font-medium text-gray-700 mb-1">Position</label>
                           <input
                             type="text"
+                            id="legacy-athlete-position"
+                            name="legacy-athlete-position"
                             value={editedClient.athletePosition || ''}
                             onChange={(e) => updateEditedClient('athletePosition', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
@@ -426,18 +486,22 @@ export default function ClientsPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <label htmlFor="emergency-contact-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                       <input
                         type="text"
+                        id="emergency-contact-name"
+                        name="emergency-contact-name"
                         value={editedClient.emergencyContactName || ''}
                         onChange={(e) => updateEditedClient('emergencyContactName', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <label htmlFor="emergency-contact-phone" className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                       <input
                         type="tel"
+                        id="emergency-contact-phone"
+                        name="emergency-contact-phone"
                         value={editedClient.emergencyContactNumber || ''}
                         onChange={(e) => updateEditedClient('emergencyContactNumber', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
@@ -450,17 +514,21 @@ export default function ClientsPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
+                      <label htmlFor="referred-by" className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
                       <input
                         type="text"
+                        id="referred-by"
+                        name="referred-by"
                         value={editedClient.referredBy || ''}
                         onChange={(e) => updateEditedClient('referredBy', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes for Coach</label>
+                      <label htmlFor="notes-for-coach" className="block text-sm font-medium text-gray-700 mb-1">Notes for Coach</label>
                       <textarea
+                        id="notes-for-coach"
+                        name="notes-for-coach"
                         value={editedClient.notesForCoach || ''}
                         onChange={(e) => updateEditedClient('notesForCoach', e.target.value)}
                         rows={4}
@@ -487,7 +555,8 @@ export default function ClientsPage() {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </DashboardLayout>
+    </SchedulingSubmenu>
   );
 }

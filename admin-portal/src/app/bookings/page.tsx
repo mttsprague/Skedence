@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/dashboard-layout';
+import { SchedulingSubmenu } from '@/components/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
@@ -327,8 +327,9 @@ export default function BookingsPage() {
   const selectedSlotData = slots.find(s => s.id === selectedSlot);
 
   return (
-    <DashboardLayout>
-      <div className="space-y-4 sm:space-y-6">
+    <SchedulingSubmenu>
+      <div className="p-6 lg:p-8">
+        <div className="space-y-4 sm:space-y-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Create Booking</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Book sessions for clients</p>
@@ -556,7 +557,8 @@ export default function BookingsPage() {
             </Card>
           </div>
         )}
+        </div>
       </div>
-    </DashboardLayout>
+    </SchedulingSubmenu>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/dashboard-layout';
+import { BusinessSettingsSubmenu } from '@/components/business-settings-submenu';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -103,19 +103,19 @@ export default function StripeSettingsPage() {
 
   if (!isOwner) {
     return (
-      <DashboardLayout>
+      <BusinessSettingsSubmenu>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <p className="text-gray-600">Only organization owners can manage Stripe settings.</p>
           </div>
         </div>
-      </DashboardLayout>
+      </BusinessSettingsSubmenu>
     );
   }
 
   return (
-    <DashboardLayout>
+    <BusinessSettingsSubmenu>
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
         <div>
@@ -272,6 +272,6 @@ export default function StripeSettingsPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </BusinessSettingsSubmenu>
   );
 }
