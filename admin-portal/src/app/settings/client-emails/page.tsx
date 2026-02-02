@@ -18,8 +18,6 @@ interface EmailNotificationSettings {
   followUps: boolean;
   packageReceipt: boolean;
   appointmentReceipt: boolean;
-  subscriptionReceipt: boolean;
-  subscriptionCancellation: boolean;
 }
 
 const defaultSettings: EmailNotificationSettings = {
@@ -30,8 +28,6 @@ const defaultSettings: EmailNotificationSettings = {
   followUps: true,
   packageReceipt: true,
   appointmentReceipt: true,
-  subscriptionReceipt: true,
-  subscriptionCancellation: true,
 };
 
 export default function ClientEmailsPage() {
@@ -177,18 +173,6 @@ export default function ClientEmailsPage() {
               description="Receipt for individual appointment bookings"
               enabled={settings.appointmentReceipt}
               onChange={(value) => updateSetting('appointmentReceipt', value)}
-            />
-            <EmailToggleRow
-              title="Subscription Receipt"
-              description="Receipt for subscription purchases"
-              enabled={settings.subscriptionReceipt}
-              onChange={(value) => updateSetting('subscriptionReceipt', value)}
-            />
-            <EmailToggleRow
-              title="Subscription Cancellation"
-              description="Confirmation when a subscription is cancelled"
-              enabled={settings.subscriptionCancellation}
-              onChange={(value) => updateSetting('subscriptionCancellation', value)}
             />
           </div>
         </div>
