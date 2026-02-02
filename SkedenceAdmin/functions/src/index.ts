@@ -23,9 +23,6 @@ export * from "./stripe-direct";
 // Export billing/subscription functions
 export * from "./billing";
 
-// Export Apple In-App Purchase functions
-export * from "./appleIAP";
-
 // Export Stripe Connect webhook
 export * from "./stripe-connect-webhook";
 
@@ -46,9 +43,6 @@ export * from "./deleteTrainer";
 
 // Export user account deletion functions
 export * from "./deleteUserAccount";
-
-// Export pricing package deletion functions
-export * from "./deletePricingPackages";
 
 // Export confirmation email functions
 export * from "./confirmationEmails";
@@ -92,9 +86,6 @@ interface BookLessonData {
   trainerId: string;
   slotId: string; // deterministic ID "YYYY-MM-DDTHH"
   lessonPackageId: string;
-  athleteName?: string; // First athlete/participant name
-  secondAthleteName?: string; // Second athlete/participant name (if applicable)
-  lessonNotes?: string; // Notes for trainer about this lesson
 }
 
 /**
@@ -137,7 +128,7 @@ export const bookLesson = functions.https.onCall(
     }
     const userId = request.auth.uid;
 
-    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, lessonNotes} = request.data;
+    const {trainerId, slotId, lessonPackageId} = request.data;
     if (!trainerId || !slotId || !lessonPackageId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
@@ -156,6 +147,9 @@ export const bookLesson = functions.https.onCall(
     }
 
     const userRef = db.collection("users").doc(userId);
+    const lessonPackageRef = userRef
+      .collection("lessonPackages")
+      .doc(lessonPackageId);
     const trainerRef = db.collection("trainers").doc(trainerId);
     // IMPORTANT: slotId is deterministic ("YYYY-MM-DDTHH")
     const trainerSlotRef = trainerRef.collection("schedules").doc(slotId);
@@ -165,6 +159,7 @@ export const bookLesson = functions.https.onCall(
     try {
       await db.runTransaction(async (transaction) => {
         const userDoc = await transaction.get(userRef);
+        const lessonPackageDoc = await transaction.get(lessonPackageRef);
         const trainerDoc = await transaction.get(trainerRef);
         const trainerSlotDoc = await transaction.get(trainerSlotRef);
 
@@ -173,54 +168,6 @@ export const bookLesson = functions.https.onCall(
             "not-found",
             "User profile not found for the authenticated user."
           );
-        }
-
-        // Get orgId from user document - try both fields for backwards compatibility
-        const userData = userDoc.data();
-        orgId = userData?.orgId as string | undefined;
-        if (!orgId) {
-          orgId = userData?.organizationId as string | undefined;
-        }
-
-        if (!orgId) {
-          // Fallback: check orgMembers collection
-          const orgMembersQuery = await db.collection("orgMembers")
-            .where("userId", "==", userId)
-            .limit(1)
-            .get();
-          if (!orgMembersQuery.empty) {
-            orgId = orgMembersQuery.docs[0].data().orgId;
-          }
-        }
-
-        // Try to get lesson package from new path first, then fallback to old path
-        let lessonPackageDoc;
-        let packagePath = "unknown";
-        if (orgId) {
-          // New path: organizations/{orgId}/users/{userId}/packages/{packageId}
-          const newPathRef = db.collection("organizations")
-            .doc(orgId)
-            .collection("users")
-            .doc(userId)
-            .collection("packages")
-            .doc(lessonPackageId);
-          lessonPackageDoc = await transaction.get(newPathRef);
-          if (lessonPackageDoc.exists) {
-            packagePath = "NEW";
-            functions.logger.info(`📦 bookLesson: Found package ${lessonPackageId} in NEW path`);
-          }
-        }
-
-        if (!lessonPackageDoc || !lessonPackageDoc.exists) {
-          // Fallback to old path: users/{userId}/lessonPackages/{packageId}
-          const oldPathRef = userRef
-            .collection("lessonPackages")
-            .doc(lessonPackageId);
-          lessonPackageDoc = await transaction.get(oldPathRef);
-          if (lessonPackageDoc.exists) {
-            packagePath = "OLD";
-            functions.logger.info(`📦 bookLesson: Found package ${lessonPackageId} in OLD path (fallback)`);
-          }
         }
 
         // STEP 10: Check trainer's organization billing status and quota
@@ -292,6 +239,7 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
+        const userData = userDoc.data();
         const lessonPackageData = lessonPackageDoc.data();
         const trainerData = trainerDoc.data();
         const trainerSlotData = trainerSlotDoc.data();
@@ -329,16 +277,14 @@ export const bookLesson = functions.https.onCall(
             }
 
             // Check location booking limit if location is specified
-            if (trainerSlotData.location && trainerSlotData.startTime) {
+            if (trainerSlotData.location) {
               const maxBookingsPerLocation = settings?.maxBookingsPerLocation ?? 5;
 
-              // Count concurrent booked sessions at this location and time
-              // We need to check for bookings that overlap with this time slot
+              // Count current booked sessions at this location (status = 'booked', not 'open')
               const locationBookingsQuery = await db
                 .collectionGroup("schedules")
                 .where("orgId", "==", orgId)
                 .where("location", "==", trainerSlotData.location)
-                .where("startTime", "==", trainerSlotData.startTime)
                 .where("status", "==", "booked")
                 .get();
 
@@ -376,19 +322,11 @@ export const bookLesson = functions.https.onCall(
         }
 
         if (lessonPackageData.lessonsUsed >= lessonPackageData.totalLessons) {
-          functions.logger.error(
-            `📦 bookLesson: Package ${lessonPackageId} exhausted from ${packagePath} path. ` +
-            `Used: ${lessonPackageData.lessonsUsed}/${lessonPackageData.totalLessons}`
-          );
           throw new functions.https.HttpsError(
             "failed-precondition",
             "Lesson package has no lessons remaining."
           );
         }
-        functions.logger.info(
-          `📦 bookLesson: Using package ${lessonPackageId} from ${packagePath} path. ` +
-          `Remaining: ${lessonPackageData.totalLessons - lessonPackageData.lessonsUsed}/${lessonPackageData.totalLessons}`
-        );
         if (
           lessonPackageData.expirationDate &&
           lessonPackageData.expirationDate.toDate() < new Date()
@@ -420,8 +358,6 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
-        // Increment lessonsUsed on the package (write to the same path we read from)
-        const lessonPackageRef = lessonPackageDoc.ref;
         transaction.update(lessonPackageRef, {
           lessonsUsed: admin.firestore.FieldValue.increment(1),
         });
@@ -439,7 +375,7 @@ export const bookLesson = functions.https.onCall(
         const trainerLastName = trainerData.lastName || "";
         const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
 
-        const bookingData: any = {
+        transaction.set(newBookingRef, {
           clientUID: userId,
           trainerId: trainerId,
           slotId: slotId, // deterministic schedule slot doc id
@@ -453,20 +389,7 @@ export const bookLesson = functions.https.onCall(
           scheduleSlotId: slotId,
           location: trainerSlotData.location || "Location TBD", // Copy location from schedule slot
           orgId: orgId || trainerData.orgId, // Add orgId to booking record
-        };
-
-        // Add optional athlete and notes fields if provided
-        if (athleteName) {
-          bookingData.athleteName = athleteName;
-        }
-        if (secondAthleteName) {
-          bookingData.secondAthleteName = secondAthleteName;
-        }
-        if (lessonNotes) {
-          bookingData.lessonNotes = lessonNotes;
-        }
-
-        transaction.set(newBookingRef, bookingData);
+        });
       });
 
       // Increment booking usage counter after successful transaction
@@ -514,47 +437,29 @@ export const registerForClass = functions.https.onCall(
     }
 
     const userRef = db.collection("users").doc(userId);
+    const classPassRef = userRef
+      .collection("lessonPackages")
+      .doc(classPassPackageId);
     const classRef = db.collection("classes").doc(classId);
 
     try {
-      // Get orgId BEFORE the transaction to avoid collectionGroup query inside transaction
-      functions.logger.info(`[registerForClass] Step 1: Getting user document for userId: ${userId}`);
-      const userDoc = await userRef.get();
-      if (!userDoc.exists) {
-        throw new functions.https.HttpsError(
-          "not-found",
-          "User profile not found for the authenticated user."
-        );
-      }
-
-      const userData = userDoc.data();
-      if (!userData) {
-        throw new functions.https.HttpsError(
-          "internal",
-          "User data is missing."
-        );
-      }
-
-      // Get orgId from userData - try both fields for backwards compatibility
-      let orgId = userData.organizationId as string | undefined;
-      if (!orgId) {
-        orgId = userData.orgId as string | undefined;
-      }
-      functions.logger.info(`[registerForClass] orgId from userData: ${orgId || "NOT FOUND"}`);
-
-      if (!orgId) {
-        throw new functions.https.HttpsError(
-          "failed-precondition",
-          "User must be associated with an organization to register for classes. Please contact support."
-        );
-      }
-
-      functions.logger.info(`[registerForClass] Starting transaction with orgId: ${orgId}`);
-
-
       await db.runTransaction(async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        const classPassDoc = await transaction.get(classPassRef);
         const classDoc = await transaction.get(classRef);
 
+        if (!userDoc.exists) {
+          throw new functions.https.HttpsError(
+            "not-found",
+            "User profile not found for the authenticated user."
+          );
+        }
+        if (!classPassDoc.exists) {
+          throw new functions.https.HttpsError(
+            "not-found",
+            "Specified class pass not found."
+          );
+        }
         if (!classDoc.exists) {
           throw new functions.https.HttpsError(
             "not-found",
@@ -562,45 +467,9 @@ export const registerForClass = functions.https.onCall(
           );
         }
 
-        const classData = classDoc.data();
-
-        if (!classData) {
-          throw new functions.https.HttpsError(
-            "internal",
-            "Unexpected missing document data."
-          );
-        }
-
-        // Try new path first, then fallback to old path
-        let classPassDoc: FirebaseFirestore.DocumentSnapshot | undefined;
-
-        if (orgId) {
-          const newPathRef = db
-            .collection("organizations")
-            .doc(orgId)
-            .collection("users")
-            .doc(userId)
-            .collection("packages")
-            .doc(classPassPackageId);
-          classPassDoc = await transaction.get(newPathRef);
-        }
-
-        // Fallback to old path if not found in new path
-        if (!classPassDoc || !classPassDoc.exists) {
-          const oldPathRef = userRef
-            .collection("lessonPackages")
-            .doc(classPassPackageId);
-          classPassDoc = await transaction.get(oldPathRef);
-        }
-
-        if (!classPassDoc || !classPassDoc.exists) {
-          throw new functions.https.HttpsError(
-            "not-found",
-            "Specified class pass not found."
-          );
-        }
-
+        const userData = userDoc.data();
         const classPassData = classPassDoc.data();
+        const classData = classDoc.data();
 
         if (!userData || !classPassData || !classData) {
           throw new functions.https.HttpsError(
@@ -650,14 +519,20 @@ export const registerForClass = functions.https.onCall(
           );
         }
 
-        // Allow multiple registrations by the same user (for multiple athletes)
-        // Use auto-generated ID instead of userId to allow duplicates
+        // Check if user is already registered
         const participantRef = classRef
           .collection("participants")
-          .doc(); // Auto-generate unique ID
+          .doc(userId);
+        const participantDoc = await transaction.get(participantRef);
+        if (participantDoc.exists) {
+          throw new functions.https.HttpsError(
+            "already-exists",
+            "You are already registered for this class."
+          );
+        }
 
         // Increment lessonsUsed on the class pass
-        transaction.update(classPassDoc.ref, {
+        transaction.update(classPassRef, {
           lessonsUsed: admin.firestore.FieldValue.increment(1),
         });
 
@@ -666,8 +541,7 @@ export const registerForClass = functions.https.onCall(
           currentParticipants: admin.firestore.FieldValue.increment(1),
         });
 
-        // Add user to participants subcollection with auto-generated ID
-        // This allows the same user/email to register multiple times
+        // Add user to participants subcollection
         transaction.set(participantRef, {
           userId: userId,
           firstName: userData.firstName || "Unknown",
@@ -689,280 +563,6 @@ export const registerForClass = functions.https.onCall(
       throw new functions.https.HttpsError(
         "internal",
         "An unexpected error occurred while registering for the class.",
-        (error as Error).message
-      );
-    }
-  }
-);
-
-/**
- * Cloud Function for admin to manually register a client for a class
- * Supports two modes:
- * 1. Existing client with class pass (requires userId and classPassPackageId)
- * 2. Manual entry (requires firstName, lastName, optional email - no package deduction)
- */
-interface ManualRegisterData {
-  classId: string;
-  userId?: string;
-  classPassPackageId?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string | null;
-}
-
-export const manualRegisterForClass = functions.https.onCall(
-  async (request: functions.https.CallableRequest<ManualRegisterData>) => {
-    // Verify admin authentication
-    if (!request.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "You must be signed in to manually register a client."
-      );
-    }
-
-    const {classId, userId, classPassPackageId, firstName, lastName, email} = request.data;
-
-    if (!classId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Missing classId"
-      );
-    }
-
-    // Determine registration mode
-    const isExistingClient = !!userId && !!classPassPackageId;
-    const isManualEntry = !!firstName && !!lastName;
-
-    if (!isExistingClient && !isManualEntry) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Must provide either (userId + classPassPackageId) or (firstName + lastName)"
-      );
-    }
-
-    const classRef = db.collection("classes").doc(classId);
-
-    try {
-      if (isExistingClient) {
-        // Mode 1: Existing client with class pass
-        const userRef = db.collection("users").doc(userId);
-        functions.logger.info(`[manualRegisterForClass] Registering user ${userId} for class ${classId} with package ${classPassPackageId}`);
-
-        // Get user data for orgId
-        const userDoc = await userRef.get();
-        if (!userDoc.exists) {
-          throw new functions.https.HttpsError(
-            "not-found",
-            "User profile not found."
-          );
-        }
-
-        const userData = userDoc.data();
-        if (!userData) {
-          throw new functions.https.HttpsError(
-            "internal",
-            "User data is missing."
-          );
-        }
-
-        // Try both fields for backwards compatibility
-        let orgId = userData.organizationId as string | undefined;
-        if (!orgId) {
-          orgId = userData.orgId as string | undefined;
-        }
-        if (!orgId) {
-          throw new functions.https.HttpsError(
-            "failed-precondition",
-            "User must be associated with an organization."
-          );
-        }
-
-        await db.runTransaction(async (transaction) => {
-          const classDoc = await transaction.get(classRef);
-
-          if (!classDoc.exists) {
-            throw new functions.https.HttpsError(
-              "not-found",
-              "Class not found."
-            );
-          }
-
-          const classData = classDoc.data();
-          if (!classData) {
-            throw new functions.https.HttpsError(
-              "internal",
-              "Class data is missing."
-            );
-          }
-
-          // Try new path first, then fallback to old path
-          let classPassDoc: FirebaseFirestore.DocumentSnapshot | undefined;
-
-          const newPathRef = db
-            .collection("organizations")
-            .doc(orgId)
-            .collection("users")
-            .doc(userId)
-            .collection("packages")
-            .doc(classPassPackageId);
-          classPassDoc = await transaction.get(newPathRef);
-
-          // Fallback to old path if not found in new path
-          if (!classPassDoc || !classPassDoc.exists) {
-            const oldPathRef = userRef
-              .collection("lessonPackages")
-              .doc(classPassPackageId);
-            classPassDoc = await transaction.get(oldPathRef);
-          }
-
-          if (!classPassDoc || !classPassDoc.exists) {
-            throw new functions.https.HttpsError(
-              "not-found",
-              "Specified class pass not found."
-            );
-          }
-
-          const classPassData = classPassDoc.data();
-          if (!classPassData) {
-            throw new functions.https.HttpsError(
-              "internal",
-              "Class pass data is missing."
-            );
-          }
-
-          // Verify it's a class pass
-          const pkgCategory = classPassData.packageCategory;
-          const pkgType = classPassData.packageType;
-          const isClassPackage = pkgType === "class" || pkgType === "class_pass" || pkgCategory === "class";
-
-          if (!isClassPackage) {
-            throw new functions.https.HttpsError(
-              "invalid-argument",
-              "The specified package is not a class pass."
-            );
-          }
-
-          // Check if pass has remaining uses
-          if (classPassData.lessonsUsed >= classPassData.totalLessons) {
-            throw new functions.https.HttpsError(
-              "failed-precondition",
-              "Class pass has already been fully used."
-            );
-          }
-
-          // Check if pass is expired
-          if (
-            classPassData.expirationDate &&
-            classPassData.expirationDate.toDate() < new Date()
-          ) {
-            throw new functions.https.HttpsError(
-              "failed-precondition",
-              "Class pass has expired."
-            );
-          }
-
-          // Check if class is full
-          if (classData.currentParticipants >= classData.maxParticipants) {
-            throw new functions.https.HttpsError(
-              "failed-precondition",
-              "Class is full."
-            );
-          }
-
-          // Check if user is already registered
-          const existingParticipant = await transaction.get(
-            classRef.collection("participants").doc(userId)
-          );
-          if (existingParticipant.exists) {
-            throw new functions.https.HttpsError(
-              "already-exists",
-              "User is already registered for this class."
-            );
-          }
-
-          // Add participant
-          const participantRef = classRef.collection("participants").doc(userId);
-          transaction.set(participantRef, {
-            userId: userId,
-            firstName: userData.firstName || "Unknown",
-            lastName: userData.lastName || "User",
-            registeredAt: admin.firestore.FieldValue.serverTimestamp(),
-            classPassPackageId: classPassPackageId,
-            manuallyAdded: true,
-          });
-
-          // Increment lessonsUsed on the class pass
-          transaction.update(classPassDoc.ref, {
-            lessonsUsed: admin.firestore.FieldValue.increment(1),
-          });
-
-          // Increment class participants
-          transaction.update(classRef, {
-            currentParticipants: admin.firestore.FieldValue.increment(1),
-          });
-        });
-
-        functions.logger.info(`Manual registration successful for user ${userId} in class ${classId}`);
-        return {message: "Client successfully registered for class!"};
-      } else {
-        // Mode 2: Manual entry (no package deduction)
-        functions.logger.info(`[manualRegisterForClass] Manual entry registration for ${firstName} ${lastName} in class ${classId}`);
-
-        await db.runTransaction(async (transaction) => {
-          const classDoc = await transaction.get(classRef);
-
-          if (!classDoc.exists) {
-            throw new functions.https.HttpsError(
-              "not-found",
-              "Class not found."
-            );
-          }
-
-          const classData = classDoc.data();
-          if (!classData) {
-            throw new functions.https.HttpsError(
-              "internal",
-              "Class data is missing."
-            );
-          }
-
-          // Check if class is full
-          if (classData.currentParticipants >= classData.maxParticipants) {
-            throw new functions.https.HttpsError(
-              "failed-precondition",
-              "Class is full."
-            );
-          }
-
-          // Add participant with auto-generated ID (allows duplicates for walk-ins)
-          const participantRef = classRef.collection("participants").doc();
-          transaction.set(participantRef, {
-            userId: "", // Empty for manual entries
-            firstName: firstName,
-            lastName: lastName,
-            email: email || "",
-            registeredAt: admin.firestore.FieldValue.serverTimestamp(),
-            manualEntry: true,
-            manuallyAdded: true,
-          });
-
-          // Increment class participants
-          transaction.update(classRef, {
-            currentParticipants: admin.firestore.FieldValue.increment(1),
-          });
-        });
-
-        functions.logger.info(`Manual entry registration successful for ${firstName} ${lastName} in class ${classId}`);
-        return {message: "Client successfully added to class!"};
-      }
-    } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      functions.logger.error("Error in manual registration:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        "An unexpected error occurred during manual registration.",
         (error as Error).message
       );
     }
@@ -997,9 +597,6 @@ export const cancelLesson = functions.https.onCall(
     try {
       const bookingRef = db.collection("bookings").doc(bookingId);
 
-      // Store booking data before deletion for email
-      let bookingDataForEmail: any = null;
-
       await db.runTransaction(async (transaction) => {
         const bookingDoc = await transaction.get(bookingRef);
 
@@ -1017,9 +614,6 @@ export const cancelLesson = functions.https.onCall(
             "Booking data is missing."
           );
         }
-
-        // Store for email sending
-        bookingDataForEmail = bookingData;
 
         // Verify user owns this booking
         if (bookingData.clientUID !== userId) {
@@ -1054,38 +648,17 @@ export const cancelLesson = functions.https.onCall(
         }
 
         // Get the lesson package and decrement lessonsUsed
-        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
-        if (bookingData.packageId && bookingData.orgId) {
-          const newPackageRef = db
-            .collection("organizations")
-            .doc(bookingData.orgId)
-            .collection("users")
-            .doc(userId)
-            .collection("packages")
-            .doc(bookingData.packageId);
+        const packageRef = db
+          .collection("users")
+          .doc(userId)
+          .collection("lessonPackages")
+          .doc(bookingData.packageId);
 
-          const newPackageDoc = await transaction.get(newPackageRef);
-          if (newPackageDoc.exists) {
-            transaction.update(newPackageRef, {
-              lessonsUsed: admin.firestore.FieldValue.increment(-1),
-            });
-            functions.logger.info(`Refunded credit: new path - ${newPackageRef.path}`);
-          } else {
-            // Fallback to OLD path: users/{userId}/lessonPackages
-            const oldPackageRef = db
-              .collection("users")
-              .doc(userId)
-              .collection("lessonPackages")
-              .doc(bookingData.packageId);
-
-            const oldPackageDoc = await transaction.get(oldPackageRef);
-            if (oldPackageDoc.exists) {
-              transaction.update(oldPackageRef, {
-                lessonsUsed: admin.firestore.FieldValue.increment(-1),
-              });
-              functions.logger.info(`Refunded credit: old path - ${oldPackageRef.path}`);
-            }
-          }
+        const packageDoc = await transaction.get(packageRef);
+        if (packageDoc.exists) {
+          transaction.update(packageRef, {
+            lessonsUsed: admin.firestore.FieldValue.increment(-1),
+          });
         }
 
         // Update trainer's schedule slot back to open
@@ -1110,12 +683,6 @@ export const cancelLesson = functions.https.onCall(
         // Delete the booking
         transaction.delete(bookingRef);
       });
-
-      // Send cancellation email after successful transaction
-      if (bookingDataForEmail) {
-        const {sendCancellationConfirmation} = await import("./confirmationEmails");
-        await sendCancellationConfirmation(bookingId, bookingDataForEmail);
-      }
 
       functions.logger.info(`User ${userId} cancelled booking ${bookingId}`);
       return {message: "Lesson cancelled successfully!"};
@@ -1187,9 +754,6 @@ export const adminCancelLesson = functions.https.onCall(
 
       const bookingRef = db.collection("bookings").doc(bookingId);
 
-      // Store booking data before deletion for email
-      let bookingDataForEmail: any = null;
-
       await db.runTransaction(async (transaction) => {
         const bookingDoc = await transaction.get(bookingRef);
 
@@ -1208,9 +772,6 @@ export const adminCancelLesson = functions.https.onCall(
           );
         }
 
-        // Store for email sending
-        bookingDataForEmail = bookingData;
-
         // Verify booking belongs to specified client
         if (bookingData.clientUID !== clientId) {
           throw new functions.https.HttpsError(
@@ -1220,37 +781,18 @@ export const adminCancelLesson = functions.https.onCall(
         }
 
         // Get the lesson package and decrement lessonsUsed
-        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
         if (bookingData.packageId) {
-          const newPackageRef = db
-            .collection("organizations")
-            .doc(orgId)
+          const packageRef = db
             .collection("users")
             .doc(clientId)
-            .collection("packages")
+            .collection("lessonPackages")
             .doc(bookingData.packageId);
 
-          const newPackageDoc = await transaction.get(newPackageRef);
-          if (newPackageDoc.exists) {
-            transaction.update(newPackageRef, {
+          const packageDoc = await transaction.get(packageRef);
+          if (packageDoc.exists) {
+            transaction.update(packageRef, {
               lessonsUsed: admin.firestore.FieldValue.increment(-1),
             });
-            functions.logger.info(`Refunded credit: new path - ${newPackageRef.path}`);
-          } else {
-            // Fallback to OLD path: users/{userId}/lessonPackages
-            const oldPackageRef = db
-              .collection("users")
-              .doc(clientId)
-              .collection("lessonPackages")
-              .doc(bookingData.packageId);
-
-            const oldPackageDoc = await transaction.get(oldPackageRef);
-            if (oldPackageDoc.exists) {
-              transaction.update(oldPackageRef, {
-                lessonsUsed: admin.firestore.FieldValue.increment(-1),
-              });
-              functions.logger.info(`Refunded credit: old path - ${oldPackageRef.path}`);
-            }
           }
         }
 
@@ -1277,12 +819,6 @@ export const adminCancelLesson = functions.https.onCall(
         transaction.delete(bookingRef);
       });
 
-      // Send cancellation email after successful transaction
-      if (bookingDataForEmail) {
-        const {sendCancellationConfirmation} = await import("./confirmationEmails");
-        await sendCancellationConfirmation(bookingId, bookingDataForEmail);
-      }
-
       functions.logger.info(
         `Admin ${adminUid} (${role}) cancelled booking ${bookingId} for client ${clientId} in org ${orgId}`
       );
@@ -1295,177 +831,6 @@ export const adminCancelLesson = functions.https.onCall(
       throw new functions.https.HttpsError(
         "internal",
         "An unexpected error occurred while cancelling the lesson.",
-        (error as Error).message
-      );
-    }
-  }
-);
-
-/**
- * Reschedule a booked lesson
- */
-interface RescheduleLessonData {
-  bookingId: string;
-  newSlotId: string;
-  newTrainerId: string;
-  newStartTime: string; // ISO string
-  newEndTime?: string; // ISO string
-  newLocation?: string;
-  newNotes?: string;
-}
-
-export const rescheduleLesson = functions.https.onCall(
-  async (request: functions.https.CallableRequest<RescheduleLessonData>) => {
-    if (!request.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "You must be signed in to reschedule a lesson."
-      );
-    }
-    const userId = request.auth.uid;
-    const {bookingId, newSlotId, newTrainerId, newStartTime, newEndTime, newLocation, newNotes} = request.data;
-
-    if (!bookingId || !newSlotId || !newTrainerId || !newStartTime) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Missing required fields: bookingId, newSlotId, newTrainerId, newStartTime"
-      );
-    }
-
-    try {
-      const bookingRef = db.collection("bookings").doc(bookingId);
-      let oldBookingData: any = null;
-      let newBookingData: any = null;
-
-      await db.runTransaction(async (transaction) => {
-        const bookingDoc = await transaction.get(bookingRef);
-
-        if (!bookingDoc.exists) {
-          throw new functions.https.HttpsError(
-            "not-found",
-            "Booking not found."
-          );
-        }
-
-        const bookingData = bookingDoc.data();
-        if (!bookingData) {
-          throw new functions.https.HttpsError(
-            "internal",
-            "Booking data is missing."
-          );
-        }
-
-        // Store old booking data for email
-        oldBookingData = {
-          startTime: bookingData.startTime,
-          endTime: bookingData.endTime,
-        };
-
-        // Verify user owns this booking
-        if (bookingData.clientUID !== userId) {
-          throw new functions.https.HttpsError(
-            "permission-denied",
-            "You can only reschedule your own bookings."
-          );
-        }
-
-        // Check if new slot is available
-        const newSlotRef = db
-          .collection("trainers")
-          .doc(newTrainerId)
-          .collection("schedules")
-          .doc(newSlotId);
-
-        const newSlotDoc = await transaction.get(newSlotRef);
-        if (!newSlotDoc.exists) {
-          throw new functions.https.HttpsError(
-            "not-found",
-            "New time slot not found."
-          );
-        }
-
-        const newSlotData = newSlotDoc.data();
-        if (newSlotData?.status !== "open") {
-          throw new functions.https.HttpsError(
-            "failed-precondition",
-            "The selected time slot is not available."
-          );
-        }
-
-        // Free up the old slot
-        if (bookingData.trainerId && bookingData.slotId) {
-          const oldSlotRef = db
-            .collection("trainers")
-            .doc(bookingData.trainerId)
-            .collection("schedules")
-            .doc(bookingData.slotId);
-
-          const oldSlotDoc = await transaction.get(oldSlotRef);
-          if (oldSlotDoc.exists) {
-            transaction.update(oldSlotRef, {
-              status: "open",
-              clientId: null,
-              clientName: null,
-              bookedAt: null,
-            });
-          }
-        }
-
-        // Book the new slot
-        const clientDoc = await transaction.get(db.collection("users").doc(userId));
-        const clientData = clientDoc.data();
-        const clientName = clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() : "Client";
-
-        transaction.update(newSlotRef, {
-          status: "booked",
-          clientId: userId,
-          clientName: clientName,
-          bookedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        // Update the booking with new details
-        const updateData: any = {
-          trainerId: newTrainerId,
-          slotId: newSlotId,
-          startTime: admin.firestore.Timestamp.fromDate(new Date(newStartTime)),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-
-        if (newEndTime) {
-          updateData.endTime = admin.firestore.Timestamp.fromDate(new Date(newEndTime));
-        }
-        if (newLocation !== undefined) {
-          updateData.location = newLocation;
-        }
-        if (newNotes !== undefined) {
-          updateData.notes = newNotes;
-        }
-
-        transaction.update(bookingRef, updateData);
-
-        // Store new booking data for email
-        newBookingData = {
-          ...bookingData,
-          ...updateData,
-        };
-      });
-
-      // Send reschedule confirmation email
-      if (oldBookingData && newBookingData) {
-        const {sendRescheduleConfirmation} = await import("./confirmationEmails");
-        await sendRescheduleConfirmation(bookingId, oldBookingData, newBookingData);
-      }
-
-      functions.logger.info(`User ${userId} rescheduled booking ${bookingId}`);
-      return {message: "Lesson rescheduled successfully!"};
-    } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      functions.logger.error("Error rescheduling lesson:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        "An unexpected error occurred while rescheduling the lesson.",
         (error as Error).message
       );
     }
@@ -1507,30 +872,14 @@ export const cancelClassRegistration = functions.https.onCall(
         const classDoc = await transaction.get(classRef);
         const participantDoc = await transaction.get(participantRef);
 
-        functions.logger.info(
-          `📋 cancelClassRegistration: classId=${classId}, userId=${userId}, ` +
-          `classExists=${classDoc.exists}, participantExists=${participantDoc.exists}`
-        );
-
-        // If class doesn't exist (was deleted by admin), we still consider it a successful unregister
-        // The client just wants to remove it from their schedule
         if (!classDoc.exists) {
-          functions.logger.info(
-            `Class ${classId} no longer exists (likely deleted by admin). User ${userId} unregister successful.`
+          throw new functions.https.HttpsError(
+            "not-found",
+            "Class not found."
           );
-          // If there's still a participant doc somehow, delete it
-          if (participantDoc.exists) {
-            transaction.delete(participantDoc.ref);
-            functions.logger.info(`Deleted orphaned participant doc for user ${userId} in class ${classId}`);
-          }
-          return; // Exit transaction early - nothing else to do
         }
 
         if (!participantDoc.exists) {
-          functions.logger.error(
-            `User ${userId} tried to cancel class ${classId} but is not registered. ` +
-            `Class exists but participant doc missing.`
-          );
           throw new functions.https.HttpsError(
             "not-found",
             "You are not registered for this class."
@@ -1546,37 +895,17 @@ export const cancelClassRegistration = functions.https.onCall(
         }
 
         // Get the class pass package and decrement lessonsUsed
-        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
-        const userDocRef = db.collection("users").doc(userId);
-        const userDoc = await transaction.get(userDocRef);
-        const orgId = userDoc.data()?.orgId;
-
-        let classPassRef: admin.firestore.DocumentReference;
-        if (orgId) {
-          classPassRef = db
-            .collection("organizations")
-            .doc(orgId)
-            .collection("users")
-            .doc(userId)
-            .collection("packages")
-            .doc(participantData.classPassPackageId);
-        } else {
-          // Fallback to OLD path
-          classPassRef = db
-            .collection("users")
-            .doc(userId)
-            .collection("lessonPackages")
-            .doc(participantData.classPassPackageId);
-        }
+        const classPassRef = db
+          .collection("users")
+          .doc(userId)
+          .collection("lessonPackages")
+          .doc(participantData.classPassPackageId);
 
         const classPassDoc = await transaction.get(classPassRef);
         if (classPassDoc.exists) {
           transaction.update(classPassRef, {
             lessonsUsed: admin.firestore.FieldValue.increment(-1),
           });
-          functions.logger.info(
-            `Refunded 1 class credit to user ${userId} from package ${participantData.classPassPackageId}`
-          );
         }
 
         // Decrement class participants count

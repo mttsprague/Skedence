@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { NotificationsSubmenu } from '@/components/notifications-submenu';
-import { getAuth } from 'firebase/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
@@ -29,34 +29,16 @@ const defaultSettings: EmailNotificationSettings = {
 };
 
 export default function ClientEmailsPage() {
+  const { orgId } = useAuth();
   const [settings, setSettings] = useState<EmailNotificationSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [orgId, setOrgId] = useState<string | null>(null);
 
   useEffect(() => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    
-    if (user) {
-      const fetchOrgId = async () => {
-        try {
-          const orgMemberDoc = await getDoc(doc(db, 'orgMembers', user.uid));
-          if (orgMemberDoc.exists()) {
-            const fetchedOrgId = orgMemberDoc.data().orgId;
-            setOrgId(fetchedOrgId);
-            await loadSettings(fetchedOrgId);
-          }
-        } catch (error) {
-          console.error('Error fetching org ID:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      fetchOrgId();
+    if (orgId) {
+      loadSettings(orgId);
     }
-  }, []);
+  }, [orgId]);
 
   const loadSettings = async (organizationId: string) => {
     try {
@@ -67,6 +49,8 @@ export default function ClientEmailsPage() {
       }
     } catch (error) {
       console.error('Error loading email settings:', error);
+    } finally {
+      setLoading(false);
     }
   };
 

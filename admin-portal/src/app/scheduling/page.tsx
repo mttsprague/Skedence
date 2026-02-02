@@ -7,8 +7,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format, startOfWeek, endOfWeek, addDays, isSameDay } from 'date-fns';
-import { Users, Clock, GraduationCap, Plus, X } from 'lucide-react';
+import { Users, Clock, GraduationCap, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BookLessonModal, CreateAvailabilityModal } from '@/components/scheduling-modals';
+import { startOfDay, endOfDay, addWeeks } from 'date-fns';
 
 interface Trainer {
   id: string;
@@ -18,14 +20,17 @@ interface Trainer {
 
 interface ScheduleItem {
   id: string;
-  type: 'lesson' | 'class';
+  type: 'lesson' | 'class' | 'shift';
   startTime: Date;
   endTime: Date;
   trainerName: string;
+  trainerId?: string;
   clientName?: string;
   className?: string;
   studentsCount?: number;
-  participants?: string[]; // Names of class participants
+  participants?: string[];
+  location?: string;
+  status?: string; // For shifts: 'open', 'unavailable'
   // Booking details
   clientEmail?: string;
   clientPhone?: string;
@@ -57,6 +62,25 @@ export default function SchedulingPage() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
+  const [viewMode, setViewMode] = useState<'day' | 'week'>('week');
+  
+  // Modal states
+  const [showBookLessonModal, setShowBookLessonModal] = useState(false);
+  const [showCreateAvailabilityModal, setShowCreateAvailabilityModal] = useState(false);
+  const [modalSlotDate, setModalSlotDate] = useState<Date>(new Date());
+  const [modalSlotHour, setModalSlotHour] = useState<number>(9);
+  const [modalSlotId, setModalSlotId] = useState<string>(''); // Actual slot document ID
+  const [modalTrainerId, setModalTrainerId] = useState<string>('');
+  const [modalTrainerName, setModalTrainerName] = useState<string>('');
+
+  // Update view mode based on trainer selection
+  useEffect(() => {
+    if (selectedTrainer === 'all') {
+      setViewMode('day');
+    } else {
+      setViewMode('week');
+    }
+  }, [selectedTrainer]);
 
   // Update week when date changes
   useEffect(() => {
@@ -97,12 +121,18 @@ export default function SchedulingPage() {
       try {
         const items: ScheduleItem[] = [];
         
-        // Set date range for the entire week
-        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
-        const startDate = new Date(weekStart);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(weekEnd);
-        endDate.setHours(23, 59, 59, 999);
+        // Set date range based on view mode
+        let startDate: Date, endDate: Date;
+        if (viewMode === 'day') {
+          startDate = startOfDay(selectedDate);
+          endDate = endOfDay(selectedDate);
+        } else {
+          const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+          startDate = new Date(weekStart);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(weekEnd);
+          endDate.setHours(23, 59, 59, 999);
+        }
 
         // Load lessons (bookings) - from root bookings collection
         const bookingsRef = collection(db, 'bookings');
@@ -241,6 +271,44 @@ export default function SchedulingPage() {
           });
         }
 
+        // Load recurring shifts/availability - from trainers/{trainerId}/schedules
+        const trainersRef = collection(db, 'trainers');
+        const trainersQuery = query(trainersRef, where('orgId', '==', orgId));
+        const trainersSnapshot = await getDocs(trainersQuery);
+        
+        for (const trainerDocSnap of trainersSnapshot.docs) {
+          const trainerData = trainerDocSnap.data();
+          const trainerFullName = `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim() || 'Unknown Trainer';
+          
+          // Query schedules subcollection for this trainer
+          const schedulesRef = collection(db, 'trainers', trainerDocSnap.id, 'schedules');
+          const schedulesQuery = query(
+            schedulesRef,
+            where('startTime', '>=', startDate),
+            where('startTime', '<=', endDate)
+          );
+          
+          const schedulesSnapshot = await getDocs(schedulesQuery);
+          
+          for (const scheduleDoc of schedulesSnapshot.docs) {
+            const scheduleData = scheduleDoc.data();
+            
+            // Include both "open" and "unavailable" shifts
+            if (scheduleData.status === 'open' || scheduleData.status === 'unavailable') {
+              items.push({
+                id: scheduleDoc.id,
+                type: 'shift',
+                startTime: scheduleData.startTime.toDate(),
+                endTime: scheduleData.endTime.toDate(),
+                trainerName: trainerFullName,
+                trainerId: trainerDocSnap.id,
+                location: scheduleData.location,
+                status: scheduleData.status,
+              });
+            }
+          }
+        }
+
         // Sort by start time
         items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
         
@@ -258,7 +326,66 @@ export default function SchedulingPage() {
     };
 
     loadSchedule();
-  }, [orgId, weekStart, selectedTrainer]);
+  }, [orgId, weekStart, selectedDate, selectedTrainer, viewMode]);
+
+  // Navigation functions
+  const goToPreviousDay = () => {
+    setSelectedDate(prev => addDays(prev, -1));
+  };
+
+  const goToNextDay = () => {
+    setSelectedDate(prev => addDays(prev, 1));
+  };
+
+  const goToPreviousWeek = () => {
+    setWeekStart(prev => addWeeks(prev, -1));
+  };
+
+  const goToNextWeek = () => {
+    setWeekStart(prev => addWeeks(prev, 1));
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    setSelectedDate(today);
+    setWeekStart(startOfWeek(today, { weekStartsOn: 0 }));
+  };
+
+  // Reload schedule after modal actions - just re-trigger the useEffect
+  const reloadSchedule = () => {
+    setWeekStart(new Date(weekStart));
+  };
+
+  // Handle empty slot click
+  const handleEmptySlotClick = (day: Date, hour: number) => {
+    // Find trainer if one is selected
+    if (selectedTrainer !== 'all') {
+      const trainer = trainers.find(t => 
+        `${t.firstName} ${t.lastName}` === selectedTrainer
+      );
+      if (trainer) {
+        setModalSlotDate(day);
+        setModalSlotHour(hour);
+        setModalTrainerId(trainer.id);
+        setModalTrainerName(selectedTrainer);
+        setShowCreateAvailabilityModal(true);
+      }
+    }
+  };
+
+  // Handle clicking an available (green) shift to book
+  const handleAvailableShiftClick = (item: ScheduleItem) => {
+    if (item.type === 'shift' && item.status === 'open' && item.trainerId) {
+      setModalSlotDate(item.startTime);
+      setModalSlotHour(item.startTime.getHours());
+      setModalSlotId(item.id); // Pass the actual slot document ID
+      setModalTrainerId(item.trainerId);
+      setModalTrainerName(item.trainerName);
+      setShowBookLessonModal(true);
+    } else {
+      setSelectedItem(item);
+    }
+  };
 
   // Generate week days
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -279,11 +406,66 @@ export default function SchedulingPage() {
           {/* Header */}
           <div className="border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Week of {format(weekStart, 'MMMM d, yyyy')}
-                </h1>
-                <p className="text-sm text-gray-600 mt-1">{scheduleItems.length} appointments</p>
+              <div className="flex items-center gap-4">
+                {viewMode === 'day' ? (
+                  <>
+                    <button
+                      onClick={goToPreviousDay}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Previous Day"
+                    >
+                      <ChevronLeft className="h-5 w-5 text-gray-600" />
+                    </button>
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-900">
+                        {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+                      </h1>
+                      <p className="text-sm text-gray-600 mt-1">{scheduleItems.length} appointments</p>
+                    </div>
+                    <button
+                      onClick={goToNextDay}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Next Day"
+                    >
+                      <ChevronRight className="h-5 w-5 text-gray-600" />
+                    </button>
+                    <button
+                      onClick={goToToday}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Today
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={goToPreviousWeek}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Previous Week"
+                    >
+                      <ChevronLeft className="h-5 w-5 text-gray-600" />
+                    </button>
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-900">
+                        Week of {format(weekStart, 'MMMM d, yyyy')}
+                      </h1>
+                      <p className="text-sm text-gray-600 mt-1">{scheduleItems.length} appointments</p>
+                    </div>
+                    <button
+                      onClick={goToNextWeek}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Next Week"
+                    >
+                      <ChevronRight className="h-5 w-5 text-gray-600" />
+                    </button>
+                    <button
+                      onClick={goToToday}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Today
+                    </button>
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-4">
                 {/* Trainer Filter */}
@@ -312,13 +494,94 @@ export default function SchedulingPage() {
             </div>
           </div>
 
-          {/* Week View Grid */}
+          {/* Calendar Grid */}
           <div className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="w-12 h-12 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
               </div>
+            ) : viewMode === 'day' ? (
+              /* Day View (All Trainers) */
+              <div className="min-w-[600px]">
+                {/* Day Header */}
+                <div className="grid grid-cols-2 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                  <div className="p-3 text-xs font-medium text-gray-500">Time</div>
+                  <div className={cn(
+                    'p-3 text-center border-l border-gray-200',
+                    isSameDay(selectedDate, new Date()) && 'bg-blue-50'
+                  )}>
+                    <div className="text-xs font-medium text-gray-500">
+                      {format(selectedDate, 'EEE')}
+                    </div>
+                    <div className={cn(
+                      'text-2xl font-bold mt-1',
+                      isSameDay(selectedDate, new Date()) ? 'text-blue-600' : 'text-gray-900'
+                    )}>
+                      {format(selectedDate, 'd')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Grid */}
+                <div className="relative">
+                  {timeSlots.map(hour => {
+                    const hourLabel = hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? '12:00 PM' : `${hour}:00 AM`;
+                    const dayItems = getItemsForDay(selectedDate).filter(item => 
+                      item.startTime.getHours() === hour
+                    );
+                    
+                    return (
+                      <div key={hour} className="grid grid-cols-2 border-b border-gray-200">
+                        <div className="p-3 text-xs text-gray-500 font-medium border-r border-gray-200">
+                          {hourLabel}
+                        </div>
+                        <div
+                          className="min-h-[60px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer"
+                          onClick={() => dayItems.length === 0 && handleEmptySlotClick(selectedDate, hour)}
+                        >
+                          {dayItems.map(item => (
+                            <button
+                              key={item.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (item.type === 'shift' && item.status === 'open') {
+                                  handleAvailableShiftClick(item);
+                                } else {
+                                  setSelectedItem(item);
+                                }
+                              }}
+                              className={cn(
+                                'w-full text-left text-xs p-2 rounded mb-1 transition-all hover:shadow-md',
+                                item.type === 'class' && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
+                                item.type === 'lesson' && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
+                                item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
+                                item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
+                              )}
+                            >
+                              <div className="font-semibold truncate">
+                                {format(item.startTime, 'h:mm a')}
+                              </div>
+                              <div className="truncate text-gray-700">
+                                {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
+                              </div>
+                              <div className="text-gray-500 truncate">
+                                {item.trainerName}
+                              </div>
+                              {item.location && (
+                                <div className="text-gray-400 text-[10px] truncate">
+                                  {item.location}
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             ) : (
+              /* Week View (Individual Trainer) */
               <div className="min-w-[900px]">
                 {/* Week Days Header */}
                 <div className="grid grid-cols-8 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
@@ -362,28 +625,42 @@ export default function SchedulingPage() {
                           return (
                             <div
                               key={`${day.toISOString()}-${hour}`}
-                              className="min-h-[60px] p-1 border-l border-gray-200 hover:bg-gray-50 relative"
+                              className="min-h-[60px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer"
+                              onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
                             >
                               {dayItems.map(item => (
                                 <button
                                   key={item.id}
-                                  onClick={() => setSelectedItem(item)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (item.type === 'shift' && item.status === 'open') {
+                                      handleAvailableShiftClick(item);
+                                    } else {
+                                      setSelectedItem(item);
+                                    }
+                                  }}
                                   className={cn(
                                     'w-full text-left text-xs p-2 rounded mb-1 transition-all hover:shadow-md',
-                                    item.type === 'class' 
-                                      ? 'bg-purple-100 border border-purple-300 hover:bg-purple-200' 
-                                      : 'bg-blue-100 border border-blue-300 hover:bg-blue-200'
+                                    item.type === 'class' && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
+                                    item.type === 'lesson' && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
+                                    item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
+                                    item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
                                   )}
                                 >
                                   <div className="font-semibold truncate">
                                     {format(item.startTime, 'h:mm a')}
                                   </div>
                                   <div className="truncate text-gray-700">
-                                    {item.type === 'class' ? item.className : item.clientName}
+                                    {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
                                   </div>
                                   <div className="text-gray-500 truncate">
                                     {item.trainerName}
                                   </div>
+                                  {item.location && (
+                                    <div className="text-gray-400 text-[10px] truncate">
+                                      {item.location}
+                                    </div>
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -611,6 +888,30 @@ export default function SchedulingPage() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <BookLessonModal
+        isOpen={showBookLessonModal}
+        onClose={() => setShowBookLessonModal(false)}
+        slotDate={modalSlotDate}
+        slotHour={modalSlotHour}
+        slotId={modalSlotId}
+        trainerId={modalTrainerId}
+        trainerName={modalTrainerName}
+        orgId={orgId || undefined}
+        onSuccess={reloadSchedule}
+      />
+      
+      <CreateAvailabilityModal
+        isOpen={showCreateAvailabilityModal}
+        onClose={() => setShowCreateAvailabilityModal(false)}
+        slotDate={modalSlotDate}
+        slotHour={modalSlotHour}
+        trainerId={modalTrainerId}
+        trainerName={modalTrainerName}
+        orgId={orgId || undefined}
+        onSuccess={reloadSchedule}
+      />
     </SchedulingSubmenu>
   );
 }

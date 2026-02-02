@@ -6,13 +6,14 @@ import { usePathname } from 'next/navigation';
 import { 
   Bell,
   Mail,
+  BellRing,
   ArrowLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const submenuItems = [
-  { name: 'Notifications', href: '/settings/notifications', icon: Bell },
   { name: 'Client Emails', href: '/settings/client-emails', icon: Mail },
+  { name: 'Booking Alerts', href: '/settings/notifications/booking-alerts', icon: BellRing },
 ];
 
 interface NotificationsSubmenuProps {
