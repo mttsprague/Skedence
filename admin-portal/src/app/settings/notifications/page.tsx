@@ -1,11 +1,11 @@
 'use client';
 
-import { BusinessSettingsSubmenu } from '@/components/business-settings-submenu';
+import { NotificationsSubmenu } from '@/components/notifications-submenu';
 import { Bell, BellOff } from 'lucide-react';
 
 export default function NotificationsPage() {
   return (
-    <BusinessSettingsSubmenu>
+    <NotificationsSubmenu>
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
         <div className="text-center max-w-md mx-auto">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
@@ -27,6 +27,6 @@ export default function NotificationsPage() {
           </div>
         </div>
       </div>
-    </BusinessSettingsSubmenu>
+    </NotificationsSubmenu>
   );
 }

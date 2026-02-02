@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BusinessSettingsSubmenu } from '@/components/business-settings-submenu';
+import { NotificationsSubmenu } from '@/components/notifications-submenu';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -94,16 +94,16 @@ export default function ClientEmailsPage() {
 
   if (loading) {
     return (
-      <BusinessSettingsSubmenu>
+      <NotificationsSubmenu>
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
-      </BusinessSettingsSubmenu>
+      </NotificationsSubmenu>
     );
   }
 
   return (
-    <BusinessSettingsSubmenu>
+    <NotificationsSubmenu>
       <div className="max-w-4xl">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Client Emails</h1>
@@ -169,7 +169,7 @@ export default function ClientEmailsPage() {
           </div>
         </div>
       </div>
-    </BusinessSettingsSubmenu>
+    </NotificationsSubmenu>
   );
 }
 

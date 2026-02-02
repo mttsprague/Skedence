@@ -4,41 +4,36 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  Settings,
-  CreditCard,
   Bell,
-  FileText,
+  Mail,
   ArrowLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const submenuItems = [
-  { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Waiver', href: '/waiver', icon: FileText },
-  { name: 'Intake Forms', href: '/settings/intake-forms', icon: FileText },
-  { name: 'Stripe Settings', href: '/settings/stripe', icon: CreditCard },
   { name: 'Notifications', href: '/settings/notifications', icon: Bell },
+  { name: 'Client Emails', href: '/settings/client-emails', icon: Mail },
 ];
 
-interface BusinessSettingsSubmenuProps {
+interface NotificationsSubmenuProps {
   children: ReactNode;
 }
 
-export function BusinessSettingsSubmenu({ children }: BusinessSettingsSubmenuProps) {
+export function NotificationsSubmenu({ children }: NotificationsSubmenuProps) {
   const pathname = usePathname();
 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Left Sidebar */}
       <div className="w-64 bg-[#3258A3] text-white border-r border-white/10 flex flex-col overflow-y-auto">
-        {/* Back to Activity Feed */}
+        {/* Back to Business Settings */}
         <div className="p-4 border-b border-white/10">
           <Link
-            href="/activity"
+            href="/settings"
             className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Activity Feed</span>
+            <span>Back to Business Settings</span>
           </Link>
         </div>
 
