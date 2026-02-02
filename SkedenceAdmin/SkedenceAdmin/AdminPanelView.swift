@@ -1335,6 +1335,19 @@ extension AdminPanelView {
                 editingTiers = [PricingTier(tierName: "", packages: [])]
             }
         }
+        .onChange(of: tabSelection) { newValue in
+            if newValue == .pricingStructure {
+                Task {
+                    guard let orgId = auth.currentOrgId else { return }
+                    await pricingService.loadPricingStructure(for: orgId)
+                    if let structure = pricingService.pricingStructure {
+                        editingTiers = structure.tiers
+                    } else {
+                        editingTiers = [PricingTier(tierName: "", packages: [])]
+                    }
+                }
+            }
+        }
     }
     
     private var tiersEditor: some View {
