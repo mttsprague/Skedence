@@ -7,13 +7,20 @@ import { Card, CardContent } from '@/components/ui/card';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
-import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X } from 'lucide-react';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { logTrainerCreated } from '@/lib/activity-logger';
+import { useAuth as useAuthHook } from '@/hooks/useAuth';
 
 export default function TrainersPage() {
-  const { orgId } = useAuth();
+  const { orgId, user, userData } = useAuthHook();
   const [trainers, setTrainers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTrainer, setNewTrainer] = useState({ firstName: '', lastName: '', email: '' });
+  const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
@@ -59,13 +66,118 @@ export default function TrainersPage() {
     return fullName.includes(search) || email.includes(search);
   });
 
+  const handleAddTrainer = async () => {
+    if (!orgId || !newTrainer.firstName || !newTrainer.lastName || !newTrainer.email) {
+      setAddError('Please fill in all fields');
+      return;
+    }
+
+    setIsAdding(true);
+    setAddError(null);
+
+    try {
+      // Generate a unique ID for this trainer
+      const trainerRef = doc(collection(db, 'trainers'));
+      const trainerId = trainerRef.id;
+      const userId = trainerId; // Trainers use their trainerId as userId
+
+      // Generate secure setup token (valid for 7 days)
+      const setupToken = crypto.randomUUID();
+      const setupTokenExpiry = new Date();
+      setupTokenExpiry.setDate(setupTokenExpiry.getDate() + 7);
+
+      // Create trainer document (matches iOS app structure)
+      const trainerData = {
+        firstName: newTrainer.firstName,
+        lastName: newTrainer.lastName,
+        email: newTrainer.email,
+        orgId: orgId,
+        emailAddress: newTrainer.email,
+        needsPasswordSetup: true,
+        setupToken: setupToken,
+        setupTokenExpiry: Timestamp.fromDate(setupTokenExpiry),
+        active: true,
+        createdAt: Timestamp.now(),
+      };
+
+      await setDoc(trainerRef, trainerData);
+      console.log('✅ Created trainer:', trainerId);
+
+      // Create orgMembers entry
+      const memberData = {
+        userId: userId,
+        orgId: orgId,
+        role: 'trainer',
+        isActive: true,
+        joinedAt: Timestamp.now(),
+      };
+
+      await setDoc(doc(db, 'orgMembers', `${userId}_${orgId}`), memberData);
+      console.log('✅ Created orgMember for trainer:', userId);
+
+      // Log activity
+      if (user && userData) {
+        await logTrainerCreated({
+          orgId: orgId,
+          actorId: user.uid,
+          actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+          actorRole: 'owner', // Assuming only owner/admin can add trainers
+          trainerId: trainerId,
+          trainerName: `${newTrainer.firstName} ${newTrainer.lastName}`,
+          trainerEmail: newTrainer.email,
+        });
+      }
+
+      // The trainer will receive an invitation email via Cloud Function
+      console.log('📧 New trainer created. They will receive invitation email at:', newTrainer.email);
+
+      // Refresh trainers list
+      const trainersQuery = query(
+        collection(db, 'trainers'),
+        where('orgId', '==', orgId)
+      );
+      const snapshot = await getDocs(trainersQuery);
+      const trainersData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          email: data.email || data.emailAddress || '',
+          phone: data.phoneNumber || data.phone || '',
+          role: data.role || 'trainer',
+          isActive: data.active !== false,
+        };
+      }) as User[];
+      setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
+
+      // Close modal and reset form
+      setShowAddModal(false);
+      setNewTrainer({ firstName: '', lastName: '', email: '' });
+    } catch (error) {
+      console.error('❌ Error adding trainer:', error);
+      setAddError('Failed to add trainer. Please try again.');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   return (
     <SchedulingSubmenu>
       <div className="p-6 lg:p-8">
         <div className="space-y-4 sm:space-y-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Trainers</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage trainers and view their schedules</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Trainers</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage trainers and view their schedules</p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#274785] transition-colors font-medium"
+          >
+            <Plus className="h-4 w-4" />
+            Add Trainer
+          </button>
         </div>
 
         {/* Search Bar */}
@@ -160,6 +272,93 @@ export default function TrainersPage() {
         </div>
         </div>
       </div>
+
+      {/* Add Trainer Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-900">Add New Trainer</h2>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setNewTrainer({ firstName: '', lastName: '', email: '' });
+                  setAddError(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={newTrainer.firstName}
+                  onChange={(e) => setNewTrainer({ ...newTrainer, firstName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  placeholder="John"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={newTrainer.lastName}
+                  onChange={(e) => setNewTrainer({ ...newTrainer, lastName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  placeholder="Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={newTrainer.email}
+                  onChange={(e) => setNewTrainer({ ...newTrainer, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  placeholder="john@example.com"
+                />
+              </div>
+              {addError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                  {addError}
+                </div>
+              )}
+              <div className="text-xs text-gray-500">
+                The trainer will receive an email with instructions to set up their password and access the app.
+              </div>
+            </div>
+            <div className="flex gap-3 p-6 border-t bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setNewTrainer({ firstName: '', lastName: '', email: '' });
+                  setAddError(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                disabled={isAdding}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddTrainer}
+                disabled={isAdding || !newTrainer.firstName || !newTrainer.lastName || !newTrainer.email}
+                className="flex-1 px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#274785] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAdding ? 'Adding...' : 'Add Trainer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </SchedulingSubmenu>
   );
 }

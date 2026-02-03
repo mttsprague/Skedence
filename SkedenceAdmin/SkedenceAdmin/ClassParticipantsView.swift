@@ -167,16 +167,28 @@ struct ClassParticipant: Identifiable, Codable {
     let userId: String
     let firstName: String
     let lastName: String
+    let athleteName: String?  // The specific athlete's name
     let registeredAt: Date
     
     var fullName: String {
-        "\(firstName) \(lastName)"
+        // Use athlete name if available, otherwise fall back to parent name
+        if let athleteName = athleteName, !athleteName.isEmpty {
+            return athleteName
+        }
+        return "\(firstName) \(lastName)"
     }
     
     var initials: String {
-        let first = firstName.prefix(1).uppercased()
-        let last = lastName.prefix(1).uppercased()
-        return "\(first)\(last)"
+        let name = fullName
+        let components = name.split(separator: " ")
+        if components.count >= 2 {
+            let first = String(components[0].prefix(1)).uppercased()
+            let last = String(components[1].prefix(1)).uppercased()
+            return "\(first)\(last)"
+        } else if let first = components.first {
+            return String(first.prefix(2)).uppercased()
+        }
+        return "?"
     }
 }
 

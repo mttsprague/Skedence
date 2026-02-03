@@ -539,6 +539,30 @@ struct PurchaseLessonsView: View {
                 method: "stripe_saved_card"
             )
             
+            // Log activity
+            if let user = Auth.auth().currentUser,
+               let orgId = auth.currentOrgId {
+                Task {
+                    try? await ActivityLogger.shared.log(
+                        type: .passPurchased,
+                        actorId: user.uid,
+                        actorName: user.displayName ?? "Client",
+                        actorRole: .client,
+                        targetId: result.paymentIntentId,
+                        targetName: selectedPackage.title,
+                        targetType: "pass",
+                        description: "\(user.displayName ?? "Client") purchased \(selectedPackage.title) (\(selectedPackage.totalLessons) sessions) for $\(String(format: "%.2f", Double(selectedPackage.priceInCents) / 100.0))",
+                        metadata: [
+                            "passId": result.paymentIntentId,
+                            "passType": selectedPackage.packageType,
+                            "sessionsCount": selectedPackage.totalLessons,
+                            "amountPaid": selectedPackage.priceInCents
+                        ],
+                        orgId: orgId
+                    )
+                }
+            }
+            
             // Reload packages
             await packagesService.loadMyPackages()
             
@@ -584,6 +608,30 @@ struct PurchaseLessonsView: View {
                         price: Double(selectedPackage.priceInCents) / 100.0,
                         method: "stripe"
                     )
+                    
+                    // Log activity
+                    if let user = Auth.auth().currentUser,
+                       let orgId = auth.currentOrgId {
+                        Task {
+                            try? await ActivityLogger.shared.log(
+                                type: .passPurchased,
+                                actorId: user.uid,
+                                actorName: user.displayName ?? "Client",
+                                actorRole: .client,
+                                targetId: paymentIntentId,
+                                targetName: selectedPackage.title,
+                                targetType: "pass",
+                                description: "\(user.displayName ?? "Client") purchased \(selectedPackage.title) (\(selectedPackage.totalLessons) sessions) for $\(String(format: "%.2f", Double(selectedPackage.priceInCents) / 100.0))",
+                                metadata: [
+                                    "passId": paymentIntentId,
+                                    "passType": selectedPackage.packageType,
+                                    "sessionsCount": selectedPackage.totalLessons,
+                                    "amountPaid": selectedPackage.priceInCents
+                                ],
+                                orgId: orgId
+                            )
+                        }
+                    }
                     
                     // Reload packages to show the new one
                     print("📦 Reloading packages...")

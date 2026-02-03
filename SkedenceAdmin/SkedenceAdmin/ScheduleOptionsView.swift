@@ -151,8 +151,9 @@ struct ScheduleOptionsView: View {
         defer { isLoading = false }
         do {
             let list = try await FirestoreService.shared.fetchAllTrainers(orgId: orgId)
-            // Optionally sort alphabetically
-            self.trainers = list.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+            // Filter to only show active trainers and sort alphabetically
+            let activeTrainers = list.filter { $0.active }
+            self.trainers = activeTrainers.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
             self.errorMessage = nil
         } catch {
             self.trainers = []

@@ -402,10 +402,27 @@ final class AuthManager: ObservableObject {
             
             // Load user profile data (firstName, lastName)
             if let uid = userId, !uid.isEmpty {
-                let userDoc = try await db.collection("users").document(uid).getDocument()
-                if let userData = userDoc.data() {
-                    userFirstName = userData["firstName"] as? String
-                    userLastName = userData["lastName"] as? String
+                // For trainers, load from trainers collection
+                // For admins/owners, try trainers first, then fall back to users
+                var userData: [String: Any]?
+                
+                // Try trainers collection first (most common case)
+                let trainerDoc = try await db.collection("trainers").document(uid).getDocument()
+                if trainerDoc.exists {
+                    userData = trainerDoc.data()
+                    print("AuthManager: Loaded name from trainers collection")
+                } else {
+                    // Fall back to users collection for admins/owners
+                    let userDoc = try await db.collection("users").document(uid).getDocument()
+                    if userDoc.exists {
+                        userData = userDoc.data()
+                        print("AuthManager: Loaded name from users collection")
+                    }
+                }
+                
+                if let data = userData {
+                    userFirstName = data["firstName"] as? String
+                    userLastName = data["lastName"] as? String
                     print("AuthManager: Loaded user name: \(userFirstName ?? "") \(userLastName ?? "")")
                 }
             }

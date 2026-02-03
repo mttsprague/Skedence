@@ -237,6 +237,24 @@ struct AvailabilityEditorSheet: View {
             }
             
             Section {
+                // Location picker
+                Picker("Location", selection: $selectedLocation) {
+                    Text("Select Location").tag(nil as Location?)
+                    ForEach(locationsService.locations) { location in
+                        Text(location.name).tag(location as Location?)
+                    }
+                }
+            } header: {
+                Text("Lesson Location")
+            } footer: {
+                if selectedLocation == nil {
+                    Text("⚠️ Location is required")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            }
+            
+            Section {
                 // Package selector - show individual packages like client app
                 if selectedClientId != nil {
                     if isLoadingPackages {
@@ -460,6 +478,7 @@ struct AvailabilityEditorSheet: View {
               let packageId = selectedPackageId,
               !clientId.isEmpty,
               !packageId.isEmpty,
+              selectedLocation != nil,  // Location is required
               singleEnd > singleStart,
               !isBooking else {
             return false
@@ -521,11 +540,17 @@ struct AvailabilityEditorSheet: View {
             return
         }
         
+        guard selectedLocation != nil else {
+            bookingError = "Please select a location"
+            return
+        }
+        
         print("📝 AvailabilityEditorSheet: Starting booking...")
         print("   - clientId: \(clientId)")
         print("   - packageId: \(packageId)")
         print("   - startTime: \(singleStart)")
         print("   - endTime: \(singleEnd)")
+        print("   - location: \(selectedLocation?.name ?? "nil")")
         
         isBooking = true
         bookingError = nil

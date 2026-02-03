@@ -159,6 +159,28 @@ final class AuthManager: ObservableObject {
             // Load orgId from orgMembers collection
             await loadOrgId(for: uid)
             
+            // Log activity
+            if let orgId = orgId {
+                Task {
+                    try? await ActivityLogger.shared.log(
+                        type: .clientRegistered,
+                        actorId: uid,
+                        actorName: "\(firstName ?? "") \(lastName ?? "")".trimmingCharacters(in: .whitespaces),
+                        actorRole: .client,
+                        targetId: uid,
+                        targetName: "\(firstName ?? "") \(lastName ?? "")".trimmingCharacters(in: .whitespaces),
+                        targetType: "user",
+                        description: "\(firstName ?? "") \(lastName ?? "") registered as a new client",
+                        metadata: [
+                            "email": email,
+                            "phoneNumber": phoneNumber ?? "",
+                            "referenceCode": referenceCode
+                        ],
+                        orgId: orgId
+                    )
+                }
+            }
+            
             authError = nil
             print("AuthManager.register → setData succeeded for uid=\(uid)")
             return true

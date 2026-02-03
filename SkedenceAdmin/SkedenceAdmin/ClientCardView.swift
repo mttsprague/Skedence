@@ -898,11 +898,47 @@ struct ClientCardView: View {
         cancelError = nil
         
         do {
+            // Fetch booking details before cancelling
+            let bookingDoc = try await Firestore.firestore().collection("bookings").document(bookingId).getDocument()
+            let bookingData = bookingDoc.data()
+            
             try await FunctionsService.shared.adminCancelLesson(
                 bookingId: bookingId,
                 orgId: orgId,
                 clientId: client.id
             )
+            
+            // Log activity
+            if let user = Auth.auth().currentUser,
+               let bookingData = bookingData,
+               let startTime = (bookingData["startTime"] as? Timestamp)?.dateValue(),
+               let trainerId = bookingData["trainerId"] as? String {
+                
+                Task {
+                    // Fetch trainer name
+                    let trainerDoc = try? await Firestore.firestore().collection("trainers").document(trainerId).getDocument()
+                    let trainerName = (trainerDoc?.data()?["firstName"] as? String) ?? "Trainer"
+                    
+                    try? await ActivityLogger.shared.log(
+                        type: .lessonCanceled,
+                        actorId: user.uid,
+                        actorName: user.displayName ?? "Admin",
+                        actorRole: .admin,
+                        targetId: bookingId,
+                        targetName: "Lesson with \(trainerName)",
+                        targetType: "booking",
+                        description: "\(user.displayName ?? "Admin") canceled lesson for \(client.firstName ?? "Client") with \(trainerName) scheduled for \(ActivityLogger.formatDateTime(startTime))",
+                        metadata: [
+                            "bookingId": bookingId,
+                            "clientId": client.id,
+                            "trainerId": trainerId,
+                            "startTime": startTime.ISO8601Format(),
+                            "canceledBy": "admin"
+                        ],
+                        orgId: orgId
+                    )
+                }
+            }
             
             // Reload the client data after successful cancellation
             await viewModel.loadClientData(

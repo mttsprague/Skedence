@@ -63,6 +63,7 @@ export default function SchedulingPage() {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
   const [viewMode, setViewMode] = useState<'day' | 'week'>('week');
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   
   // Modal states
   const [showBookLessonModal, setShowBookLessonModal] = useState(false);
@@ -72,6 +73,15 @@ export default function SchedulingPage() {
   const [modalSlotId, setModalSlotId] = useState<string>(''); // Actual slot document ID
   const [modalTrainerId, setModalTrainerId] = useState<string>('');
   const [modalTrainerName, setModalTrainerName] = useState<string>('');
+
+  // Update current time every minute for timeline
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Update view mode based on trainer selection
   useEffect(() => {
@@ -293,8 +303,9 @@ export default function SchedulingPage() {
           for (const scheduleDoc of schedulesSnapshot.docs) {
             const scheduleData = scheduleDoc.data();
             
-            // Include both "open" and "unavailable" shifts
-            if (scheduleData.status === 'open' || scheduleData.status === 'unavailable') {
+            // Include both "open" and "unavailable" shifts - check for isBooked false or status field
+            const isAvailable = scheduleData.isBooked === false || scheduleData.status === 'open' || scheduleData.status === 'unavailable';
+            if (isAvailable) {
               items.push({
                 id: scheduleDoc.id,
                 type: 'shift',
@@ -397,6 +408,29 @@ export default function SchedulingPage() {
 
   // Time slots (6 AM to 10 PM)
   const timeSlots = Array.from({ length: 17 }, (_, i) => i + 6);
+
+  // Calculate timeline position (percentage from top of schedule)
+  const calculateTimelinePosition = () => {
+    const hours = currentTime.getHours();
+    const minutes = currentTime.getMinutes();
+    
+    // Schedule starts at 6 AM (hour 6)
+    const scheduleStartHour = 6;
+    const scheduleEndHour = 23; // 11 PM
+    
+    if (hours < scheduleStartHour || hours >= scheduleEndHour) {
+      return null; // Don't show timeline outside schedule hours
+    }
+    
+    // Calculate position: each hour is 60px (min-h-[60px])
+    const hoursSinceStart = hours - scheduleStartHour;
+    const minuteOffset = minutes / 60;
+    const position = (hoursSinceStart + minuteOffset) * 60;
+    
+    return position;
+  };
+
+  const timelinePosition = calculateTimelinePosition();
 
   return (
     <SchedulingSubmenu selectedDate={selectedDate} onDateSelect={setSelectedDate}>
@@ -524,6 +558,22 @@ export default function SchedulingPage() {
 
                 {/* Time Grid */}
                 <div className="relative">
+                  {/* Current Time Indicator */}
+                  {isSameDay(selectedDate, new Date()) && timelinePosition !== null && (
+                    <div
+                      className="absolute left-0 right-0 z-20 pointer-events-none"
+                      style={{ top: `${timelinePosition}px` }}
+                    >
+                      <div className="flex items-center">
+                        <div className="w-12 h-4 bg-red-500 rounded-r flex items-center justify-center">
+                          <div className="text-[10px] text-white font-bold">
+                            {format(currentTime, 'h:mm')}
+                          </div>
+                        </div>
+                        <div className="flex-1 h-0.5 bg-red-500"></div>
+                      </div>
+                    </div>
+                  )}
                   {timeSlots.map(hour => {
                     const hourLabel = hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? '12:00 PM' : `${hour}:00 AM`;
                     const dayItems = getItemsForDay(selectedDate).filter(item => 
@@ -609,6 +659,22 @@ export default function SchedulingPage() {
 
                 {/* Time Grid */}
                 <div className="relative">
+                  {/* Current Time Indicator */}
+                  {timelinePosition !== null && (
+                    <div
+                      className="absolute left-0 right-0 z-20 pointer-events-none"
+                      style={{ top: `${timelinePosition}px` }}
+                    >
+                      <div className="flex items-center">
+                        <div className="w-16 h-4 bg-red-500 rounded-r flex items-center justify-center">
+                          <div className="text-[10px] text-white font-bold">
+                            {format(currentTime, 'h:mm')}
+                          </div>
+                        </div>
+                        <div className="flex-1 h-0.5 bg-red-500"></div>
+                      </div>
+                    </div>
+                  )}
                   {timeSlots.map(hour => {
                     const hourLabel = hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? '12:00 PM' : `${hour}:00 AM`;
                     

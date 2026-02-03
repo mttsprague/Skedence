@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { 
   Calendar, 
@@ -15,19 +15,29 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  X as XIcon
+  X as XIcon,
+  UserPlus,
+  Users,
+  Package,
+  Clock,
+  MapPin,
+  DollarSign,
+  CheckCircle2,
+  GraduationCap
 } from 'lucide-react';
 import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays } from 'date-fns';
+import { ActivityType } from '@/lib/activity-logger';
 
 interface ActivityLog {
   id: string;
-  type: 'booking_created' | 'booking_canceled';
+  type: ActivityType;
   actorId: string;
   actorName: string;
-  actorRole: 'owner' | 'trainer' | 'client';
+  actorRole: 'owner' | 'admin' | 'trainer' | 'client' | 'system';
   targetId?: string;
   targetName?: string;
-  details: string;
+  targetType?: 'trainer' | 'client' | 'lesson' | 'class' | 'pass' | 'location';
+  description: string;
   timestamp: Date;
   metadata?: Record<string, any>;
 }
@@ -47,62 +57,37 @@ export default function ActivityPage() {
     async function loadActivities() {
       try {
         setLoading(true);
-        const logs: ActivityLog[] = [];
+        console.log('🔍 Fetching activities for orgId:', orgId);
         
-        console.log('🔍 Fetching bookings for orgId:', orgId);
-        const bookingsQuery = query(
-          collection(db, 'bookings'),
+        // Fetch from the activities collection
+        const activitiesQuery = query(
+          collection(db, 'activities'),
           where('orgId', '==', orgId),
-          limit(200)
+          orderBy('timestamp', 'desc'),
+          limit(500)
         );
-        const bookingsSnap = await getDocs(bookingsQuery);
-        console.log('📊 Found bookings:', bookingsSnap.size);
         
-        for (const doc of bookingsSnap.docs) {
+        const activitiesSnap = await getDocs(activitiesQuery);
+        console.log('📊 Found activities:', activitiesSnap.size);
+        
+        const logs: ActivityLog[] = activitiesSnap.docs.map(doc => {
           const data = doc.data();
-          const status = data.status || 'confirmed';
-          
-          const clientName = data.clientName || 'Unknown Client';
-          const trainerName = data.trainerName || 'Trainer';
-          const timestamp = data.bookedAt?.toDate() || data.createdAt?.toDate() || data.timestamp?.toDate() || new Date();
-          
-          if (status === 'cancelled') {
-            logs.push({
-              id: doc.id,
-              type: 'booking_canceled',
-              actorId: data.clientId || data.clientUID || 'unknown',
-              actorName: clientName,
-              actorRole: 'client',
-              targetId: data.trainerId,
-              targetName: trainerName,
-              details: `Booking canceled with ${trainerName}`,
-              timestamp,
-              metadata: { 
-                startTime: data.startTime?.toDate(),
-                packageType: data.packageType 
-              }
-            });
-          } else {
-            logs.push({
-              id: doc.id,
-              type: 'booking_created',
-              actorId: data.clientId || data.clientUID || 'unknown',
-              actorName: clientName,
-              actorRole: 'client',
-              targetId: data.trainerId,
-              targetName: trainerName,
-              details: `Booked session with ${trainerName}`,
-              timestamp,
-              metadata: { 
-                startTime: data.startTime?.toDate(),
-                packageType: data.packageType 
-              }
-            });
-          }
-        }
+          return {
+            id: doc.id,
+            type: data.type as ActivityType,
+            actorId: data.actorId,
+            actorName: data.actorName,
+            actorRole: data.actorRole,
+            targetId: data.targetId,
+            targetName: data.targetName,
+            targetType: data.targetType,
+            description: data.description,
+            timestamp: data.timestamp?.toDate() || data.createdAt?.toDate() || new Date(),
+            metadata: data.metadata,
+          };
+        });
         
-        console.log('✅ Created activity logs:', logs.length);
-        logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+        console.log('✅ Loaded activity logs:', logs.length);
         setActivities(logs);
         filterActivitiesByDate(logs, selectedDate);
       } catch (error) {
@@ -121,7 +106,7 @@ export default function ActivityPage() {
       const results = activities.filter(activity => 
         activity.actorName.toLowerCase().includes(query) ||
         activity.targetName?.toLowerCase().includes(query) ||
-        activity.details.toLowerCase().includes(query)
+        activity.description.toLowerCase().includes(query)
       );
       setFilteredActivities(results);
     } else {
@@ -172,12 +157,33 @@ export default function ActivityPage() {
 
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
-  const getActivityIcon = (type: ActivityLog['type']) => {
+  const getActivityIcon = (type: ActivityType) => {
     switch (type) {
+      case 'lesson_booked':
       case 'booking_created':
         return <Calendar className="h-5 w-5 text-green-600" />;
+      case 'lesson_canceled':
       case 'booking_canceled':
         return <XCircle className="h-5 w-5 text-red-600" />;
+      case 'trainer_created':
+      case 'trainer_activated':
+        return <UserPlus className="h-5 w-5 text-blue-600" />;
+      case 'client_registered':
+        return <Users className="h-5 w-5 text-green-600" />;
+      case 'pass_purchased':
+        return <Package className="h-5 w-5 text-purple-600" />;
+      case 'availability_opened':
+        return <Clock className="h-5 w-5 text-teal-600" />;
+      case 'availability_closed':
+        return <Clock className="h-5 w-5 text-orange-600" />;
+      case 'class_created':
+        return <GraduationCap className="h-5 w-5 text-indigo-600" />;
+      case 'location_created':
+        return <MapPin className="h-5 w-5 text-blue-600" />;
+      case 'payment_received':
+        return <DollarSign className="h-5 w-5 text-green-600" />;
+      case 'lesson_completed':
+        return <CheckCircle2 className="h-5 w-5 text-green-600" />;
       default:
         return <ActivityIcon className="h-5 w-5 text-gray-600" />;
     }
@@ -187,10 +193,14 @@ export default function ActivityPage() {
     switch (role) {
       case 'owner':
         return 'bg-purple-100 text-purple-800';
-      case 'trainer':
+      case 'admin':
         return 'bg-blue-100 text-blue-800';
+      case 'trainer':
+        return 'bg-teal-100 text-teal-800';
       case 'client':
         return 'bg-green-100 text-green-800';
+      case 'system':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -298,7 +308,7 @@ export default function ActivityPage() {
 
         {/* Stats Summary */}
         {!isSearching && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
@@ -306,9 +316,9 @@ export default function ActivityPage() {
                     <Calendar className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Bookings</p>
+                    <p className="text-sm text-gray-600">Lessons Booked</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {filteredActivities.filter(a => a.type === 'booking_created').length}
+                      {filteredActivities.filter(a => a.type === 'lesson_booked' || a.type === 'booking_created').length}
                     </p>
                   </div>
                 </div>
@@ -324,7 +334,23 @@ export default function ActivityPage() {
                   <div>
                     <p className="text-sm text-gray-600">Cancellations</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {filteredActivities.filter(a => a.type === 'booking_canceled').length}
+                      {filteredActivities.filter(a => a.type === 'lesson_canceled' || a.type === 'booking_canceled').length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-purple-100 rounded-full">
+                    <Package className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Passes Sold</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {filteredActivities.filter(a => a.type === 'pass_purchased').length}
                     </p>
                   </div>
                 </div>
@@ -392,7 +418,7 @@ export default function ActivityPage() {
                             </span>
                           </div>
                           <p className="mt-1 text-gray-700">
-                            {activity.details}
+                            {activity.description}
                           </p>
                           {activity.metadata?.startTime && (
                             <p className="mt-1 text-sm text-gray-500">

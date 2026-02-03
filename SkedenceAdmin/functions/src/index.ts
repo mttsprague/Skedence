@@ -94,6 +94,8 @@ interface BookLessonData {
 interface RegisterForClassData {
   classId: string;
   classPassPackageId: string;
+  athleteName?: string;
+  secondAthleteName?: string;
 }
 
 /**
@@ -428,7 +430,7 @@ export const registerForClass = functions.https.onCall(
     }
     const userId = request.auth.uid;
 
-    const {classId, classPassPackageId} = request.data;
+    const {classId, classPassPackageId, athleteName, secondAthleteName} = request.data;
     if (!classId || !classPassPackageId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
@@ -511,24 +513,29 @@ export const registerForClass = functions.https.onCall(
           );
         }
 
-        // Check if class is full
-        if (classData.currentParticipants >= classData.maxParticipants) {
+        // Count number of athletes (1 primary + optional second)
+        const athleteCount = secondAthleteName ? 2 : 1;
+
+        // Check if class has enough space for all athletes
+        const spotsRemaining = classData.maxParticipants - classData.currentParticipants;
+        if (spotsRemaining < athleteCount) {
           throw new functions.https.HttpsError(
             "failed-precondition",
-            "Class is full."
+            `Class does not have enough space. ${spotsRemaining} spot(s) remaining, but ${athleteCount} needed.`
           );
         }
 
-        // Check if user is already registered
-        const participantRef = classRef
-          .collection("participants")
-          .doc(userId);
-        const participantDoc = await transaction.get(participantRef);
-        if (participantDoc.exists) {
-          throw new functions.https.HttpsError(
-            "already-exists",
-            "You are already registered for this class."
-          );
+        // Check if user is already registered for this specific athlete
+        if (athleteName) {
+          const athleteParticipantId = `${userId}_${athleteName.replace(/\s+/g, "_")}`;
+          const athleteParticipantRef = classRef.collection("participants").doc(athleteParticipantId);
+          const athleteParticipantDoc = await transaction.get(athleteParticipantRef);
+          if (athleteParticipantDoc.exists) {
+            throw new functions.https.HttpsError(
+              "already-exists",
+              `${athleteName} is already registered for this class.`
+            );
+          }
         }
 
         // Increment lessonsUsed on the class pass
@@ -536,25 +543,46 @@ export const registerForClass = functions.https.onCall(
           lessonsUsed: admin.firestore.FieldValue.increment(1),
         });
 
-        // Increment class participants
+        // Increment class participants by number of athletes
         transaction.update(classRef, {
-          currentParticipants: admin.firestore.FieldValue.increment(1),
+          currentParticipants: admin.firestore.FieldValue.increment(athleteCount),
         });
 
-        // Add user to participants subcollection
-        transaction.set(participantRef, {
+        // Add primary athlete to participants subcollection
+        const primaryAthleteName = athleteName || `${userData.firstName || "Unknown"} ${userData.lastName || "User"}`.trim();
+        const primaryParticipantId = `${userId}_${primaryAthleteName.replace(/\s+/g, "_")}`;
+        const primaryParticipantRef = classRef.collection("participants").doc(primaryParticipantId);
+        
+        transaction.set(primaryParticipantRef, {
           userId: userId,
           firstName: userData.firstName || "Unknown",
           lastName: userData.lastName || "User",
+          athleteName: primaryAthleteName,
           registeredAt: admin.firestore.FieldValue.serverTimestamp(),
           classPassPackageId: classPassPackageId,
         });
+
+        // Add second athlete if provided
+        if (secondAthleteName) {
+          const secondParticipantId = `${userId}_${secondAthleteName.replace(/\s+/g, "_")}`;
+          const secondParticipantRef = classRef.collection("participants").doc(secondParticipantId);
+          
+          transaction.set(secondParticipantRef, {
+            userId: userId,
+            firstName: userData.firstName || "Unknown",
+            lastName: userData.lastName || "User",
+            athleteName: secondAthleteName,
+            registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+            classPassPackageId: classPassPackageId,
+          });
+        }
       });
 
+      const athleteCount = secondAthleteName ? 2 : 1;
       functions.logger.info(
-        `User ${userId} registered for class ${classId} using pass ${classPassPackageId}.`
+        `User ${userId} registered ${athleteCount} athlete(s) for class ${classId} using pass ${classPassPackageId}.`
       );
-      return {message: "Successfully registered for class!"};
+      return {message: `Successfully registered ${athleteCount} athlete(s) for class!`};
     } catch (error) {
       if (error instanceof functions.https.HttpsError) {
         throw error;

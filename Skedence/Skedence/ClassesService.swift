@@ -92,11 +92,19 @@ final class ClassesService: ObservableObject {
     }
     
     // Register for a class using a class pass (calls backend function)
-    func registerForClassWithPass(classId: String, classPassPackageId: String, orgId: String) async throws {
-        let data: [String: Any] = [
+    func registerForClassWithPass(classId: String, classPassPackageId: String, athleteName: String?, secondAthleteName: String?, orgId: String) async throws {
+        var data: [String: Any] = [
             "classId": classId,
             "classPassPackageId": classPassPackageId
         ]
+        
+        // Add athlete names if provided
+        if let athleteName = athleteName {
+            data["athleteName"] = athleteName
+        }
+        if let secondAthleteName = secondAthleteName, secondAthleteName != "New Athlete" {
+            data["secondAthleteName"] = secondAthleteName
+        }
         
         let result = try await functions.httpsCallable("registerForClass").call(data)
         

@@ -247,7 +247,42 @@ final class UsersService: ObservableObject {
         
         try await db.collection("users").document(uid).updateData(updateData)
         
+        // Log activity
+        if let orgId = await getOrgIdForUser(uid) {
+            Task {
+                try? await ActivityLogger.shared.log(
+                    type: .clientProfileUpdated,
+                    actorId: uid,
+                    actorName: "\(firstName) \(lastName)",
+                    actorRole: .client,
+                    targetId: uid,
+                    targetName: "\(firstName) \(lastName)",
+                    targetType: "user",
+                    description: "\(firstName) \(lastName) updated their profile",
+                    metadata: [
+                        "email": emailAddress,
+                        "phoneNumber": phoneNumber ?? ""
+                    ],
+                    orgId: orgId
+                )
+            }
+        }
+        
         // Reload the profile after update
-        await loadCurrentUserIfAvailable()
+        try await loadUserProfile()
+    }
+    
+    private func getOrgIdForUser(_ userId: String) async -> String? {
+        do {
+            let snapshot = try await db.collection("orgMembers")
+                .whereField("userId", isEqualTo: userId)
+                .limit(to: 1)
+                .getDocuments()
+            
+            return snapshot.documents.first?.data()["orgId"] as? String
+        } catch {
+            print("Failed to get orgId for user: \(error)")
+            return nil
+        }
     }
 }

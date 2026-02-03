@@ -17,7 +17,7 @@ const submenuItems = [
   { name: 'Waiver', href: '/waiver', icon: FileText },
   { name: 'Intake Forms', href: '/settings/intake-forms', icon: FileText },
   { name: 'Stripe Settings', href: '/settings/stripe', icon: CreditCard },
-  { name: 'Notifications', href: '/settings/notifications', icon: Bell },
+  { name: 'Client Emails', href: '/settings/client-emails', icon: Bell },
 ];
 
 interface BusinessSettingsSubmenuProps {

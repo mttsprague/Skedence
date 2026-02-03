@@ -321,11 +321,14 @@ final class ScheduleViewModel: ObservableObject {
                 return nil
             }
             
+            let athleteName = data["athleteName"] as? String
+            
             return ClassParticipant(
                 id: doc.documentID,
                 userId: userId,
                 firstName: firstName,
                 lastName: lastName,
+                athleteName: athleteName,
                 registeredAt: registeredAtTimestamp.dateValue()
             )
         }
@@ -457,6 +460,41 @@ final class ScheduleViewModel: ObservableObject {
                 location: location
             )
             print("processTrainerAvailability: \(result.message) slotsAdded=\(result.slotsAdded ?? 0)")
+            
+            // Log activity
+            if let user = Auth.auth().currentUser, let slotsAdded = result.slotsAdded, slotsAdded > 0 {
+                let trainerName: String
+                if let targetId = targetTrainerId, let trainer = try? await Firestore.firestore().collection("trainers").document(targetId).getDocument().data() {
+                    trainerName = trainer["firstName"] as? String ?? "Trainer"
+                } else {
+                    trainerName = user.displayName ?? "Trainer"
+                }
+                
+                Task {
+                    let activityType: ActivityLogger.ActivityType = status == .open ? .availabilityOpened : .availabilityClosed
+                    let action = status == .open ? "opened" : "blocked"
+                    
+                    try? await ActivityLogger.shared.log(
+                        type: activityType,
+                        actorId: user.uid,
+                        actorName: user.displayName ?? "Admin",
+                        actorRole: .admin,
+                        targetId: targetTrainerId ?? user.uid,
+                        targetName: trainerName,
+                        targetType: "trainer",
+                        description: "\(user.displayName ?? "Admin") \(action) \(slotsAdded) slot(s) for \(trainerName) from \(startStr ?? "start") to \(endStr ?? "end")",
+                        metadata: [
+                            "slotsAdded": slotsAdded,
+                            "startDate": startStr ?? "",
+                            "endDate": endStr ?? "",
+                            "status": status.rawValue,
+                            "location": location ?? ""
+                        ],
+                        orgId: orgId ?? ""
+                    )
+                }
+            }
+            
             await loadWeek()
         } catch {
             print("Failed to process availability: \(error)")

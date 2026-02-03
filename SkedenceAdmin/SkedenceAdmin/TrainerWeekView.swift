@@ -487,11 +487,14 @@ struct TrainerWeekView: View {
                 return nil
             }
             
+            let athleteName = data["athleteName"] as? String
+            
             return ClassParticipant(
                 id: doc.documentID,
                 userId: userId,
                 firstName: firstName,
                 lastName: lastName,
+                athleteName: athleteName,
                 registeredAt: timestamp.dateValue()
             )
         }
