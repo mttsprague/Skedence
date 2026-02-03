@@ -82,15 +82,25 @@ export default function SchedulingPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Set initial trainer to current user
+  // Set initial trainer to current user or first trainer
   useEffect(() => {
-    if (userData && !selectedTrainer) {
-      const currentUserName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-      if (currentUserName) {
-        setSelectedTrainer(currentUserName);
+    if (trainers.length > 0 && !selectedTrainer) {
+      if (userData) {
+        const currentUserName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        // Check if current user is in trainers list
+        const userIsTrainer = trainers.find(t => 
+          `${t.firstName} ${t.lastName}` === currentUserName
+        );
+        if (userIsTrainer) {
+          setSelectedTrainer(currentUserName);
+          return;
+        }
       }
+      // Fall back to first trainer if user not found
+      const firstTrainer = trainers[0];
+      setSelectedTrainer(`${firstTrainer.firstName} ${firstTrainer.lastName}`);
     }
-  }, [userData, selectedTrainer]);
+  }, [trainers, userData, selectedTrainer]);
 
   // Update week when date changes
   useEffect(() => {
