@@ -54,15 +54,14 @@ interface AthleteInfo {
 }
 
 export default function SchedulingPage() {
-  const { orgId } = useAuth();
+  const { orgId, user, userData } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [trainers, setTrainers] = useState<Trainer[]>([]);
-  const [selectedTrainer, setSelectedTrainer] = useState<string>('all');
+  const [selectedTrainer, setSelectedTrainer] = useState<string>('');
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
-  const [viewMode, setViewMode] = useState<'day' | 'week'>('week');
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   
   // Modal states
@@ -83,14 +82,15 @@ export default function SchedulingPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Update view mode based on trainer selection
+  // Set initial trainer to current user
   useEffect(() => {
-    if (selectedTrainer === 'all') {
-      setViewMode('day');
-    } else {
-      setViewMode('week');
+    if (userData && !selectedTrainer) {
+      const currentUserName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+      if (currentUserName) {
+        setSelectedTrainer(currentUserName);
+      }
     }
-  }, [selectedTrainer]);
+  }, [userData, selectedTrainer]);
 
   // Update week when date changes
   useEffect(() => {
@@ -124,31 +124,38 @@ export default function SchedulingPage() {
 
   // Load schedule for the week
   useEffect(() => {
-    if (!orgId || !weekStart) return;
+    if (!orgId || !weekStart || !selectedTrainer) return;
 
     const loadSchedule = async () => {
       setLoading(true);
       try {
         const items: ScheduleItem[] = [];
         
-        // Set date range based on view mode
-        let startDate: Date, endDate: Date;
-        if (viewMode === 'day') {
-          startDate = startOfDay(selectedDate);
-          endDate = endOfDay(selectedDate);
-        } else {
-          const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
-          startDate = new Date(weekStart);
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date(weekEnd);
-          endDate.setHours(23, 59, 59, 999);
+        // Always load week view for specific trainer
+        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+        const startDate = new Date(weekStart);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(weekEnd);
+        endDate.setHours(23, 59, 59, 999);
+
+        // Find the selected trainer's ID
+        const selectedTrainerObj = trainers.find(t => 
+          `${t.firstName} ${t.lastName}` === selectedTrainer
+        );
+
+        if (!selectedTrainerObj) {
+          setLoading(false);
+          return;
         }
 
-        // Load lessons (bookings) - from root bookings collection
+        const trainerId = selectedTrainerObj.id;
+
+        // Load lessons (bookings) - from root bookings collection, filtered by trainer
         const bookingsRef = collection(db, 'bookings');
         const bookingsQuery = query(
           bookingsRef,
           where('orgId', '==', orgId),
+          where('trainerId', '==', trainerId),
           where('startTime', '>=', startDate),
           where('startTime', '<=', endDate)
         );
@@ -223,11 +230,12 @@ export default function SchedulingPage() {
           });
         }
 
-        // Load classes - from root classes collection
+        // Load classes - from root classes collection, filtered by trainer
         const classesRef = collection(db, 'classes');
         const classesQuery = query(
           classesRef,
           where('orgId', '==', orgId),
+          where('trainerId', '==', trainerId),
           where('startTime', '>=', startDate),
           where('startTime', '<=', endDate)
         );
@@ -281,54 +289,39 @@ export default function SchedulingPage() {
           });
         }
 
-        // Load recurring shifts/availability - from trainers/{trainerId}/schedules
-        const trainersRef = collection(db, 'trainers');
-        const trainersQuery = query(trainersRef, where('orgId', '==', orgId));
-        const trainersSnapshot = await getDocs(trainersQuery);
+        // Load recurring shifts/availability - from selected trainer's schedules subcollection
+        const schedulesRef = collection(db, 'trainers', trainerId, 'schedules');
+        const schedulesQuery = query(
+          schedulesRef,
+          where('startTime', '>=', startDate),
+          where('startTime', '<=', endDate)
+        );
         
-        for (const trainerDocSnap of trainersSnapshot.docs) {
-          const trainerData = trainerDocSnap.data();
-          const trainerFullName = `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim() || 'Unknown Trainer';
+        const schedulesSnapshot = await getDocs(schedulesQuery);
+        
+        for (const scheduleDoc of schedulesSnapshot.docs) {
+          const scheduleData = scheduleDoc.data();
           
-          // Query schedules subcollection for this trainer
-          const schedulesRef = collection(db, 'trainers', trainerDocSnap.id, 'schedules');
-          const schedulesQuery = query(
-            schedulesRef,
-            where('startTime', '>=', startDate),
-            where('startTime', '<=', endDate)
-          );
-          
-          const schedulesSnapshot = await getDocs(schedulesQuery);
-          
-          for (const scheduleDoc of schedulesSnapshot.docs) {
-            const scheduleData = scheduleDoc.data();
-            
-            // Include both "open" and "unavailable" shifts - check for isBooked false or status field
-            const isAvailable = scheduleData.isBooked === false || scheduleData.status === 'open' || scheduleData.status === 'unavailable';
-            if (isAvailable) {
-              items.push({
-                id: scheduleDoc.id,
-                type: 'shift',
-                startTime: scheduleData.startTime.toDate(),
-                endTime: scheduleData.endTime.toDate(),
-                trainerName: trainerFullName,
-                trainerId: trainerDocSnap.id,
-                location: scheduleData.location,
-                status: scheduleData.status,
-              });
-            }
+          // Include both "open" and "unavailable" shifts
+          const isAvailable = scheduleData.isBooked === false || scheduleData.status === 'open' || scheduleData.status === 'unavailable';
+          if (isAvailable) {
+            items.push({
+              id: scheduleDoc.id,
+              type: 'shift',
+              startTime: scheduleData.startTime.toDate(),
+              endTime: scheduleData.endTime.toDate(),
+              trainerName: selectedTrainer,
+              trainerId: trainerId,
+              location: scheduleData.location,
+              status: scheduleData.status,
+            });
           }
         }
 
         // Sort by start time
         items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
         
-        // Filter by trainer if selected
-        const filteredItems = selectedTrainer === 'all' 
-          ? items 
-          : items.filter(item => item.trainerName.includes(selectedTrainer));
-        
-        setScheduleItems(filteredItems);
+        setScheduleItems(items);
       } catch (error) {
         console.error('Error loading schedule:', error);
       } finally {
@@ -337,7 +330,7 @@ export default function SchedulingPage() {
     };
 
     loadSchedule();
-  }, [orgId, weekStart, selectedDate, selectedTrainer, viewMode]);
+  }, [orgId, weekStart, selectedDate, selectedTrainer, trainers]);
 
   // Navigation functions
   const goToPreviousDay = () => {
@@ -370,7 +363,7 @@ export default function SchedulingPage() {
   // Handle empty slot click
   const handleEmptySlotClick = (day: Date, hour: number) => {
     // Find trainer if one is selected
-    if (selectedTrainer !== 'all') {
+    if (selectedTrainer) {
       const trainer = trainers.find(t => 
         `${t.firstName} ${t.lastName}` === selectedTrainer
       );
@@ -441,65 +434,32 @@ export default function SchedulingPage() {
           <div className="border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                {viewMode === 'day' ? (
-                  <>
-                    <button
-                      onClick={goToPreviousDay}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Previous Day"
-                    >
-                      <ChevronLeft className="h-5 w-5 text-gray-600" />
-                    </button>
-                    <div>
-                      <h1 className="text-2xl font-bold text-gray-900">
-                        {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-                      </h1>
-                      <p className="text-sm text-gray-600 mt-1">{scheduleItems.length} appointments</p>
-                    </div>
-                    <button
-                      onClick={goToNextDay}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Next Day"
-                    >
-                      <ChevronRight className="h-5 w-5 text-gray-600" />
-                    </button>
-                    <button
-                      onClick={goToToday}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Today
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={goToPreviousWeek}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Previous Week"
-                    >
-                      <ChevronLeft className="h-5 w-5 text-gray-600" />
-                    </button>
-                    <div>
-                      <h1 className="text-2xl font-bold text-gray-900">
-                        Week of {format(weekStart, 'MMMM d, yyyy')}
-                      </h1>
-                      <p className="text-sm text-gray-600 mt-1">{scheduleItems.length} appointments</p>
-                    </div>
-                    <button
-                      onClick={goToNextWeek}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Next Week"
-                    >
-                      <ChevronRight className="h-5 w-5 text-gray-600" />
-                    </button>
-                    <button
-                      onClick={goToToday}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Today
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={goToPreviousWeek}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Previous Week"
+                >
+                  <ChevronLeft className="h-5 w-5 text-gray-600" />
+                </button>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Week of {format(weekStart, 'MMMM d, yyyy')}
+                  </h1>
+                  <p className="text-sm text-gray-600 mt-1">{scheduleItems.length} appointments</p>
+                </div>
+                <button
+                  onClick={goToNextWeek}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Next Week"
+                >
+                  <ChevronRight className="h-5 w-5 text-gray-600" />
+                </button>
+                <button
+                  onClick={goToToday}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Today
+                </button>
               </div>
               <div className="flex items-center gap-4">
                 {/* Trainer Filter */}
@@ -509,7 +469,6 @@ export default function SchedulingPage() {
                   onChange={(e) => setSelectedTrainer(e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-sm"
                 >
-                  <option value="all">All Trainers</option>
                   {trainers.map(trainer => (
                     <option key={trainer.id} value={`${trainer.firstName} ${trainer.lastName}`}>
                       {trainer.firstName} {trainer.lastName}
@@ -533,102 +492,6 @@ export default function SchedulingPage() {
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="w-12 h-12 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : viewMode === 'day' ? (
-              /* Day View (All Trainers) */
-              <div className="min-w-[600px]">
-                {/* Day Header */}
-                <div className="grid grid-cols-2 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
-                  <div className="p-3 text-xs font-medium text-gray-500">Time</div>
-                  <div className={cn(
-                    'p-3 text-center border-l border-gray-200',
-                    isSameDay(selectedDate, new Date()) && 'bg-blue-50'
-                  )}>
-                    <div className="text-xs font-medium text-gray-500">
-                      {format(selectedDate, 'EEE')}
-                    </div>
-                    <div className={cn(
-                      'text-2xl font-bold mt-1',
-                      isSameDay(selectedDate, new Date()) ? 'text-blue-600' : 'text-gray-900'
-                    )}>
-                      {format(selectedDate, 'd')}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Time Grid */}
-                <div className="relative">
-                  {/* Current Time Indicator */}
-                  {isSameDay(selectedDate, new Date()) && timelinePosition !== null && (
-                    <div
-                      className="absolute left-0 right-0 z-20 pointer-events-none"
-                      style={{ top: `${timelinePosition}px` }}
-                    >
-                      <div className="flex items-center">
-                        <div className="w-12 h-4 bg-red-500 rounded-r flex items-center justify-center">
-                          <div className="text-[10px] text-white font-bold">
-                            {format(currentTime, 'h:mm')}
-                          </div>
-                        </div>
-                        <div className="flex-1 h-0.5 bg-red-500"></div>
-                      </div>
-                    </div>
-                  )}
-                  {timeSlots.map(hour => {
-                    const hourLabel = hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? '12:00 PM' : `${hour}:00 AM`;
-                    const dayItems = getItemsForDay(selectedDate).filter(item => 
-                      item.startTime.getHours() === hour
-                    );
-                    
-                    return (
-                      <div key={hour} className="grid grid-cols-2 border-b border-gray-200">
-                        <div className="p-3 text-xs text-gray-500 font-medium border-r border-gray-200">
-                          {hourLabel}
-                        </div>
-                        <div
-                          className="min-h-[60px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer"
-                          onClick={() => dayItems.length === 0 && handleEmptySlotClick(selectedDate, hour)}
-                        >
-                          {dayItems.map(item => (
-                            <button
-                              key={item.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (item.type === 'shift' && item.status === 'open') {
-                                  handleAvailableShiftClick(item);
-                                } else {
-                                  setSelectedItem(item);
-                                }
-                              }}
-                              className={cn(
-                                'w-full text-left text-xs p-2 rounded mb-1 transition-all hover:shadow-md',
-                                item.type === 'class' && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
-                                item.type === 'lesson' && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
-                                item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
-                                item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
-                              )}
-                            >
-                              <div className="font-semibold truncate">
-                                {format(item.startTime, 'h:mm a')}
-                              </div>
-                              <div className="truncate text-gray-700">
-                                {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
-                              </div>
-                              <div className="text-gray-500 truncate">
-                                {item.trainerName}
-                              </div>
-                              {item.location && (
-                                <div className="text-gray-400 text-[10px] truncate">
-                                  {item.location}
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             ) : (
               /* Week View (Individual Trainer) */
