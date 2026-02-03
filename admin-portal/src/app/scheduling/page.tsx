@@ -134,7 +134,10 @@ export default function SchedulingPage() {
 
   // Load schedule for the week
   useEffect(() => {
-    if (!orgId || !weekStart || !selectedTrainer) return;
+    if (!orgId || !weekStart || !selectedTrainer) {
+      setLoading(false);
+      return;
+    }
 
     const loadSchedule = async () => {
       setLoading(true);
