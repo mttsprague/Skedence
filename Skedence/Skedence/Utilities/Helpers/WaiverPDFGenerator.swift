@@ -86,18 +86,25 @@ struct WaiverPDFGenerator {
             
             // Use custom waiver text if provided, otherwise use default
             if let customText = customWaiverText, !customText.isEmpty {
-                // Calculate height needed for custom text
-                let customTextRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: pageHeight - currentY - 250)
-                customText.draw(in: customTextRect, withAttributes: bodyAttributesWithParagraph)
-                
-                // Estimate height used (simplified - actual height calculation is complex)
-                let estimatedHeight = customText.boundingRect(
+                // Calculate actual height needed for custom text to prevent cut-off
+                let customTextHeight = customText.boundingRect(
                     with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
                     options: [.usesLineFragmentOrigin, .usesFontLeading],
                     attributes: bodyAttributesWithParagraph,
                     context: nil
                 ).height
-                currentY += estimatedHeight + 20
+                
+                // Ensure sufficient space is available, start new page if needed
+                let remainingSpace = pageHeight - currentY - 300 // Reserve space for signature section
+                if customTextHeight > remainingSpace {
+                    context.beginPage()
+                    currentY = 60.0
+                }
+                
+                // Draw the custom text with proper spacing
+                let customTextRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: customTextHeight + 20)
+                customText.draw(in: customTextRect, withAttributes: bodyAttributesWithParagraph)
+                currentY += customTextHeight + 30
             } else {
                 // Default waiver content - split into sections to avoid overlap
                 let section1 = """
