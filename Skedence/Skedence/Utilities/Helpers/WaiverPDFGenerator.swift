@@ -36,9 +36,9 @@ struct WaiverPDFGenerator {
             let leftMargin: CGFloat = 60.0
             let rightMargin: CGFloat = 60.0
             let topMargin: CGFloat = 60.0
-            let bottomMargin: CGFloat = 80.0 // Professional bottom margin
+            let bottomMargin: CGFloat = 100.0 // Professional bottom margin - increased from 80
             let contentWidth = pageWidth - leftMargin - rightMargin
-            let maxContentHeight = pageHeight - topMargin - bottomMargin
+            let maxY = pageHeight - bottomMargin // Maximum Y position before page break needed
             
             // Header
             let titleAttributes: [NSAttributedString.Key: Any] = [
@@ -97,12 +97,20 @@ struct WaiverPDFGenerator {
                     context: nil
                 ).height
                 
+                // Check if content will fit on current page with proper margin
+                let estimatedEndY = currentY + customTextHeight + 40
+                if estimatedEndY > maxY {
+                    // Start new page for content
+                    context.beginPage()
+                    currentY = topMargin
+                }
+                
                 // Draw the custom text
                 let customTextRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: customTextHeight + 20)
                 customText.draw(in: customTextRect, withAttributes: bodyAttributesWithParagraph)
-                currentY += customTextHeight + 30
+                currentY += customTextHeight + 40
             } else {
-                // Default waiver content - split into sections to avoid overlap
+                // Default waiver content - check space before each major section
                 let section1 = """
                 I acknowledge that I am voluntarily participating in volleyball lessons, training sessions, camps, or related activities offered by \(organizationName) ("\(acronym)").
 
@@ -111,30 +119,49 @@ struct WaiverPDFGenerator {
                 I hereby release, waive, and discharge \(organizationName), and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, actions, or causes of action arising out of or related to my participation in \(acronym) activities, including claims arising from the ordinary negligence of \(organizationName) or its coaches, instructors, employees, agents, or representatives.
                 """
                 
+                // Check if section 1 fits - be conservative
+                if currentY + 150 > maxY {
+                    context.beginPage()
+                    currentY = topMargin
+                }
+                
                 let section1Rect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 130)
                 section1.draw(in: section1Rect, withAttributes: bodyAttributesWithParagraph)
-                currentY += 135
+                currentY += 140
                 
                 let section2 = """
                 This release does not apply to acts of gross negligence, recklessness, or intentional misconduct.
 
-                I acknowledge that \\(organizationName) has taken reasonable steps to provide a safe training environment; however, I understand that accidents and injuries may still occur. I agree to follow all rules, safety instructions, and guidelines provided by \\(acronym) and its staff, and I acknowledge that failure to do so may increase the risk of injury to myself or others.
+                I acknowledge that \(organizationName) has taken reasonable steps to provide a safe training environment; however, I understand that accidents and injuries may still occur. I agree to follow all rules, safety instructions, and guidelines provided by \(acronym) and its staff, and I acknowledge that failure to do so may increase the risk of injury to myself or others.
 
-                I further agree to indemnify and hold harmless \\(organizationName), and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, damages, losses, or expenses (including reasonable attorneys' fees) brought by any third party arising out of or related to my participation in \\(acronym) activities.
+                I further agree to indemnify and hold harmless \(organizationName), and its owners, coaches, instructors, employees, agents, and representatives from any and all claims, demands, damages, losses, or expenses (including reasonable attorneys' fees) brought by any third party arising out of or related to my participation in \(acronym) activities.
                 """
+                
+                // Check if section 2 fits
+                if currentY + 145 > maxY {
+                    context.beginPage()
+                    currentY = topMargin
+                }
                 
                 let section2Rect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 120)
                 section2.draw(in: section2Rect, withAttributes: bodyAttributesWithParagraph)
-                currentY += 125
+                currentY += 135
                 
                 // Minor Participants Section
                 let minorTitleAttributes: [NSAttributedString.Key: Any] = [
                     .font: UIFont.boldSystemFont(ofSize: 11),
                     .foregroundColor: UIColor.black
                 ]
+                
+                // Check if minor section fits
+                if currentY + 105 > maxY {
+                    context.beginPage()
+                    currentY = topMargin
+                }
+                
                 let minorTitle = "MINOR PARTICIPANTS (If Applicable)"
                 minorTitle.draw(at: CGPoint(x: leftMargin, y: currentY), withAttributes: minorTitleAttributes)
-                currentY += 18
+                currentY += 20
                 
                 let minorContent = """
                 If the participant is under eighteen (18) years of age, I represent and warrant that I am the parent or legal guardian of the minor participant. I consent to the minor's participation in \(organizationName) activities and execute this agreement on behalf of both myself and the minor, releasing and waiving claims as described above to the fullest extent permitted by Tennessee law.
@@ -142,7 +169,7 @@ struct WaiverPDFGenerator {
                 
                 let minorRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 70)
                 minorContent.draw(in: minorRect, withAttributes: bodyAttributesWithParagraph)
-                currentY += 75
+                currentY += 80
                 
                 // Image/Video Release
                 let mediaReleaseTitle = "IMAGE / VIDEO / LIKENESS RELEASE"
@@ -150,8 +177,15 @@ struct WaiverPDFGenerator {
                     .font: UIFont.boldSystemFont(ofSize: 11),
                     .foregroundColor: UIColor.black
                 ]
+                
+                // Check if media release fits
+                if currentY + 105 > maxY {
+                    context.beginPage()
+                    currentY = topMargin
+                }
+                
                 mediaReleaseTitle.draw(at: CGPoint(x: leftMargin, y: currentY), withAttributes: mediaReleaseTitleAttributes)
-                currentY += 18
+                currentY += 20
                 
                 let mediaReleaseContent = """
                 I grant \(organizationName) permission to photograph, record, or otherwise capture my image, voice, or likeness (or that of the minor participant) during \(acronym) activities and to use such media for lawful promotional, marketing, educational, and social media purposes, without compensation. I understand that such media may be edited and used in various formats and platforms for an indefinite period.
@@ -159,17 +193,23 @@ struct WaiverPDFGenerator {
                 
                 let mediaReleaseRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 65)
                 mediaReleaseContent.draw(in: mediaReleaseRect, withAttributes: bodyAttributesWithParagraph)
-                currentY += 70
+                currentY += 75
                 
                 // Acknowledgment Section
+                // Check if acknowledgment fits
+                if currentY + 95 > maxY {
+                    context.beginPage()
+                    currentY = topMargin
+                }
+                
                 let ackTitle = "ACKNOWLEDGMENT AND ELECTRONIC ACCEPTANCE"
                 ackTitle.draw(at: CGPoint(x: leftMargin, y: currentY), withAttributes: mediaReleaseTitleAttributes)
-                currentY += 18
+                currentY += 20
                 
                 let ackContent = """
                 By clicking "I Agree", I acknowledge that I have read and understand this Release of Liability, Assumption of Risk, and Media Release Agreement, and that I am voluntarily giving up certain legal rights, including the right to sue for claims arising from the ordinary negligence of \(organizationName).
 
-                This agreement shall be governed by and construed in accordance with the laws of the State of Tennessee
+                This agreement shall be governed by and construed in accordance with the laws of the State of Tennessee.
                 """
                 
                 let ackContentRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: 60)
@@ -178,9 +218,9 @@ struct WaiverPDFGenerator {
             }
             
             // Check if we need a new page for signature section
-            // Ensure professional spacing - leave at least 80pt bottom margin on page 1
-            let signatureSectionHeight: CGFloat = 350
-            if currentY + signatureSectionHeight > pageHeight - bottomMargin {
+            // Signature section needs approximately 350pt of space
+            let signatureSectionHeight: CGFloat = 360
+            if currentY + signatureSectionHeight > maxY {
                 context.beginPage()
                 currentY = topMargin
             }

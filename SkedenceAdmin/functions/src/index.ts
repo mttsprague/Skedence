@@ -86,6 +86,8 @@ interface BookLessonData {
   trainerId: string;
   slotId: string; // deterministic ID "YYYY-MM-DDTHH"
   lessonPackageId: string;
+  athleteName?: string;
+  secondAthleteName?: string;
 }
 
 /**
@@ -130,7 +132,7 @@ export const bookLesson = functions.https.onCall(
     }
     const userId = request.auth.uid;
 
-    const {trainerId, slotId, lessonPackageId} = request.data;
+    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName} = request.data;
     if (!trainerId || !slotId || !lessonPackageId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
@@ -386,7 +388,7 @@ export const bookLesson = functions.https.onCall(
         transaction.set(newBookingRef, {
           clientUID: userId,
           trainerId: trainerId,
-          slotId: slotId, // deterministic schedule slot doc id
+          slotId: slotId, // deterministic schedule slot id
           startTime: trainerSlotData.startTime,
           endTime: trainerSlotData.endTime,
           packageId: lessonPackageId,
@@ -398,6 +400,33 @@ export const bookLesson = functions.https.onCall(
           location: trainerSlotData.location || "Location TBD", // Copy location from schedule slot
           orgId: orgId || trainerData.orgId, // Add orgId to booking record
         });
+
+        // Log activity for the booking
+        if (orgId) {
+          const activityRef = db.collection("activity").doc();
+          transaction.set(activityRef, {
+            type: "lesson_booked",
+            actorId: userId,
+            actorName: clientFullName,
+            actorRole: "client",
+            targetId: trainerId,
+            targetName: trainerFullName,
+            targetType: "trainer",
+            description: `${clientFullName} booked a private with ${trainerFullName}`,
+            metadata: {
+              bookingId: newBookingRef.id,
+              slotId: slotId,
+              startTime: trainerSlotData.startTime,
+              endTime: trainerSlotData.endTime,
+              location: trainerSlotData.location || "Location TBD",
+              athleteName: athleteName || null,
+              secondAthleteName: secondAthleteName || null,
+              timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            orgId: orgId,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
       });
 
       // Increment booking usage counter after successful transaction
