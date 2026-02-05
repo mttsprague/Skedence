@@ -1822,7 +1822,6 @@ struct BookView: View {
             if let orgId = auth.currentOrgId {
                 AnalyticsService.shared.logWaiverSigned(userId: userId, orgId: orgId)
             }
-            showWaiverAgreement = false
             
             // Now that waiver is signed, complete the booking if it was pending
             if !pendingBookingSuccess {
@@ -1830,11 +1829,17 @@ struct BookView: View {
                 await performActualBooking()
             }
             
+            // Dismiss waiver sheet and reset flags AFTER booking completes
+            showWaiverAgreement = false
             pendingBookingSuccess = false
         } catch {
             print("Failed to save waiver agreement: \(error)")
             showWaiverAgreement = false
             pendingBookingSuccess = false
+            bookingAlert = .init(
+                title: "Waiver Error",
+                message: "Failed to save waiver agreement. Please try again."
+            )
         }
     }
     

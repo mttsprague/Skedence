@@ -61,9 +61,17 @@ final class DocumentsService: ObservableObject {
         signature: WaiverSignature,
         athleteName: String? = nil
     ) async throws -> UserDocument {
-        // Generate unique filename with timestamp
+        // Generate unique filename with timestamp and athlete name
         let timestamp = Int(Date().timeIntervalSince1970)
-        let filename = "waiver_\(timestamp).pdf"
+        let filename: String
+        if let athleteName = athleteName {
+            // Sanitize athlete name for filename (replace spaces with underscores, remove special chars)
+            let sanitized = athleteName.components(separatedBy: .whitespaces).joined(separator: "_")
+                .components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+            filename = "\(sanitized)_waiver_\(timestamp).pdf"
+        } else {
+            filename = "waiver_\(timestamp).pdf"
+        }
         
         // Create descriptive name with athlete name if provided
         let documentName = if let athleteName = athleteName {

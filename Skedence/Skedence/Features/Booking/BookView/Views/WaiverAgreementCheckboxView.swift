@@ -131,7 +131,7 @@ struct WaiverAgreementCheckboxView: View {
                     
                     Button {
                         onAgree()
-                        dismiss()
+                        // Don't dismiss here - let the parent view handle dismissal after waiver is saved
                     } label: {
                         HStack(spacing: Spacing.xs) {
                             Image(systemName: "checkmark.circle.fill")

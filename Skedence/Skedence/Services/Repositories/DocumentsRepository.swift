@@ -55,7 +55,16 @@ final class DocumentsRepository {
         let storagePath = "users/\(userId)/documents/\(filename)"
         let storageRef = storage.reference().child(storagePath)
         
-        _ = try await storageRef.putDataAsync(data)
+        // Set metadata with content type for storage rules validation
+        let storageMetadata = StorageMetadata()
+        storageMetadata.contentType = "application/pdf"
+        
+        // Add athlete name to storage metadata if provided
+        if let athleteName = metadata["athleteName"] as? String {
+            storageMetadata.customMetadata = ["athleteName": athleteName]
+        }
+        
+        _ = try await storageRef.putDataAsync(data, metadata: storageMetadata)
         let downloadURL = try await storageRef.downloadURL()
         
         // Save metadata to Firestore
