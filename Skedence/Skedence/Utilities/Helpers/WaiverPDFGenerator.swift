@@ -35,7 +35,10 @@ struct WaiverPDFGenerator {
             var currentY: CGFloat = 60.0
             let leftMargin: CGFloat = 60.0
             let rightMargin: CGFloat = 60.0
+            let topMargin: CGFloat = 60.0
+            let bottomMargin: CGFloat = 80.0 // Professional bottom margin
             let contentWidth = pageWidth - leftMargin - rightMargin
+            let maxContentHeight = pageHeight - topMargin - bottomMargin
             
             // Header
             let titleAttributes: [NSAttributedString.Key: Any] = [
@@ -86,7 +89,7 @@ struct WaiverPDFGenerator {
             
             // Use custom waiver text if provided, otherwise use default
             if let customText = customWaiverText, !customText.isEmpty {
-                // Calculate actual height needed for custom text to prevent cut-off
+                // Calculate actual height needed for custom text
                 let customTextHeight = customText.boundingRect(
                     with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
                     options: [.usesLineFragmentOrigin, .usesFontLeading],
@@ -94,14 +97,7 @@ struct WaiverPDFGenerator {
                     context: nil
                 ).height
                 
-                // Ensure sufficient space is available, start new page if needed
-                let remainingSpace = pageHeight - currentY - 300 // Reserve space for signature section
-                if customTextHeight > remainingSpace {
-                    context.beginPage()
-                    currentY = 60.0
-                }
-                
-                // Draw the custom text with proper spacing
+                // Draw the custom text
                 let customTextRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: customTextHeight + 20)
                 customText.draw(in: customTextRect, withAttributes: bodyAttributesWithParagraph)
                 currentY += customTextHeight + 30
@@ -181,12 +177,20 @@ struct WaiverPDFGenerator {
                 currentY += 70
             }
             
+            // Check if we need a new page for signature section
+            // Ensure professional spacing - leave at least 80pt bottom margin on page 1
+            let signatureSectionHeight: CGFloat = 350
+            if currentY + signatureSectionHeight > pageHeight - bottomMargin {
+                context.beginPage()
+                currentY = topMargin
+            }
+            
             // Draw separator line
             context.cgContext.setStrokeColor(UIColor.lightGray.cgColor)
             context.cgContext.move(to: CGPoint(x: leftMargin, y: currentY))
             context.cgContext.addLine(to: CGPoint(x: pageWidth - rightMargin, y: currentY))
             context.cgContext.strokePath()
-            currentY += 20
+            currentY += 25
             
             // Signature section
             let sigHeaderAttributes: [NSAttributedString.Key: Any] = [

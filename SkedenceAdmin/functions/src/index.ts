@@ -282,21 +282,27 @@ export const bookLesson = functions.https.onCall(
             if (trainerSlotData.location) {
               const maxBookingsPerLocation = settings?.maxBookingsPerLocation ?? 5;
 
-              // Count current booked sessions at this location (status = 'booked', not 'open')
-              const locationBookingsQuery = await db
-                .collectionGroup("schedules")
-                .where("orgId", "==", orgId)
-                .where("location", "==", trainerSlotData.location)
-                .where("status", "==", "booked")
-                .get();
+              // Get the start time of this slot
+              const slotStartTime = trainerSlotData.startTime?.toDate();
+              if (slotStartTime) {
+                // Count CONCURRENT booked sessions at this location and time
+                // Only count bookings happening at the exact same time
+                const locationBookingsQuery = await db
+                  .collectionGroup("schedules")
+                  .where("orgId", "==", orgId)
+                  .where("location", "==", trainerSlotData.location)
+                  .where("status", "==", "booked")
+                  .where("startTime", "==", trainerSlotData.startTime)
+                  .get();
 
-              const currentBookings = locationBookingsQuery.size;
+                const currentConcurrentBookings = locationBookingsQuery.size;
 
-              if (currentBookings >= maxBookingsPerLocation) {
-                throw new functions.https.HttpsError(
-                  "resource-exhausted",
-                  `This location has reached its booking capacity (${maxBookingsPerLocation} concurrent sessions). Please choose a different time or location.`
-                );
+                if (currentConcurrentBookings >= maxBookingsPerLocation) {
+                  throw new functions.https.HttpsError(
+                    "resource-exhausted",
+                    `This location has reached its booking capacity (${maxBookingsPerLocation} concurrent sessions). Please choose a different time or location.`
+                  );
+                }
               }
             }
           }

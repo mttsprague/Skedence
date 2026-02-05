@@ -1823,14 +1823,21 @@ struct BookView: View {
                 AnalyticsService.shared.logWaiverSigned(userId: userId, orgId: orgId)
             }
             
+            // Dismiss waiver sheet first
+            showWaiverAgreement = false
+            
             // Now that waiver is signed, complete the booking if it was pending
             if !pendingBookingSuccess {
+                // Wait briefly for sheet dismissal animation to complete
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                
                 // Waiver was shown BEFORE booking was created, so create it now
+                print("📝 Waiver saved, now creating booking...")
                 await performActualBooking()
+                print("✅ Booking creation completed")
             }
             
-            // Dismiss waiver sheet and reset flags AFTER booking completes
-            showWaiverAgreement = false
+            // Reset flags
             pendingBookingSuccess = false
         } catch {
             print("Failed to save waiver agreement: \(error)")
@@ -1846,7 +1853,10 @@ struct BookView: View {
     // Actually create the booking (called after waiver is signed)
     private func performActualBooking() async {
         guard let trainerId = selectedTrainer?.id,
-              let slotId = selectedSlot?.id else { return }
+              let slotId = selectedSlot?.id else {
+            print("❌ performActualBooking failed: missing trainerId or slotId")
+            return
+        }
         
         do {
             // Save new athlete if needed
@@ -1879,16 +1889,26 @@ struct BookView: View {
                 clientId: Auth.auth().currentUser?.uid ?? ""
             )
             
+            print("🎉 About to show success alert")
             await finishBookingSuccess()
+            print("✅ Success alert should be visible")
         } catch {
+            print("❌ Booking failed in performActualBooking: \(error)")
+            print("❌ Error type: \(type(of: error))")
+            print("❌ Error details: \(error.localizedDescription)")
+            
             let cleanMessage: String
             var navigateToPasses = false
+            
             if error.localizedDescription.contains("credits") || error.localizedDescription.contains("package") {
                 cleanMessage = "We couldn't complete your booking. That package has no passes remaining."
                 navigateToPasses = true
+            } else if error.localizedDescription.contains("concurrent") || error.localizedDescription.contains("capacity") {
+                cleanMessage = "This time slot is temporarily unavailable. Please try a different time or refresh the schedule."
             } else {
                 cleanMessage = "We couldn't complete your booking. \(error.localizedDescription)"
             }
+            
             bookingAlert = .init(
                 title: "Booking Failed",
                 message: cleanMessage,
