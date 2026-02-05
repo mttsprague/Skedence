@@ -128,14 +128,26 @@ struct ClientDocument: Identifiable, Codable {
     var type: String
     var uploadedAt: Date
     var url: String?
+    var storedDisplayName: String? // Stored display name from Firestore
+    var athleteName: String? // Name of athlete this document is for
     
     var displayName: String {
+        // Use stored display name if available, otherwise fall back to type-based naming
+        if let storedDisplayName = storedDisplayName {
+            return storedDisplayName
+        }
+        
         switch type {
         case "waiver": return "Waiver"
         case "medical": return "Medical Form"
         case "emergency_contact": return "Emergency Contact"
         default: return name
         }
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, type, uploadedAt, url, athleteName
+        case storedDisplayName = "displayName"
     }
     
     var icon: String {

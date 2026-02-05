@@ -120,6 +120,7 @@ final class DocumentsRepository {
     
     private func decodeUserDocument(id: String, data: [String: Any]) -> UserDocument {
         let name = data["name"] as? String ?? "Unknown"
+        let displayName = data["displayName"] as? String
         let type = data["type"] as? String ?? "document"
         let uploadedAt = (data["uploadedAt"] as? Timestamp)?.dateValue() ?? Date()
         let url = data["url"] as? String ?? ""
@@ -131,6 +132,7 @@ final class DocumentsRepository {
         return UserDocument(
             id: id,
             name: name,
+            displayName: displayName,
             type: type,
             uploadedAt: uploadedAt,
             url: url,

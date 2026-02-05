@@ -11,6 +11,7 @@ import Combine
 struct UserDocument: Codable, Identifiable {
     var id: String
     var name: String
+    var displayName: String? // Friendly display name
     var type: String // "waiver", "medical", etc.
     var uploadedAt: Date
     var url: String

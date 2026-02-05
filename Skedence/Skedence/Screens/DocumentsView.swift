@@ -85,7 +85,7 @@ struct DocumentsView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(document.name)
+                    Text(document.displayName ?? document.name)
                         .font(.bodyMedium)
                         .foregroundStyle(AppTheme.primary)
                         .multilineTextAlignment(.leading)
