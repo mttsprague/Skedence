@@ -113,8 +113,7 @@ struct ScheduleView: View {
             )
             .padding(.top, 2)
             .padding(.bottom, 4)
-            .contentShape(Rectangle())
-            .gesture(
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 50)
                     .onEnded { value in
                         let horizontalMovement = value.translation.width
