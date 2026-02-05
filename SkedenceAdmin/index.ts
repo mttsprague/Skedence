@@ -436,4 +436,70 @@ export const processTrainerAvailability = functions.https.onCall(
     }
   }
 );
+
+/**
+ * List saved payment methods for a user
+ * Called from the iOS app to retrieve saved Stripe payment methods
+ */
+export const listPaymentMethods = functions.https.onCall(
+  async (data, context) => {
+    // Verify authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated to list payment methods."
+      );
+    }
+
+    const userId = context.auth.uid;
+    const orgId = data.orgId as string;
+
+    if (!orgId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "orgId is required"
+      );
+    }
+
+    try {
+      functions.logger.info(
+        `Listing payment methods for user ${userId}, org ${orgId}`
+      );
+
+      // Query saved payment methods from Firestore
+      const paymentMethodsSnapshot = await db
+        .collection("users")
+        .doc(userId)
+        .collection("paymentMethods")
+        .where("orgId", "==", orgId)
+        .get();
+
+      const paymentMethods = paymentMethodsSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          brand: data.brand || "card",
+          last4: data.last4 || "****",
+          expiryMonth: data.expiryMonth || 0,
+          expiryYear: data.expiryYear || 0,
+        };
+      });
+
+      functions.logger.info(
+        `Found ${paymentMethods.length} payment methods for user ${userId}`
+      );
+
+      return {
+        paymentMethods,
+      };
+    } catch (error) {
+      functions.logger.error("Error listing payment methods:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to list payment methods",
+        (error as Error).message
+      );
+    }
+  }
+);
 /* eslint-enable quotes */

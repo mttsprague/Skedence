@@ -554,3 +554,200 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
     }
   }
 );
+
+/**
+ * Attach a payment method to a customer
+ */
+export const attachPaymentMethod = functions.https.onCall(
+  async (
+    request: functions.https.CallableRequest<{
+      paymentMethodId: string;
+      customerId: string;
+      orgId?: string;
+    }>
+  ) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Must be authenticated"
+      );
+    }
+
+    const {paymentMethodId, customerId, orgId} = request.data;
+
+    if (!paymentMethodId || !customerId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing paymentMethodId or customerId"
+      );
+    }
+
+    try {
+      // Get Stripe config
+      let stripeSecretKey: string;
+
+      if (orgId) {
+        const stripeDoc = await db
+          .collection("organizations")
+          .doc(orgId)
+          .collection("stripe")
+          .doc("config")
+          .get();
+
+        stripeSecretKey = stripeDoc.data()?.secretKey;
+      } else {
+        // Legacy single-tenant
+        const configDoc = await db.collection("stripeConfig").doc("keys").get();
+        stripeSecretKey = configDoc.data()?.secretKey;
+      }
+
+      if (!stripeSecretKey) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Stripe not configured"
+        );
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
+
+      // Attach payment method to customer
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: customerId,
+      });
+
+      // Set as default
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethodId,
+        },
+      });
+
+      console.log(`✅ Attached payment method ${paymentMethodId} to customer ${customerId}`);
+
+      return {success: true};
+    } catch (error) {
+      console.error("❌ Error attaching payment method:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to attach payment method: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);
+
+/**
+ * Charge a customer using a saved payment method
+ */
+export const chargeWithSavedMethod = functions.https.onCall(
+  async (
+    request: functions.https.CallableRequest<{
+      clientId: string;
+      paymentMethodId: string;
+      amount: number;
+      description: string;
+      orgId?: string;
+    }>
+  ) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Must be authenticated"
+      );
+    }
+
+    const {clientId, paymentMethodId, amount, description, orgId} = request.data;
+
+    if (!clientId || !paymentMethodId || !amount) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields"
+      );
+    }
+
+    if (request.auth.uid !== clientId) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Can only charge your own card"
+      );
+    }
+
+    try {
+      // Get user and Stripe customer ID
+      const userDoc = await db.collection("users").doc(clientId).get();
+      const stripeCustomerId = userDoc.data()?.stripeCustomerId;
+
+      if (!stripeCustomerId) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "No Stripe customer found"
+        );
+      }
+
+      // Get Stripe config
+      let stripeSecretKey: string;
+
+      if (orgId) {
+        const stripeDoc = await db
+          .collection("organizations")
+          .doc(orgId)
+          .collection("stripe")
+          .doc("config")
+          .get();
+
+        stripeSecretKey = stripeDoc.data()?.secretKey;
+      } else {
+        const configDoc = await db.collection("stripeConfig").doc("keys").get();
+        stripeSecretKey = configDoc.data()?.secretKey;
+      }
+
+      if (!stripeSecretKey) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Stripe not configured"
+        );
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
+
+      // Create and confirm payment intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount,
+        currency: "usd",
+        customer: stripeCustomerId,
+        payment_method: paymentMethodId,
+        description,
+        confirm: true,
+        off_session: true,
+      });
+
+      console.log(`✅ Charged ${amount} cents to payment method ${paymentMethodId}`);
+
+      // Record transaction
+      await db.collection("transactions").add({
+        userId: clientId,
+        amount,
+        description,
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        orgId: orgId || null,
+      });
+
+      return {
+        success: true,
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+      };
+    } catch (error) {
+      console.error("❌ Error charging with saved method:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to charge payment method: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);

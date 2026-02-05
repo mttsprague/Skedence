@@ -552,7 +552,7 @@ export const registerForClass = functions.https.onCall(
         const primaryAthleteName = athleteName || `${userData.firstName || "Unknown"} ${userData.lastName || "User"}`.trim();
         const primaryParticipantId = `${userId}_${primaryAthleteName.replace(/\s+/g, "_")}`;
         const primaryParticipantRef = classRef.collection("participants").doc(primaryParticipantId);
-        
+
         transaction.set(primaryParticipantRef, {
           userId: userId,
           firstName: userData.firstName || "Unknown",
@@ -566,7 +566,7 @@ export const registerForClass = functions.https.onCall(
         if (secondAthleteName) {
           const secondParticipantId = `${userId}_${secondAthleteName.replace(/\s+/g, "_")}`;
           const secondParticipantRef = classRef.collection("participants").doc(secondParticipantId);
-          
+
           transaction.set(secondParticipantRef, {
             userId: userId,
             firstName: userData.firstName || "Unknown",
@@ -1304,6 +1304,228 @@ export const updateClassLocations = functions.https.onCall(
         "internal",
         "An error occurred while updating class locations.",
         (error as Error).message
+      );
+    }
+  }
+);
+
+/**
+ * Register a new trainer profile
+ * Called during trainer signup from admin app
+ */
+export const registerTrainer = functions.https.onCall(
+  async (
+    request: functions.https.CallableRequest<{
+      uid: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      orgId?: string;
+    }>
+  ) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Must be authenticated"
+      );
+    }
+
+    const {uid, email, firstName, lastName, orgId} = request.data;
+
+    if (!uid || !email || !firstName || !lastName) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing required fields: uid, email, firstName, lastName"
+      );
+    }
+
+    try {
+      // Create trainer profile
+      await db.collection("trainers").doc(uid).set({
+        email,
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`,
+        orgId: orgId || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isActive: true,
+      }, {merge: true});
+
+      console.log(`✅ Registered trainer: ${firstName} ${lastName} (${uid})`);
+
+      return {success: true, trainerId: uid};
+    } catch (error) {
+      console.error("❌ Error registering trainer:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to register trainer: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);
+
+/**
+ * Manually register a client for a class (admin only)
+ * Supports both existing clients with packages and manual entry
+ */
+export const manualRegisterForClass = functions.https.onCall(
+  async (
+    request: functions.https.CallableRequest<{
+      classId: string;
+      userId?: string;
+      classPassPackageId?: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string | null;
+    }>
+  ) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Must be authenticated"
+      );
+    }
+
+    const {classId, userId, classPassPackageId, firstName, lastName, email} = request.data;
+
+    if (!classId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "classId is required"
+      );
+    }
+
+    try {
+      // Get class document
+      const classDoc = await db.collection("classes").doc(classId).get();
+      if (!classDoc.exists) {
+        throw new functions.https.HttpsError("not-found", "Class not found");
+      }
+
+      const classData = classDoc.data()!;
+      const orgId = classData.orgId;
+
+      if (!orgId) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Class missing orgId"
+        );
+      }
+
+      // Check if user is admin
+      const adminMember = await db
+        .collection("orgMembers")
+        .doc(`${request.auth.uid}_${orgId}`)
+        .get();
+
+      if (!adminMember.exists) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Not a member of this organization"
+        );
+      }
+
+      const role = adminMember.data()?.role;
+      if (role !== "admin" && role !== "owner") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Must be admin or owner to manually register clients"
+        );
+      }
+
+      let registrationData: any;
+
+      if (userId) {
+        // Existing client registration
+        if (!classPassPackageId) {
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            "classPassPackageId required for existing client"
+          );
+        }
+
+        // Verify package exists and has credits
+        const packageDoc = await db
+          .collection("users")
+          .doc(userId)
+          .collection("lessonPackages")
+          .doc(classPassPackageId)
+          .get();
+
+        if (!packageDoc.exists) {
+          throw new functions.https.HttpsError("not-found", "Package not found");
+        }
+
+        const packageData = packageDoc.data()!;
+        if ((packageData.lessonsRemaining || 0) <= 0) {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            "Package has no remaining credits"
+          );
+        }
+
+        registrationData = {
+          clientId: userId,
+          classId,
+          classPassPackageId,
+          orgId,
+          registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+          registeredBy: request.auth.uid,
+          status: "confirmed",
+        };
+
+        // Decrement package
+        await db
+          .collection("users")
+          .doc(userId)
+          .collection("lessonPackages")
+          .doc(classPassPackageId)
+          .update({
+            lessonsRemaining: admin.firestore.FieldValue.increment(-1),
+          });
+
+        console.log(`✅ Registered user ${userId} for class ${classId} using package ${classPassPackageId}`);
+      } else {
+        // Manual entry registration
+        if (!firstName || !lastName) {
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            "firstName and lastName required for manual entry"
+          );
+        }
+
+        registrationData = {
+          firstName,
+          lastName,
+          email: email || null,
+          classId,
+          orgId,
+          registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+          registeredBy: request.auth.uid,
+          status: "manual",
+          isManualEntry: true,
+        };
+
+        console.log(`✅ Manually registered ${firstName} ${lastName} for class ${classId}`);
+      }
+
+      // Create registration
+      await db.collection("classRegistrations").add(registrationData);
+
+      // Increment current participants
+      await db.collection("classes").doc(classId).update({
+        currentParticipants: admin.firestore.FieldValue.increment(1),
+      });
+
+      return {success: true};
+    } catch (error) {
+      console.error("❌ Error in manualRegisterForClass:", error);
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to register for class: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }

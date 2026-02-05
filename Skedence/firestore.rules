@@ -470,6 +470,33 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // CLASS REGISTRATIONS COLLECTION
+    // =========================================================================
+    match /classRegistrations/{registrationId} {
+      // Users can read their own registrations
+      // Admins can read all registrations in their org
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid
+        || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
+      );
+      
+      // Users can register themselves for classes in their org
+      allow create: if isSignedIn() 
+        && request.resource.data.clientId == request.auth.uid
+        && 'orgId' in request.resource.data
+        && isMemberOfOrg(request.resource.data.orgId);
+      
+      // Users can unregister themselves, admins can remove anyone
+      allow delete: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid
+        || ('orgId' in resource.data && isOrgAdmin(resource.data.orgId))
+      );
+      
+      // No updates needed - just create and delete
+      allow update: if false;
+    }
+
+    // =========================================================================
     // COLLECTION GROUP RULE FOR SCHEDULES
     // Allows queries across all trainer schedules within same org
     // =========================================================================

@@ -15,7 +15,6 @@
 		C32042902E9D654E003EF857 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C320428F2E9D654E003EF857 /* FirebaseStorage */; };
 		C320429E2E9D66A7003EF857 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = C320429D2E9D66A7003EF857 /* FirebaseCore */; };
 		C32042E22E9E7AAB003EF857 /* ClientsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32042E12E9E7AAB003EF857 /* ClientsViewModel.swift */; };
-		C32042E42E9E7AAD003EF857 /* ClientDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32042E32E9E7AAD003EF857 /* ClientDetailView.swift */; };
 		C38B33E92F1A9AF6008F2ED2 /* Stripe in Frameworks */ = {isa = PBXBuildFile; productRef = C38B33E82F1A9AF6008F2ED2 /* Stripe */; };
 		C38B33EB2F1A9AF6008F2ED2 /* StripeApplePay in Frameworks */ = {isa = PBXBuildFile; productRef = C38B33EA2F1A9AF6008F2ED2 /* StripeApplePay */; };
 		C38B33ED2F1A9AF6008F2ED2 /* StripeCardScan in Frameworks */ = {isa = PBXBuildFile; productRef = C38B33EC2F1A9AF6008F2ED2 /* StripeCardScan */; };
@@ -52,7 +51,6 @@
 		C32042242E9C9C96003EF857 /* SkedenceAdminTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SkedenceAdminTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C320422E2E9C9C96003EF857 /* SkedenceAdminUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SkedenceAdminUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C32042E12E9E7AAB003EF857 /* ClientsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientsViewModel.swift; sourceTree = "<group>"; };
-		C32042E32E9E7AAD003EF857 /* ClientDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientDetailView.swift; sourceTree = "<group>"; };
 		C3BCEE552EA16203004619EF /* index.ts */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.typescript; path = index.ts; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -139,7 +137,6 @@
 				C32042312E9C9C96003EF857 /* SkedenceAdminUITests */,
 				C32042162E9C9C95003EF857 /* Products */,
 				C32042E12E9E7AAB003EF857 /* ClientsViewModel.swift */,
-				C32042E32E9E7AAD003EF857 /* ClientDetailView.swift */,
 				C3BCEE552EA16203004619EF /* index.ts */,
 			);
 			sourceTree = "<group>";
@@ -321,7 +318,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C32042E42E9E7AAD003EF857 /* ClientDetailView.swift in Sources */,
 				C32042E22E9E7AAB003EF857 /* ClientsViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
