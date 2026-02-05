@@ -43,19 +43,6 @@ struct TrainerWeekView: View {
             )
             .padding(.top, 2)
             .padding(.bottom, 4)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 50)
-                    .onEnded { value in
-                        let horizontalMovement = value.translation.width
-                        if horizontalMovement < -50 {
-                            // Swipe left - next week
-                            shiftWeek(by: 1)
-                        } else if horizontalMovement > 50 {
-                            // Swipe right - previous week
-                            shiftWeek(by: -1)
-                        }
-                    }
-            )
             
             GeometryReader { geometry in
                 let horizontalPaddingPerCell = ScheduleConstants.horizontalPaddingPerCell
@@ -98,8 +85,34 @@ struct TrainerWeekView: View {
                         }
                     }
                 )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 50)
+                        .onEnded { value in
+                            let horizontalMovement = value.translation.width
+                            if horizontalMovement < -50 {
+                                // Swipe left - next week
+                                shiftWeek(by: 1)
+                            } else if horizontalMovement > 50 {
+                                // Swipe right - previous week
+                                shiftWeek(by: -1)
+                            }
+                        }
+                )
             }
         }
+        .gesture(
+            DragGesture(minimumDistance: 50)
+                .onEnded { value in
+                    let horizontalMovement = value.translation.width
+                    if horizontalMovement < -50 {
+                        // Swipe left - next week
+                        shiftWeek(by: 1)
+                    } else if horizontalMovement > 50 {
+                        // Swipe right - previous week
+                        shiftWeek(by: -1)
+                    }
+                }
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {

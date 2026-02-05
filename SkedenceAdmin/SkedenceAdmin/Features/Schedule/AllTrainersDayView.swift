@@ -128,19 +128,6 @@ struct AllTrainersDayView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 50)
-                        .onEnded { value in
-                            let horizontalMovement = value.translation.width
-                            if horizontalMovement < -50 {
-                                // Swipe left - next day
-                                shiftDay(by: 1)
-                            } else if horizontalMovement > 50 {
-                                // Swipe right - previous day
-                                shiftDay(by: -1)
-                            }
-                        }
-                )
 
                 let headerRowHeight: CGFloat = 56.0 // trainer avatar+name header height
                 
@@ -169,7 +156,33 @@ struct AllTrainersDayView: View {
                         }
                     }
                 )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 50)
+                        .onEnded { value in
+                            let horizontalMovement = value.translation.width
+                            if horizontalMovement < -50 {
+                                // Swipe left - next day
+                                shiftDay(by: 1)
+                            } else if horizontalMovement > 50 {
+                                // Swipe right - previous day
+                                shiftDay(by: -1)
+                            }
+                        }
+                )
             }
+            .gesture(
+                DragGesture(minimumDistance: 50)
+                    .onEnded { value in
+                        let horizontalMovement = value.translation.width
+                        if horizontalMovement < -50 {
+                            // Swipe left - next day
+                            shiftDay(by: 1)
+                        } else if horizontalMovement > 50 {
+                            // Swipe right - previous day
+                            shiftDay(by: -1)
+                        }
+                    }
+            )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
