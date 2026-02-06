@@ -847,6 +847,7 @@ interface AdminCancelLessonData {
   bookingId: string;
   orgId: string;
   clientId: string;
+  refundPass?: boolean; // Optional: true for early cancel, false for late cancel. Defaults to true for backward compatibility
 }
 
 export const adminCancelLesson = functions.https.onCall(
@@ -858,7 +859,7 @@ export const adminCancelLesson = functions.https.onCall(
       );
     }
     const adminUid = request.auth.uid;
-    const {bookingId, orgId, clientId} = request.data;
+    const {bookingId, orgId, clientId, refundPass = true} = request.data; // Default to true for backward compatibility
 
     if (!bookingId || !orgId || !clientId) {
       throw new functions.https.HttpsError(
@@ -920,8 +921,9 @@ export const adminCancelLesson = functions.https.onCall(
           );
         }
 
-        // Get the lesson package and decrement lessonsUsed
-        if (bookingData.packageId) {
+        // Get the lesson package and conditionally decrement lessonsUsed based on refundPass
+        // If refundPass is true (early cancel), refund the pass. If false (late cancel), don't refund.
+        if (refundPass && bookingData.packageId) {
           const packageRef = db
             .collection("users")
             .doc(clientId)
@@ -983,7 +985,7 @@ export const adminCancelLesson = functions.https.onCall(
           targetId: clientId,
           targetName: clientFullName,
           targetType: "client",
-          description: `${adminFullName} cancelled ${clientFullName}'s lesson with ${trainerFullName}`,
+          description: `${adminFullName} cancelled ${clientFullName}'s lesson with ${trainerFullName} (${refundPass ? 'Early Cancel - Pass Refunded' : 'Late Cancel - No Refund'})`,
           metadata: {
             bookingId: bookingId,
             slotId: bookingData.slotId || null,
@@ -994,6 +996,8 @@ export const adminCancelLesson = functions.https.onCall(
             location: bookingData.location || null,
             athleteName: bookingData.athleteName || null,
             secondAthleteName: bookingData.secondAthleteName || null,
+            refundPass: refundPass, // Track whether pass was refunded
+            cancelType: refundPass ? 'early' : 'late', // Track cancel type
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
           },
           orgId: orgId,

@@ -90,6 +90,8 @@ export default function SchedulePage() {
   // Booking/class detail dialogs
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedClass, setSelectedClass] = useState<GroupClass | null>(null);
+  const [cancellingBooking, setCancellingBooking] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
 
   // Set initial trainer to current user
   useEffect(() => {
@@ -430,6 +432,36 @@ export default function SchedulePage() {
     }
   };
 
+  const handleCancelBooking = async (refundPass: boolean) => {
+    if (!selectedBooking || !orgId) return;
+
+    setCancellingBooking(true);
+    setShowCancelConfirm(null);
+
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      const adminCancelLesson = httpsCallable(functions, 'adminCancelLesson');
+      
+      await adminCancelLesson({
+        bookingId: selectedBooking.id,
+        orgId: orgId,
+        clientId: selectedBooking.clientUID || selectedBooking.clientId,
+        refundPass: refundPass
+      });
+
+      // Close dialog and show success
+      setSelectedBooking(null);
+      alert(refundPass 
+        ? 'Session cancelled successfully! The client\'s pass has been refunded.' 
+        : 'Session cancelled successfully. The client\'s pass was not refunded.');
+    } catch (error: any) {
+      alert(error.message || 'Failed to cancel session');
+    } finally {
+      setCancellingBooking(false);
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -698,6 +730,73 @@ export default function SchedulePage() {
                   <h3 className="font-semibold text-gray-900">Notes for Coach</h3>
                   <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                     {selectedBooking.notesForCoach}
+                  </div>
+                </div>
+              )}
+
+              {/* Cancel Options - Only show for future bookings */}
+              {new Date(selectedBooking.startTime) > new Date() && !showCancelConfirm && !cancellingBooking && (
+                <div className="pt-4 border-t space-y-2">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Cancel Session</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={() => setShowCancelConfirm('early')}
+                      variant="outline"
+                      className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                    >
+                      Early Cancel
+                      <span className="block text-xs font-normal mt-1">Refund Pass</span>
+                    </Button>
+                    <Button
+                      onClick={() => setShowCancelConfirm('late')}
+                      variant="outline"
+                      className="border-red-500 text-red-600 hover:bg-red-50"
+                    >
+                      Late Cancel
+                      <span className="block text-xs font-normal mt-1">No Refund</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmation Step */}
+              {showCancelConfirm && !cancellingBooking && (
+                <div className="pt-4 border-t space-y-3">
+                  <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                    <p className="text-sm font-semibold text-yellow-900 mb-1">
+                      Confirm {showCancelConfirm === 'early' ? 'Early' : 'Late'} Cancel
+                    </p>
+                    <p className="text-sm text-yellow-800">
+                      {showCancelConfirm === 'early' 
+                        ? 'The client\'s pass will be refunded and returned to their account.' 
+                        : 'The client\'s pass will NOT be refunded. This cannot be undone.'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleCancelBooking(showCancelConfirm === 'early')}
+                      variant="destructive"
+                      className="flex-1"
+                    >
+                      Confirm Cancellation
+                    </Button>
+                    <Button
+                      onClick={() => setShowCancelConfirm(null)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Go Back
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Cancelling State */}
+              {cancellingBooking && (
+                <div className="pt-4 border-t text-center text-gray-600">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                    Cancelling session...
                   </div>
                 </div>
               )}

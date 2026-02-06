@@ -18,10 +18,12 @@ struct SessionDetailView: View {
     private var auth: AuthManager { dependencies.auth }
     
     @State private var showCancelConfirmation = false
+    @State private var showCancelOptions = false // New state for action sheet
     @State private var isCancelling = false
     @State private var cancelError: String?
     @State private var showClientCard = false
     @State private var showCancelSuccess = false
+    @State private var cancelSuccessMessage = "" // Store the success message
     
     var body: some View {
         NavigationView {
@@ -71,18 +73,21 @@ struct SessionDetailView: View {
             .sheet(isPresented: $showClientCard) {
                 ClientCardView(client: client, selectedBooking: nil)
             }
-            .alert("Cancel Session?", isPresented: $showCancelConfirmation) {
-                Button("Cancel Session", role: .destructive) {
-                    Task { await cancelBooking() }
+            .confirmationDialog("Cancel Session", isPresented: $showCancelOptions, titleVisibility: .visible) {
+                Button("Early Cancel (Refund Pass)", role: .destructive) {
+                    Task { await cancelBooking(refundPass: true) }
+                }
+                Button("Late Cancel (No Refund)", role: .destructive) {
+                    Task { await cancelBooking(refundPass: false) }
                 }
                 Button("Keep Session", role: .cancel) {}
             } message: {
-                Text("Are you sure you want to cancel this session? The client's pass will be refunded.")
+                Text("Choose cancellation type:\n\n• Early Cancel: Client's pass will be refunded\n• Late Cancel: Client's pass will NOT be refunded")
             }
             .alert("Success", isPresented: $showCancelSuccess) {
                 Button("OK") { }
             } message: {
-                Text("Session cancelled successfully! The client's pass has been refunded.")
+                Text(cancelSuccessMessage)
             }
             .alert("Error", isPresented: .constant(cancelError != nil)) {
                 Button("OK") { cancelError = nil }
@@ -327,7 +332,7 @@ struct SessionDetailView: View {
     // MARK: - Cancel Button
     private var cancelButton: some View {
         Button {
-            showCancelConfirmation = true
+            showCancelOptions = true
         } label: {
             HStack(spacing: Spacing.sm) {
                 if isCancelling {
@@ -357,7 +362,7 @@ struct SessionDetailView: View {
     }
     
     // MARK: - Actions
-    private func cancelBooking() async {
+    private func cancelBooking(refundPass: Bool) async {
         let bookingId = booking.id
         guard let orgId = auth.currentOrgId else {
             cancelError = "Missing booking or organization information"
@@ -374,10 +379,18 @@ struct SessionDetailView: View {
             let data: [String: Any] = [
                 "bookingId": bookingId,
                 "orgId": orgId,
-                "clientId": client.id
+                "clientId": client.id,
+                "refundPass": refundPass
             ]
             
             _ = try await callable.call(data)
+            
+            // Set appropriate success message
+            if refundPass {
+                cancelSuccessMessage = "Session cancelled successfully! The client's pass has been refunded."
+            } else {
+                cancelSuccessMessage = "Session cancelled successfully. The client's pass was not refunded."
+            }
             
             // Show success and dismiss
             showCancelSuccess = true

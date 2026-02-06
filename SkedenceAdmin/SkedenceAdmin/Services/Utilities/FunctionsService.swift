@@ -288,7 +288,8 @@ final class FunctionsService {
     func adminCancelLesson(
         bookingId: String,
         orgId: String,
-        clientId: String
+        clientId: String,
+        refundPass: Bool = true // Default to true for backward compatibility
     ) async throws {
         #if canImport(FirebaseFunctions)
         guard Auth.auth().currentUser != nil else {
@@ -298,7 +299,8 @@ final class FunctionsService {
         let payload: [String: Any] = [
             "bookingId": bookingId,
             "orgId": orgId,
-            "clientId": clientId
+            "clientId": clientId,
+            "refundPass": refundPass
         ]
         
         
