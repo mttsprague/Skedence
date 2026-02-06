@@ -1828,9 +1828,6 @@ struct BookView: View {
             
             // Now that waiver is signed, complete the booking if it was pending
             if !pendingBookingSuccess {
-                // Wait briefly for sheet dismissal animation to complete
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                
                 // Waiver was shown BEFORE booking was created, so create it now
                 print("📝 Waiver saved, now creating booking...")
                 await performActualBooking()
