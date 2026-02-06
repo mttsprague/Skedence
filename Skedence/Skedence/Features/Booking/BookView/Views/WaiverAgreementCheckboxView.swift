@@ -11,6 +11,7 @@ import UIKit
 struct WaiverAgreementCheckboxView: View {
     let waiverText: String
     let userProfile: UserProfile?
+    let athleteName: String?
     let onAgree: () -> Void
     let onCancel: () -> Void
     
@@ -25,6 +26,11 @@ struct WaiverAgreementCheckboxView: View {
                         Text("Liability Waiver")
                             .font(.displaySmall)
                             .foregroundStyle(AppTheme.textPrimary)
+                        if let athlete = athleteName {
+                            Text("For \(athlete)")
+                                .font(.headingMedium)
+                                .foregroundStyle(AppTheme.primary)
+                        }
                         Text("Please read and agree to continue")
                             .font(.bodyMedium)
                             .foregroundStyle(AppTheme.textSecondary)

@@ -690,6 +690,7 @@ struct ClassRegistrationSheet: View {
             WaiverAgreementCheckboxView(
                 waiverText: settingsService.settings?.waiverText ?? "",
                 userProfile: usersService.currentUser,
+                athleteName: nil,  // Classes don't have specific athlete names
                 onAgree: {
                     Task { await handleWaiverAgreement() }
                 },

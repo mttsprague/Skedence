@@ -57,7 +57,7 @@ struct BookView: View {
     @State private var showBookingInstructions = false
     @State private var showWaiverAgreement = false
     @State private var pendingBookingSuccess = false
-    @State private var pendingNewAthleteWaiver = false
+    @State private var currentWaiverAthleteIndex: Int? = nil  // Track which athlete is signing waiver
     
     // Trainer filter state
     @State private var showTrainerFilter = false
@@ -357,15 +357,22 @@ struct BookView: View {
                 .sheet(isPresented: $showSubscriptionSheet) { SubscriptionRequiredView() }
                 .sheet(isPresented: $showBookingInstructions) { BookingInstructionsSheet() }
                 .sheet(isPresented: $showWaiverAgreement) {
+                    let athleteName = currentWaiverAthleteIndex != nil && currentWaiverAthleteIndex! < selectedAthletes.count 
+                        ? selectedAthletes[currentWaiverAthleteIndex!] 
+                        : nil
+                    let displayName = athleteName ?? "Athlete"
+                    
                     WaiverAgreementCheckboxView(
                         waiverText: settingsService.settings?.waiverText ?? "",
                         userProfile: usersService.currentUser,
+                        athleteName: displayName,
                         onAgree: {
                             Task { await handleWaiverAgreement() }
                         },
                         onCancel: {
                             showWaiverAgreement = false
                             pendingBookingSuccess = false
+                            currentWaiverAthleteIndex = nil
                         }
                     )
                 }
@@ -1275,66 +1282,38 @@ struct BookView: View {
         defer { bookingInFlight = false }
         
         do {
-            // Check waivers FIRST, before creating the booking
+            // Check waivers FIRST, before creating the booking - sequential for all athletes
             if let userId = Auth.auth().currentUser?.uid {
-                let waiverCheck = try await settingsService.checkWaiverRequirement(
-                    userId: userId,
-                    settings: settingsService.settings
-                )
-                
-                // Check if selected athlete needs waiver
-                if let athleteName = selectedAthleteName {
-                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
+                // Check each selected athlete for waivers sequentially
+                for (index, athleteName) in selectedAthletes.enumerated() {
+                    guard let name = athleteName else { continue }
+                    
+                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: name)
                     if !athleteHasWaiver {
-                        pendingBookingSuccess = false // Booking hasn't been created yet
-                        pendingNewAthleteWaiver = false // Waiver is for selectedAthleteName
+                        // This athlete needs to sign - show waiver for them
+                        pendingBookingSuccess = false
+                        currentWaiverAthleteIndex = index
                         showWaiverAgreement = true
                         return
                     }
                 }
                 
-                // Check if second athlete needs waiver (for existing athletes)
-                if !isNewAthlete && secondAthleteName != nil && secondAthleteName != "New Athlete" {
-                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: secondAthleteName!)
-                    if !athleteHasWaiver {
-                        pendingBookingSuccess = false // Booking hasn't been created yet
-                        pendingNewAthleteWaiver = false
-                        // Store the second athlete name for waiver
-                        selectedAthleteName = secondAthleteName
+                // Legacy waiver check (for users without athletes)
+                if selectedAthletes.isEmpty {
+                    let waiverCheck = try await settingsService.checkWaiverRequirement(
+                        userId: userId,
+                        settings: settingsService.settings
+                    )
+                    if waiverCheck.required && !waiverCheck.signed {
+                        pendingBookingSuccess = false
+                        currentWaiverAthleteIndex = nil
                         showWaiverAgreement = true
                         return
                     }
-                }
-                
-                // Check if second athlete needs waiver (for new athletes)
-                if isNewAthlete && secondAthleteName != nil {
-                    let athleteName: String
-                    if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
-                        athleteName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    } else {
-                        let f = (newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                        let l = (newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                        athleteName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
-                    }
-                    let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
-                    if !athleteHasWaiver {
-                        pendingBookingSuccess = false // Booking hasn't been created yet
-                        pendingNewAthleteWaiver = true
-                        showWaiverAgreement = true
-                        return
-                    }
-                }
-                
-                // Legacy waiver check
-                if waiverCheck.required && !waiverCheck.signed {
-                    pendingBookingSuccess = false // Booking hasn't been created yet
-                    showWaiverAgreement = true
-                    return
                 }
             }
             
             // All waivers are signed, now proceed with booking
-            // Note: isNewAthlete support removed in favor of pre-defined athletes
             
             // Save athlete information to profile for first athlete if provided
             if let firstAthlete = selectedAthletes.first, let athleteName = firstAthlete {
@@ -1622,6 +1601,7 @@ struct BookView: View {
         selectedPackage = nil
         selectedAthletes = []
         lessonNotes = ""
+        currentWaiverAthleteIndex = nil
         
         // Clear dynamic form data
         intakeFormData.fieldValues.removeAll()
@@ -1636,6 +1616,7 @@ struct BookView: View {
               let profile = usersService.currentUser else {
             showWaiverAgreement = false
             pendingBookingSuccess = false
+            currentWaiverAthleteIndex = nil
             return
         }
         do {
@@ -1649,18 +1630,13 @@ struct BookView: View {
                 signedAt: Date()
             )
             
-            // Determine athlete name for waiver
-            let athleteForWaiver: String?
-            if pendingNewAthleteWaiver {
-                if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
-                    athleteForWaiver = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-                } else {
-                    let f = (newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                    let l = (newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                    athleteForWaiver = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
-                }
+            // Get athlete name for this waiver
+            let athleteForWaiver: String? = if let index = currentWaiverAthleteIndex,
+                                              index < selectedAthletes.count,
+                                              let name = selectedAthletes[index] {
+                name
             } else {
-                athleteForWaiver = selectedAthleteName
+                nil
             }
             
             // Generate PDF with custom waiver text from settings
@@ -1686,15 +1662,39 @@ struct BookView: View {
                 AnalyticsService.shared.logWaiverSigned(userId: userId, orgId: orgId)
             }
             
-            // Dismiss waiver sheet first
+            print("✅ Waiver saved for: \(athleteForWaiver ?? "user")")
+            
+            // Dismiss waiver sheet
             showWaiverAgreement = false
             
-            // Now that waiver is signed, complete the booking if it was pending
-            if !pendingBookingSuccess {
-                // Waiver was shown BEFORE booking was created, so create it now
-                print("📝 Waiver saved, now creating booking...")
+            // Check if there are more athletes who need waivers
+            if let currentIndex = currentWaiverAthleteIndex {
+                // Look for next athlete who needs a waiver
+                var foundNextAthlete = false
+                for index in (currentIndex + 1)..<selectedAthletes.count {
+                    if let athleteName = selectedAthletes[index] {
+                        let hasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
+                        if !hasWaiver {
+                            // Show waiver for next athlete
+                            currentWaiverAthleteIndex = index
+                            showWaiverAgreement = true
+                            foundNextAthlete = true
+                            print("📝 Next athlete needs waiver: \(athleteName)")
+                            return
+                        }
+                    }
+                }
+                
+                if !foundNextAthlete {
+                    // All athletes have waivers now, proceed with booking
+                    currentWaiverAthleteIndex = nil
+                    print("✅ All waivers complete, creating booking...")
+                    await performActualBooking()
+                }
+            } else {
+                // Legacy waiver (no athletes) - proceed with booking
+                print("✅ Legacy waiver complete, creating booking...")
                 await performActualBooking()
-                print("✅ Booking creation completed")
             }
             
             // Reset flags
@@ -1703,6 +1703,7 @@ struct BookView: View {
             print("Failed to save waiver agreement: \(error)")
             showWaiverAgreement = false
             pendingBookingSuccess = false
+            currentWaiverAthleteIndex = nil
             bookingAlert = .init(
                 title: "Waiver Error",
                 message: "Failed to save waiver agreement. Please try again."
