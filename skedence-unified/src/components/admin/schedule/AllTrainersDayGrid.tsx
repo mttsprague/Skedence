@@ -269,24 +269,31 @@ export function AllTrainersDayGrid({
                       ))}
 
                       {/* Bookings */}
-                      {cellBookings.map((booking) => (
-                        <div
-                          key={booking.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onBookingClick(booking);
-                          }}
-                          className="absolute inset-x-1 bg-blue-500 hover:bg-blue-600 text-white rounded cursor-pointer transition-colors"
-                          style={{
-                            top: '2px',
-                            bottom: '2px',
-                          }}
-                        >
-                          <div className="text-[9px] sm:text-[10px] font-medium text-center py-1 truncate px-1">
-                            {booking.clientName || 'Booking'}
+                      {cellBookings.map((booking) => {
+                        const isCompleted = new Date(booking.endTime) < new Date();
+                        return (
+                          <div
+                            key={booking.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onBookingClick(booking);
+                            }}
+                            className={`absolute inset-x-1 text-white rounded cursor-pointer transition-colors ${
+                              isCompleted 
+                                ? 'bg-purple-500 hover:bg-purple-600' 
+                                : 'bg-blue-500 hover:bg-blue-600'
+                            }`}
+                            style={{
+                              top: '2px',
+                              bottom: '2px',
+                            }}
+                          >
+                            <div className="text-[9px] sm:text-[10px] font-medium text-center py-1 truncate px-1">
+                              {booking.clientName || 'Booking'}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                       {/* Classes */}
                       {cellClasses.map((classItem) => (

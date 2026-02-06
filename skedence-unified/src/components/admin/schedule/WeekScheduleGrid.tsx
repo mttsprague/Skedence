@@ -265,20 +265,27 @@ export function WeekScheduleGrid({
                         ))}
 
                         {/* Bookings */}
-                        {cellBookings.map((booking) => (
-                          <div
-                            key={booking.id}
-                            className="absolute inset-0.5 bg-blue-500 text-white rounded text-xs p-1 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onBookingClick(booking);
-                            }}
-                          >
-                            <div className="font-medium truncate w-full text-center">
-                              {booking.clientName || 'Booked'}
+                        {cellBookings.map((booking) => {
+                          const isCompleted = new Date(booking.endTime) < new Date();
+                          return (
+                            <div
+                              key={booking.id}
+                              className={`absolute inset-0.5 text-white rounded text-xs p-1 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                                isCompleted 
+                                  ? 'bg-purple-500 hover:bg-purple-600' 
+                                  : 'bg-blue-500 hover:bg-blue-600'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBookingClick(booking);
+                              }}
+                            >
+                              <div className="font-medium truncate w-full text-center">
+                                {booking.clientName || 'Booked'}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
 
                         {/* Group Classes */}
                         {cellClasses.map((classItem) => (

@@ -572,41 +572,45 @@ export default function SchedulingPage() {
                               className="min-h-[60px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer"
                               onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
                             >
-                              {dayItems.map(item => (
-                                <button
-                                  key={item.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (item.type === 'shift' && item.status === 'open') {
-                                      handleAvailableShiftClick(item);
-                                    } else {
-                                      setSelectedItem(item);
-                                    }
-                                  }}
-                                  className={cn(
-                                    'w-full text-left text-xs p-2 rounded mb-1 transition-all hover:shadow-md',
-                                    item.type === 'class' && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
-                                    item.type === 'lesson' && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
-                                    item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
-                                    item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
-                                  )}
-                                >
-                                  <div className="font-semibold truncate">
-                                    {format(item.startTime, 'h:mm a')}
-                                  </div>
-                                  <div className="truncate text-gray-700">
-                                    {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
-                                  </div>
-                                  <div className="text-gray-500 truncate">
-                                    {item.trainerName}
-                                  </div>
-                                  {item.location && (
-                                    <div className="text-gray-400 text-[10px] truncate">
-                                      {item.location}
+                              {dayItems.map(item => {
+                                const isCompleted = item.type === 'lesson' && item.endTime < new Date();
+                                return (
+                                  <button
+                                    key={item.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (item.type === 'shift' && item.status === 'open') {
+                                        handleAvailableShiftClick(item);
+                                      } else {
+                                        setSelectedItem(item);
+                                      }
+                                    }}
+                                    className={cn(
+                                      'w-full text-left text-xs p-2 rounded mb-1 transition-all hover:shadow-md',
+                                      item.type === 'class' && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
+                                      item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
+                                      item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
+                                      item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
+                                      item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
+                                    )}
+                                  >
+                                    <div className="font-semibold truncate">
+                                      {format(item.startTime, 'h:mm a')}
                                     </div>
-                                  )}
-                                </button>
-                              ))}
+                                    <div className="truncate text-gray-700">
+                                      {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
+                                    </div>
+                                    <div className="text-gray-500 truncate">
+                                      {item.trainerName}
+                                    </div>
+                                    {item.location && (
+                                      <div className="text-gray-400 text-[10px] truncate">
+                                        {item.location}
+                                      </div>
+                                    )}
+                                  </button>
+                                );
+                              })}
                             </div>
                           );
                         })}
