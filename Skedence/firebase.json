@@ -1,6 +1,6 @@
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "../SkedenceAdmin/firestore.rules"
   },
   "storage": {
     "rules": "storage.rules"
