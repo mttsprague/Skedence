@@ -34,7 +34,6 @@ struct ContentViewWrapper: View {
             checkOnboardingStatus()
             
             // Check admin status on app launch
-            print("📱 ContentViewWrapper appeared - checking admin status")
             Task {
                 await dependencies.admin.checkAdminStatus()
             }
