@@ -7,7 +7,6 @@
 
 import SwiftUI
 import FirebaseFirestore
-import FirebaseFunctions
 
 struct SessionDetailView: View {
     let client: Client
@@ -373,17 +372,12 @@ struct SessionDetailView: View {
         defer { isCancelling = false }
         
         do {
-            let functions = Functions.functions()
-            let callable = functions.httpsCallable("adminCancelLesson")
-            
-            let data: [String: Any] = [
-                "bookingId": bookingId,
-                "orgId": orgId,
-                "clientId": client.id,
-                "refundPass": refundPass
-            ]
-            
-            _ = try await callable.call(data)
+            try await FunctionsService.shared.adminCancelLesson(
+                bookingId: bookingId,
+                orgId: orgId,
+                clientId: client.id,
+                refundPass: refundPass
+            )
             
             // Set appropriate success message
             if refundPass {
@@ -398,8 +392,25 @@ struct SessionDetailView: View {
             // Dismiss after a short delay
             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
             dismiss()
-        } catch {
-            cancelError = error.localizedDescription
+        } catch let error as NSError {
+            // Enhanced error logging
+            print("Cancel booking error: \(error)")
+            print("Error domain: \(error.domain)")
+            print("Error code: \(error.code)")
+            print("Error userInfo: \(error.userInfo)")
+            
+            // Check if it's a Functions error
+            if error.domain == "com.firebase.functions" {
+                if let message = error.userInfo["message"] as? String {
+                    cancelError = message
+                } else if let details = error.userInfo[NSLocalizedDescriptionKey] as? String {
+                    cancelError = details
+                } else {
+                    cancelError = "Cloud Function error: \(error.localizedDescription)"
+                }
+            } else {
+                cancelError = error.localizedDescription
+            }
         }
     }
 }
