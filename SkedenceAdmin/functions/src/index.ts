@@ -846,6 +846,48 @@ export const cancelLesson = functions.https.onCall(
 );
 
 /**
+ * Scheduled function to mark past lessons as complete
+ * Runs every hour to update booking statuses
+ */
+export const markCompletedLessons = functions.pubsub
+  .schedule("every 1 hours")
+  .onRun(async (context) => {
+    try {
+      const now = admin.firestore.Timestamp.now();
+      
+      // Find all bookings that have ended but are still marked as confirmed
+      const pastBookingsSnapshot = await db
+        .collection("bookings")
+        .where("status", "==", "confirmed")
+        .where("endTime", "<", now)
+        .get();
+
+      console.log(`Found ${pastBookingsSnapshot.size} bookings to mark as complete`);
+
+      const batch = db.batch();
+      let updateCount = 0;
+
+      pastBookingsSnapshot.docs.forEach((doc) => {
+        batch.update(doc.ref, {
+          status: "completed",
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        updateCount++;
+      });
+
+      if (updateCount > 0) {
+        await batch.commit();
+        console.log(`✅ Marked ${updateCount} lessons as completed`);
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error marking completed lessons:", error);
+      return null;
+    }
+  });
+
+/**
  * Admin cancel lesson - allows admins/owners to cancel any client's booking
  */
 interface AdminCancelLessonData {

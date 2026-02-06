@@ -39,6 +39,10 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
             return clientName ?? "Group Class"
         }
         if isBooked {
+            // Show "Complete" for past lessons
+            if endTime < Date() {
+                return (clientName ?? "Complete") + " ✓"
+            }
             return clientName ?? "Booked"
         }
         switch status {
@@ -50,6 +54,8 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
 
     var visualColor: Color {
         if isClass { return .orange }
+        // Check if lesson is completed (past end time and booked)
+        if isBooked && endTime < Date() { return .purple }
         if isBooked { return .blue }
         switch status {
         case .open: return .green
