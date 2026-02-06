@@ -50,6 +50,20 @@ service cloud.firestore {
         && (memberDoc.data.isActive == true || !('isActive' in memberDoc.data))
         && (memberDoc.data.role == 'owner' || memberDoc.data.role == 'admin');
     }
+    
+    // Check if user is an active trainer in the organization (fallback check)
+    function isActiveTrainerInOrg(orgId) {
+      let trainerDoc = get(/databases/$(database)/documents/trainers/$(request.auth.uid));
+      return isSignedIn()
+        && trainerDoc != null 
+        && trainerDoc.data.orgId == orgId
+        && (trainerDoc.data.isActive == true || !('isActive' in trainerDoc.data));
+    }
+    
+    // Check if user can manage organization data (admin OR active trainer)
+    function canManageOrgData(orgId) {
+      return isOrgAdmin(orgId) || isActiveTrainerInOrg(orgId);
+    }
 
     // Check if user is a trainer in the organization
     function isOrgTrainer(orgId) {
@@ -220,7 +234,7 @@ service cloud.firestore {
         // packageCategory can be: private, 1_athlete, 2_athlete, 3_athlete, 4_athlete, class_pass, etc.
         allow create: if isSignedIn() 
           && 'orgId' in request.resource.data 
-          && (request.auth.uid == userId || isOrgAdmin(request.resource.data.orgId));
+          && (request.auth.uid == userId || canManageOrgData(request.resource.data.orgId));
 
         // Trainers/admins can update packages (for booking decrements)
         allow update: if isSignedIn()
