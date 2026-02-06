@@ -145,9 +145,6 @@ export default function BookingsPage() {
             // If remainingLessons is undefined, assume it equals totalLessons (unused package)
             const remaining = data.remainingLessons !== undefined ? data.remainingLessons : data.totalLessons || 0;
             
-            // If remainingLessons is undefined, assume it equals totalLessons (unused package)
-            const remaining = data.remainingLessons !== undefined ? data.remainingLessons : data.totalLessons || 0;
-            
             return {
               id: doc.id,
               userId: selectedClient,

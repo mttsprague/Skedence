@@ -795,11 +795,11 @@ struct BookView: View {
                     CardView(padding: Spacing.md) {
                         Menu {
                             ForEach(uniquePackageTypes, id: \.self) { packageType in
-                                Button {
-                                    selectedPackage = firstPackage(ofType: packageType)
-                                    selectedAthletes = []  // Reset athlete selection when package changes
-                                } label: {
-                                    if let firstPkg = firstPackage(ofType: packageType) {
+                                if let firstPkg = firstPackage(ofType: packageType) {
+                                    Button {
+                                        selectedPackage = firstPkg
+                                        selectedAthletes = []  // Reset athlete selection when package changes
+                                    } label: {
                                         let totalRemaining = totalRemainingForLessons(packageType: packageType)
                                         let categoryName = getPackageCategory(firstPkg)?.displayName ?? "Pass"
                                         VStack(alignment: .leading, spacing: 2) {
