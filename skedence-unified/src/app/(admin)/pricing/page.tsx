@@ -91,7 +91,7 @@ export default function PricingPage() {
       title: '',
       description: '',
       priceInCents: 0,
-      packageType: '',
+      packageType: '', // Will be auto-generated from title
       lessonCount: 1,
       packageCategory: 'oneAthlete'
     });
@@ -149,6 +149,13 @@ export default function PricingPage() {
   const updatePackage = (tierIndex: number, packageIndex: number, field: string, value: any) => {
     const newTiers = [...tiers];
     (newTiers[tierIndex].packages[packageIndex] as any)[field] = value;
+    
+    // Auto-generate packageType from title when title changes
+    if (field === 'title') {
+      const packageType = value.toLowerCase().replace(/\s+/g, '_');
+      (newTiers[tierIndex].packages[packageIndex] as any)['packageType'] = packageType;
+    }
+    
     setTiers(newTiers);
   };
 
@@ -209,13 +216,6 @@ export default function PricingPage() {
     }
   };
 
-  const showPackageTypeInfo = () => {
-    setMessage({
-      type: 'info',
-      text: 'Use lowercase letters and underscores (_) for package types.\n\nExamples:\n• private\n• 2_athlete\n• 3_athlete\n• class_pass\n• small_group\n\nAvoid spaces - use underscores instead.'
-    });
-  };
-
   if (loading) {
     return (
       <SchedulingSubmenu>
@@ -235,25 +235,15 @@ export default function PricingPage() {
     <SchedulingSubmenu>
       <div className="p-6 lg:p-8">
         <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Pricing Structure</h1>
-            <p className="text-gray-600 mt-1">Set up pricing tiers and package options</p>
-            {tiers.length > 0 && (
-              <p className="text-sm text-green-600 mt-2 flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
-                Currently: {tiers.length} tier(s), {tiers.reduce((sum, t) => sum + t.packages.length, 0)} package(s)
-              </p>
-            )}
-          </div>
-          <Button
-            onClick={showPackageTypeInfo}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Info className="h-4 w-4" />
-            Package Type Format
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Pricing Structure</h1>
+          <p className="text-gray-600 mt-1">Set up pricing tiers and package options</p>
+          {tiers.length > 0 && (
+            <p className="text-sm text-green-600 mt-2 flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
+              Currently: {tiers.length} tier(s), {tiers.reduce((sum, t) => sum + t.packages.length, 0)} package(s)
+            </p>
+          )}
         </div>
 
         {message && (
@@ -342,18 +332,7 @@ export default function PricingPage() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-600">Type (use_underscores)</label>
-                        <input
-                          type="text"
-                          value={pkg.packageType}
-                          onChange={(e) => updatePackage(tierIndex, packageIndex, 'packageType', e.target.value.toLowerCase())}
-                          placeholder="e.g., private"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
-                        />
-                      </div>
-
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-xs font-medium text-gray-600">Passes</label>
                         <input
@@ -377,6 +356,13 @@ export default function PricingPage() {
                         />
                       </div>
                     </div>
+                    
+                    {/* Show auto-generated type for reference */}
+                    {pkg.title && (
+                      <div className="text-xs text-gray-500 italic">
+                        Auto-generated type: <span className="font-mono">{pkg.packageType}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
 
