@@ -183,18 +183,19 @@ service cloud.firestore {
       match /users/{memberId} {
         // Owners and admins can read user info
         // Users can read their own info
-        allow read: if isOrgAdmin(orgId) || request.auth.uid == memberId;
+        // Trainers can also read (fallback)
+        allow read: if canManageOrgData(orgId) || request.auth.uid == memberId;
         
-        // Owners and admins can write user info
-        allow write: if isOrgAdmin(orgId);
+        // Owners, admins, and trainers can write user info
+        allow write: if canManageOrgData(orgId);
         
         // Payment packages subcollection
         match /packages/{packageId} {
-          // Owners, admins, and the user can read their packages
-          allow read: if isOrgAdmin(orgId) || request.auth.uid == memberId;
+          // Owners, admins, trainers, and the user can read their packages
+          allow read: if canManageOrgData(orgId) || request.auth.uid == memberId;
           
-          // Owners and admins can create/update packages
-          allow write: if isOrgAdmin(orgId);
+          // Owners, admins, and trainers can create/update packages
+          allow write: if canManageOrgData(orgId);
         }
       }
     }
