@@ -393,12 +393,6 @@ struct SessionDetailView: View {
             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
             dismiss()
         } catch let error as NSError {
-            // Enhanced error logging
-            print("Cancel booking error: \(error)")
-            print("Error domain: \(error.domain)")
-            print("Error code: \(error.code)")
-            print("Error userInfo: \(error.userInfo)")
-            
             // Check if it's a Functions error
             if error.domain == "com.firebase.functions" {
                 if let message = error.userInfo["message"] as? String {

@@ -53,15 +53,6 @@ final class FirestoreService {
         let startTs = Timestamp(date: from)
         let endTs = Timestamp(date: to)
 
-        // DEBUG: Check if there are ANY schedules for this trainer
-        let anySchedulesSnapshot = try? await db.collection("trainers")
-            .document(trainerId)
-            .collection("schedules")
-            .limit(to: 5)
-            .getDocuments()
-        if anySchedulesSnapshot?.documents.first != nil {
-        }
-
         var mergedById: [String: TrainerScheduleSlot] = [:]
 
         // --- 1) Fetch open/unavailable slots from trainer subcollection

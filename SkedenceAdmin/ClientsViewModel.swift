@@ -44,7 +44,6 @@ final class ClientsViewModel: ObservableObject {
     func load() async {
         guard !isLoading else { return }
         guard let orgId = orgId else {
-            print("⚠️ No orgId available for ClientsViewModel.load()")
             return
         }
         isLoading = true

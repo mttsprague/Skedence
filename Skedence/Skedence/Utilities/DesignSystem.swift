@@ -278,19 +278,31 @@ private struct OnChangeCompatLegacy<V: Equatable>: ViewModifier {
     let action: (_ oldValue: V, _ newValue: V) -> Void
     @State private var previous: V?
     
+    @ViewBuilder
     func body(content: Content) -> some View {
-        content
-            .onAppear {
-                previous = value
-            }
-            .onChange(of: value) { newValue in
-                if let prev = previous {
-                    action(prev, newValue)
-                } else {
-                    action(value, newValue)
+        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
+            content
+                .onAppear {
+                    previous = value
                 }
-                previous = newValue
-            }
+                .onChange(of: value) { oldValue, newValue in
+                    action(oldValue, newValue)
+                    previous = newValue
+                }
+        } else {
+            content
+                .onAppear {
+                    previous = value
+                }
+                .onChange(of: value) { newValue in
+                    if let prev = previous {
+                        action(prev, newValue)
+                    } else {
+                        action(value, newValue)
+                    }
+                    previous = newValue
+                }
+        }
     }
 }
 

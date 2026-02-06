@@ -1822,32 +1822,3 @@ private struct FormField: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
-
-// MARK: - Compatibility helper to silence iOS 17 onChange deprecation while supporting earlier OS versions
-
-private extension View {
-    @ViewBuilder
-    func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
-        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
-            self.onChange(of: value) { _, newValue in
-                action(newValue)
-            }
-        } else {
-            // Call into a helper that is marked deprecated on newer OSes so the deprecated API isn't seen by the iOS 17 compiler as unavailable.
-            onChangeCompatPre17(of: value, perform: action)
-        }
-    }
-
-    // This helper is compiled for older OSes and marked deprecated on iOS 17/macOS 14/etc.,
-    // which prevents unavailability errors when building with newer SDKs.
-    @available(iOS, introduced: 13.0, deprecated: 17.0)
-    @available(macOS, introduced: 11.0, deprecated: 14.0)
-    @available(tvOS, introduced: 13.0, deprecated: 17.0)
-    @available(watchOS, introduced: 6.0, deprecated: 10.0)
-    // visionOS launched with the new two-parameter API; never use the old one there.
-    @available(visionOS, unavailable)
-    @ViewBuilder
-    private func onChangeCompatPre17<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
-        self.onChange(of: value, perform: action)
-    }
-}

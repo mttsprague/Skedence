@@ -160,7 +160,6 @@ struct ScheduleOptionsView: View {
             trainers = try await repo.fetchAllTrainers()
         } catch {
             trainers = []
-            print("Failed to load trainers: \(error)")
         }
     }
 }
