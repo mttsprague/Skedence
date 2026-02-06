@@ -30,12 +30,15 @@ struct LessonPackage: Identifiable, Codable, Hashable {
     
     // Helper to check if this package can book lessons (not classes)
     var canBookLessons: Bool {
-        packageCategory == "pass" || packageCategory == nil // nil for backward compatibility
+        // Check if it's one of the private lesson categories
+        packageCategory == "oneAthlete" || packageCategory == "twoAthlete" || 
+        packageCategory == "threeAthlete" || packageCategory == "fourAthlete" ||
+        packageCategory == "pass" || packageCategory == nil // nil/pass for backward compatibility
     }
     
     // Helper to check if this package can book classes
     var canBookClasses: Bool {
-        packageCategory == "class"
+        packageCategory == "classPass" || packageCategory == "class" // class for backward compatibility
     }
     
     var packageDisplayName: String {

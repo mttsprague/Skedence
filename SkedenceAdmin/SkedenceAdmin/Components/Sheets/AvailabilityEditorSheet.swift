@@ -461,7 +461,7 @@ struct AvailabilityEditorSheet: View {
         // Sort by expiration date (earliest first) then by purchase date (oldest first)
         clientPackages
             .filter { !$0.isExpired && $0.lessonsRemaining > 0 && $0.canBookLessons }
-            .filter { $0.packageCategory != "class" && $0.packageType != "class" && $0.packageType != "class_pass" }
+            .filter { $0.packageCategory != "classPass" && $0.packageType != "class" && $0.packageType != "class_pass" }
             .sorted { pkg1, pkg2 in
                 // Sort by expiration date first (if both have one, earliest first)
                 if let exp1 = pkg1.expirationDate, let exp2 = pkg2.expirationDate {

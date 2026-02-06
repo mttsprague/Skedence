@@ -303,10 +303,15 @@ struct BookView: View {
         var packageTypes = Set<String>()
         for tier in pricing.tiers {
             for package in tier.packages {
-                if category == "pass" && package.packageCategory.rawValue == "pass" {
+                let categoryValue = package.packageCategory.rawValue
+                // Check for private lesson categories
+                if category == "pass" && (categoryValue == "oneAthlete" || categoryValue == "twoAthlete" || 
+                                         categoryValue == "threeAthlete" || categoryValue == "fourAthlete" ||
+                                         categoryValue == "pass") {
                     packageTypes.insert(package.id)
                     packageTypes.insert(package.packageType)
-                } else if category == "class" && package.packageCategory.rawValue == "class" {
+                // Check for class category
+                } else if category == "class" && (categoryValue == "classPass" || categoryValue == "class") {
                     packageTypes.insert(package.id)
                     packageTypes.insert(package.packageType)
                 }

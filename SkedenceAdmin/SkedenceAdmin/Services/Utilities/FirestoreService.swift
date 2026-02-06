@@ -794,7 +794,7 @@ final class FirestoreService {
         let packageType = packageData["packageType"] as? String ?? ""
         let packageCategory = packageData["packageCategory"] as? String
         
-        if packageType == "class" || packageType == "class_pass" || packageCategory == "class" {
+        if packageType == "class" || packageType == "class_pass" || packageCategory == "classPass" {
             throw FirestoreServiceError.notAvailable
         }
         

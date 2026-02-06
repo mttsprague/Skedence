@@ -36,7 +36,9 @@ struct LessonPackage: Identifiable, Equatable {
         }
         // Also check category if set
         if let category = packageCategory {
-            return category == "pass"
+            return category == "oneAthlete" || category == "twoAthlete" || 
+                   category == "threeAthlete" || category == "fourAthlete" ||
+                   category == "pass" // backward compatibility
         }
         return true // Default to true for backward compatibility
     }
@@ -50,7 +52,7 @@ struct LessonPackage: Identifiable, Equatable {
         }
         // Also check category if set
         if let category = packageCategory {
-            return category == "class"
+            return category == "classPass" || category == "class" // class for backward compatibility
         }
         return false // Default to false - not a class package
     }

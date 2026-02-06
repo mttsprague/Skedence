@@ -161,7 +161,7 @@ export function BookLessonModal({
       const packagesList = allPackages.filter(pkg => {
         const isClassPackage = pkg.packageType === 'class_pass' || 
                                pkg.packageType === 'class' || 
-                               pkg.packageCategory === 'class';
+                               pkg.packageCategory === 'classPass';
         const hasLessons = pkg.lessonsRemaining > 0;
         const notExpired = !pkg.isExpired;
         

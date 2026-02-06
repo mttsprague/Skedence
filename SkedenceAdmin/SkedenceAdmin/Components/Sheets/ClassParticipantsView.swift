@@ -413,7 +413,8 @@ struct ManualRegistrationSheet: View {
     
     private func isValidClassPass(_ package: LessonPackage) -> Bool {
         // Check if it's a class pass and has remaining uses
-        let isClass = package.packageCategory == "class" || package.packageType == "class" || package.packageType == "class_pass"
+        let isClass = package.packageCategory == "classPass" || package.packageCategory == "class" || 
+                      package.packageType == "class" || package.packageType == "class_pass"
         let hasRemaining = package.lessonsUsed < package.totalLessons
         let notExpired = package.expirationDate == nil || package.expirationDate! > Date()
         return isClass && hasRemaining && notExpired

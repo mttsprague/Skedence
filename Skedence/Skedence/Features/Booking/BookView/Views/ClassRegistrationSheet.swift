@@ -45,7 +45,7 @@ struct ClassRegistrationSheet: View {
             let canBook = pkg.canBookClasses
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
-            let hasClassCategory = pkg.packageCategory == "class"
+            let hasClassCategory = pkg.packageCategory == "classPass" || pkg.packageCategory == "class" // backward compatibility
             let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
             return canBook && hasRemaining && notExpired && hasClassCategory && isCurrentPackage
         }
@@ -66,7 +66,7 @@ struct ClassRegistrationSheet: View {
             pkg.canBookClasses &&
             pkg.lessonsRemaining > 0 &&
             pkg.expirationDate >= now &&
-            pkg.packageCategory == "class"
+            (pkg.packageCategory == "classPass" || pkg.packageCategory == "class")
         }.reduce(0) { $0 + $1.lessonsRemaining }
     }
     
@@ -74,7 +74,7 @@ struct ClassRegistrationSheet: View {
         guard let pricing = pricingService.pricingStructure else { return [] }
         var packageTypes = Set<String>()
         for tier in pricing.tiers {
-            for package in tier.packages where category == "class" && package.packageCategory.rawValue == "class" {
+            for package in tier.packages where category == "class" && package.packageCategory.rawValue == "classPass" {
                 packageTypes.insert(package.id)
                 packageTypes.insert(package.packageType)
             }

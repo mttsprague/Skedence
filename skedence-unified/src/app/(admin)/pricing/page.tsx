@@ -17,7 +17,7 @@ interface PackageOption {
   priceInCents: number;
   packageType: string;
   lessonCount: number;
-  packageCategory: 'pass' | 'class';
+  packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'classPass';
 }
 
 interface PricingTier {
@@ -93,7 +93,7 @@ export default function PricingPage() {
       priceInCents: 0,
       packageType: '',
       lessonCount: 1,
-      packageCategory: 'pass'
+      packageCategory: 'oneAthlete'
     });
     setTiers(newTiers);
   };
@@ -329,30 +329,17 @@ export default function PricingPage() {
 
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-gray-700">Package Category *</label>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => updatePackage(tierIndex, packageIndex, 'packageCategory', 'pass')}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                            pkg.packageCategory === 'pass'
-                              ? 'bg-[#3258A3] text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {pkg.packageCategory === 'pass' && <span>✓</span>}
-                          Private Lessons
-                        </button>
-                        <button
-                          onClick={() => updatePackage(tierIndex, packageIndex, 'packageCategory', 'class')}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                            pkg.packageCategory === 'class'
-                              ? 'bg-[#3258A3] text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {pkg.packageCategory === 'class' && <span>✓</span>}
-                          Group Classes
-                        </button>
-                      </div>
+                      <select
+                        value={pkg.packageCategory}
+                        onChange={(e) => updatePackage(tierIndex, packageIndex, 'packageCategory', e.target.value as PackageOption['packageCategory'])}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                      >
+                        <option value="oneAthlete">1 Athlete - Private Lesson</option>
+                        <option value="twoAthlete">2 Athletes - Private Lesson</option>
+                        <option value="threeAthlete">3 Athletes - Private Lesson</option>
+                        <option value="fourAthlete">4 Athletes - Private Lesson</option>
+                        <option value="classPass">Group Class</option>
+                      </select>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
