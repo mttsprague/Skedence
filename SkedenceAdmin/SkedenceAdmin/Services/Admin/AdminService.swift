@@ -51,14 +51,17 @@ final class AdminService: ObservableObject {
     // Check if current user is admin
     func checkAdminStatus() async {
         guard let uid = Auth.auth().currentUser?.uid else {
+            print("❌ checkAdminStatus: No user authenticated")
             isAdmin = false
             return
         }
         
+        print("🔍 checkAdminStatus: Starting check for user: \(uid)")
         isLoading = true
         
         do {
             // First, check orgMembers collection for admin/owner role (preferred method)
+            print("🔍 Checking orgMembers collection...")
             let snapshot = try await db.collection("orgMembers")
                 .whereField("userId", isEqualTo: uid)
                 .whereField("isActive", isEqualTo: true)
@@ -68,6 +71,8 @@ final class AdminService: ObservableObject {
             if let doc = snapshot.documents.first {
                 let data = doc.data()
                 let role = data["role"] as? String ?? ""
+                let orgId = data["orgId"] as? String ?? ""
+                print("✅ Found in orgMembers: role=\(role), orgId=\(orgId)")
                 isAdmin = (role == "admin" || role == "owner" || role == "trainer")
                 
                 // Load organization data if admin
@@ -75,15 +80,19 @@ final class AdminService: ObservableObject {
                     await loadOrganizationData(orgId: orgId)
                 }
                 
+                print("✅ checkAdminStatus: isAdmin=\(isAdmin) (from orgMembers)")
                 isLoading = false
                 return
             }
             
+            print("⚠️ Not found in orgMembers, checking trainers collection...")
             // Fallback 1: Check trainers collection (for trainers who don't have orgMembers doc)
             let trainerDoc = try await db.collection("trainers").document(uid).getDocument()
             if trainerDoc.exists {
                 let data = trainerDoc.data() ?? [:]
                 let isActive = data["isActive"] as? Bool ?? true
+                let orgId = data["orgId"] as? String ?? ""
+                print("✅ Found in trainers: isActive=\(isActive), orgId=\(orgId)")
                 if isActive {
                     isAdmin = true
                     
@@ -92,11 +101,13 @@ final class AdminService: ObservableObject {
                         await loadOrganizationData(orgId: orgId)
                     }
                     
+                    print("✅ checkAdminStatus: isAdmin=\(isAdmin) (from trainers)")
                     isLoading = false
                     return
                 }
             }
             
+            print("⚠️ Not found in trainers, checking users document...")
             // Fallback 2: Check isAdmin field in user document
             let userDoc = try await db.collection("users").document(uid).getDocument()
             
@@ -108,13 +119,18 @@ final class AdminService: ObservableObject {
                 if isAdmin, let orgId = data["orgId"] as? String {
                     await loadOrganizationData(orgId: orgId)
                 }
+                
+                print("✅ checkAdminStatus: isAdmin=\(isAdmin) (from users)")
             } else {
+                print("❌ User document not found")
                 isAdmin = false
             }
         } catch {
+            print("❌ checkAdminStatus error: \(error.localizedDescription)")
             isAdmin = false
         }
         
+        print("🏁 checkAdminStatus: Final isAdmin=\(isAdmin)")
         isLoading = false
     }
     
