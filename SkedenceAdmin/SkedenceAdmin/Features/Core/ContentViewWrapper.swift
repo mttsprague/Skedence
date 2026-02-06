@@ -32,6 +32,11 @@ struct ContentViewWrapper: View {
         }
         .onAppear {
             checkOnboardingStatus()
+            
+            // Check admin status on app launch
+            Task {
+                await dependencies.admin.checkAdminStatus()
+            }
         }
     }
     
