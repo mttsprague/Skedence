@@ -89,26 +89,41 @@ struct WaiverPDFGenerator {
             
             // Use custom waiver text if provided, otherwise use default
             if let customText = customWaiverText, !customText.isEmpty {
-                // Calculate actual height needed for custom text
-                let customTextHeight = customText.boundingRect(
-                    with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
-                    options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: bodyAttributesWithParagraph,
-                    context: nil
-                ).height
+                // Draw custom text incrementally with proper page break handling
+                // Split into paragraphs for better control
+                let paragraphs = customText.components(separatedBy: "\n\n")
                 
-                // Check if content will fit on current page with proper margin
-                let estimatedEndY = currentY + customTextHeight + 40
-                if estimatedEndY > maxY {
-                    // Start new page for content
-                    context.beginPage()
-                    currentY = topMargin
+                for paragraph in paragraphs where !paragraph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let trimmedParagraph = paragraph.trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    // Calculate height needed for this paragraph
+                    let paragraphHeight = trimmedParagraph.boundingRect(
+                        with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
+                        options: [.usesLineFragmentOrigin, .usesFontLeading],
+                        attributes: bodyAttributesWithParagraph,
+                        context: nil
+                    ).height + 15 // Add spacing between paragraphs
+                    
+                    // Check if this paragraph will fit on current page
+                    if currentY + paragraphHeight > maxY {
+                        // Start new page
+                        context.beginPage()
+                        currentY = topMargin
+                    }
+                    
+                    // Draw this paragraph
+                    let paragraphRect = CGRect(
+                        x: leftMargin,
+                        y: currentY,
+                        width: contentWidth,
+                        height: paragraphHeight
+                    )
+                    trimmedParagraph.draw(in: paragraphRect, withAttributes: bodyAttributesWithParagraph)
+                    currentY += paragraphHeight
                 }
                 
-                // Draw the custom text
-                let customTextRect = CGRect(x: leftMargin, y: currentY, width: contentWidth, height: customTextHeight + 20)
-                customText.draw(in: customTextRect, withAttributes: bodyAttributesWithParagraph)
-                currentY += customTextHeight + 40
+                // Add final spacing after custom content
+                currentY += 25
             } else {
                 // Default waiver content - check space before each major section
                 let section1 = """

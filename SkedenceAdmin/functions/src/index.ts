@@ -611,13 +611,46 @@ export const registerForClass = functions.https.onCall(
             classPassPackageId: classPassPackageId,
           });
         }
+
+        // Log activity
+        const clientFullName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client";
+        const className = classData.title || "Unknown Class";
+        // athleteCount already declared above
+        const athleteNames = secondAthleteName ? `${primaryAthleteName} and ${secondAthleteName}` : primaryAthleteName;
+        const orgId = userData.orgId || null;
+
+        const activityRef = db.collection("activity").doc();
+        transaction.set(activityRef, {
+          type: "class_registered",
+          actorId: userId,
+          actorName: clientFullName,
+          actorRole: "client",
+          targetId: classId,
+          targetName: className,
+          targetType: "class",
+          description: `${clientFullName} registered ${athleteNames} for ${className}`,
+          metadata: {
+            classId: classId,
+            classPassPackageId: classPassPackageId,
+            athleteName: primaryAthleteName,
+            secondAthleteName: secondAthleteName || null,
+            athleteCount: athleteCount,
+            startTime: classData.startTime || null,
+            endTime: classData.endTime || null,
+            location: classData.location || null,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          orgId: orgId,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
 
-      const athleteCount = secondAthleteName ? 2 : 1;
+      // athleteCount already calculated in transaction scope
+      const finalAthleteCount = secondAthleteName ? 2 : 1;
       functions.logger.info(
-        `User ${userId} registered ${athleteCount} athlete(s) for class ${classId} using pass ${classPassPackageId}.`
+        `User ${userId} registered ${finalAthleteCount} athlete(s) for class ${classId} using pass ${classPassPackageId}.`
       );
-      return {message: `Successfully registered ${athleteCount} athlete(s) for class!`};
+      return {message: `Successfully registered ${finalAthleteCount} athlete(s) for class!`};
     } catch (error) {
       if (error instanceof functions.https.HttpsError) {
         throw error;
@@ -745,6 +778,41 @@ export const cancelLesson = functions.https.onCall(
 
         // Delete the booking
         transaction.delete(bookingRef);
+
+        // Log activity
+        const userRef = db.collection("users").doc(userId);
+        const userDoc = await transaction.get(userRef);
+        const userData = userDoc.exists ? userDoc.data() : null;
+        const clientFullName = userData ? `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
+        
+        const trainerRef = db.collection("trainers").doc(bookingData.trainerId);
+        const trainerDoc = await transaction.get(trainerRef);
+        const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
+        const trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
+
+        const activityRef = db.collection("activity").doc();
+        transaction.set(activityRef, {
+          type: "lesson_cancelled",
+          actorId: userId,
+          actorName: clientFullName,
+          actorRole: "client",
+          targetId: bookingData.trainerId,
+          targetName: trainerFullName,
+          targetType: "trainer",
+          description: `${clientFullName} cancelled a lesson with ${trainerFullName}`,
+          metadata: {
+            bookingId: bookingId,
+            slotId: bookingData.slotId || null,
+            startTime: bookingData.startTime || null,
+            endTime: bookingData.endTime || null,
+            location: bookingData.location || null,
+            athleteName: bookingData.athleteName || null,
+            secondAthleteName: bookingData.secondAthleteName || null,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          orgId: bookingData.orgId || null,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
 
       functions.logger.info(`User ${userId} cancelled booking ${bookingId}`);
@@ -880,6 +948,48 @@ export const adminCancelLesson = functions.https.onCall(
 
         // Delete the booking
         transaction.delete(bookingRef);
+
+        // Log activity
+        const adminRef = db.collection("trainers").doc(adminUid);
+        const adminDoc = await transaction.get(adminRef);
+        const adminData = adminDoc.exists ? adminDoc.data() : null;
+        const adminFullName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
+        
+        const clientRef = db.collection("users").doc(clientId);
+        const clientDoc = await transaction.get(clientRef);
+        const clientData = clientDoc.exists ? clientDoc.data() : null;
+        const clientFullName = clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
+        
+        const trainerRef = db.collection("trainers").doc(bookingData.trainerId);
+        const trainerDoc = await transaction.get(trainerRef);
+        const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
+        const trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
+
+        const activityRef = db.collection("activity").doc();
+        transaction.set(activityRef, {
+          type: "lesson_cancelled",
+          actorId: adminUid,
+          actorName: adminFullName,
+          actorRole: "admin",
+          targetId: clientId,
+          targetName: clientFullName,
+          targetType: "client",
+          description: `${adminFullName} cancelled ${clientFullName}'s lesson with ${trainerFullName}`,
+          metadata: {
+            bookingId: bookingId,
+            slotId: bookingData.slotId || null,
+            trainerId: bookingData.trainerId,
+            trainerName: trainerFullName,
+            startTime: bookingData.startTime || null,
+            endTime: bookingData.endTime || null,
+            location: bookingData.location || null,
+            athleteName: bookingData.athleteName || null,
+            secondAthleteName: bookingData.secondAthleteName || null,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          orgId: orgId,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
 
       functions.logger.info(
@@ -978,6 +1088,39 @@ export const cancelClassRegistration = functions.https.onCall(
 
         // Remove participant from class
         transaction.delete(participantRef);
+
+        // Log activity
+        const userRef = db.collection("users").doc(userId);
+        const userDoc = await transaction.get(userRef);
+        const userData = userDoc.exists ? userDoc.data() : null;
+        const clientFullName = userData ? `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
+        
+        const classData = classDoc.data();
+        const className = classData?.title || "Unknown Class";
+        const athleteName = participantData.athleteName || clientFullName;
+
+        const activityRef = db.collection("activity").doc();
+        transaction.set(activityRef, {
+          type: "class_cancelled",
+          actorId: userId,
+          actorName: clientFullName,
+          actorRole: "client",
+          targetId: classId,
+          targetName: className,
+          targetType: "class",
+          description: `${clientFullName} cancelled registration for ${className}`,
+          metadata: {
+            classId: classId,
+            classPassPackageId: participantData.classPassPackageId,
+            athleteName: athleteName,
+            startTime: classData?.startTime || null,
+            endTime: classData?.endTime || null,
+            location: classData?.location || null,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          orgId: userData?.orgId || null,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
 
       functions.logger.info(
@@ -1246,6 +1389,39 @@ export const processTrainerAvailability = functions.https.onCall(
 
       if (slotsAddedCount > 0) {
         await batch.commit();
+        
+        // Log activity for availability creation
+        const trainerFirstName = trainerData.firstName || "";
+        const trainerLastName = trainerData.lastName || "";
+        const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
+        const orgId = trainerData.orgId || null;
+        const actorIsTrainer = callingUserId === trainerId;
+        
+        await db.collection("activity").add({
+          type: status === "open" ? "availability_added" : "unavailability_set",
+          actorId: callingUserId,
+          actorName: actorIsTrainer ? trainerFullName : "Admin",
+          actorRole: actorIsTrainer ? "trainer" : "admin",
+          targetId: trainerId,
+          targetName: trainerFullName,
+          targetType: "trainer",
+          description: actorIsTrainer 
+            ? `${trainerFullName} ${status === "open" ? "added availability" : "set unavailability"} (${slotsAddedCount} slots)`
+            : `Admin ${status === "open" ? "added availability" : "set unavailability"} for ${trainerFullName} (${slotsAddedCount} slots)`,
+          metadata: {
+            slotsAdded: slotsAddedCount,
+            startDate: rawStartDate || null,
+            endDate: rawEndDate || null,
+            dailyStartHour: dailyStartHour,
+            dailyEndHour: dailyEndHour,
+            slotDurationMinutes: slotDurationMinutes,
+            status: status,
+            location: location || null,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          orgId: orgId,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
       }
 
       functions.logger.info(
