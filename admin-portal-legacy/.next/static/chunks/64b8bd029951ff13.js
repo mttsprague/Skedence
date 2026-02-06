@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,18566,(e,t,s)=>{t.exports=e.r(76562)},88354,e=>{"use strict";var t=e.i(71645),s=e.i(18566);function u(){let e=(0,s.useRouter)();return(0,t.useEffect)(()=>{e.replace("/settings/client-emails")},[e]),null}e.s(["default",()=>u])}]);
