@@ -47,7 +47,6 @@ struct BookView: View {
     @State private var showingClassRegistration = false
     @State private var selectedPackage: LessonPackage?
     @State private var selectedAthletes: [String?] = [] // Dynamic array based on package category
-    @State private var isNewAthlete = false
     @State private var lessonNotes = ""
     
     // NOTE: Athlete profile fields are now managed dynamically via intakeFormData and newAthleteIntakeData
@@ -209,53 +208,6 @@ struct BookView: View {
         
         if let athlete = legacyAthlete {
             intakeFormData.populateFromAthlete(athlete)
-        }
-    }
-    
-    // Load second athlete profile data from Firebase
-    private func loadSecondAthleteProfileData() {
-        guard let profile = usersService.currentUser,
-              let athleteName = secondAthleteName,
-              athleteName != "New Athlete" else { return }
-        
-        // Pre-populate form data from profile
-        newAthleteIntakeData.populateFromUserProfile(profile)
-        
-        // Find athlete in new format
-        if let athletesArray = profile.athletes {
-            if let athlete = athletesArray.first(where: { $0.displayName == athleteName }) {
-                newAthleteIntakeData.populateFromAthlete(athlete)
-                return
-            }
-        }
-        
-        // Check legacy format
-        let nameParts = athleteName.split(separator: " ")
-        let firstName = String(nameParts.first ?? "")
-        
-        var legacyAthlete: AthleteInfo?
-        if profile.athlete2FirstName == firstName {
-            legacyAthlete = AthleteInfo(
-                firstName: profile.athlete2FirstName,
-                lastName: profile.athlete2LastName,
-                birthday: profile.athlete2Birthday,
-                schoolClubTeam: profile.athlete2SchoolClubTeam,
-                experienceLevel: profile.athlete2ExperienceLevel,
-                position: profile.athlete2Position
-            )
-        } else if profile.athlete3FirstName == firstName {
-            legacyAthlete = AthleteInfo(
-                firstName: profile.athlete3FirstName,
-                lastName: profile.athlete3LastName,
-                birthday: profile.athlete3Birthday,
-                schoolClubTeam: profile.athlete3SchoolClubTeam,
-                experienceLevel: profile.athlete3ExperienceLevel,
-                position: profile.athlete3Position
-            )
-        }
-        
-        if let athlete = legacyAthlete {
-            newAthleteIntakeData.populateFromAthlete(athlete)
         }
     }
     
@@ -977,36 +929,9 @@ struct BookView: View {
                     .padding(.horizontal, Spacing.lg)
                 }
             }
-                        .font(.headingMedium)
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .padding(.horizontal, Spacing.lg)
-                    
-                    CardView(padding: Spacing.md) {
-                        // Use dynamic intake form fields for second athlete
-                        DynamicIntakeFormView(formData: newAthleteIntakeData, fields: intakeFormService.fields)
-                    }
-                    .padding(.horizontal, Spacing.lg)
-                }
-            }
             
-            // New Athlete Form (shown when "New Athlete" is selected)
-            if isNewAthlete {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("New Athlete Information")
-                        .font(.headingMedium)
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .padding(.horizontal, Spacing.lg)
-                    
-                    CardView(padding: Spacing.md) {
-                        // Use dynamic intake form fields for new athlete
-                        DynamicIntakeFormView(formData: newAthleteIntakeData, fields: intakeFormService.fields)
-                    }
-                    .padding(.horizontal, Spacing.lg)
-                }
-            }
-            
-            // Lesson Notes (shown after participant selection)
-            if isOnlyParticipant != nil {
+            // Lesson Notes (shown after athlete selection)
+            if isAthleteInfoComplete {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text("Notes for This Lesson")
                         .font(.headingMedium)
@@ -1651,7 +1576,6 @@ struct BookView: View {
                 customWaiverText: settingsService.settings?.waiverText,
                 athleteName: athleteForWaiver
             ) else {
-                print("Failed to generate waiver PDF")
                 throw NSError(domain: "WaiverError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to generate PDF"])
             }
             
@@ -1666,8 +1590,6 @@ struct BookView: View {
             if let orgId = auth.currentOrgId {
                 AnalyticsService.shared.logWaiverSigned(userId: userId, orgId: orgId)
             }
-            
-            print("✅ Waiver saved for: \(athleteForWaiver ?? "user")")
             
             // Dismiss waiver sheet
             showWaiverAgreement = false
@@ -1684,7 +1606,6 @@ struct BookView: View {
                             currentWaiverAthleteIndex = index
                             showWaiverAgreement = true
                             foundNextAthlete = true
-                            print("📝 Next athlete needs waiver: \(athleteName)")
                             return
                         }
                     }
@@ -1693,19 +1614,16 @@ struct BookView: View {
                 if !foundNextAthlete {
                     // All athletes have waivers now, proceed with booking
                     currentWaiverAthleteIndex = nil
-                    print("✅ All waivers complete, creating booking...")
                     await performActualBooking()
                 }
             } else {
                 // Legacy waiver (no athletes) - proceed with booking
-                print("✅ Legacy waiver complete, creating booking...")
                 await performActualBooking()
             }
             
             // Reset flags
             pendingBookingSuccess = false
         } catch {
-            print("Failed to save waiver agreement: \(error)")
             showWaiverAgreement = false
             pendingBookingSuccess = false
             currentWaiverAthleteIndex = nil
@@ -1720,7 +1638,6 @@ struct BookView: View {
     private func performActualBooking() async {
         guard let trainerId = selectedTrainer?.id,
               let slotId = selectedSlot?.id else {
-            print("❌ performActualBooking failed: missing trainerId or slotId")
             return
         }
         
@@ -1750,14 +1667,8 @@ struct BookView: View {
                 clientId: Auth.auth().currentUser?.uid ?? ""
             )
             
-            print("🎉 About to show success alert")
             await finishBookingSuccess()
-            print("✅ Success alert should be visible")
         } catch {
-            print("❌ Booking failed in performActualBooking: \(error)")
-            print("❌ Error type: \(type(of: error))")
-            print("❌ Error details: \(error.localizedDescription)")
-            
             let cleanMessage: String
             var navigateToPasses = false
             

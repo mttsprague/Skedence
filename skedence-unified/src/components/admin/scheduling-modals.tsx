@@ -101,7 +101,6 @@ export function BookLessonModal({
       
       setClients(clientsList);
     } catch (err) {
-      console.error('Error loading clients:', err);
       setError('Failed to load clients');
     } finally {
       setLoadingClients(false);
@@ -117,15 +116,10 @@ export function BookLessonModal({
       let packagesRef = collection(db, 'organizations', orgId, 'users', selectedClientId, 'packages');
       let snapshot = await getDocs(packagesRef);
       
-      console.log('📦 Checking new path: organizations/' + orgId + '/users/' + selectedClientId + '/packages');
-      console.log('📦 Found', snapshot.docs.length, 'packages in new path');
-      
       // If empty, try old path
       if (snapshot.empty) {
-        console.log('📦 New path empty, trying old path: users/' + selectedClientId + '/lessonPackages');
         packagesRef = collection(db, 'users', selectedClientId, 'lessonPackages');
         snapshot = await getDocs(packagesRef);
-        console.log('📦 Found', snapshot.docs.length, 'packages in old path');
       }
       
       const allPackages = snapshot.docs.map(doc => {
@@ -137,15 +131,6 @@ export function BookLessonModal({
           ? data.lessonsRemaining 
           : (totalLessons - lessonsUsed);
         
-        console.log('📦 Package:', doc.id, {
-          packageName: data.packageName,
-          totalLessons,
-          lessonsUsed,
-          lessonsRemaining,
-          expirationDate: data.expirationDate,
-          packageType: data.packageType,
-          packageCategory: data.packageCategory,
-        });
         return {
           id: doc.id,
           packageName: data.packageName || 'Unnamed Package',
@@ -165,20 +150,11 @@ export function BookLessonModal({
         const hasLessons = pkg.lessonsRemaining > 0;
         const notExpired = !pkg.isExpired;
         
-        console.log('📦 Filtering', pkg.packageName, {
-          isClassPackage,
-          hasLessons,
-          notExpired,
-          included: !isClassPackage && hasLessons && notExpired
-        });
-        
         return !isClassPackage && hasLessons && notExpired;
       });
       
-      console.log('📦 Final filtered packages:', packagesList.length);
       setPackages(packagesList);
     } catch (err) {
-      console.error('Error loading packages:', err);
       setError('Failed to load packages');
     } finally {
       setLoadingPackages(false);
@@ -207,7 +183,6 @@ export function BookLessonModal({
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error booking lesson:', err);
       setError(err.message || 'Failed to book lesson');
     } finally {
       setLoading(false);
@@ -426,7 +401,7 @@ export function CreateAvailabilityModal({
       
       setLocations(locationsList);
     } catch (err) {
-      console.error('Error loading locations:', err);
+      // Error loading locations
     } finally {
       setLoadingLocations(false);
     }
@@ -475,19 +450,6 @@ export function CreateAvailabilityModal({
         endDateStr = format(slotDate, 'yyyy-MM-dd');
       }
 
-      console.log('Creating availability with params:', {
-        trainerId,
-        startDate: isRecurring ? recurringStartDate : format(slotDate, 'yyyy-MM-dd'),
-        endDate: endDateStr,
-        dailyStartHour: startHour,
-        dailyEndHour: endHour,
-        slotDurationMinutes: 60,
-        timezoneOffsetMinutes,
-        daysOfWeek,
-        status,
-        location,
-      });
-
       const processAvailability = httpsCallable(functions, 'processTrainerAvailability');
       const result = await processAvailability({
         trainerId,
@@ -502,11 +464,9 @@ export function CreateAvailabilityModal({
         location,
       });
 
-      console.log('Availability created successfully:', result.data);
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error creating availability:', err);
       setError(err.message || 'Failed to create availability');
     } finally {
       setLoading(false);
