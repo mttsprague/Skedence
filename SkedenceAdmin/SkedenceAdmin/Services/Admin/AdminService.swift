@@ -68,7 +68,7 @@ final class AdminService: ObservableObject {
             if let doc = snapshot.documents.first {
                 let data = doc.data()
                 let role = data["role"] as? String ?? ""
-                isAdmin = (role == "admin" || role == "owner")
+                isAdmin = (role == "admin" || role == "owner" || role == "trainer")
                 
                 // Load organization data if admin
                 if isAdmin, let orgId = data["orgId"] as? String {
@@ -79,7 +79,25 @@ final class AdminService: ObservableObject {
                 return
             }
             
-            // Fallback: Check isAdmin field in user document
+            // Fallback 1: Check trainers collection (for trainers who don't have orgMembers doc)
+            let trainerDoc = try await db.collection("trainers").document(uid).getDocument()
+            if trainerDoc.exists {
+                let data = trainerDoc.data() ?? [:]
+                let isActive = data["isActive"] as? Bool ?? true
+                if isActive {
+                    isAdmin = true
+                    
+                    // Load organization data if orgId exists
+                    if let orgId = data["orgId"] as? String {
+                        await loadOrganizationData(orgId: orgId)
+                    }
+                    
+                    isLoading = false
+                    return
+                }
+            }
+            
+            // Fallback 2: Check isAdmin field in user document
             let userDoc = try await db.collection("users").document(uid).getDocument()
             
             if userDoc.exists {
