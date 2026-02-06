@@ -204,8 +204,8 @@ service cloud.firestore {
           // Owners, admins, trainers, and the user can read their packages
           allow read: if canManageOrgData(orgId) || request.auth.uid == memberId;
           
-          // Simplified: any signed-in user can write if orgId is present (for testing)
-          allow write: if isSignedIn();
+          // Owners, admins, and trainers can create/update packages
+          allow write: if canManageOrgData(orgId);
         }
       }
     }
@@ -244,8 +244,9 @@ service cloud.firestore {
 
         // Owner or admins can create packages
         // packageCategory can be: private, 1_athlete, 2_athlete, 3_athlete, 4_athlete, class_pass, etc.
-        // Simplified: any signed-in user can create if orgId is present (for testing)
-        allow create: if isSignedIn() && 'orgId' in request.resource.data;
+        allow create: if isSignedIn() 
+          && 'orgId' in request.resource.data 
+          && (request.auth.uid == userId || canManageOrgData(request.resource.data.orgId));
 
         // Trainers/admins can update packages (for booking decrements)
         allow update: if isSignedIn()
