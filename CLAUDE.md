@@ -1,6 +1,6 @@
 # CLAUDE.md - Complete Skedence/CoachFlow Project Reference
 
-**Last Updated:** February 3, 2026  
+**Last Updated:** February 6, 2026  
 **Firebase Project:** polyface-ae6d3  
 **Production Domain:** https://skedence.com  
 **Status:** Production (Live with Stripe payments)
@@ -420,7 +420,7 @@ try await db.collection("organizations").document(orgId)
 ```typescript
 {
   packageType: string,        // e.g., "private", "2_athlete", "class_10_pack"
-  packageCategory: string,    // "pass" or "class"
+  packageCategory: PackageCategory, // "oneAthlete" | "twoAthlete" | "threeAthlete" | "fourAthlete" | "classPass"
   packageName?: string,       // Optional display title
   totalLessons: number,       
   lessonsUsed: number,
@@ -432,6 +432,72 @@ try await db.collection("organizations").document(orgId)
   orgId: string              // Required for multi-tenant isolation
 }
 ```
+
+### Package Category Enum
+The `packageCategory` field uses a strict enum to differentiate between athlete count for private lessons and group classes:
+
+**Enum Values:**
+- `oneAthlete` - Private lesson for 1 athlete
+- `twoAthlete` - Private lesson for 2 athletes
+- `threeAthlete` - Private lesson for 3 athletes
+- `fourAthlete` - Private lesson for 4 athletes
+- `classPass` - Group class pass
+
+**Display Names (iOS):**
+```swift
+enum PackageCategory: String, Codable, CaseIterable {
+    case oneAthlete = "oneAthlete"
+    case twoAthlete = "twoAthlete"
+    case threeAthlete = "threeAthlete"
+    case fourAthlete = "fourAthlete"
+    case classPass = "class"
+    
+    var displayName: String {
+        switch self {
+        case .oneAthlete: return "1 Athlete"
+        case .twoAthlete: return "2 Athletes"
+        case .threeAthlete: return "3 Athletes"
+        case .fourAthlete: return "4 Athletes"
+        case .classPass: return "Class"
+        }
+    }
+    
+    var athleteCount: Int { (packageCategory: "oneAthlete")
+- `2_athlete` - Two athlete private lesson (packageCategory: "twoAthlete")
+- `3_athlete` - Three athlete private lesson (packageCategory: "threeAthlete")
+- `4_athlete` - Four athlete private lesson (packageCategory: "fourAthlete")
+- `class_pass` or `class` - Group class pass (packageCategory: "classPass")
+
+**NEW:** All packages now include a `packageCategory` field that uses the enum values above. The `packageType` field remains for backward compatibility and unique identification, but the `packageCategory` provides structured information about athlete count and lesson type.
+
+Organizations can create custom package types with any naming they want, but must assign one of the standard packageCategory values
+        case .classPass: return 0
+        }
+    }
+    
+    var isPrivateLesson: Bool {
+        self != .classPass
+    }
+}
+```
+
+**Display Helper (Web):**
+```typescript
+function getCategoryDisplayName(category: string): string {
+  switch (category) {
+    case 'oneAthlete': return '1 Athlete';
+    case 'twoAthlete': return '2 Athletes';
+    case 'threeAthlete': return '3 Athletes';
+    case 'fourAthlete': return '4 Athletes';
+    case 'classPass':
+    case 'class': return 'Class';
+    case 'pass': return 'Pass';
+    default: return category;
+  }
+}
+```
+
+**IMPORTANT:** The enum provides type safety and consistent display across all platforms. Legacy "pass" and "class" values are supported for backward compatibility but new packages should use the specific athlete count categories.
 
 ---
 
@@ -468,16 +534,25 @@ organizations/{orgId}/pricingStructure: {
 - `class_pass` or `class` - Group class pass
 
 Organizations can create custom package types with any naming they want.
-
-### Client App Usage
-
-**Models:** `Skedence/Skedence/PricingStructure.swift`
+Models/PricingStructure.swift`
 ```swift
 struct PackageOption: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var title: String                    // Display name
     var priceInCents: Int                // Price in cents (8000 = $80)
-    var packageType: string              // Unique identifier
+    var packageType: String              // Unique identifier
+    var packageCategory: PackageCategory // Category enum (oneAthlete, twoAthlete, etc.)
+    var lessonCount: Int = 1             // Number of lessons in package
+    var description: String = ""         // Package description
+    
+    var formattedPrice: String           // "$80.00"
+    var priceInDollars: Double           // 80.0
+    
+    mutating func autoGeneratePackageType() {
+        if packageType.isEmpty {
+            packageType = title.lowercased().replacingOccurrences(of: " ", with: "_")
+        }
+    }ue identifier
     
     var formattedPrice: String           // "$80.00"
     var priceInDollars: Double           // 80.0
@@ -588,6 +663,7 @@ PricingStructure.default = [
 - **Profile Management:** Edit personal info, view pass balance
 - **Waiver Signing:** Digital waiver with signature capture and PDF generation
 - **Group Classes:** Browse and enroll in group training sessions
+- **Athlete Management:** For multi-athlete packages, add and manage athlete profiles
 
 #### Key Files
 - `SkedenceApp.swift` - App entry point
@@ -596,9 +672,12 @@ PricingStructure.default = [
 - `PackagesService.swift` - Lesson pass management (dual-path queries)
 - `StripeService.swift` - Payment processing
 - `PurchaseManager.swift` - In-app purchase flow
-- `WaiverPDFGenerator.swift` - Generate signed waiver PDFs
+- `WaiverPDFGenerator.swift` - Generate signed waiver PDFs with professional formatting
+- `ActivityPDFGenerator.swift` - Generate activity/liability waivers with custom branding
 - `DesignSystem.swift` - Brand colors and UI components
 - `PricingStructureService.swift` - Load/save pricing structure
+- `Models/PricingStructure.swift` - PackageCategory enum and pricing models
+- `Models/LessonPackage.swift` - Package data model with category support
 
 #### Tech Stack
 - SwiftUI
@@ -1516,6 +1595,40 @@ const paymentIntent = await stripe.paymentIntents.create({
 ---
 
 ## 🔄 Recent Changes & Updates
+
+### February 6, 2026 - Package Category Refactoring & PDF Enhancements
+- **Package Category Enum Implementation:**
+  - Replaced simple "pass"/"class" string with PackageCategory enum
+  - New enum values: oneAthlete, twoAthlete, threeAthlete, fourAthlete, classPass
+  - Provides type safety and athlete count information for private lessons
+  - Updated across iOS apps (client & admin) and web admin portal
+  - Display helpers show user-friendly names ("1 Athlete", "2 Athletes", etc.)
+  - Backward compatibility maintained with legacy values
+
+- **PDF Generation System:**
+  - Created `WaiverPDFGenerator.swift` - Professional waiver PDFs with signatures
+  - Created `ActivityPDFGenerator.swift` - Activity/liability waivers with custom branding
+  - Features: Custom branding (colors, logos), table layouts, signature blocks
+  - Automatic generation and Firebase Storage upload
+  - Email delivery integration for completed waivers
+
+- **Booking Improvements:**
+  - Multi-athlete support in BookView with athlete info collection
+  - Category-based athlete count validation
+  - Enhanced UI for athlete information entry
+  - Improved package selection with category display
+
+- **Admin Portal Enhancements:**
+  - Passes tab shows package categories with friendly names
+  - Pricing page displays category information
+  - Category-aware package management
+  - getCategoryDisplayName() helper for consistent display
+
+- **Code Refactoring:**
+  - Cleaned up duplicate view files in iOS apps
+  - Consolidated navigation structure
+  - Removed redundant markdown documentation files
+  - Improved code organization and maintainability
 
 ### February 3, 2026
 - Added booking alert notifications (sendBookingAlerts Cloud Function)

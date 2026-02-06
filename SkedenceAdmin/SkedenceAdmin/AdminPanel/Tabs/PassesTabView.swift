@@ -102,6 +102,9 @@ struct PassesTabView: View {
                                             Text(package.title)
                                             Text(package.formattedPrice)
                                                 .foregroundStyle(.secondary)
+                                            Text("(\(package.packageCategory.displayName))")
+                                                .foregroundStyle(.tertiary)
+                                                .font(.caption)
                                         }
                                     }
                                 }

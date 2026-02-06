@@ -231,7 +231,6 @@ struct BookView: View {
         guard selectedAthletes.count == requiredCount else {
             return false
         }
-        
         for athleteName in selectedAthletes {
             if athleteName == nil {
                 return false
@@ -860,13 +859,6 @@ struct BookView: View {
                !allAthletes.isEmpty {
                 let athleteCount = category.athleteCount
                 
-                // Initialize selectedAthletes array if needed
-                if selectedAthletes.count != athleteCount {
-                    DispatchQueue.main.async {
-                        selectedAthletes = Array(repeating: nil, count: athleteCount)
-                    }
-                }
-                
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(athleteCount == 1 ? "Who is this lesson for?" : "Select \(athleteCount) Athletes")
                         .font(.headingMedium)
@@ -925,6 +917,12 @@ struct BookView: View {
                         }
                         .padding(.horizontal, Spacing.lg)
                     }
+                }
+                .onAppear {
+                    ensureSelectedAthletesCount(athleteCount)
+                }
+                .onChangeCompat(of: selectedPackage?.id) { _, _ in
+                    ensureSelectedAthletesCount(athleteCount)
                 }
             }
             
@@ -1716,6 +1714,13 @@ struct BookView: View {
             self.title = title
             self.message = message
             self.action = action
+        }
+    }
+    
+    // Ensures selectedAthletes has the correct length for the current package's athlete count
+    private func ensureSelectedAthletesCount(_ count: Int) {
+        if selectedAthletes.count != count {
+            selectedAthletes = Array(repeating: nil, count: count)
         }
     }
 }

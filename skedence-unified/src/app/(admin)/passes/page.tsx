@@ -22,7 +22,28 @@ interface PackageOption {
   title: string;
   priceInCents: number;
   packageType: string;
-  packageCategory: 'pass' | 'class';
+  packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'classPass';
+}
+
+// Helper function to get display name for package category
+function getCategoryDisplayName(category: string): string {
+  switch (category) {
+    case 'oneAthlete':
+      return '1 Athlete';
+    case 'twoAthlete':
+      return '2 Athletes';
+    case 'threeAthlete':
+      return '3 Athletes';
+    case 'fourAthlete':
+      return '4 Athletes';
+    case 'classPass':
+    case 'class':
+      return 'Class';
+    case 'pass':
+      return 'Pass';
+    default:
+      return category;
+  }
 }
 
 interface LessonPackage {
@@ -385,7 +406,7 @@ export default function PassesPage() {
                 <option value="">Select a pass type</option>
                 {packages.map(pkg => (
                   <option key={pkg.id} value={pkg.id}>
-                    {pkg.title} - ${(pkg.priceInCents / 100).toFixed(2)} ({pkg.packageCategory === 'pass' ? 'Pass' : 'Class'})
+                    {pkg.title} - ${(pkg.priceInCents / 100).toFixed(2)} ({getCategoryDisplayName(pkg.packageCategory)})
                   </option>
                 ))}
               </select>
