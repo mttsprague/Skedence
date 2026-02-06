@@ -25,7 +25,7 @@ final class BookingsRepository: QueryableRepositoryProtocol {
         }
         
         let snapshot = try await db.collection("bookings")
-            .whereField("clientId", isEqualTo: userId)
+            .whereField("clientUID", isEqualTo: userId)
             .whereField("orgId", isEqualTo: orgId)
             .order(by: "startTime", descending: true)
             .getDocuments()
@@ -80,7 +80,7 @@ final class BookingsRepository: QueryableRepositoryProtocol {
         }
         
         var query: Query = db.collection("bookings")
-            .whereField("clientId", isEqualTo: userId)
+            .whereField("clientUID", isEqualTo: userId)
             .whereField("orgId", isEqualTo: orgId)
             .order(by: field, descending: descending)
         
@@ -103,7 +103,7 @@ final class BookingsRepository: QueryableRepositoryProtocol {
         let now = Timestamp(date: Date())
         
         let snapshot = try await db.collection("bookings")
-            .whereField("clientId", isEqualTo: userId)
+            .whereField("clientUID", isEqualTo: userId)
             .whereField("orgId", isEqualTo: orgId)
             .whereField("startTime", isGreaterThan: now)
             .order(by: "startTime", descending: false)
@@ -122,7 +122,7 @@ final class BookingsRepository: QueryableRepositoryProtocol {
         let endTimestamp = Timestamp(date: endDate)
         
         let snapshot = try await db.collection("bookings")
-            .whereField("clientId", isEqualTo: userId)
+            .whereField("clientUID", isEqualTo: userId)
             .whereField("orgId", isEqualTo: orgId)
             .whereField("startTime", isGreaterThanOrEqualTo: startTimestamp)
             .whereField("startTime", isLessThanOrEqualTo: endTimestamp)
