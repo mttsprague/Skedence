@@ -288,7 +288,7 @@ struct PricingTabView: View {
     
     private func addPackage(to tierIndex: Int) {
         var newPackage = PackageOption(title: "", priceInCents: 0, packageType: "", lessonCount: 1)
-        newPackage.ensurePackageType()
+        newPackage.autoGeneratePackageType()
         editingTiers[tierIndex].packages.append(newPackage)
     }
     
@@ -305,7 +305,7 @@ struct PricingTabView: View {
         // Auto-generate packageType for all packages before validation
         for tierIndex in 0..<editingTiers.count {
             for packageIndex in 0..<editingTiers[tierIndex].packages.count {
-                editingTiers[tierIndex].packages[packageIndex].ensurePackageType()
+                editingTiers[tierIndex].packages[packageIndex].autoGeneratePackageType()
             }
         }
         

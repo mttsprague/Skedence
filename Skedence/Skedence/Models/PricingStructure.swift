@@ -82,7 +82,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
         title: String,
         priceInCents: Int,
         packageType: String,
-        packageCategory: PackageCategory = .pass,
+        packageCategory: PackageCategory = .oneAthlete,
         lessonCount: Int = 1,
         description: String = ""
     ) {
@@ -102,7 +102,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
         title = try container.decode(String.self, forKey: .title)
         priceInCents = try container.decode(Int.self, forKey: .priceInCents)
         packageType = try container.decode(String.self, forKey: .packageType)
-        packageCategory = try container.decodeIfPresent(PackageCategory.self, forKey: .packageCategory) ?? .pass
+        packageCategory = try container.decodeIfPresent(PackageCategory.self, forKey: .packageCategory) ?? .oneAthlete
         lessonCount = try container.decodeIfPresent(Int.self, forKey: .lessonCount) ?? 1
         description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
     }

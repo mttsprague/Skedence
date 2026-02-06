@@ -46,7 +46,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
     var title: String // e.g., "1 Athlete", "2 Athletes", "Small Group"
     var priceInCents: Int // e.g., 8000 = $80.00
     var packageType: String // e.g., "private", "2_athlete", "3_athlete", "class_pass"
-    var packageCategory: PackageCategory = .pass // Determines if this can be used for lessons or classes
+    var packageCategory: PackageCategory = .classPass // Determines if this can be used for lessons or classes
     var lessonCount: Int = 1 // Number of lessons/units in this package (e.g., 1, 5, 10)
     var description: String = "" // Package description
     
@@ -75,7 +75,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
         title: String,
         priceInCents: Int,
         packageType: String,
-        packageCategory: PackageCategory = .pass,
+        packageCategory: PackageCategory = .classPass,
         lessonCount: Int = 1,
         description: String = ""
     ) {
@@ -95,7 +95,7 @@ struct PackageOption: Codable, Identifiable, Hashable {
         title = try container.decode(String.self, forKey: .title)
         priceInCents = try container.decode(Int.self, forKey: .priceInCents)
         packageType = try container.decode(String.self, forKey: .packageType)
-        packageCategory = try container.decodeIfPresent(PackageCategory.self, forKey: .packageCategory) ?? .pass
+        packageCategory = try container.decodeIfPresent(PackageCategory.self, forKey: .packageCategory) ?? .classPass
         lessonCount = try container.decodeIfPresent(Int.self, forKey: .lessonCount) ?? 1
         description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
     }

@@ -22,7 +22,7 @@ struct OnboardingPackagesView: View {
     @State private var sessions: String = ""
     @State private var price: String = ""
     @State private var expirationDays: String = ""
-    @State private var packageCategory: PackageCategory = .pass
+    @State private var packageCategory: PackageCategory = .oneAthlete
     
     var body: some View {
         ScrollView {
@@ -47,7 +47,7 @@ struct OnboardingPackagesView: View {
                             .foregroundStyle(AppTheme.textSecondary)
 
                         Picker("Package Type", selection: $packageCategory) {
-                            Text("Pass").tag(PackageCategory.pass)
+                            Text("Pass").tag(PackageCategory.oneAthlete)
                             Text("Class").tag(PackageCategory.classPass)
                         }
                         .pickerStyle(.segmented)
@@ -188,7 +188,7 @@ struct OnboardingPackagesView: View {
                     lessonCount: sessionsValue,
                     description: packageDescription
                 )
-                packageOption.ensurePackageType()
+                packageOption.autoGeneratePackageType()
                 
                 // Create pricing structure with the new package
                 let pricingStructure = PricingStructure(

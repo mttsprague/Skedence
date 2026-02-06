@@ -211,13 +211,21 @@ struct BookView: View {
         }
     }
     
+    // Helper to get PackageCategory enum from package
+    private func getPackageCategory(_ package: LessonPackage) -> PackageCategory? {
+        guard let categoryString = package.packageCategory else { return nil }
+        return PackageCategory(rawValue: categoryString)
+    }
+    
     // Validate that all required athlete information is filled
     private var isAthleteInfoComplete: Bool {
-        guard let pkg = selectedPackage, pkg.packageCategory.isPrivateLesson else {
+        guard let pkg = selectedPackage,
+              let category = getPackageCategory(pkg),
+              category.isPrivateLesson else {
             return true  // Classes don't need athlete info
         }
         
-        let requiredCount = pkg.packageCategory.athleteCount
+        let requiredCount = category.athleteCount
         
         // Check that all required athlete slots are filled
         guard selectedAthletes.count == requiredCount else {
@@ -793,10 +801,11 @@ struct BookView: View {
                                 } label: {
                                     if let firstPkg = firstPackage(ofType: packageType) {
                                         let totalRemaining = totalRemainingForLessons(packageType: packageType)
+                                        let categoryName = getPackageCategory(firstPkg)?.displayName ?? "Pass"
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text("\(displayPackageTitle(firstPkg))")
                                                 .font(.bodyMedium)
-                                            Text("\(firstPkg.packageCategory.displayName) • \(totalRemaining) left")
+                                            Text("\(categoryName) • \(totalRemaining) left")
                                                 .font(.caption)
                                                 .foregroundStyle(AppTheme.textSecondary)
                                         }
@@ -816,10 +825,11 @@ struct BookView: View {
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                                     if let pkg = selectedPackage {
                                         let totalRemaining = totalRemainingForLessons(packageType: pkg.packageType)
+                                        let categoryName = getPackageCategory(pkg)?.displayName ?? "Pass"
                                         Text(displayPackageTitle(pkg))
                                             .font(.headingSmall)
                                             .foregroundStyle(AppTheme.textPrimary)
-                                        Text("\(pkg.packageCategory.displayName) • \(totalRemaining) left")
+                                        Text("\(categoryName) • \(totalRemaining) left")
                                             .font(.bodySmall)
                                             .foregroundStyle(AppTheme.textSecondary)
                                     } else {
@@ -843,8 +853,11 @@ struct BookView: View {
             }
 
             // Dynamic Athlete Selection (shown after package selection)
-            if let pkg = selectedPackage, pkg.packageCategory.isPrivateLesson, !allAthletes.isEmpty {
-                let athleteCount = pkg.packageCategory.athleteCount
+            if let pkg = selectedPackage,
+               let category = getPackageCategory(pkg),
+               category.isPrivateLesson,
+               !allAthletes.isEmpty {
+                let athleteCount = category.athleteCount
                 
                 // Initialize selectedAthletes array if needed
                 if selectedAthletes.count != athleteCount {
