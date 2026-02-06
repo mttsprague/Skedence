@@ -180,14 +180,15 @@ struct OnboardingPackagesView: View {
                 let priceValue = Double(price) ?? 250
                 let sessionsValue = Int(sessions) ?? 1
                 
-                let packageOption = PackageOption(
+                var packageOption = PackageOption(
                     title: packageName,
                     priceInCents: Int(priceValue * 100),
-                    packageType: packageName.lowercased().replacingOccurrences(of: " ", with: "_"),
+                    packageType: "",  // Will be auto-generated
                     packageCategory: packageCategory,
                     lessonCount: sessionsValue,
                     description: packageDescription
                 )
+                packageOption.ensurePackageType()
                 
                 // Create pricing structure with the new package
                 let pricingStructure = PricingStructure(

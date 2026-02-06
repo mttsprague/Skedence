@@ -218,45 +218,23 @@ struct PricingTabView: View {
             
             // Pass/Class Category Selection
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("Package Type *")
+                Text("Category *")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
-                HStack(spacing: Spacing.md) {
+                Picker("Category", selection: $editingTiers[tierIndex].packages[packageIndex].packageCategory) {
                     ForEach(PackageCategory.allCases, id: \.self) { category in
-                        Button {
-                            editingTiers[tierIndex].packages[packageIndex].packageCategory = category
-                        } label: {
-                            HStack(spacing: Spacing.xs) {
-                                Image(systemName: editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary : AppTheme.textSecondary)
-                                Text(category.displayName)
-                                    .font(.subheadline)
-                                    .foregroundStyle(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary : AppTheme.textPrimary)
-                            }
-                            .padding(.horizontal, Spacing.md)
-                            .padding(.vertical, Spacing.sm)
-                            .background(editingTiers[tierIndex].packages[packageIndex].packageCategory == category ? AppTheme.primary.opacity(0.1) : Color(uiColor: .secondarySystemGroupedBackground))
-                            .cornerRadius(CornerRadius.sm)
-                        }
+                        Text(category.displayName).tag(category)
                     }
                 }
+                .pickerStyle(.menu)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.xs)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .cornerRadius(CornerRadius.sm)
             }
             .padding(.top, Spacing.xs)
             
             HStack(spacing: Spacing.sm) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Type (use_underscores)")
-                        .font(.caption2)
-                        .foregroundStyle(AppTheme.textSecondary)
-                    TextField("e.g., private", text: $editingTiers[tierIndex].packages[packageIndex].packageType)
-                        .textFieldStyle(.plain)
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, Spacing.xs)
-                        .background(Color(uiColor: .secondarySystemGroupedBackground))
-                        .cornerRadius(CornerRadius.sm)
-                        .autocapitalization(.none)
-                        .disableAutocorrection(true)
-                }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Passes")
@@ -309,7 +287,9 @@ struct PricingTabView: View {
     }
     
     private func addPackage(to tierIndex: Int) {
-        editingTiers[tierIndex].packages.append(PackageOption(title: "", priceInCents: 0, packageType: "", lessonCount: 1))
+        var newPackage = PackageOption(title: "", priceInCents: 0, packageType: "", lessonCount: 1)
+        newPackage.ensurePackageType()
+        editingTiers[tierIndex].packages.append(newPackage)
     }
     
     private func deletePackage(at packageIndex: Int, from tierIndex: Int) {
@@ -320,6 +300,13 @@ struct PricingTabView: View {
         guard let orgId = auth.currentOrgId else {
             alertItem = AlertItem(title: "Error", message: "Organization ID not found")
             return
+        }
+        
+        // Auto-generate packageType for all packages before validation
+        for tierIndex in 0..<editingTiers.count {
+            for packageIndex in 0..<editingTiers[tierIndex].packages.count {
+                editingTiers[tierIndex].packages[packageIndex].ensurePackageType()
+            }
         }
         
         for (tierIndex, tier) in editingTiers.enumerated() {
@@ -338,14 +325,6 @@ struct PricingTabView: View {
                 }
                 if package.lessonCount <= 0 {
                     alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have at least 1 pass")
-                    return
-                }
-                if package.packageType.isEmpty {
-                    alertItem = AlertItem(title: "Validation Error", message: "Tier '\(tier.tierName)' - Package '\(package.title)' must have a package type")
-                    return
-                }
-                if package.packageType.contains(" ") {
-                    alertItem = AlertItem(title: "Validation Error", message: "Package type '\(package.packageType)' cannot contain spaces. Use underscores (_) instead.")
                     return
                 }
             }

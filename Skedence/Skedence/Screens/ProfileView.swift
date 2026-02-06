@@ -572,12 +572,12 @@ private struct SignedInProfileScreen: View {
             } else {
                 // Legend at the top
                 HStack(spacing: Spacing.md) {
-                    // Pass legend
+                    // Athlete packages legend
                     HStack(spacing: Spacing.xxs) {
                         Circle()
                             .fill(AppTheme.primary)
                             .frame(width: 12, height: 12)
-                        Text("Pass")
+                        Text("Athlete Passes")
                             .font(.labelMedium)
                             .foregroundStyle(AppTheme.textSecondary)
                     }

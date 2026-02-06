@@ -310,7 +310,7 @@ export const bookLesson = functions.https.onCall(
           }
         }
 
-        // Validate package category - only 'pass' packages can book lessons
+        // Validate package category - only athlete packages can book lessons
         // Check packageType first as source of truth
         const pkgType = lessonPackageData.packageType as string;
         const pkgCategory = lessonPackageData.packageCategory as string | undefined;
@@ -323,11 +323,20 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
-        // Also check category as secondary validation
-        if (pkgCategory === "class") {
+        // Also check category as secondary validation - accept all athlete categories
+        const validAthleteCategories = ["oneAthlete", "twoAthlete", "threeAthlete", "fourAthlete", "pass"];
+        if (pkgCategory && pkgCategory === "class") {
           throw new functions.https.HttpsError(
             "invalid-argument",
             "Class packages can only be used to register for classes, not book lessons."
+          );
+        }
+        
+        // Validate that category is a valid athlete category if present
+        if (pkgCategory && !validAthleteCategories.includes(pkgCategory)) {
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            `Invalid package category: ${pkgCategory}. Expected one of: ${validAthleteCategories.join(", ")}`
           );
         }
 

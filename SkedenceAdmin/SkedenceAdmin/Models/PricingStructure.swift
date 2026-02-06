@@ -7,16 +7,36 @@
 
 import Foundation
 
-/// Package category - determines what this package can be used for
+/// Package category - determines what this package can be used for and how many athletes
 enum PackageCategory: String, Codable, CaseIterable {
-    case pass = "pass"     // Can only book private lessons with trainers
-    case classPass = "class" // Can only book group classes
+    case oneAthlete = "oneAthlete"       // Private lessons for 1 athlete
+    case twoAthlete = "twoAthlete"       // Private lessons for 2 athletes
+    case threeAthlete = "threeAthlete"   // Private lessons for 3 athletes
+    case fourAthlete = "fourAthlete"     // Private lessons for 4 athletes
+    case classPass = "class"             // Group classes
     
     var displayName: String {
         switch self {
-        case .pass: return "Pass"
+        case .oneAthlete: return "1 Athlete"
+        case .twoAthlete: return "2 Athletes"
+        case .threeAthlete: return "3 Athletes"
+        case .fourAthlete: return "4 Athletes"
         case .classPass: return "Class"
         }
+    }
+    
+    var athleteCount: Int {
+        switch self {
+        case .oneAthlete: return 1
+        case .twoAthlete: return 2
+        case .threeAthlete: return 3
+        case .fourAthlete: return 4
+        case .classPass: return 0
+        }
+    }
+    
+    var isPrivateLesson: Bool {
+        self != .classPass
     }
 }
 
@@ -124,10 +144,10 @@ struct PricingStructure: Codable {
                 PricingTier(
                     tierName: "Standard",
                     packages: [
-                        PackageOption(title: "1 Athlete Private Lesson", priceInCents: 8000, packageType: "private"),
-                        PackageOption(title: "2 Athlete Private Lesson", priceInCents: 12000, packageType: "2_athlete"),
-                        PackageOption(title: "3 Athlete Private Lesson", priceInCents: 16000, packageType: "3_athlete"),
-                        PackageOption(title: "Class Pass", priceInCents: 2000, packageType: "class_pass")
+                        PackageOption(title: "1 Athlete Private Lesson", priceInCents: 8000, packageType: "oneAthlete", packageCategory: .oneAthlete),
+                        PackageOption(title: "2 Athlete Private Lesson", priceInCents: 12000, packageType: "twoAthlete", packageCategory: .twoAthlete),
+                        PackageOption(title: "3 Athlete Private Lesson", priceInCents: 16000, packageType: "threeAthlete", packageCategory: .threeAthlete),
+                        PackageOption(title: "Class Pass", priceInCents: 2000, packageType: "class_pass", packageCategory: .classPass)
                     ]
                 )
             ],
