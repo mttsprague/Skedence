@@ -424,7 +424,8 @@ struct BookView: View {
     // MARK: - Lessons Content
     
     private var lessonsContent: some View {
-        Group {
+        ScrollView {
+            VStack(spacing: Spacing.md) {
             // Trainer Availability Filter
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack {
@@ -1009,6 +1010,7 @@ struct BookView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.top, Spacing.xs)
+            }
             }
         }
     }
