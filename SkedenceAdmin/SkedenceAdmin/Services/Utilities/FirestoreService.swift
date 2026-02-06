@@ -921,6 +921,8 @@ final class FirestoreService {
                     let location = data["location"] as? String
                     let athleteName = data["athleteName"] as? String
                     let secondAthleteName = data["secondAthleteName"] as? String
+                    let athleteNames = data["athleteNames"] as? [String]
+                    let lessonNotes = data["lessonNotes"] as? String
                     
                     // Fetch package type if packageId exists
                     var packageType: String? = nil
@@ -950,7 +952,9 @@ final class FirestoreService {
                         packageId: packageId,
                         packageType: packageType,
                         athleteName: athleteName,
-                        secondAthleteName: secondAthleteName
+                        secondAthleteName: secondAthleteName,
+                        athleteNames: athleteNames,
+                        lessonNotes: lessonNotes
                     )
                 }
             }

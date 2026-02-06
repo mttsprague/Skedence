@@ -382,6 +382,7 @@ struct ScheduleView: View {
                             classId: slot.classId,
                             athleteName: data["athleteName"] as? String,
                             secondAthleteName: data["secondAthleteName"] as? String,
+                            athleteNames: data["athleteNames"] as? [String],
                             lessonNotes: data["lessonNotes"] as? String
                         )
                     }

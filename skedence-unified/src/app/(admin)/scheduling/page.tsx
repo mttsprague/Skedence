@@ -39,8 +39,9 @@ interface ScheduleItem {
   referredBy?: string;
   notesForCoach?: string;
   athletes?: AthleteInfo[];
-  athleteName?: string;
-  secondAthleteName?: string;
+  athleteName?: string; // Legacy
+  secondAthleteName?: string; // Legacy
+  athleteNames?: string[]; // New array format
   lessonNotes?: string;
 }
 
@@ -237,8 +238,9 @@ export default function SchedulingPage() {
             referredBy,
             notesForCoach,
             athletes,
-            athleteName: data.athleteName,
-            secondAthleteName: data.secondAthleteName,
+            athleteName: data.athleteName, // Legacy
+            secondAthleteName: data.secondAthleteName, // Legacy
+            athleteNames: data.athleteNames, // New array format
             lessonNotes: data.lessonNotes,
           });
         }
@@ -686,23 +688,57 @@ export default function SchedulingPage() {
                   )}
 
                   {/* Athlete Names from Booking */}
-                  {(selectedItem.athleteName || selectedItem.secondAthleteName) && (
+                  {(selectedItem.athleteNames && selectedItem.athleteNames.length > 0) || selectedItem.athleteName || selectedItem.secondAthleteName ? (
                     <div className="space-y-2">
                       <h3 className="font-semibold text-gray-900">Participants</h3>
                       <div className="space-y-2">
-                        {selectedItem.athleteName && (
-                          <div className="bg-blue-50 p-3 rounded-lg">
-                            <div className="font-medium text-gray-900">{selectedItem.athleteName}</div>
-                          </div>
-                        )}
-                        {selectedItem.secondAthleteName && (
-                          <div className="bg-blue-50 p-3 rounded-lg">
-                            <div className="font-medium text-gray-900">{selectedItem.secondAthleteName}</div>
-                          </div>
+                        {/* Use new athleteNames array if available */}
+                        {selectedItem.athleteNames && selectedItem.athleteNames.length > 0 ? (
+                          selectedItem.athleteNames.map((name, idx) => {
+                            // Match athlete name to profile data
+                            const matchedAthlete = selectedItem.athletes?.find(athlete => 
+                              `${athlete.firstName} ${athlete.lastName}` === name
+                            );
+                            return (
+                              <div key={idx} className="bg-blue-50 p-3 rounded-lg space-y-1">
+                                <div className="font-medium text-gray-900">{name}</div>
+                                {matchedAthlete && (
+                                  <>
+                                    {matchedAthlete.birthday && (
+                                      <div className="text-sm text-gray-600">DOB: {matchedAthlete.birthday}</div>
+                                    )}
+                                    {matchedAthlete.schoolClubTeam && (
+                                      <div className="text-sm text-gray-600">Team: {matchedAthlete.schoolClubTeam}</div>
+                                    )}
+                                    {matchedAthlete.experienceLevel && (
+                                      <div className="text-sm text-gray-600">Experience: {matchedAthlete.experienceLevel}</div>
+                                    )}
+                                    {matchedAthlete.position && (
+                                      <div className="text-sm text-gray-600">Position: {matchedAthlete.position}</div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          /* Legacy format: display first two athletes */
+                          <>
+                            {selectedItem.athleteName && (
+                              <div className="bg-blue-50 p-3 rounded-lg">
+                                <div className="font-medium text-gray-900">{selectedItem.athleteName}</div>
+                              </div>
+                            )}
+                            {selectedItem.secondAthleteName && (
+                              <div className="bg-blue-50 p-3 rounded-lg">
+                                <div className="font-medium text-gray-900">{selectedItem.secondAthleteName}</div>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Athletes from Profile */}
                   {selectedItem.athletes && selectedItem.athletes.length > 0 && (

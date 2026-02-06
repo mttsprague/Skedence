@@ -213,18 +213,17 @@ struct SessionDetailView: View {
                                 position: getAthletePosition(at: index)
                             )
                         }
-                    } else {
-                        // Legacy format: display first two athletes
-                        if let athleteName = booking.athleteName, !athleteName.isEmpty {
-                            athleteDetailSection(
-                                name: athleteName,
-                                birthday: client.athleteBirthday,
-                                schoolClubTeam: client.athleteSchoolClubTeam,
-                                experienceLevel: client.athleteExperienceLevel,
-                                position: client.athletePosition
-                            )
-                        }
+                    } else if let athleteName = booking.athleteName, !athleteName.isEmpty {
+                        // Legacy format: display first athlete
+                        athleteDetailSection(
+                            name: athleteName,
+                            birthday: client.athleteBirthday,
+                            schoolClubTeam: client.athleteSchoolClubTeam,
+                            experienceLevel: client.athleteExperienceLevel,
+                            position: client.athletePosition
+                        )
                         
+                        // Second athlete if exists
                         if let secondName = booking.secondAthleteName, !secondName.isEmpty {
                             Divider()
                                 .padding(.vertical, 4)
@@ -236,6 +235,12 @@ struct SessionDetailView: View {
                                 position: client.athlete2Position
                             )
                         }
+                    } else {
+                        // No athlete data stored in booking (older bookings)
+                        Text("Participant information not available for this booking")
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .padding(.vertical, 8)
                     }
                 }
             }
@@ -244,40 +249,82 @@ struct SessionDetailView: View {
         }
     }
     
-    // Helper methods to get athlete data by index
+    // Helper methods to get athlete data by name with fallback to index
     private func getAthleteBirthday(at index: Int) -> String? {
-        switch index {
-        case 0: return client.athleteBirthday
-        case 1: return client.athlete2Birthday
-        case 2: return client.athlete3Birthday
-        default: return nil
+        // Try to match by name first if athleteNames array exists
+        if let athleteNames = booking.athleteNames, index < athleteNames.count {
+            let athleteName = athleteNames[index]
+            let data = getAthleteData(for: athleteName, fallbackIndex: index)
+            return data.birthday
         }
+        // Fallback to index-based matching
+        return getAthleteDataByIndex(index).birthday
     }
     
     private func getAthleteSchoolClubTeam(at index: Int) -> String? {
-        switch index {
-        case 0: return client.athleteSchoolClubTeam
-        case 1: return client.athlete2SchoolClubTeam
-        case 2: return client.athlete3SchoolClubTeam
-        default: return nil
+        if let athleteNames = booking.athleteNames, index < athleteNames.count {
+            let athleteName = athleteNames[index]
+            let data = getAthleteData(for: athleteName, fallbackIndex: index)
+            return data.schoolClubTeam
         }
+        return getAthleteDataByIndex(index).schoolClubTeam
     }
     
     private func getAthleteExperienceLevel(at index: Int) -> String? {
-        switch index {
-        case 0: return client.athleteExperienceLevel
-        case 1: return client.athlete2ExperienceLevel
-        case 2: return client.athlete3ExperienceLevel
-        default: return nil
+        if let athleteNames = booking.athleteNames, index < athleteNames.count {
+            let athleteName = athleteNames[index]
+            let data = getAthleteData(for: athleteName, fallbackIndex: index)
+            return data.experienceLevel
         }
+        return getAthleteDataByIndex(index).experienceLevel
     }
     
     private func getAthletePosition(at index: Int) -> String? {
+        if let athleteNames = booking.athleteNames, index < athleteNames.count {
+            let athleteName = athleteNames[index]
+            let data = getAthleteData(for: athleteName, fallbackIndex: index)
+            return data.position
+        }
+        return getAthleteDataByIndex(index).position
+    }
+    
+    // Match athlete name to client data with fallback to index
+    private func getAthleteData(for name: String, fallbackIndex: Int) -> (birthday: String?, schoolClubTeam: String?, experienceLevel: String?, position: String?) {
+        let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        // Check if it matches athlete 1
+        if let athlete1Name = client.athleteFullName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+           athlete1Name == normalizedName {
+            return (client.athleteBirthday, client.athleteSchoolClubTeam, client.athleteExperienceLevel, client.athletePosition)
+        }
+        
+        // Check if it matches athlete 2
+        if let athlete2Name = client.athlete2FullName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+           athlete2Name == normalizedName {
+            return (client.athlete2Birthday, client.athlete2SchoolClubTeam, client.athlete2ExperienceLevel, client.athlete2Position)
+        }
+        
+        // Check if it matches athlete 3
+        if let athlete3Name = client.athlete3FullName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+           athlete3Name == normalizedName {
+            return (client.athlete3Birthday, client.athlete3SchoolClubTeam, client.athlete3ExperienceLevel, client.athlete3Position)
+        }
+        
+        // No match found by name, fall back to index-based matching
+        return getAthleteDataByIndex(fallbackIndex)
+    }
+    
+    // Get athlete data by index position (fallback method)
+    private func getAthleteDataByIndex(_ index: Int) -> (birthday: String?, schoolClubTeam: String?, experienceLevel: String?, position: String?) {
         switch index {
-        case 0: return client.athletePosition
-        case 1: return client.athlete2Position
-        case 2: return client.athlete3Position
-        default: return nil
+        case 0:
+            return (client.athleteBirthday, client.athleteSchoolClubTeam, client.athleteExperienceLevel, client.athletePosition)
+        case 1:
+            return (client.athlete2Birthday, client.athlete2SchoolClubTeam, client.athlete2ExperienceLevel, client.athlete2Position)
+        case 2:
+            return (client.athlete3Birthday, client.athlete3SchoolClubTeam, client.athlete3ExperienceLevel, client.athlete3Position)
+        default:
+            return (nil, nil, nil, nil)
         }
     }
     

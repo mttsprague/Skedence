@@ -34,8 +34,9 @@ interface Booking {
   referredBy?: string;
   notesForCoach?: string;
   athletes?: AthleteInfo[];
-  athleteName?: string; // Participant name for this lesson
-  secondAthleteName?: string; // Second participant name
+  athleteName?: string; // Participant name for this lesson (legacy)
+  secondAthleteName?: string; // Second participant name (legacy)
+  athleteNames?: string[]; // All participant names (new format)
   lessonNotes?: string; // Lesson-specific notes from client
   trainerId: string;
   startTime: Date;
@@ -205,6 +206,10 @@ export default function SchedulePage() {
           referredBy,
           notesForCoach,
           athletes,
+          athleteName: data.athleteName, // Legacy
+          secondAthleteName: data.secondAthleteName, // Legacy
+          athleteNames: data.athleteNames, // New array format
+          lessonNotes: data.lessonNotes,
         });
       }
       setBookings(bookingsData);
@@ -675,10 +680,63 @@ export default function SchedulePage() {
                 )}
               </div>
               
-              {/* Athletes */}
+              {/* Participants - Booked Athletes */}
+              {((selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0) || selectedBooking.athleteName || selectedBooking.secondAthleteName) && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-900">Participants</h3>
+                  <div className="space-y-3">
+                    {/* Use new athleteNames array if available */}
+                    {selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0 ? (
+                      selectedBooking.athleteNames.map((name, idx) => {
+                        // Match athlete name to profile data
+                        const matchedAthlete = selectedBooking.athletes?.find(athlete => 
+                          `${athlete.firstName} ${athlete.lastName}` === name
+                        );
+                        return (
+                          <div key={idx} className="bg-blue-50 p-3 rounded-lg space-y-1">
+                            <div className="font-medium text-gray-900">{name}</div>
+                            {matchedAthlete && (
+                              <>
+                                {matchedAthlete.birthday && (
+                                  <div className="text-sm text-gray-600">DOB: {matchedAthlete.birthday}</div>
+                                )}
+                                {matchedAthlete.schoolClubTeam && (
+                                  <div className="text-sm text-gray-600">Team: {matchedAthlete.schoolClubTeam}</div>
+                                )}
+                                {matchedAthlete.experienceLevel && (
+                                  <div className="text-sm text-gray-600">Experience: {matchedAthlete.experienceLevel}</div>
+                                )}
+                                {matchedAthlete.position && (
+                                  <div className="text-sm text-gray-600">Position: {matchedAthlete.position}</div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      /* Legacy format: display first two athletes */
+                      <>
+                        {selectedBooking.athleteName && (
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <div className="font-medium text-gray-900">{selectedBooking.athleteName}</div>
+                          </div>
+                        )}
+                        {selectedBooking.secondAthleteName && (
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <div className="font-medium text-gray-900">{selectedBooking.secondAthleteName}</div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Athletes on File */}
               {selectedBooking.athletes && selectedBooking.athletes.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">Athletes</h3>
+                  <h3 className="font-semibold text-gray-900">All Athletes on File</h3>
                   <div className="space-y-3">
                     {selectedBooking.athletes.map((athlete, idx) => (
                       <div key={idx} className="bg-gray-50 p-3 rounded-lg space-y-1">
