@@ -65,12 +65,6 @@ struct DocumentsSection: View {
                     .fontWeight(.medium)
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                if let athleteName = document.athleteName {
-                    Text("Athlete: \(athleteName)")
-                        .font(.labelSmall)
-                        .foregroundStyle(AppTheme.textTertiary)
-                }
-                
                 Text(document.uploadedAt.formatted(.relative(presentation: .named)))
                     .font(.labelSmall)
                     .foregroundStyle(AppTheme.textSecondary)

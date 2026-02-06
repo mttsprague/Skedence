@@ -927,6 +927,9 @@ final class FirestoreService {
                     let isClassBooking = data["isClassBooking"] as? Bool
                     let classId = data["classId"] as? String
                     let packageId = data["packageId"] as? String ?? data["lessonPackageId"] as? String
+                    let location = data["location"] as? String
+                    let athleteName = data["athleteName"] as? String
+                    let secondAthleteName = data["secondAthleteName"] as? String
                     
                     // Fetch package type if packageId exists
                     var packageType: String? = nil
@@ -949,11 +952,14 @@ final class FirestoreService {
                         startTime: startTimeTs.dateValue(),
                         endTime: endTimeTs.dateValue(),
                         status: status,
+                        location: location,
                         bookedAt: bookedAt,
                         isClassBooking: isClassBooking,
                         classId: classId,
                         packageId: packageId,
-                        packageType: packageType
+                        packageType: packageType,
+                        athleteName: athleteName,
+                        secondAthleteName: secondAthleteName
                     )
                 }
             }

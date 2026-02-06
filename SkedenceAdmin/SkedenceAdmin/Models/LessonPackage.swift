@@ -132,11 +132,22 @@ struct ClientDocument: Identifiable, Codable {
     var athleteName: String? // Name of athlete this document is for
     
     var displayName: String {
-        // Use stored display name if available, otherwise fall back to type-based naming
+        // Use stored display name if available
         if let storedDisplayName = storedDisplayName {
             return storedDisplayName
         }
         
+        // If we have an athlete name, format it with the document type
+        if let athleteName = athleteName, !athleteName.isEmpty {
+            switch type {
+            case "waiver": return "\(athleteName) - Waiver"
+            case "medical": return "\(athleteName) - Medical Form"
+            case "emergency_contact": return "\(athleteName) - Emergency Contact"
+            default: return "\(athleteName) - \(name)"
+            }
+        }
+        
+        // Fall back to type-based naming
         switch type {
         case "waiver": return "Waiver"
         case "medical": return "Medical Form"
