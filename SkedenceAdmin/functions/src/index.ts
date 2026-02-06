@@ -895,35 +895,49 @@ export const adminCancelLesson = functions.https.onCall(
 
       const bookingRef = db.collection("bookings").doc(bookingId);
 
+      // Pre-check booking exists before transaction
+      const bookingSnapshot = await bookingRef.get();
+      if (!bookingSnapshot.exists) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          `Booking ${bookingId} not found.`
+        );
+      }
+
+      const preBookingData = bookingSnapshot.data();
+      if (!preBookingData) {
+        throw new functions.https.HttpsError(
+          "internal",
+          "Booking data is missing."
+        );
+      }
+
+      // Verify booking belongs to specified client
+      if (preBookingData.clientUID !== clientId) {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          `Booking does not belong to client ${clientId}. Belongs to ${preBookingData.clientUID}`
+        );
+      }
+
+      functions.logger.info(`Cancelling booking ${bookingId} for client ${clientId}. RefundPass: ${refundPass}`);
+
       await db.runTransaction(async (transaction) => {
         const bookingDoc = await transaction.get(bookingRef);
 
         if (!bookingDoc.exists) {
-          throw new functions.https.HttpsError(
-            "not-found",
-            "Booking not found."
-          );
+          throw new Error("Booking was deleted during transaction");
         }
 
         const bookingData = bookingDoc.data();
         if (!bookingData) {
-          throw new functions.https.HttpsError(
-            "internal",
-            "Booking data is missing."
-          );
-        }
-
-        // Verify booking belongs to specified client
-        if (bookingData.clientUID !== clientId) {
-          throw new functions.https.HttpsError(
-            "invalid-argument",
-            "Booking does not belong to specified client"
-          );
+          throw new Error("Booking data missing during transaction");
         }
 
         // Get the lesson package and conditionally decrement lessonsUsed based on refundPass
         // If refundPass is true (early cancel), refund the pass. If false (late cancel), don't refund.
         if (refundPass && bookingData.packageId) {
+          functions.logger.info(`Refunding pass ${bookingData.packageId} for client ${clientId}`);
           const packageRef = db
             .collection("users")
             .doc(clientId)
@@ -935,11 +949,14 @@ export const adminCancelLesson = functions.https.onCall(
             transaction.update(packageRef, {
               lessonsUsed: admin.firestore.FieldValue.increment(-1),
             });
+          } else {
+            functions.logger.warn(`Package ${bookingData.packageId} not found for refund`);
           }
         }
 
         // Update trainer's schedule slot back to open
         if (bookingData.trainerId && bookingData.slotId) {
+          functions.logger.info(`Opening slot ${bookingData.slotId} for trainer ${bookingData.trainerId}`);
           const trainerSlotRef = db
             .collection("trainers")
             .doc(bookingData.trainerId)
@@ -954,70 +971,91 @@ export const adminCancelLesson = functions.https.onCall(
               clientName: null,
               bookedAt: null,
             });
+          } else {
+            functions.logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId}`);
           }
         }
 
         // Delete the booking
+        functions.logger.info(`Deleting booking ${bookingId}`);
         transaction.delete(bookingRef);
 
         // Log activity
-        const adminRef = db.collection("trainers").doc(adminUid);
-        const adminDoc = await transaction.get(adminRef);
-        const adminData = adminDoc.exists ? adminDoc.data() : null;
-        const adminFullName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
-        
-        const clientRef = db.collection("users").doc(clientId);
-        const clientDoc = await transaction.get(clientRef);
-        const clientData = clientDoc.exists ? clientDoc.data() : null;
-        const clientFullName = clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
-        
-        const trainerRef = db.collection("trainers").doc(bookingData.trainerId);
-        const trainerDoc = await transaction.get(trainerRef);
-        const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
-        const trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
+        try {
+          const adminRef = db.collection("trainers").doc(adminUid);
+          const adminDoc = await transaction.get(adminRef);
+          const adminData = adminDoc.exists ? adminDoc.data() : null;
+          const adminFullName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
+          
+          const clientRef = db.collection("users").doc(clientId);
+          const clientDoc = await transaction.get(clientRef);
+          const clientData = clientDoc.exists ? clientDoc.data() : null;
+          const clientFullName = clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
+          
+          const trainerRef = db.collection("trainers").doc(bookingData.trainerId);
+          const trainerDoc = await transaction.get(trainerRef);
+          const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
+          const trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
 
-        const activityRef = db.collection("activity").doc();
-        transaction.set(activityRef, {
-          type: "lesson_cancelled",
-          actorId: adminUid,
-          actorName: adminFullName,
-          actorRole: "admin",
-          targetId: clientId,
-          targetName: clientFullName,
-          targetType: "client",
-          description: `${adminFullName} cancelled ${clientFullName}'s lesson with ${trainerFullName} (${refundPass ? 'Early Cancel - Pass Refunded' : 'Late Cancel - No Refund'})`,
-          metadata: {
-            bookingId: bookingId,
-            slotId: bookingData.slotId || null,
-            trainerId: bookingData.trainerId,
-            trainerName: trainerFullName,
-            startTime: bookingData.startTime || null,
-            endTime: bookingData.endTime || null,
-            location: bookingData.location || null,
-            athleteName: bookingData.athleteName || null,
-            secondAthleteName: bookingData.secondAthleteName || null,
-            refundPass: refundPass, // Track whether pass was refunded
-            cancelType: refundPass ? 'early' : 'late', // Track cancel type
+          const activityRef = db.collection("activity").doc();
+          transaction.set(activityRef, {
+            type: "lesson_cancelled",
+            actorId: adminUid,
+            actorName: adminFullName,
+            actorRole: "admin",
+            targetId: clientId,
+            targetName: clientFullName,
+            targetType: "client",
+            description: `${adminFullName} cancelled ${clientFullName}'s lesson with ${trainerFullName} (${refundPass ? 'Early Cancel - Pass Refunded' : 'Late Cancel - No Refund'})`,
+            metadata: {
+              bookingId: bookingId,
+              slotId: bookingData.slotId || null,
+              trainerId: bookingData.trainerId,
+              trainerName: trainerFullName,
+              startTime: bookingData.startTime || null,
+              endTime: bookingData.endTime || null,
+              location: bookingData.location || null,
+              athleteName: bookingData.athleteName || null,
+              secondAthleteName: bookingData.secondAthleteName || null,
+              refundPass: refundPass, // Track whether pass was refunded
+              cancelType: refundPass ? 'early' : 'late', // Track cancel type
+              timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            orgId: orgId,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          orgId: orgId,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
+          });
+        } catch (activityError) {
+          functions.logger.error("Error logging activity (non-fatal):", activityError);
+          // Don't fail the transaction if activity logging fails
+        }
       });
 
       functions.logger.info(
-        `Admin ${adminUid} (${role}) cancelled booking ${bookingId} for client ${clientId} in org ${orgId}`
+        `Admin ${adminUid} (${role}) successfully cancelled booking ${bookingId} for client ${clientId} in org ${orgId}. RefundPass: ${refundPass}`
       );
       return {message: "Lesson cancelled successfully!"};
     } catch (error) {
       if (error instanceof functions.https.HttpsError) {
         throw error;
       }
-      functions.logger.error("Error cancelling lesson:", error);
+      functions.logger.error("Error cancelling lesson:", {
+        error: error,
+        message: (error as Error).message,
+        stack: (error as Error).stack,
+        bookingId,
+        orgId,
+        clientId,
+        refundPass
+      });
       throw new functions.https.HttpsError(
         "internal",
-        "An unexpected error occurred while cancelling the lesson.",
-        (error as Error).message
+        `An unexpected error occurred while cancelling the lesson: ${(error as Error).message}`,
+        JSON.stringify({
+          originalError: (error as Error).message,
+          bookingId,
+          orgId,
+          clientId
+        })
       );
     }
   }
