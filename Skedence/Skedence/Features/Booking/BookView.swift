@@ -10,6 +10,13 @@ import StripePaymentSheet
 import FirebaseAuth
 import FirebaseFirestore
 
+// Safe array subscript extension
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}
+
 struct BookView: View {
     @EnvironmentObject var auth: AuthManager
     @EnvironmentObject var intakeFormService: IntakeFormService
@@ -39,9 +46,7 @@ struct BookView: View {
     @State private var selectedClass: GroupClass?
     @State private var showingClassRegistration = false
     @State private var selectedPackage: LessonPackage?
-    @State private var selectedAthleteName: String?
-    @State private var isOnlyParticipant: Bool?
-    @State private var secondAthleteName: String?
+    @State private var selectedAthletes: [String?] = [] // Dynamic array based on package category
     @State private var isNewAthlete = false
     @State private var lessonNotes = ""
     
@@ -142,16 +147,18 @@ struct BookView: View {
         return athletes
     }
     
-    // Get remaining athletes excluding the first selected one
-    private var remainingAthletes: [String] {
-        guard let firstAthlete = selectedAthleteName else { return allAthletes }
-        return allAthletes.filter { $0 != firstAthlete }
+    // Get available athletes for a specific dropdown index (excludes already-selected athletes)
+    private func availableAthletesFor(index: Int) -> [String] {
+        return allAthletes.filter { athlete in
+            !selectedAthletes.enumerated().contains { idx, selected in
+                idx != index && selected == athlete
+            }
+        }
     }
     
     // Load athlete profile data from Firebase
-    private func loadAthleteProfileData() {
-        guard let profile = usersService.currentUser,
-              let athleteName = selectedAthleteName else {
+    private func loadAthleteProfileData(athleteName: String) {
+        guard let profile = usersService.currentUser else {
             return
         }
         
@@ -254,31 +261,27 @@ struct BookView: View {
     
     // Validate that all required athlete information is filled
     private var isAthleteInfoComplete: Bool {
-        guard isOnlyParticipant != nil else {
+        guard let pkg = selectedPackage, pkg.packageCategory.isPrivateLesson else {
+            return true  // Classes don't need athlete info
+        }
+        
+        let requiredCount = pkg.packageCategory.athleteCount
+        
+        // Check that all required athlete slots are filled
+        guard selectedAthletes.count == requiredCount else {
             return false
+        }
+        
+        for athleteName in selectedAthletes {
+            if athleteName == nil {
+                return false
+            }
         }
         
         // Check primary athlete info using dynamic form validation
         let primaryInfoComplete = intakeFormData.areAllRequiredFieldsComplete(intakeFormService.fields)
         
-        guard primaryInfoComplete else {
-            return false
-        }
-        
-        // If multiple participants, check second athlete
-        if isOnlyParticipant == false {
-            guard secondAthleteName != nil else {
-                return false
-            }
-            
-            // If new athlete, validate all new athlete fields
-            if isNewAthlete {
-                let newAthleteComplete = newAthleteIntakeData.areAllRequiredFieldsComplete(intakeFormService.fields)
-                return newAthleteComplete
-            }
-        }
-        
-        return true
+        return primaryInfoComplete
     }
     
     private var availableClassPasses: [LessonPackage] {
@@ -822,13 +825,16 @@ struct BookView: View {
                             ForEach(uniquePackageTypes, id: \.self) { packageType in
                                 Button {
                                     selectedPackage = firstPackage(ofType: packageType)
-                                    selectedAthleteName = nil  // Reset athlete selection when package changes
+                                    selectedAthletes = []  // Reset athlete selection when package changes
                                 } label: {
                                     if let firstPkg = firstPackage(ofType: packageType) {
                                         let totalRemaining = totalRemainingForLessons(packageType: packageType)
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text("\(displayPackageTitle(firstPkg)) (\(totalRemaining))")
+                                            Text("\(displayPackageTitle(firstPkg))")
                                                 .font(.bodyMedium)
+                                            Text("\(firstPkg.packageCategory.displayName) • \(totalRemaining) left")
+                                                .font(.caption)
+                                                .foregroundStyle(AppTheme.textSecondary)
                                         }
                                     }
                                 }
@@ -849,7 +855,7 @@ struct BookView: View {
                                         Text(displayPackageTitle(pkg))
                                             .font(.headingSmall)
                                             .foregroundStyle(AppTheme.textPrimary)
-                                        Text("(\(totalRemaining))")
+                                        Text("\(pkg.packageCategory.displayName) • \(totalRemaining) left")
                                             .font(.bodySmall)
                                             .foregroundStyle(AppTheme.textSecondary)
                                     } else {
@@ -872,150 +878,82 @@ struct BookView: View {
                 }
             }
 
-            // Athlete Selection (shown after package selection)
-            // If user has athletes, let them select one. Otherwise, skip to participant count.
-            if selectedPackage != nil && !allAthletes.isEmpty {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Who is the private for?")
-                        .font(.headingMedium)
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .padding(.horizontal, Spacing.lg)
-
-                    CardView(padding: Spacing.md) {
-                        Menu {
-                            ForEach(allAthletes, id: \.self) { athleteName in
-                                Button {
-                                    selectedAthleteName = athleteName
-                                    loadAthleteProfileData()
-                                } label: {
-                                    Text(athleteName)
-                        .font(.bodyMedium)
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: Spacing.md) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: CornerRadius.xs)
-                                        .fill(AppTheme.primary.opacity(0.08))
-                                        .frame(width: 48, height: 48)
-                                    Image(systemName: "person")
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundStyle(AppTheme.primary)
-                                }
-                                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    if let athleteName = selectedAthleteName {
-                                        Text(athleteName)
-                                            .font(.headingSmall)
-                                            .foregroundStyle(AppTheme.textPrimary)
-                                        Text("Selected athlete")
-                                            .font(.bodySmall)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    } else {
-                                        Text("Select Athlete")
-                                            .font(.headingSmall)
-                                            .foregroundStyle(AppTheme.textPrimary)
-                                        Text("Choose who this private is for")
-                                            .font(.bodySmall)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    }
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(AppTheme.textTertiary)
-                            }
-                        }
+            // Dynamic Athlete Selection (shown after package selection)
+            if let pkg = selectedPackage, pkg.packageCategory.isPrivateLesson, !allAthletes.isEmpty {
+                let athleteCount = pkg.packageCategory.athleteCount
+                
+                // Initialize selectedAthletes array if needed
+                if selectedAthletes.count != athleteCount {
+                    DispatchQueue.main.async {
+                        selectedAthletes = Array(repeating: nil, count: athleteCount)
                     }
-                    .padding(.horizontal, Spacing.lg)
                 }
-            }
-            
-            // Is athlete the only participant?
-            // Show this after athlete selection (if athletes exist) OR after package selection (if no athletes)
-            if (selectedAthleteName != nil) || (selectedPackage != nil && allAthletes.isEmpty) {
+                
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text(selectedAthleteName != nil ? "Is \(selectedAthleteName ?? "") the only participant?" : "How many participants?")
+                    Text(athleteCount == 1 ? "Who is this lesson for?" : "Select \(athleteCount) Athletes")
                         .font(.headingMedium)
                         .foregroundStyle(AppTheme.textPrimary)
                         .padding(.horizontal, Spacing.lg)
                     
-                    HStack(spacing: Spacing.md) {
-                        Button {
-                            isOnlyParticipant = true
-                            secondAthleteName = nil
-                            isNewAthlete = false
-                            loadAthleteProfileData()
-                        } label: {
-                            HStack {
-                                ZStack {
-                                    Circle()
-                                        .stroke(isOnlyParticipant == true ? AppTheme.primary : AppTheme.textTertiary, lineWidth: 2)
-                                        .frame(width: 24, height: 24)
-                                    if isOnlyParticipant == true {
-                                        Circle()
-                                            .fill(AppTheme.primary)
-                                            .frame(width: 12, height: 12)
-                                    }
-                                }
-                                Text("Yes")
-                                    .font(.bodyLarge)
-                                    .foregroundStyle(AppTheme.textPrimary)
-                            }
-                            .padding(Spacing.md)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                RoundedRectangle(cornerRadius: CornerRadius.md)
-                                    .fill(Color.platformBackground)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: CornerRadius.md)
-                                            .stroke(isOnlyParticipant == true ? AppTheme.primary.opacity(0.3) : Color.clear, lineWidth: 2)
-                                    )
-                            )
-                            .lightShadow()
-                        }
-                        .buttonStyle(.plain)
+                    ForEach(0..<athleteCount, id: \.self) { index in
+                        let ordinalNumber = ["First", "Second", "Third", "Fourth"][index]
                         
-                        Button {
-                            isOnlyParticipant = false
-                            loadAthleteProfileData()
-                        } label: {
-                            HStack {
-                                ZStack {
-                                    Circle()
-                                        .stroke(isOnlyParticipant == false ? AppTheme.primary : AppTheme.textTertiary, lineWidth: 2)
-                                        .frame(width: 24, height: 24)
-                                    if isOnlyParticipant == false {
-                                        Circle()
-                                            .fill(AppTheme.primary)
-                                            .frame(width: 12, height: 12)
+                        CardView(padding: Spacing.md) {
+                            Menu {
+                                ForEach(availableAthletesFor(index: index), id: \.self) { athleteName in
+                                    Button {
+                                        selectedAthletes[index] = athleteName
+                                        if index == 0 {
+                                            loadAthleteProfileData(athleteName: athleteName)
+                                        }
+                                    } label: {
+                                        Text(athleteName)
+                                            .font(.bodyMedium)
                                     }
                                 }
-                                Text("No")
-                                    .font(.bodyLarge)
-                                    .foregroundStyle(AppTheme.textPrimary)
+                            } label: {
+                                HStack(spacing: Spacing.md) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: CornerRadius.xs)
+                                            .fill(AppTheme.primary.opacity(0.08))
+                                            .frame(width: 48, height: 48)
+                                        Image(systemName: index == 0 ? "person.fill" : "person.\(index + 1).fill")
+                                            .font(.system(size: 20, weight: .semibold))
+                                            .foregroundStyle(AppTheme.primary)
+                                    }
+                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                        if let athleteName = selectedAthletes[safe: index], let name = athleteName {
+                                            Text(name)
+                                                .font(.headingSmall)
+                                                .foregroundStyle(AppTheme.textPrimary)
+                                            Text(athleteCount == 1 ? "Selected athlete" : "\(ordinalNumber) athlete")
+                                                .font(.bodySmall)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        } else {
+                                            Text(athleteCount == 1 ? "Select Athlete" : "Select \(ordinalNumber) Athlete")
+                                                .font(.headingSmall)
+                                                .foregroundStyle(AppTheme.textPrimary)
+                                            Text("Choose from your athletes")
+                                                .font(.bodySmall)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(AppTheme.textTertiary)
+                                }
                             }
-                            .padding(Spacing.md)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                RoundedRectangle(cornerRadius: CornerRadius.md)
-                                    .fill(Color.platformBackground)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: CornerRadius.md)
-                                            .stroke(isOnlyParticipant == false ? AppTheme.primary.opacity(0.3) : Color.clear, lineWidth: 2)
-                                    )
-                            )
-                            .lightShadow()
                         }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal, Spacing.lg)
                     }
-                    .padding(.horizontal, Spacing.lg)
                 }
             }
             
-            // Athlete Profile Information (shown when participant is selected)
-            if isOnlyParticipant != nil {
+            // Athlete Profile Information (shown when first athlete is selected)
+            if selectedAthletes.first != nil, let firstAthlete = selectedAthletes[0] {
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text(selectedAthleteName != nil ? "\(selectedAthleteName!) Information" : "Participant Information")
+                    Text("\(firstAthlete) Information")
                         .font(.headingMedium)
                         .foregroundStyle(AppTheme.textPrimary)
                         .padding(.horizontal, Spacing.lg)
@@ -1027,76 +965,6 @@ struct BookView: View {
                     .padding(.horizontal, Spacing.lg)
                 }
             }
-            
-            // Second Athlete Selection (shown when isOnlyParticipant is false)
-            if isOnlyParticipant == false {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Select Second Participant")
-                        .font(.headingMedium)
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .padding(.horizontal, Spacing.lg)
-                    
-                    CardView(padding: Spacing.md) {
-                        Menu {
-                            ForEach(remainingAthletes, id: \.self) { athleteName in
-                                Button {
-                                    secondAthleteName = athleteName
-                                    isNewAthlete = false
-                                    loadSecondAthleteProfileData()
-                                } label: {
-                                    Text(athleteName)
-                                        .font(.bodyMedium)
-                                }
-                            }
-                            Button {
-                                secondAthleteName = "New Athlete"
-                                isNewAthlete = true
-                            } label: {
-                                Text("New Athlete")
-                                    .font(.bodyMedium)
-                            }
-                        } label: {
-                            HStack(spacing: Spacing.md) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: CornerRadius.xs)
-                                        .fill(AppTheme.primary.opacity(0.08))
-                                        .frame(width: 48, height: 48)
-                                    Image(systemName: "person.2")
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundStyle(AppTheme.primary)
-                                }
-                                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    if let athleteName = secondAthleteName {
-                                        Text(athleteName)
-                                            .font(.headingSmall)
-                                            .foregroundStyle(AppTheme.textPrimary)
-                                        Text("Second participant")
-                                            .font(.bodySmall)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    } else {
-                                        Text("Select Athlete")
-                                            .font(.headingSmall)
-                                            .foregroundStyle(AppTheme.textPrimary)
-                                        Text("Choose second participant")
-                                            .font(.bodySmall)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    }
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(AppTheme.textTertiary)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, Spacing.lg)
-                }
-            }
-            
-            // Second Athlete Form (shown when any second athlete selected - new or existing)
-            if secondAthleteName != nil && secondAthleteName != "New Athlete" && isOnlyParticipant == false {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text(isNewAthlete ? "New Athlete Information" : "Second Participant Information")
                         .font(.headingMedium)
                         .foregroundStyle(AppTheme.textPrimary)
                         .padding(.horizontal, Spacing.lg)
@@ -1178,8 +1046,8 @@ struct BookView: View {
                 }
             }
             .buttonStyle(PrimaryButtonStyle())
-            .disabled(bookingInFlight || selectedTrainer == nil || selectedSlot == nil || (availableLessonPackages.count > 0 && selectedPackage == nil) || (!allAthletes.isEmpty && selectedAthleteName == nil) || !isAthleteInfoComplete)
-            .opacity((selectedTrainer != nil && selectedSlot != nil && (availableLessonPackages.isEmpty || selectedPackage != nil) && (allAthletes.isEmpty || selectedAthleteName != nil) && isAthleteInfoComplete) ? 1.0 : 0.5)
+            .disabled(bookingInFlight || selectedTrainer == nil || selectedSlot == nil || (availableLessonPackages.count > 0 && selectedPackage == nil) || !isAthleteInfoComplete)
+            .opacity((selectedTrainer != nil && selectedSlot != nil && (availableLessonPackages.isEmpty || selectedPackage != nil) && isAthleteInfoComplete) ? 1.0 : 0.5)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.md)
             
@@ -1466,19 +1334,17 @@ struct BookView: View {
             }
             
             // All waivers are signed, now proceed with booking
-            // Save new athlete if needed
-            if isNewAthlete {
-                try await saveNewAthleteToProfile()
-            }
+            // Note: isNewAthlete support removed in favor of pre-defined athletes
             
-            // Save athlete information to profile if provided during booking
-            if let athleteName = selectedAthleteName {
+            // Save athlete information to profile for first athlete if provided
+            if let firstAthlete = selectedAthletes.first, let athleteName = firstAthlete {
                 try await saveAthleteInfoToProfile(athleteName: athleteName)
             }
             
             let packageId = selectedPackage?.id ?? ""
-            let athleteForBooking = selectedAthleteName
-            let secondAthleteForBooking = isOnlyParticipant == false ? secondAthleteName : nil
+            // Get athlete names from selectedAthletes array
+            let athleteForBooking = selectedAthletes.first ?? nil
+            let secondAthleteForBooking = selectedAthletes.count > 1 ? selectedAthletes[1] : nil
             let notesForBooking = lessonNotes.isEmpty ? nil : lessonNotes
             
             _ = try await bookingManager.bookLesson(
@@ -1754,10 +1620,7 @@ struct BookView: View {
         // Clear all booking form fields
         selectedSlot = nil
         selectedPackage = nil
-        selectedAthleteName = nil
-        isOnlyParticipant = nil
-        secondAthleteName = nil
-        isNewAthlete = false
+        selectedAthletes = []
         lessonNotes = ""
         
         // Clear dynamic form data
@@ -1856,19 +1719,14 @@ struct BookView: View {
         }
         
         do {
-            // Save new athlete if needed
-            if isNewAthlete {
-                try await saveNewAthleteToProfile()
-            }
-            
-            // Save athlete information to profile if provided during booking
-            if let athleteName = selectedAthleteName {
+            // Save athlete information to profile for first athlete if provided
+            if let firstAthlete = selectedAthletes.first, let athleteName = firstAthlete {
                 try await saveAthleteInfoToProfile(athleteName: athleteName)
             }
             
             let packageId = selectedPackage?.id ?? ""
-            let athleteForBooking = selectedAthleteName
-            let secondAthleteForBooking = isOnlyParticipant == false ? secondAthleteName : nil
+            let athleteForBooking = selectedAthletes.first ?? nil
+            let secondAthleteForBooking = selectedAthletes.count > 1 ? selectedAthletes[1] : nil
             let notesForBooking = lessonNotes.isEmpty ? nil : lessonNotes
             
             _ = try await bookingManager.bookLesson(

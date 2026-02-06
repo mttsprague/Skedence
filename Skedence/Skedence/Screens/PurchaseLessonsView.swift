@@ -297,6 +297,11 @@ struct PurchaseLessonsView: View {
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
                     
+                    // Category display name
+                    Text(package.packageCategory.displayName)
+                        .font(.labelMedium)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    
                     if !package.description.isEmpty {
                         Text(package.description)
                             .font(.bodyMedium)

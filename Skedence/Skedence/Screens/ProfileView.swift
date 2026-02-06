@@ -717,6 +717,11 @@ private struct SignedInProfileScreen: View {
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
                     
+                    // Category display name
+                    Text(category.displayName)
+                        .font(.labelMedium)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    
                     // Description with more room to display
                     if !description.isEmpty {
                         Text(description)
