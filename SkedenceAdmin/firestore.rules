@@ -208,18 +208,15 @@ service cloud.firestore {
         );
 
         // Owner or admins can create packages
-        // packageCategory must be 'pass' or 'class' if provided
+        // packageCategory can be: private, 1_athlete, 2_athlete, 3_athlete, 4_athlete, class_pass, etc.
         allow create: if isSignedIn() && (
           (request.auth.uid == userId && newDocBelongsToUserOrg())
           || ('orgId' in request.resource.data && isOrgAdmin(request.resource.data.orgId))
-        )
-        && (!('packageCategory' in request.resource.data) || request.resource.data.packageCategory in ['pass', 'class']);
+        );
 
         // Trainers/admins can update packages (for booking decrements)
-        // packageCategory must remain 'pass' or 'class' if provided
         allow update: if 'orgId' in request.resource.data 
-          && isOrgTrainer(request.resource.data.orgId)
-          && (!('packageCategory' in request.resource.data) || request.resource.data.packageCategory in ['pass', 'class']);
+          && isOrgTrainer(request.resource.data.orgId);
         
         // Only admins can delete
         allow delete: if 'orgId' in resource.data && isOrgAdmin(resource.data.orgId);
