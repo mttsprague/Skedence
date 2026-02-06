@@ -58,6 +58,12 @@ struct BookView: View {
     @State private var pendingBookingSuccess = false
     @State private var currentWaiverAthleteIndex: Int? = nil  // Track which athlete is signing waiver
     
+    // Add New Athlete state
+    @State private var showAddAthleteSheet = false
+    @State private var addAthleteForIndex: Int? = nil
+    @State private var newAthleteFirstName = ""
+    @State private var newAthleteLastName = ""
+    
     // Trainer filter state
     @State private var showTrainerFilter = false
     @State private var filterStartDate = Date()
@@ -340,6 +346,9 @@ struct BookView: View {
                         }
                     )
                 }
+                .sheet(isPresented: $showAddAthleteSheet) {
+                    addNewAthleteSheet
+                }
         }
     }
     
@@ -371,6 +380,119 @@ struct BookView: View {
             if newMode == .classes, let orgId = auth.currentOrgId {
                 Task { await classesService.loadOpenClasses(orgId: orgId) }
             }
+        }
+    }
+    
+    
+    // MARK: - Add New Athlete Sheet
+    
+    private var addNewAthleteSheet: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Athlete Name")) {
+                    TextField("First Name *", text: $newAthleteFirstName)
+                        .autocapitalization(.words)
+                    TextField("Last Name *", text: $newAthleteLastName)
+                        .autocapitalization(.words)
+                }
+                
+                // Show dynamic intake form fields for athlete information
+                DynamicIntakeFormSection(
+                    formData: newAthleteIntakeData,
+                    fields: intakeFormService.fields,
+                    sectionType: .athlete,
+                    sectionTitle: "Athlete Information"
+                )
+            }
+            .navigationTitle("Add New Athlete")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        showAddAthleteSheet = false
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        saveNewAthlete()
+                    }
+                    .disabled(newAthleteFirstName.isEmpty || newAthleteLastName.isEmpty)
+                }
+            }
+        }
+    }
+    
+    private func saveNewAthlete() {
+        guard !newAthleteFirstName.isEmpty, !newAthleteLastName.isEmpty else { return }
+        guard let index = addAthleteForIndex else { return }
+        
+        let athleteName = "\(newAthleteFirstName.trimmingCharacters(in: .whitespacesAndNewlines)) \(newAthleteLastName.trimmingCharacters(in: .whitespacesAndNewlines))"
+        
+        // Create new athlete and add to user profile
+        Task {
+            await saveNewAthleteToProfile(firstName: newAthleteFirstName, lastName: newAthleteLastName)
+            
+            // Select the new athlete in the dropdown
+            selectedAthletes[index] = athleteName
+            
+            // If this is the first athlete, load their profile data
+            if index == 0 {
+                // Copy data from newAthleteIntakeData to intakeFormData
+                for (key, value) in newAthleteIntakeData.fieldValues {
+                    intakeFormData.setValue(value, forField: key)
+                }
+            }
+            
+            // Close sheet
+            showAddAthleteSheet = false
+        }
+    }
+    
+    private func saveNewAthleteToProfile(firstName: String, lastName: String) async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let profile = usersService.currentUser else { return }
+        
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(userId)
+        
+        // Extract values from dynamic form data
+        let birthday = newAthleteIntakeData.fieldValues["athleteBirthday"] as? String ?? ""
+        let schoolTeam = newAthleteIntakeData.fieldValues["schoolTeam"] as? String ?? ""
+        let experienceLevel = newAthleteIntakeData.fieldValues["experienceLevel"] as? String ?? ""
+        let position = newAthleteIntakeData.fieldValues["position"] as? String ?? ""
+        
+        // Create new athlete
+        let newAthlete = AthleteInfo(
+            firstName: firstName,
+            lastName: lastName,
+            birthday: birthday.isEmpty ? nil : birthday,
+            schoolClubTeam: schoolTeam.isEmpty ? nil : schoolTeam,
+            experienceLevel: experienceLevel.isEmpty ? nil : experienceLevel,
+            position: position.isEmpty ? nil : position
+        )
+        
+        // Add to existing athletes array
+        var athletes = profile.athletes ?? []
+        athletes.append(newAthlete)
+        
+        do {
+            try await userRef.updateData([
+                "athletes": athletes.map { athlete in
+                    [
+                        "firstName": athlete.firstName ?? "",
+                        "lastName": athlete.lastName ?? "",
+                        "birthday": athlete.birthday ?? "",
+                        "schoolClubTeam": athlete.schoolClubTeam ?? "",
+                        "experienceLevel": athlete.experienceLevel ?? "",
+                        "position": athlete.position ?? ""
+                    ] as [String: Any]
+                }
+            ])
+            
+            // Reload user profile to reflect changes
+            await usersService.loadCurrentUserIfAvailable()
+        } catch {
+            print("Error saving new athlete: \(error)")
         }
     }
     
@@ -801,14 +923,9 @@ struct BookView: View {
                                         selectedAthletes = []  // Reset athlete selection when package changes
                                     } label: {
                                         let totalRemaining = totalRemainingForLessons(packageType: packageType)
-                                        let categoryName = getPackageCategory(firstPkg)?.displayName ?? "Pass"
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("\(displayPackageTitle(firstPkg))")
-                                                .font(.bodyMedium)
-                                            Text("\(categoryName) • \(totalRemaining) left")
-                                                .font(.caption)
-                                                .foregroundStyle(AppTheme.textSecondary)
-                                        }
+                                        let passTitle = displayPackageTitle(firstPkg)
+                                        Text("\(passTitle) (\(totalRemaining) passes left)")
+                                            .font(.bodyMedium)
                                     }
                                 }
                             }
@@ -825,13 +942,10 @@ struct BookView: View {
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                                     if let pkg = selectedPackage {
                                         let totalRemaining = totalRemainingForLessons(packageType: pkg.packageType)
-                                        let categoryName = getPackageCategory(pkg)?.displayName ?? "Pass"
-                                        Text(displayPackageTitle(pkg))
+                                        let passTitle = displayPackageTitle(pkg)
+                                        Text("\(passTitle) (\(totalRemaining) passes left)")
                                             .font(.headingSmall)
                                             .foregroundStyle(AppTheme.textPrimary)
-                                        Text("\(categoryName) • \(totalRemaining) left")
-                                            .font(.bodySmall)
-                                            .foregroundStyle(AppTheme.textSecondary)
                                     } else {
                                         Text("Choose a pass")
                                             .font(.headingSmall)
@@ -870,6 +984,7 @@ struct BookView: View {
                         
                         CardView(padding: Spacing.md) {
                             Menu {
+                                // Existing athletes
                                 ForEach(availableAthletesFor(index: index), id: \.self) { athleteName in
                                     Button {
                                         selectedAthletes[index] = athleteName
@@ -880,6 +995,19 @@ struct BookView: View {
                                         Text(athleteName)
                                             .font(.bodyMedium)
                                     }
+                                }
+                                
+                                // Add New Athlete option
+                                Divider()
+                                Button {
+                                    addAthleteForIndex = index
+                                    newAthleteFirstName = ""
+                                    newAthleteLastName = ""
+                                    newAthleteIntakeData.clearAll()
+                                    showAddAthleteSheet = true
+                                } label: {
+                                    Label("Add New Athlete", systemImage: "person.badge.plus")
+                                        .font(.bodyMedium)
                                 }
                             } label: {
                                 HStack(spacing: Spacing.md) {

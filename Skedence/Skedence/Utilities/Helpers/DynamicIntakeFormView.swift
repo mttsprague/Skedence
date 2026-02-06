@@ -119,7 +119,7 @@ struct DynamicFieldRow: View {
                 )
                 .datePickerStyle(.compact)
                 .labelsHidden()
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 
             case .select:
                 if let options = field.options {
