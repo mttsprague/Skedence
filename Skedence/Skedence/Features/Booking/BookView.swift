@@ -64,6 +64,10 @@ struct BookView: View {
     @State private var newAthleteFirstName = ""
     @State private var newAthleteLastName = ""
     
+    // Waiver status tracking for each athlete dropdown
+    @State private var athleteWaiverStatus: [Int: Bool] = [:] // index -> hasWaiver
+    @State private var isNewAthlete: [Int: Bool] = [:] // index -> isNew
+    
     // Trainer filter state
     @State private var showTrainerFilter = false
     @State private var filterStartDate = Date()
@@ -434,6 +438,10 @@ struct BookView: View {
             
             // Select the new athlete in the dropdown
             selectedAthletes[index] = athleteName
+            
+            // Mark as new athlete (will need waiver)
+            isNewAthlete[index] = true
+            athleteWaiverStatus[index] = false
             
             // If this is the first athlete, load their profile data
             if index == 0 {
@@ -988,8 +996,13 @@ struct BookView: View {
                                 ForEach(availableAthletesFor(index: index), id: \.self) { athleteName in
                                     Button {
                                         selectedAthletes[index] = athleteName
+                                        isNewAthlete[index] = false
                                         if index == 0 {
                                             loadAthleteProfileData(athleteName: athleteName)
+                                        }
+                                        // Check waiver status for this athlete
+                                        Task {
+                                            await checkWaiverStatusForAthlete(athleteName: athleteName, index: index)
                                         }
                                     } label: {
                                         Text(athleteName)
@@ -1044,6 +1057,42 @@ struct BookView: View {
                             }
                         }
                         .padding(.horizontal, Spacing.lg)
+                        
+                        // Waiver Status Indicator
+                        if let athleteName = selectedAthletes[safe: index], athleteName != nil {
+                            HStack(spacing: Spacing.xs) {
+                                if let isNew = isNewAthlete[index], isNew {
+                                    // New athlete - always needs waiver
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.blue)
+                                    Text("New athlete will need a signed waiver")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
+                                } else if let hasWaiver = athleteWaiverStatus[index] {
+                                    if hasWaiver {
+                                        // Has signed waiver
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 14))
+                                            .foregroundStyle(.green)
+                                        Text("\(athleteName!) has a signed waiver")
+                                            .font(.caption)
+                                            .foregroundStyle(.green)
+                                    } else {
+                                        // Needs waiver
+                                        Image(systemName: "exclamationmark.circle.fill")
+                                            .font(.system(size: 14))
+                                            .foregroundStyle(.blue)
+                                        Text("\(athleteName!) will need a signed waiver")
+                                            .font(.caption)
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, Spacing.lg)
+                            .padding(.top, Spacing.xxs)
+                        }
                     }
                 }
                 .onAppear {
@@ -1655,6 +1704,23 @@ struct BookView: View {
         }
         
         return false
+    }
+    
+    private func checkWaiverStatusForAthlete(athleteName: String, index: Int) async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        do {
+            let hasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
+            await MainActor.run {
+                athleteWaiverStatus[index] = hasWaiver
+            }
+        } catch {
+            print("Error checking waiver status: \(error)")
+            // Default to needs waiver on error
+            await MainActor.run {
+                athleteWaiverStatus[index] = false
+            }
+        }
     }
     
     private func finishBookingSuccess() async {
