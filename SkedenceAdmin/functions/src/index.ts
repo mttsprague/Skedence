@@ -88,6 +88,7 @@ interface BookLessonData {
   lessonPackageId: string;
   athleteName?: string;
   secondAthleteName?: string;
+  athleteNames?: string[]; // All athlete names for multi-athlete bookings
 }
 
 /**
@@ -132,7 +133,7 @@ export const bookLesson = functions.https.onCall(
     }
     const userId = request.auth.uid;
 
-    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName} = request.data;
+    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, athleteNames} = request.data;
     if (!trainerId || !slotId || !lessonPackageId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
@@ -408,11 +409,14 @@ export const bookLesson = functions.https.onCall(
           scheduleSlotId: slotId,
           location: trainerSlotData.location || "Location TBD", // Copy location from schedule slot
           orgId: orgId || trainerData.orgId, // Add orgId to booking record
+          athleteName: athleteName || null, // Legacy support
+          secondAthleteName: secondAthleteName || null, // Legacy support
+          athleteNames: athleteNames || null, // New array format
         });
 
         // Log activity for the booking
         if (orgId) {
-          const activityRef = db.collection("activity").doc();
+          const activityRef = db.collection("activities").doc();
           transaction.set(activityRef, {
             type: "lesson_booked",
             actorId: userId,
@@ -430,6 +434,7 @@ export const bookLesson = functions.https.onCall(
               location: trainerSlotData.location || "Location TBD",
               athleteName: athleteName || null,
               secondAthleteName: secondAthleteName || null,
+              athleteNames: athleteNames || null,
               timestamp: admin.firestore.FieldValue.serverTimestamp(),
             },
             orgId: orgId,
@@ -628,7 +633,7 @@ export const registerForClass = functions.https.onCall(
         const athleteNames = secondAthleteName ? `${primaryAthleteName} and ${secondAthleteName}` : primaryAthleteName;
         const orgId = userData.orgId || null;
 
-        const activityRef = db.collection("activity").doc();
+        const activityRef = db.collection("activities").doc();
         transaction.set(activityRef, {
           type: "class_registered",
           actorId: userId,
@@ -799,7 +804,7 @@ export const cancelLesson = functions.https.onCall(
         const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
         const trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
 
-        const activityRef = db.collection("activity").doc();
+        const activityRef = db.collection("activities").doc();
         transaction.set(activityRef, {
           type: "lesson_cancelled",
           actorId: userId,
@@ -997,7 +1002,7 @@ export const adminCancelLesson = functions.https.onCall(
           const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
           const trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
 
-          const activityRef = db.collection("activity").doc();
+          const activityRef = db.collection("activities").doc();
           transaction.set(activityRef, {
             type: "lesson_cancelled",
             actorId: adminUid,
@@ -1150,7 +1155,7 @@ export const cancelClassRegistration = functions.https.onCall(
         const className = classData?.title || "Unknown Class";
         const athleteName = participantData.athleteName || clientFullName;
 
-        const activityRef = db.collection("activity").doc();
+        const activityRef = db.collection("activities").doc();
         transaction.set(activityRef, {
           type: "class_cancelled",
           actorId: userId,
@@ -1448,7 +1453,7 @@ export const processTrainerAvailability = functions.https.onCall(
         const orgId = trainerData.orgId || null;
         const actorIsTrainer = callingUserId === trainerId;
         
-        await db.collection("activity").add({
+        await db.collection("activities").add({
           type: status === "open" ? "availability_added" : "unavailability_set",
           actorId: callingUserId,
           actorName: actorIsTrainer ? trainerFullName : "Admin",

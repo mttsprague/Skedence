@@ -197,33 +197,87 @@ struct SessionDetailView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 VStack(alignment: .leading, spacing: 16) {
-                    // First athlete
-                    if let athleteName = booking.athleteName, !athleteName.isEmpty {
-                        athleteDetailSection(
-                            name: athleteName,
-                            birthday: client.athleteBirthday,
-                            schoolClubTeam: client.athleteSchoolClubTeam,
-                            experienceLevel: client.athleteExperienceLevel,
-                            position: client.athletePosition
-                        )
-                    }
-                    
-                    // Second athlete
-                    if let secondName = booking.secondAthleteName, !secondName.isEmpty {
-                        Divider()
-                            .padding(.vertical, 4)
-                        athleteDetailSection(
-                            name: secondName,
-                            birthday: client.athlete2Birthday,
-                            schoolClubTeam: client.athlete2SchoolClubTeam,
-                            experienceLevel: client.athlete2ExperienceLevel,
-                            position: client.athlete2Position
-                        )
+                    // Use new athleteNames array if available, otherwise fall back to legacy fields
+                    if let athleteNames = booking.athleteNames, !athleteNames.isEmpty {
+                        // New format: display all athletes from array
+                        ForEach(Array(athleteNames.enumerated()), id: \.offset) { index, name in
+                            if index > 0 {
+                                Divider()
+                                    .padding(.vertical, 4)
+                            }
+                            athleteDetailSection(
+                                name: name,
+                                birthday: getAthleteBirthday(at: index),
+                                schoolClubTeam: getAthleteSchoolClubTeam(at: index),
+                                experienceLevel: getAthleteExperienceLevel(at: index),
+                                position: getAthletePosition(at: index)
+                            )
+                        }
+                    } else {
+                        // Legacy format: display first two athletes
+                        if let athleteName = booking.athleteName, !athleteName.isEmpty {
+                            athleteDetailSection(
+                                name: athleteName,
+                                birthday: client.athleteBirthday,
+                                schoolClubTeam: client.athleteSchoolClubTeam,
+                                experienceLevel: client.athleteExperienceLevel,
+                                position: client.athletePosition
+                            )
+                        }
+                        
+                        if let secondName = booking.secondAthleteName, !secondName.isEmpty {
+                            Divider()
+                                .padding(.vertical, 4)
+                            athleteDetailSection(
+                                name: secondName,
+                                birthday: client.athlete2Birthday,
+                                schoolClubTeam: client.athlete2SchoolClubTeam,
+                                experienceLevel: client.athlete2ExperienceLevel,
+                                position: client.athlete2Position
+                            )
+                        }
                     }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
+        }
+    }
+    
+    // Helper methods to get athlete data by index
+    private func getAthleteBirthday(at index: Int) -> String? {
+        switch index {
+        case 0: return client.athleteBirthday
+        case 1: return client.athlete2Birthday
+        case 2: return client.athlete3Birthday
+        default: return nil
+        }
+    }
+    
+    private func getAthleteSchoolClubTeam(at index: Int) -> String? {
+        switch index {
+        case 0: return client.athleteSchoolClubTeam
+        case 1: return client.athlete2SchoolClubTeam
+        case 2: return client.athlete3SchoolClubTeam
+        default: return nil
+        }
+    }
+    
+    private func getAthleteExperienceLevel(at index: Int) -> String? {
+        switch index {
+        case 0: return client.athleteExperienceLevel
+        case 1: return client.athlete2ExperienceLevel
+        case 2: return client.athlete3ExperienceLevel
+        default: return nil
+        }
+    }
+    
+    private func getAthletePosition(at index: Int) -> String? {
+        switch index {
+        case 0: return client.athletePosition
+        case 1: return client.athlete2Position
+        case 2: return client.athlete3Position
+        default: return nil
         }
     }
     

@@ -1287,9 +1287,10 @@ struct BookView: View {
             }
             
             let packageId = selectedPackage?.id ?? ""
-            // Get athlete names from selectedAthletes array
-            let athleteForBooking = selectedAthletes.first ?? nil
-            let secondAthleteForBooking = selectedAthletes.count > 1 ? selectedAthletes[1] : nil
+            // Get all athlete names from selectedAthletes array
+            let athleteNames = selectedAthletes.compactMap { $0 }
+            let athleteForBooking = athleteNames.first ?? nil
+            let secondAthleteForBooking = athleteNames.count > 1 ? athleteNames[1] : nil
             let notesForBooking = lessonNotes.isEmpty ? nil : lessonNotes
             
             _ = try await bookingManager.bookLesson(
@@ -1298,6 +1299,7 @@ struct BookView: View {
                 lessonPackageId: packageId,
                 athleteName: athleteForBooking,
                 secondAthleteName: secondAthleteForBooking,
+                athleteNames: athleteNames,
                 lessonNotes: notesForBooking
             )
             

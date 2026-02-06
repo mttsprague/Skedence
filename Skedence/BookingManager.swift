@@ -13,7 +13,7 @@ final class BookingManager: ObservableObject {
 
     // If lessonPackageId is provided and non-empty, use it directly.
     // Otherwise, automatically choose the package with the closest expiration date.
-    func bookLesson(trainerId: String, slotId: String, lessonPackageId: String, athleteName: String? = nil, secondAthleteName: String? = nil, lessonNotes: String? = nil) async throws -> Booking {
+    func bookLesson(trainerId: String, slotId: String, lessonPackageId: String, athleteName: String? = nil, secondAthleteName: String? = nil, athleteNames: [String]? = nil, lessonNotes: String? = nil) async throws -> Booking {
         guard let user = Auth.auth().currentUser else { throw BookingCallError.notAuthenticated }
         let uid = user.uid
 
@@ -51,6 +51,9 @@ final class BookingManager: ObservableObject {
         }
         if let secondAthleteName = secondAthleteName {
             payload["secondAthleteName"] = secondAthleteName
+        }
+        if let athleteNames = athleteNames, !athleteNames.isEmpty {
+            payload["athleteNames"] = athleteNames
         }
         if let lessonNotes = lessonNotes, !lessonNotes.isEmpty {
             payload["lessonNotes"] = lessonNotes

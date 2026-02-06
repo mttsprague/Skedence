@@ -92,8 +92,9 @@ struct ClientBooking: Identifiable, Codable {
     var classId: String?
     var packageId: String?
     var packageType: String?
-    var athleteName: String? // Name of athlete for this lesson
-    var secondAthleteName: String? // Second participant name
+    var athleteName: String? // Name of athlete for this lesson (legacy)
+    var secondAthleteName: String? // Second participant name (legacy)
+    var athleteNames: [String]? // All participant names (new format)
     var lessonNotes: String? // Lesson-specific notes from client
     
     var formattedDate: String {

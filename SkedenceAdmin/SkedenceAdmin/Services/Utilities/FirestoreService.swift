@@ -995,13 +995,17 @@ final class FirestoreService {
             }
             
             let url = data["url"] as? String
+            let athleteName = data["athleteName"] as? String
+            let storedDisplayName = data["displayName"] as? String
             
             return ClientDocument(
                 id: doc.documentID,
                 name: name,
                 type: type,
                 uploadedAt: uploadedAtTs.dateValue(),
-                url: url
+                url: url,
+                storedDisplayName: storedDisplayName,
+                athleteName: athleteName
             )
         }
         return documents
