@@ -209,9 +209,9 @@ service cloud.firestore {
 
         // Owner or admins can create packages
         // packageCategory can be: private, 1_athlete, 2_athlete, 3_athlete, 4_athlete, class_pass, etc.
-        allow create: if isSignedIn() && (
-          (request.auth.uid == userId && newDocBelongsToUserOrg())
-          || ('orgId' in request.resource.data && isOrgAdmin(request.resource.data.orgId))
+        allow create: if isSignedIn() && 'orgId' in request.resource.data && (
+          (request.auth.uid == userId && isMemberOfOrg(request.resource.data.orgId))
+          || isOrgAdmin(request.resource.data.orgId)
         );
 
         // Trainers/admins can update packages (for booking decrements)
