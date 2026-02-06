@@ -117,7 +117,7 @@ struct DynamicFieldRow: View {
                     ),
                     displayedComponents: .date
                 )
-                .datePickerStyle(.wheel)
+                .datePickerStyle(.compact)
                 .labelsHidden()
                 .frame(maxWidth: .infinity)
                 
