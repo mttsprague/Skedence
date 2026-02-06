@@ -43,12 +43,22 @@ service cloud.firestore {
 
     // Check if user is admin or owner in the organization
     function isOrgAdmin(orgId) {
-      return hasOrgRole(orgId, 'owner') || hasOrgRole(orgId, 'admin');
+      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
+      return isSignedIn() 
+        && memberDoc != null
+        && memberDoc.data.orgId == orgId
+        && (memberDoc.data.isActive == true || !('isActive' in memberDoc.data))
+        && (memberDoc.data.role == 'owner' || memberDoc.data.role == 'admin');
     }
 
     // Check if user is a trainer in the organization
     function isOrgTrainer(orgId) {
-      return hasOrgRole(orgId, 'trainer') || isOrgAdmin(orgId);
+      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
+      return isSignedIn() 
+        && memberDoc != null
+        && memberDoc.data.orgId == orgId
+        && (memberDoc.data.isActive == true || !('isActive' in memberDoc.data))
+        && (memberDoc.data.role == 'trainer' || memberDoc.data.role == 'admin' || memberDoc.data.role == 'owner');
     }
 
     // Check if document belongs to user's organization
