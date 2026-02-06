@@ -48,15 +48,19 @@ final class BookingManager: ObservableObject {
         // Add optional fields if provided
         if let athleteName = athleteName {
             payload["athleteName"] = athleteName
+            print("📤 Sending athleteName: \(athleteName)")
         }
         if let secondAthleteName = secondAthleteName {
             payload["secondAthleteName"] = secondAthleteName
+            print("📤 Sending secondAthleteName: \(secondAthleteName)")
         }
         if let athleteNames = athleteNames, !athleteNames.isEmpty {
             payload["athleteNames"] = athleteNames
+            print("📤 Sending athleteNames array: \(athleteNames)")
         }
         if let lessonNotes = lessonNotes, !lessonNotes.isEmpty {
             payload["lessonNotes"] = lessonNotes
+            print("📤 Sending lessonNotes: \(lessonNotes)")
         }
         
         let result = try await functions.httpsCallable("bookLesson").call(payload)
