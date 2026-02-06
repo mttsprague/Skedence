@@ -117,7 +117,8 @@ service cloud.firestore {
       // Members can read their own organization (including pricing structure, branding, subscription)
       // This includes get() and snapshot listeners (which use get internally)
       // Also allow reading for invite code validation during registration
-      allow read: if isMemberOfOrg(orgId);
+      // Also check trainers collection as fallback
+      allow read: if isMemberOfOrg(orgId) || isActiveTrainerInOrg(orgId);
       
       // Allow querying by inviteCode for registration validation (even if not signed in)
       allow list: if true;
