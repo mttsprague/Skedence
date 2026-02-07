@@ -506,7 +506,7 @@ struct BookView: View {
             // Reload user profile to reflect changes
             await usersService.loadCurrentUserIfAvailable()
         } catch {
-            print("Error saving new athlete: \(error)")
+            // Error saving athlete info
         }
     }
     
