@@ -109,7 +109,8 @@ struct AppRootView: View {
             
             // Load intake form fields once org is available
             if let orgId = auth.currentOrgId {
-                await intakeFormService.loadFields(orgId: orgId)
+                await intakeFormService.loadFields(orgId: orgId, type: "private")
+                await intakeFormService.loadFields(orgId: orgId, type: "class")
             }
             
             // Set initial tab based on authentication status

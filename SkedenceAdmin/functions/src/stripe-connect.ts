@@ -370,17 +370,49 @@ export const createPaymentIntentConnect = functions.https.onCall(
       const userDoc = await db.collection("users").doc(userId).get();
       const userData = userDoc.data();
 
+      // Create human-readable descriptions
+      const customerName = userData?.firstName && userData?.lastName ?
+        `${userData.firstName} ${userData.lastName}` :
+        "Customer";
+
+      const packageNames: { [key: string]: string } = {
+        "private": "Private Session (1 Athlete)",
+        "2_athlete": "Private Session (2 Athletes)",
+        "3_athlete": "Private Session (3 Athletes)",
+        "class_pass": "Class Pass",
+        "class_10_pack": "Class 10-Pack",
+      };
+
+      const packageDisplayName = packageNames[packageType] || packageType.replace("_", " ");
+
+      // Generate transaction ID similar to Acuity format
+      const transactionId = Date.now().toString();
+      const purchaseDate = new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+
       const paymentIntentData: Stripe.PaymentIntentCreateParams = {
         amount,
         currency: "usd",
         metadata: {
-          userId,
-          orgId,
-          packageType,
-          trainerId,
-          applicationFeeAmount: applicationFeeAmount.toString(),
+          source: "Skedence",
+          user_id: userId,
+          client_name: customerName,
+          package_name: packageDisplayName,
+          package_type: packageType,
+          trainer_id: trainerId,
+          org_id: orgId,
+          org_name: orgData.name || orgData.businessName || "Organization",
+          transaction_id: transactionId,
+          purchase_date: purchaseDate,
+          application_fee_amount: applicationFeeAmount.toString(),
         },
-        description: `${packageType.replace("_", " ")} lesson package`,
+        description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
         application_fee_amount: applicationFeeAmount,
         transfer_data: {
           destination: connectAccountId,

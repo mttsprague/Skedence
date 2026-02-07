@@ -56,6 +56,7 @@ struct BookView: View {
     @State private var showSubscriptionSheet = false
     @State private var showBookingInstructions = false
     @State private var showWaiverAgreement = false
+    @State private var showBookingConfirmation = false
     @State private var pendingBookingSuccess = false
     @State private var currentWaiverAthleteIndex: Int? = nil  // Track which athlete is signing waiver
     
@@ -106,7 +107,7 @@ struct BookView: View {
         if let athletesArray = profile.athletes {
             for athlete in athletesArray {
                 let name = athlete.displayName
-                if !name.isEmpty {
+                if !name.isEmpty && !athletes.contains(name) {
                     athletes.append(name)
                 }
             }
@@ -123,7 +124,7 @@ struct BookView: View {
             let f = (firstName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let l = (lastName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let fullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
-            if !fullName.isEmpty {
+            if !fullName.isEmpty && !athletes.contains(fullName) {
                 athletes.append(fullName)
             }
         }
@@ -345,6 +346,21 @@ struct BookView: View {
                 .sheet(isPresented: $showAddAthleteSheet) {
                     addNewAthleteSheet
                 }
+                .confirmationDialog("Confirm Booking", isPresented: $showBookingConfirmation, titleVisibility: .visible) {
+                    Button("Confirm Booking") {
+                        Task {
+                            await confirmAndBookLesson()
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    if let slot = selectedSlot, let trainer = selectedTrainer {
+                        let athleteName = selectedAthletes.compactMap { $0 }.first ?? "your athlete"
+                        let dateText = slot.startTime.formatted(.dateTime.month(.abbreviated).day().year())
+                        let timeText = slot.startTime.formatted(date: .omitted, time: .shortened)
+                        Text("Are you sure you want to book \(athleteName) with \(trainer.name ?? "your trainer") on \(dateText) at \(timeText)?")
+                    }
+                }
         }
     }
     
@@ -513,6 +529,7 @@ struct BookView: View {
         guard let orgId = auth.currentOrgId else { return }
         await settingsService.loadSettings(orgId: orgId)
         await pricingService.loadPricingStructure(for: orgId)
+        await intakeFormService.loadFields(orgId: orgId, type: "private")
         if trainersService.trainers.isEmpty {
             await trainersService.loadAll(orgId: orgId)
         }
@@ -991,7 +1008,7 @@ struct BookView: View {
             // Lesson Notes (shown after athlete selection)
             if isAthleteInfoComplete {
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Notes for This Lesson")
+                    Text("Notes for Trainer")
                         .font(.headingMedium)
                         .foregroundStyle(AppTheme.textPrimary)
                         .padding(.horizontal, Spacing.lg)
@@ -1226,9 +1243,7 @@ struct BookView: View {
     }
 
     private func performBooking() async {
-        guard let trainerId = selectedTrainer?.id,
-              let slotId = selectedSlot?.id,
-              let slot = selectedSlot else { return }
+        guard let slot = selectedSlot else { return }
         if !canBookSlot(slot) {
             bookingAlert = .init(
                 title: "Booking Not Available",
@@ -1279,8 +1294,42 @@ struct BookView: View {
                 }
             }
             
-            // All waivers are signed, now proceed with booking
+            // All waivers are signed, now show confirmation dialog
+            showBookingConfirmation = true
+        } catch {
+            let cleanMessage: String
+            var navigateToPasses = false
             
+            if error.localizedDescription.contains("credits") || error.localizedDescription.contains("package") {
+                cleanMessage = "We couldn't complete your booking. That package has no passes remaining."
+                navigateToPasses = true
+            } else if error.localizedDescription.contains("concurrent") || error.localizedDescription.contains("capacity") {
+                cleanMessage = "This time slot is temporarily unavailable. Please try a different time or refresh the schedule."
+            } else {
+                cleanMessage = "We couldn't complete your booking. \(error.localizedDescription)"
+            }
+            
+            bookingAlert = .init(
+                title: "Booking Failed",
+                message: cleanMessage,
+                action: navigateToPasses ? {
+                    profileTab = "PASSES"
+                    selectedTab = 2
+                } : nil
+            )
+        }
+    }
+    
+    private func confirmAndBookLesson() async {
+        guard let trainerId = selectedTrainer?.id,
+              let slotId = selectedSlot?.id else {
+            return
+        }
+        
+        bookingInFlight = true
+        defer { bookingInFlight = false }
+        
+        do {
             // Save athlete information to profile for first athlete if provided
             if let firstAthlete = selectedAthletes.first, let athleteName = firstAthlete {
                 try await saveAthleteInfoToProfile(athleteName: athleteName)

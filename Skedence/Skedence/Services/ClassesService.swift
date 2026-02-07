@@ -216,20 +216,27 @@ final class ClassesService: ObservableObject {
     
     /// Load only classes the current user is registered for
     func loadMyRegisteredClasses(orgId: String) async {
-        guard Auth.auth().currentUser?.uid != nil else {
+        guard let userId = Auth.auth().currentUser?.uid else {
             myRegisteredClasses = []
+            print("⚠️ No user ID for loading registered classes")
             return
         }
         
+        print("🔍 Loading registered classes for user: \(userId), org: \(orgId)")
         error = nil
         currentOrgId = orgId
         
         do {
             let registeredClasses = try await repository.fetchUserRegistrations(orgId: orgId)
             myRegisteredClasses = registeredClasses
+            print("✅ Loaded \(registeredClasses.count) registered classes")
+            for cls in registeredClasses {
+                print("  - \(cls.title) at \(cls.startTime)")
+            }
         } catch {
             self.error = mapRepositoryError(error)
             myRegisteredClasses = []
+            print("❌ Error loading registered classes: \(error.localizedDescription)")
         }
     }
     

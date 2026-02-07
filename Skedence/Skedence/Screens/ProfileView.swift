@@ -97,6 +97,7 @@ private struct SignedInProfileScreen: View {
     @Binding var profileTab: String?
 
     @State private var tab: Tab = .passes
+    @State private var selectedBooking: Booking?
     enum Tab: String { case passes = "PASSES", schedule = "SCHEDULE", wallet = "WALLET" }
     @State private var showPurchaseLessons = false
     @State private var showingDescriptionSheet = false
@@ -161,6 +162,11 @@ private struct SignedInProfileScreen: View {
         }
         .navigationDestination(isPresented: $showPurchaseLessons) {
             PurchaseLessonsView(packagesService: packagesService)
+        }
+        .sheet(item: $selectedBooking) { booking in
+            SessionDetailSheet(booking: booking, trainersService: trainersService)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingDescriptionSheet) {
             NavigationStack {
@@ -293,12 +299,22 @@ private struct SignedInProfileScreen: View {
     private var scheduleTab: some View {
         VStack(spacing: 16) {
             // Next Event card (lesson or class)
-            card {
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Next Event")
-                            .font(.title3.bold())
-                            .foregroundStyle(Brand.primary)
+            Button {
+                if let nextEvent = nextUpcomingEvent() {
+                    if case .lesson(let booking) = nextEvent {
+                        print("🔵 TAPPED NEXT EVENT - bookingId: \(booking.id ?? "nil")")
+                        print("🔵 Trainers loaded: \(trainersService.trainers.count) trainers")
+                        selectedBooking = booking
+                        print("🔵 Set selectedBooking")
+                    }
+                }
+            } label: {
+                card {
+                    HStack(alignment: .center, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Next Event")
+                                .font(.title3.bold())
+                                .foregroundStyle(Brand.primary)
                         if let nextEvent = nextUpcomingEvent() {
                             switch nextEvent {
                             case .lesson(let booking):
@@ -352,6 +368,8 @@ private struct SignedInProfileScreen: View {
                     Spacer()
                 }
             }
+            }
+            .buttonStyle(.plain)
 
             // Athlete Info card
             if let user = usersService.currentUser,
@@ -479,50 +497,58 @@ private struct SignedInProfileScreen: View {
                     } else {
                         ForEach(upcoming.indices, id: \.self) { idx in
                             let event = upcoming[idx]
-                            VStack(alignment: .leading, spacing: 4) {
-                                switch event {
-                                case .lesson(let booking):
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                        Text("Private • \(booking.status.capitalized)")
-                                            .font(.headline)
-                                    }
-                                    if let s = booking.startTime, let e = booking.endTime {
-                                        Text("\(dateString(s)) • \(timeString(s))–\(timeString(e))")
+                            Button {
+                                if case .lesson(let booking) = event {
+                                    selectedBooking = booking
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    switch event {
+                                    case .lesson(let booking):
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "person.fill").foregroundStyle(.secondary)
+                                            Text("Private • \(participantCountText(for: booking))")
+                                                .font(.headline)
+                                        }
+                                        if let s = booking.startTime, let e = booking.endTime {
+                                            Text("\(dateString(s)) • \(timeString(s))–\(timeString(e))")
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "person.fill").foregroundStyle(.secondary)
+                                            Text(trainerName(for: booking.trainerUID))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        if let location = booking.location {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
+                                                Text(location)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    case .classItem(let classItem):
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "calendar.badge.clock").foregroundStyle(Brand.secondary)
+                                            Text("Class • \(classItem.title)")
+                                                .font(.headline)
+                                        }
+                                        Text("\(dateString(classItem.startTime)) • \(timeString(classItem.startTime))–\(timeString(classItem.endTime))")
                                             .foregroundStyle(.secondary)
-                                    }
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                        Text(trainerName(for: booking.trainerUID))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if let location = booking.location {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "person.fill").foregroundStyle(.secondary)
+                                            Text(trainerName(for: classItem.trainerId))
+                                                .foregroundStyle(.secondary)
+                                        }
                                         HStack(spacing: 6) {
                                             Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                                            Text(location)
+                                            Text(classItem.location)
                                                 .foregroundStyle(.secondary)
                                         }
                                     }
-                                case .classItem(let classItem):
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "calendar.badge.clock").foregroundStyle(Brand.secondary)
-                                        Text("Class • \(classItem.title)")
-                                            .font(.headline)
-                                    }
-                                    Text("\(dateString(classItem.startTime)) • \(timeString(classItem.startTime))–\(timeString(classItem.endTime))")
-                                        .foregroundStyle(.secondary)
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                        Text(trainerName(for: classItem.trainerId))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                                        Text(classItem.location)
-                                            .foregroundStyle(.secondary)
-                                    }
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .buttonStyle(.plain)
                             .padding(.vertical, 6)
                             if idx < upcoming.count - 1 {
                                 Divider().opacity(0.2)
@@ -897,6 +923,21 @@ private struct SignedInProfileScreen: View {
 
     private func trainerName(for trainerId: String) -> String {
         trainersService.trainers.first(where: { $0.id == trainerId })?.name ?? "Trainer"
+    }
+    
+    private func participantCountText(for booking: Booking) -> String {
+        var count = 1 // At least one athlete
+        if let secondAthlete = booking.secondAthleteName, !secondAthlete.isEmpty {
+            count = 2
+        }
+        
+        switch count {
+        case 1: return "One Athlete"
+        case 2: return "Two Athletes"
+        case 3: return "Three Athletes"
+        case 4: return "Four Athletes"
+        default: return "\(count) Athletes"
+        }
     }
     
     private func addCardToWallet() async {

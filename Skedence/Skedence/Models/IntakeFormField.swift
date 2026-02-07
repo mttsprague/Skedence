@@ -44,6 +44,8 @@ struct IntakeFormField: Codable, Identifiable {
 // Service to load intake form fields from Firebase
 class IntakeFormService: ObservableObject {
     @Published var fields: [IntakeFormField] = []
+    @Published var privateFields: [IntakeFormField] = []
+    @Published var classFields: [IntakeFormField] = []
     @Published var isLoading = false
     
     private let db = Firestore.firestore()
@@ -61,42 +63,86 @@ class IntakeFormService: ObservableObject {
         IntakeFormField(id: "referredBy", label: "Referred by?", fieldType: .text, required: false, placeholder: nil, options: nil, order: 8, section: .other),
     ]
     
-    func loadFields(orgId: String) async {
+    func loadFields(orgId: String, type: String = "private") async {
         await MainActor.run { isLoading = true }
         
         do {
             let doc = try await db.collection("organizations").document(orgId).getDocument()
             
-            if let data = doc.data(),
-               let fieldsData = data["intakeFormFields"] as? [[String: Any]] {
+            if let data = doc.data() {
+                let fieldName = type == "class" ? "intakeFormFieldsClass" : "intakeFormFieldsPrivate"
                 
-                let decoder = JSONDecoder()
-                var loadedFields: [IntakeFormField] = []
-                
-                for fieldData in fieldsData {
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: fieldData),
-                       let field = try? decoder.decode(IntakeFormField.self, from: jsonData) {
-                        loadedFields.append(field)
+                if let fieldsData = data[fieldName] as? [[String: Any]] {
+                    let loadedFields = decodeFields(from: fieldsData)
+                    await MainActor.run {
+                        if type == "class" {
+                            self.classFields = loadedFields
+                        } else {
+                            self.privateFields = loadedFields
+                        }
+                        self.fields = loadedFields
+                        self.isLoading = false
+                    }
+                } else if let legacyFields = data["intakeFormFields"] as? [[String: Any]] {
+                    // Migrate from old single field list
+                    let loadedFields = decodeFields(from: legacyFields)
+                    await MainActor.run {
+                        if type == "class" {
+                            self.classFields = loadedFields
+                        } else {
+                            self.privateFields = loadedFields
+                        }
+                        self.fields = loadedFields
+                        self.isLoading = false
+                    }
+                } else {
+                    // No custom fields, use defaults
+                    await MainActor.run {
+                        if type == "class" {
+                            self.classFields = IntakeFormService.defaultFields
+                        } else {
+                            self.privateFields = IntakeFormService.defaultFields
+                        }
+                        self.fields = IntakeFormService.defaultFields
+                        self.isLoading = false
                     }
                 }
-                
-                await MainActor.run {
-                    self.fields = loadedFields.sorted { $0.order < $1.order }
-                    self.isLoading = false
-                }
             } else {
-                // No custom fields, use defaults
                 await MainActor.run {
+                    if type == "class" {
+                        self.classFields = IntakeFormService.defaultFields
+                    } else {
+                        self.privateFields = IntakeFormService.defaultFields
+                    }
                     self.fields = IntakeFormService.defaultFields
                     self.isLoading = false
                 }
             }
         } catch {
             await MainActor.run {
+                if type == "class" {
+                    self.classFields = IntakeFormService.defaultFields
+                } else {
+                    self.privateFields = IntakeFormService.defaultFields
+                }
                 self.fields = IntakeFormService.defaultFields
                 self.isLoading = false
             }
         }
+    }
+    
+    private func decodeFields(from fieldsData: [[String: Any]]) -> [IntakeFormField] {
+        let decoder = JSONDecoder()
+        var loadedFields: [IntakeFormField] = []
+        
+        for fieldData in fieldsData {
+            if let jsonData = try? JSONSerialization.data(withJSONObject: fieldData),
+               let field = try? decoder.decode(IntakeFormField.self, from: jsonData) {
+                loadedFields.append(field)
+            }
+        }
+        
+        return loadedFields.sorted { $0.order < $1.order }
     }
 }
 

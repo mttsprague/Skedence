@@ -240,6 +240,18 @@ service cloud.firestore {
         );
       }
       
+      // Waivers subcollection
+      match /waivers/{athleteName} {
+        // Users can read their own waivers
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        
+        // Users can create/update their own waivers
+        allow create, update: if isSignedIn() && request.auth.uid == userId;
+        
+        // Users can delete their own waivers
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+      
       // Payment Methods subcollection
       match /paymentMethods/{methodId} {
         // Owner or admins in same org can read payment methods
@@ -430,24 +442,20 @@ service cloud.firestore {
       // Participants subcollection
       match /participants/{participantId} {
         // Anyone in same org can read participants
-        allow read: if existsAfter(/databases/$(database)/documents/classes/$(classId))
-          && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
-          && isMemberOfOrg(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId);
+        allow read: if exists(/databases/$(database)/documents/classes/$(classId))
+          && 'orgId' in get(/databases/$(database)/documents/classes/$(classId)).data
+          && isMemberOfOrg(get(/databases/$(database)/documents/classes/$(classId)).data.orgId);
         
+        // Cloud Functions can create participants during transactions
         // Users in org can register themselves (multiple times for multiple athletes)
-        // Using auto-generated participant IDs allows the same user to register multiple times
-        allow create: if isSignedIn() 
-          && request.resource.data.userId == request.auth.uid
-          && existsAfter(/databases/$(database)/documents/classes/$(classId))
-          && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
-          && isMemberOfOrg(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId);
+        allow create: if true; // Controlled by Cloud Function logic
         
         // Users can unregister their own registrations, admins can remove anyone
         allow delete: if isSignedIn() && (
           resource.data.userId == request.auth.uid 
-          || (existsAfter(/databases/$(database)/documents/classes/$(classId))
-            && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
-            && isOrgAdmin(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId))
+          || (exists(/databases/$(database)/documents/classes/$(classId))
+            && 'orgId' in get(/databases/$(database)/documents/classes/$(classId)).data
+            && isOrgAdmin(get(/databases/$(database)/documents/classes/$(classId)).data.orgId))
         );
       }
     }

@@ -125,17 +125,19 @@ export const createPaymentIntentDirect = functions.https.onCall(
       const userData = userDoc.data();
       let customerId = userData?.stripeCustomerId;
 
+      const customerName = userData?.firstName && userData?.lastName ?
+        `${userData.firstName} ${userData.lastName}` :
+        "Customer";
+
       if (!customerId) {
-        const customerName = userData?.firstName && userData?.lastName ?
-          `${userData.firstName} ${userData.lastName}` :
-          "Customer";
         const customer = await stripe.customers.create({
-          email: userData?.email || undefined,
+          email: userData?.email || userData?.emailAddress || undefined,
           name: `Skedence: ${customerName} (${userId.slice(-4)})`,
           description: `Customer ID: ${userId}`,
           metadata: {
             userId: userId,
             orgId: orgId,
+            source: "Skedence",
           },
         });
 
@@ -152,25 +154,49 @@ export const createPaymentIntentDirect = functions.https.onCall(
           }, {merge: true});
       }
 
-      // Create payment intent
-      const customerName = userData?.firstName && userData?.lastName ?
-        `${userData.firstName} ${userData.lastName}` :
-        "Customer";
+      // Create human-readable package name
+      const packageNames: { [key: string]: string } = {
+        "private": "Private Session (1 Athlete)",
+        "2_athlete": "Private Session (2 Athletes)",
+        "3_athlete": "Private Session (3 Athletes)",
+        "class_pass": "Class Pass",
+        "class_10_pack": "Class 10-Pack",
+      };
 
+      const packageDisplayName = packageNames[packageType] || packageType.replace("_", " ");
+
+      // Generate transaction ID similar to Acuity format (timestamp-based)
+      const transactionId = Date.now().toString();
+      const purchaseDate = new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+
+      // Create payment intent with enhanced metadata (Acuity-style)
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
         customer: customerId,
-        description: `Skedence: ${customerName}`,
+        description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
         setup_future_usage: "off_session", // Save payment method for future use
         automatic_payment_methods: {
           enabled: true,
         },
         metadata: {
-          orgId: orgId,
-          trainerId: trainerId,
-          userId: userId,
-          packageType: packageType,
+          source: "Skedence",
+          user_id: userId,
+          client_name: customerName,
+          package_name: packageDisplayName,
+          package_type: packageType,
+          trainer_id: trainerId,
+          org_id: orgId,
+          org_name: orgData.name || orgData.businessName || "Organization",
+          transaction_id: transactionId,
+          purchase_date: purchaseDate,
         },
       });
 
@@ -318,12 +344,14 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
           `${userData.firstName} ${userData.lastName}` :
           "Customer";
         const customer = await stripe.customers.create({
-          email: userData?.email || undefined,
+          email: userData?.email || userData?.emailAddress || undefined,
           name: `Skedence: ${customerName} (${userId.slice(-4)})`,
           description: `Customer ID: ${userId}`,
           metadata: {
             userId: userId,
             orgId: orgId,
+            source: "Skedence",
+            client_name: customerName,
           },
         });
         customerId = customer.id;
@@ -349,12 +377,14 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
               `${userData.firstName} ${userData.lastName}` :
               "Customer";
             const customer = await stripe.customers.create({
-              email: userData?.email || undefined,
+              email: userData?.email || userData?.emailAddress || undefined,
               name: `Skedence: ${customerName} (${userId.slice(-4)})`,
               description: `Customer ID: ${userId}`,
               metadata: {
                 userId: userId,
                 orgId: orgId,
+                source: "Skedence",
+                client_name: customerName,
               },
             });
             customerId = customer.id;
@@ -379,6 +409,28 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         `${userData.firstName} ${userData.lastName}` :
         "Customer";
 
+      // Create human-readable package name
+      const packageNames: { [key: string]: string } = {
+        "private": "Private Session (1 Athlete)",
+        "2_athlete": "Private Session (2 Athletes)",
+        "3_athlete": "Private Session (3 Athletes)",
+        "class_pass": "Class Pass",
+        "class_10_pack": "Class 10-Pack",
+      };
+
+      const packageDisplayName = packageNames[packageType] || packageType.replace("_", " ");
+
+      // Generate transaction ID similar to Acuity format
+      const transactionId = Date.now().toString();
+      const purchaseDate = new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
@@ -386,12 +438,18 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         payment_method: paymentMethodId,
         confirm: true,
         return_url: "https://skedence.app/payment-complete",
-        description: `Skedence: ${customerName}`,
+        description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
         metadata: {
-          orgId: orgId,
-          trainerId: trainerId,
-          userId: userId,
-          packageType: packageType,
+          source: "Skedence",
+          user_id: userId,
+          client_name: customerName,
+          package_name: packageDisplayName,
+          package_type: packageType,
+          trainer_id: trainerId,
+          org_id: orgId,
+          org_name: orgData.name || orgData.businessName || "Organization",
+          transaction_id: transactionId,
+          purchase_date: purchaseDate,
         },
       });
 

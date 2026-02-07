@@ -33,10 +33,15 @@ const defaultFields: IntakeField[] = [
 
 export default function IntakeFormsPage() {
   const { orgId } = useAuth();
-  const [fields, setFields] = useState<IntakeField[]>(defaultFields);
+  const [activeTab, setActiveTab] = useState<'private' | 'class'>('private');
+  const [privateFields, setPrivateFields] = useState<IntakeField[]>(defaultFields);
+  const [classFields, setClassFields] = useState<IntakeField[]>(defaultFields);
   const [loading, setLoading] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
+
+  const fields = activeTab === 'private' ? privateFields : classFields;
+  const setFields = activeTab === 'private' ? setPrivateFields : setClassFields;
 
   useEffect(() => {
     if (!orgId) return;
@@ -46,8 +51,21 @@ export default function IntakeFormsPage() {
         const orgDoc = await getDoc(doc(db, 'organizations', orgId!));
         if (orgDoc.exists()) {
           const data = orgDoc.data();
-          if (data.intakeFormFields && data.intakeFormFields.length > 0) {
-            setFields(data.intakeFormFields);
+          
+          // Load private lesson fields
+          if (data.intakeFormFieldsPrivate && data.intakeFormFieldsPrivate.length > 0) {
+            setPrivateFields(data.intakeFormFieldsPrivate);
+          } else if (data.intakeFormFields && data.intakeFormFields.length > 0) {
+            // Migrate from old single field list
+            setPrivateFields(data.intakeFormFields);
+          }
+          
+          // Load class fields
+          if (data.intakeFormFieldsClass && data.intakeFormFieldsClass.length > 0) {
+            setClassFields(data.intakeFormFieldsClass);
+          } else if (data.intakeFormFields && data.intakeFormFields.length > 0) {
+            // Migrate from old single field list
+            setClassFields(data.intakeFormFields);
           }
         }
       } catch (error) {
@@ -60,13 +78,14 @@ export default function IntakeFormsPage() {
     loadFields();
   }, [orgId]);
 
-  const saveFields = useCallback(async (newFields: IntakeField[]) => {
+  const saveFields = useCallback(async (newFields: IntakeField[], type: 'private' | 'class') => {
     if (!orgId) return;
 
     try {
-      await setDoc(doc(db, 'organizations', orgId), { intakeFormFields: newFields }, { merge: true });
+      const fieldName = type === 'private' ? 'intakeFormFieldsPrivate' : 'intakeFormFieldsClass';
+      await setDoc(doc(db, 'organizations', orgId), { [fieldName]: newFields }, { merge: true });
       setLastSaved(new Date());
-      console.log('Intake form fields auto-saved to Firebase');
+      console.log(`Intake form fields (${type}) auto-saved to Firebase`);
     } catch (error) {
       console.error('Error saving intake form fields:', error);
     }
@@ -84,19 +103,19 @@ export default function IntakeFormsPage() {
     const newFields = [...fields, newField];
     setFields(newFields);
     setEditingField(newField.id);
-    saveFields(newFields);
+    saveFields(newFields, activeTab);
   };
 
   const updateField = (id: string, updates: Partial<IntakeField>) => {
     const newFields = fields.map(f => f.id === id ? { ...f, ...updates } : f);
     setFields(newFields);
-    saveFields(newFields);
+    saveFields(newFields, activeTab);
   };
 
   const deleteField = (id: string) => {
     const newFields = fields.filter(f => f.id !== id);
     setFields(newFields);
-    saveFields(newFields);
+    saveFields(newFields, activeTab);
   };
 
   const moveField = (id: string, direction: 'up' | 'down') => {

@@ -35,8 +35,15 @@ struct ClassRegistrationSheet: View {
     @State private var secondAthleteName: String?
     @State private var isNewAthlete = false
     @State private var showWaiverAgreement = false
+    @State private var showRegistrationConfirmation = false
     @State private var pendingRegistrationSuccess = false
     @State private var pendingNewAthleteWaiver = false
+    
+    // Waiver status tracking
+    @State private var primaryAthleteHasWaiver = false
+    @State private var secondAthleteHasWaiver = false
+    @State private var isCheckingWaivers = false
+    @State private var waiverCheckComplete = false
     
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
@@ -93,7 +100,7 @@ struct ClassRegistrationSheet: View {
         if let athletesArray = profile.athletes {
             for athlete in athletesArray {
                 let name = athlete.displayName
-                if !name.isEmpty {
+                if !name.isEmpty && !athletes.contains(name) {
                     athletes.append(name)
                 }
             }
@@ -110,7 +117,7 @@ struct ClassRegistrationSheet: View {
             let f = (firstName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let l = (lastName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let fullName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
-            if !fullName.isEmpty {
+            if !fullName.isEmpty && !athletes.contains(fullName) {
                 athletes.append(fullName)
             }
         }
@@ -201,47 +208,161 @@ struct ClassRegistrationSheet: View {
         }
     }
     
-    // Check if an athlete has signed a waiver
+    // Check if an athlete has signed a waiver (uses DocumentsService like BookView)
     private func checkAthleteHasWaiver(userId: String, athleteName: String) async throws -> Bool {
-        let db = Firestore.firestore()
-        let waiverRef = db.collection("users").document(userId).collection("waivers").document(athleteName)
-        let waiverDoc = try await waiverRef.getDocument()
-        return waiverDoc.exists
-    }
-    
-    // Handle waiver agreement
-    private func handleWaiverAgreement() async {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        let documents = try await DocumentsService.shared.fetchDocuments(userId: userId)
         
-        let db = Firestore.firestore()
-        let now = Timestamp(date: Date())
+        // Normalize the athlete name for comparison
+        let normalizedAthleteName = athleteName.lowercased().trimmingCharacters(in: .whitespaces)
         
-        // Determine which athlete needs the waiver
-        var athleteName: String
-        if pendingNewAthleteWaiver {
-            // Get name from new athlete form data
-            if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
-                athleteName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-            } else {
-                let f = (newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                let l = (newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                athleteName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+        // Check if any waiver document exists for this athlete
+        for doc in documents {
+            if doc.type == "waiver" {
+                // Check for exact athlete name match
+                if let docAthleteName = doc.athleteName?.lowercased().trimmingCharacters(in: .whitespaces) {
+                    // Require exact match
+                    if docAthleteName == normalizedAthleteName {
+                        return true
+                    }
+                }
             }
-        } else {
-            athleteName = selectedAthleteName ?? ""
         }
         
-        let waiverRef = db.collection("users").document(userId).collection("waivers").document(athleteName)
-        try? await waiverRef.setData([
-            "athleteName": athleteName,
-            "signedAt": now,
-            "waiverText": settingsService.settings?.waiverText ?? ""
-        ])
+        return false
+    }
+    
+    // Check waiver status for primary athlete
+    private func checkPrimaryAthleteWaiver() async {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let athleteName = selectedAthleteName,
+              settingsService.settings?.requireWaiver == true else {
+            primaryAthleteHasWaiver = true
+            return
+        }
+        isCheckingWaivers = true
+        primaryAthleteHasWaiver = (try? await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)) ?? false
+        isCheckingWaivers = false
+    }
+    
+    // Check waiver status for second athlete
+    private func checkSecondAthleteWaiver() async {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let athleteName = secondAthleteName,
+              settingsService.settings?.requireWaiver == true else {
+            secondAthleteHasWaiver = true
+            return
+        }
+        isCheckingWaivers = true
+        secondAthleteHasWaiver = (try? await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)) ?? false
+        isCheckingWaivers = false
+    }
+    
+    // Handle waiver agreement (matches BookView flow - saves to documents subcollection with PDF)
+    private func handleWaiverAgreement() async {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let profile = usersService.currentUser else {
+            showWaiverAgreement = false
+            pendingRegistrationSuccess = false
+            return
+        }
         
-        // Continue with registration
-        showWaiverAgreement = false
-        if pendingRegistrationSuccess {
-            await performRegistration()
+        do {
+            // Create waiver signature from user profile
+            let signature = WaiverSignature(
+                firstName: profile.firstName ?? "",
+                lastName: profile.lastName ?? "",
+                email: profile.emailAddress ?? "",
+                phoneNumber: profile.phoneNumber ?? "",
+                isMinor: true, // Assume minor since most clients are minors
+                signedAt: Date()
+            )
+            
+            // Determine which athlete needs the waiver
+            let athleteForWaiver: String
+            if pendingNewAthleteWaiver {
+                // Get name from new athlete form data
+                if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
+                    athleteForWaiver = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+                } else {
+                    let f = (newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let l = (newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    athleteForWaiver = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+                }
+            } else {
+                athleteForWaiver = selectedAthleteName ?? ""
+            }
+            
+            // Generate PDF with custom waiver text from settings
+            guard let pdfData = WaiverPDFGenerator.generateWaiverPDF(
+                signature: signature,
+                organizationName: auth.organizationName ?? "Your Organization",
+                customWaiverText: settingsService.settings?.waiverText,
+                athleteName: athleteForWaiver
+            ) else {
+                throw NSError(domain: "WaiverError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to generate PDF"])
+            }
+            
+            // Save waiver document with PDF using DocumentsService (same as BookView)
+            _ = try await DocumentsService.shared.saveWaiverDocument(
+                userId: userId,
+                pdfData: pdfData,
+                signature: signature,
+                athleteName: athleteForWaiver
+            )
+            
+            if let orgId = auth.currentOrgId {
+                AnalyticsService.shared.logWaiverSigned(userId: userId, orgId: orgId)
+            }
+            
+            // Dismiss waiver sheet
+            showWaiverAgreement = false
+            
+            // Recheck waiver status to update UI
+            if !pendingNewAthleteWaiver {
+                await checkPrimaryAthleteWaiver()
+            } else {
+                await checkSecondAthleteWaiver()
+            }
+            
+            // Check if we just signed for primary athlete and need to check second athlete
+            if !pendingNewAthleteWaiver && isOnlyParticipant == false && secondAthleteName != nil {
+                // Just signed primary athlete waiver, now check second athlete
+                do {
+                    let secondAthleteName: String
+                    if isNewAthlete {
+                        if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
+                            secondAthleteName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        } else {
+                            let f = (newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                            let l = (newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                            secondAthleteName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
+                        }
+                    } else {
+                        secondAthleteName = self.secondAthleteName!
+                    }
+                    
+                    let secondAthleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: secondAthleteName)
+                    if !secondAthleteHasWaiver && settingsService.settings?.requireWaiver == true {
+                        // Second athlete needs waiver, show it
+                        pendingNewAthleteWaiver = true
+                        showWaiverAgreement = true
+                        return
+                    }
+                } catch {
+                    // Silently fail - continue with registration if waiver check fails
+                }
+            }
+            
+            // All waivers signed, complete registration
+            if pendingRegistrationSuccess {
+                isRegistering = true
+                await performRegistration()
+                pendingRegistrationSuccess = false
+            }
+        } catch {
+            showWaiverAgreement = false
+            pendingRegistrationSuccess = false
+            errorMessage = "Failed to save waiver agreement. Please try again."
         }
     }
     
@@ -274,17 +395,35 @@ struct ClassRegistrationSheet: View {
     }
     
     private var registrationButton: some View {
-        Button {
-            Task { await registerWithClassPass() }
-        } label: {
-            HStack(spacing: Spacing.sm) {
-                if isRegistering { ProgressView().tint(.white) }
-                Text(isRegistering ? "Registering..." : "Use Class Pass & Register")
+        let athleteCount = (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
+        let passesNeeded = athleteCount
+        let availablePasses = selectedClassPass?.lessonsRemaining ?? 0
+        let hasEnoughPasses = availablePasses >= passesNeeded
+        
+        return VStack(spacing: Spacing.sm) {
+            if selectedClassPass != nil && !hasEnoughPasses {
+                Text("⚠️ Not enough passes. Need \(passesNeeded), have \(availablePasses)")
+                    .font(.bodySmall)
+                    .foregroundStyle(AppTheme.error)
             }
+            
+            Button {
+                Task { await registerWithClassPass() }
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    if isRegistering { ProgressView().tint(.white) }
+                    let buttonText = isRegistering ? "Registering..." : 
+                                    (athleteCount == 2 ? "Use 2 Passes & Register" : "Use Class Pass & Register")
+                    Text(buttonText)
+                }
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .disabled(isRegistering || selectedClassPass == nil || 
+                     (!allAthletes.isEmpty && selectedAthleteName == nil) || 
+                     !isAthleteInfoComplete || !hasEnoughPasses)
+            .opacity((selectedClassPass != nil && (allAthletes.isEmpty || selectedAthleteName != nil) && 
+                     isAthleteInfoComplete && hasEnoughPasses) ? 1.0 : 0.5)
         }
-        .buttonStyle(PrimaryButtonStyle())
-        .disabled(isRegistering || selectedClassPass == nil || (!allAthletes.isEmpty && selectedAthleteName == nil) || !isAthleteInfoComplete)
-        .opacity((selectedClassPass != nil && (allAthletes.isEmpty || selectedAthleteName != nil) && isAthleteInfoComplete) ? 1.0 : 0.5)
     }
     
     private var classDetailsCard: some View {
@@ -329,6 +468,7 @@ struct ClassRegistrationSheet: View {
                     athleteSelectionUI
                 }
                 if selectedAthleteName != nil {
+                    primaryAthleteFormUI
                     participantCountUI
                 }
                 if isOnlyParticipant == false {
@@ -353,6 +493,12 @@ struct ClassRegistrationSheet: View {
                         Button {
                             selectedAthleteName = athlete
                             loadAthleteProfileData()
+                            // Reset and check waiver status
+                            primaryAthleteHasWaiver = false
+                            Task {
+                                await checkPrimaryAthleteWaiver()
+                                waiverCheckComplete = true
+                            }
                         } label: {
                             Text(athlete)
                                 .font(.bodyMedium)
@@ -383,6 +529,40 @@ struct ClassRegistrationSheet: View {
                     }
                 }
             }
+            
+            // Waiver Status Indicator (below card, matching BookView)
+            if let athleteName = selectedAthleteName {
+                HStack(spacing: Spacing.xs) {
+                    if isCheckingWaivers {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Text("Checking waiver status...")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    } else if settingsService.settings?.requireWaiver == true {
+                        if primaryAthleteHasWaiver {
+                            // Has signed waiver
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.green)
+                            Text("\(athleteName) has a signed waiver")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        } else {
+                            // Needs waiver
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.blue)
+                            Text("\(athleteName) will need a signed waiver")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.xxs)
+            }
         }
     }
     
@@ -395,6 +575,18 @@ struct ClassRegistrationSheet: View {
             HStack(spacing: Spacing.sm) {
                 participantButton(isYes: true)
                 participantButton(isYes: false)
+            }
+        }
+    }
+    
+    private var primaryAthleteFormUI: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("\(selectedAthleteName ?? "Athlete") Information")
+                .font(.headingMedium)
+                .foregroundStyle(AppTheme.textPrimary)
+            
+            CardView(padding: Spacing.md) {
+                DynamicIntakeFormView(formData: intakeFormData, fields: intakeFormService.fields)
             }
         }
     }
@@ -441,6 +633,11 @@ struct ClassRegistrationSheet: View {
                         Button {
                             secondAthleteName = athlete
                             isNewAthlete = false
+                            // Reset and check waiver status
+                            secondAthleteHasWaiver = false
+                            Task {
+                                await checkSecondAthleteWaiver()
+                            }
                         } label: {
                             Text(athlete)
                                 .font(.bodyMedium)
@@ -449,6 +646,7 @@ struct ClassRegistrationSheet: View {
                     Button {
                         secondAthleteName = "New Athlete"
                         isNewAthlete = true
+                        secondAthleteHasWaiver = false
                         newAthleteIntakeData.fieldValues.removeAll()
                     } label: {
                         HStack {
@@ -490,6 +688,53 @@ struct ClassRegistrationSheet: View {
                             .foregroundStyle(AppTheme.textTertiary)
                     }
                 }
+            }
+            
+            // Second Athlete Waiver Status Indicator (below card, matching BookView)
+            if let athleteName = secondAthleteName, !isNewAthlete {
+                HStack(spacing: Spacing.xs) {
+                    if isCheckingWaivers {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Text("Checking waiver status...")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                    } else if settingsService.settings?.requireWaiver == true {
+                        if secondAthleteHasWaiver {
+                            // Has signed waiver
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.green)
+                            Text("\(athleteName) has a signed waiver")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        } else {
+                            // Needs waiver
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.blue)
+                            Text("\(athleteName) will need a signed waiver")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.xxs)
+            } else if isNewAthlete {
+                // New athlete indicator
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.blue)
+                    Text("New athlete will need a signed waiver")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                    Spacer()
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.xxs)
             }
         }
     }
@@ -560,6 +805,27 @@ struct ClassRegistrationSheet: View {
             Text("Select Class Pass to Use")
                 .font(.headingMedium)
                 .foregroundStyle(AppTheme.textPrimary)
+            
+            // Show pass cost info if multiple athletes selected
+            if isOnlyParticipant == false && secondAthleteName != nil {
+                CardView(padding: Spacing.md) {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundStyle(AppTheme.primary)
+                            .font(.system(size: 20))
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text("2 Athletes = 2 Passes")
+                                .font(.bodyMedium.bold())
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text("Each athlete requires one class pass")
+                                .font(.bodySmall)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            
             classPassPicker
             registrationButton
         }
@@ -683,7 +949,7 @@ struct ClassRegistrationSheet: View {
             if let orgId = auth.currentOrgId {
                 await pricingService.loadPricingStructure(for: orgId)
                 await settingsService.loadSettings(orgId: orgId)
-                await intakeFormService.loadFields(orgId: orgId)
+                await intakeFormService.loadFields(orgId: orgId, type: "class")
             }
         }
         .sheet(isPresented: $showWaiverAgreement) {
@@ -697,6 +963,27 @@ struct ClassRegistrationSheet: View {
                 onCancel: {
                     showWaiverAgreement = false
                     pendingRegistrationSuccess = false
+                }
+            )
+        }
+        .sheet(isPresented: $showRegistrationConfirmation) {
+            let athleteName = selectedAthleteName ?? "your athlete"
+            let dateText = classItem.startTime.formatted(.dateTime.month(.abbreviated).day().year())
+            let timeText = classItem.startTime.formatted(date: .omitted, time: .shortened)
+            
+            ConfirmationAlertView(
+                title: "Confirm Registration",
+                message: "Are you sure you want to register \(athleteName) for \(classItem.title) on \(dateText) at \(timeText)?",
+                confirmButtonText: "Confirm Registration",
+                onConfirm: {
+                    showRegistrationConfirmation = false
+                    Task {
+                        await confirmAndRegisterForClass()
+                    }
+                },
+                onCancel: {
+                    showRegistrationConfirmation = false
+                    isRegistering = false
                 }
             )
         }
@@ -718,18 +1005,14 @@ struct ClassRegistrationSheet: View {
         }
         
         do {
-            // Check waivers FIRST, before creating the registration
+            // Check waivers FIRST - if any athlete needs waiver, show sheet and return
             if let userId = Auth.auth().currentUser?.uid {
-                let waiverCheck = try await settingsService.checkWaiverRequirement(
-                    userId: userId,
-                    settings: settingsService.settings
-                )
-                
-                // Check if selected athlete needs waiver
+                // Check primary athlete
                 if let athleteName = selectedAthleteName {
                     let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
-                    if !athleteHasWaiver {
-                        pendingRegistrationSuccess = false
+                    if !athleteHasWaiver && settingsService.settings?.requireWaiver == true {
+                        // Show waiver for primary athlete
+                        pendingRegistrationSuccess = true
                         pendingNewAthleteWaiver = false
                         showWaiverAgreement = true
                         isRegistering = false
@@ -737,20 +1020,20 @@ struct ClassRegistrationSheet: View {
                     }
                 }
                 
-                // Check if second athlete needs waiver (for existing athletes)
+                // Check second athlete if exists (existing athlete)
                 if !isNewAthlete && secondAthleteName != nil && secondAthleteName != "New Athlete" {
                     let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: secondAthleteName!)
-                    if !athleteHasWaiver {
-                        pendingRegistrationSuccess = false
-                        pendingNewAthleteWaiver = false
-                        selectedAthleteName = secondAthleteName
+                    if !athleteHasWaiver && settingsService.settings?.requireWaiver == true {
+                        // Show waiver for second athlete
+                        pendingRegistrationSuccess = true
+                        pendingNewAthleteWaiver = true
                         showWaiverAgreement = true
                         isRegistering = false
                         return
                     }
                 }
                 
-                // Check if second athlete needs waiver (for new athletes)
+                // Check second athlete if exists (new athlete)
                 if isNewAthlete && secondAthleteName != nil {
                     let athleteName: String
                     if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
@@ -761,30 +1044,70 @@ struct ClassRegistrationSheet: View {
                         athleteName = [f, l].filter { !$0.isEmpty }.joined(separator: " ")
                     }
                     let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
-                    if !athleteHasWaiver {
-                        pendingRegistrationSuccess = false
+                    if !athleteHasWaiver && settingsService.settings?.requireWaiver == true {
+                        // Show waiver for second athlete
+                        pendingRegistrationSuccess = true
                         pendingNewAthleteWaiver = true
                         showWaiverAgreement = true
                         isRegistering = false
                         return
                     }
                 }
-                
-                // Legacy waiver check
-                if waiverCheck.required && !waiverCheck.signed {
-                    pendingRegistrationSuccess = false
-                    showWaiverAgreement = true
-                    isRegistering = false
-                    return
-                }
             }
             
-            // All waivers are signed, proceed with registration
-            await performRegistration()
+            // All waivers are signed (or not required), show confirmation dialog
+            showRegistrationConfirmation = true
         } catch {
             errorMessage = "Registration failed: \(error.localizedDescription)"
             isRegistering = false
         }
+    }
+    
+    private func confirmAndRegisterForClass() async {
+        guard let classId = classItem.id else { return }
+        let passToUse = selectedClassPass ?? availableClassPasses.first
+        guard let classPass = passToUse, let passId = classPass.id else {
+            errorMessage = "No valid class pass found"
+            isRegistering = false
+            return
+        }
+        guard let orgId = auth.currentOrgId else {
+            errorMessage = "Organization not found"
+            isRegistering = false
+            return
+        }
+        
+        isRegistering = true
+        
+        do {
+            let athleteForRegistration = selectedAthleteName
+            let secondAthleteForRegistration = isOnlyParticipant == false ? secondAthleteName : nil
+            
+            try await classesService.registerForClassWithPass(
+                classId: classId,
+                classPassPackageId: passId,
+                athleteName: athleteForRegistration,
+                secondAthleteName: secondAthleteForRegistration,
+                orgId: orgId
+            )
+            AnalyticsService.shared.logClassRegistered(classId: classId, className: classItem.title)
+            await packagesService.loadMyPackages()
+            registrationSuccessful = true
+            // Count athletes (1 or 2+)
+            let athleteCount = secondAthleteForRegistration != nil ? 2 : 1
+            registrationCount += athleteCount
+            errorMessage = nil
+            onRegistered()
+            
+            // Reset form for next registration
+            selectedAthleteName = nil
+            isOnlyParticipant = nil
+            secondAthleteName = nil
+            isNewAthlete = false
+        } catch {
+            errorMessage = "Registration failed: \(error.localizedDescription)"
+        }
+        isRegistering = false
     }
     
     private func performRegistration() async {

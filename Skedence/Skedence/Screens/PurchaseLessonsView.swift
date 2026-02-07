@@ -11,34 +11,21 @@ struct PurchaseLessonsView: View {
     @StateObject private var customerService = StripeCustomerService()
     @StateObject private var pricingService = PricingStructureService()
 
-    // Trainers dropdown
-    @StateObject private var trainersService = TrainersService()
-    @State private var selectedTrainer: Trainer?
-
     @State private var isPurchasing = false
     @State private var alert: AlertItem?
     @State private var paymentSheet: PaymentSheet?
     @State private var showPaymentMethodSheet = false
+    @State private var showPurchaseConfirmation = false
     @State private var useCardOnFile = false
     @State private var selectedPaymentMethodId: String?
+    @State private var pendingPurchaseOrgId: String?
+    @State private var pendingPurchasePackage: PackageOption?
 
     // Default expiration policy
     private let expirationMonths = 12
 
     // Selected package option (now dynamic)
     @State private var selectedPackageIndex: Int = 0
-
-    // Jeff-first ordering
-    private var trainersOrdered: [Trainer] {
-        trainersService.trainers.sorted { lhs, rhs in
-            let lhsPriority = isJeff(lhs) ? 0 : 1
-            let rhsPriority = isJeff(rhs) ? 0 : 1
-            if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
-            let ln = lhs.name ?? ""
-            let rn = rhs.name ?? ""
-            return ln.localizedCaseInsensitiveCompare(rn) == .orderedAscending
-        }
-    }
 
     var body: some View {
         ScrollView {
@@ -48,47 +35,6 @@ struct PurchaseLessonsView: View {
                     .font(.system(size: 34, weight: .bold))
                     .foregroundStyle(Brand.primary)
                     .padding(.horizontal)
-
-                // Trainers header
-                Text("Trainer")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
-
-                // Trainer dropdown menu
-                Menu {
-                    ForEach(trainersOrdered, id: \.self) { trainer in
-                        Button {
-                            selectedTrainer = trainer
-                        } label: {
-                            HStack(spacing: 10) {
-                                TrainerAvatarView(trainer: trainer, size: 24)
-                                Text(trainer.name ?? "Unnamed")
-                                    .foregroundStyle(.primary)
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        TrainerAvatarView(trainer: selectedTrainer, size: 36)
-
-                        VStack(alignment: .leading) {
-                            Text(selectedTrainer?.name ?? "")
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(.primary)
-                            Text("Trainer").foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.down").foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.platformBackground)
-                            .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
-                    )
-                    .padding(.horizontal)
-                }
 
                 // Package section header
                 Text("Package")
@@ -190,7 +136,7 @@ struct PurchaseLessonsView: View {
                     .background(Brand.primary)
                     .clipShape(Capsule())
                 }
-                .disabled(isPurchasing || selectedTrainer == nil)
+                .disabled(isPurchasing)
                 .padding(.horizontal)
                 .padding(.top, 8)
                 .padding(.bottom, 12)
@@ -201,18 +147,6 @@ struct PurchaseLessonsView: View {
         .navigationTitle("Purchase Passes")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            // Load trainers and default-select Jeff (or first)
-            if trainersService.trainers.isEmpty, let orgId = auth.currentOrgId {
-                await trainersService.loadAll(orgId: orgId)
-            }
-            if selectedTrainer == nil {
-                if let jeff = trainersService.trainers.first(where: { isJeff($0) }) {
-                    selectedTrainer = jeff
-                } else {
-                    selectedTrainer = trainersService.trainers.first
-                }
-            }
-            
             // Load pricing structure
             if let orgId = auth.currentOrgId {
                 await pricingService.loadPricingStructure(for: orgId)
@@ -237,14 +171,12 @@ struct PurchaseLessonsView: View {
                 onSelectExistingCard: { paymentMethodId in
                     showPaymentMethodSheet = false
                     Task {
-                        guard let trainerId = selectedTrainer?.id,
-                              let orgId = auth.currentOrgId else { return }
+                        guard let orgId = auth.currentOrgId else { return }
                         let packages = pricingService.allPackageOptions
                         guard packages.indices.contains(selectedPackageIndex) else { return }
                         let selectedPackage = packages[selectedPackageIndex]
                         await processPurchaseWithSavedCard(
                             paymentMethodId: paymentMethodId,
-                            trainerId: trainerId,
                             orgId: orgId,
                             selectedPackage: selectedPackage
                         )
@@ -253,15 +185,34 @@ struct PurchaseLessonsView: View {
                 onAddNewCard: {
                     showPaymentMethodSheet = false
                     Task {
-                        guard let trainerId = selectedTrainer?.id,
-                              let orgId = auth.currentOrgId else { return }
+                        guard let orgId = auth.currentOrgId else { return }
                         let packages = pricingService.allPackageOptions
                         guard packages.indices.contains(selectedPackageIndex) else { return }
                         let selectedPackage = packages[selectedPackageIndex]
-                        await processPurchase(trainerId: trainerId, orgId: orgId, selectedPackage: selectedPackage)
+                        await processPurchase(orgId: orgId, selectedPackage: selectedPackage)
                     }
                 }
             )
+        }
+        .sheet(isPresented: $showPurchaseConfirmation) {
+            if let package = pendingPurchasePackage {
+                let priceText = String(format: "$%.2f", Double(package.priceInCents) / 100.0)
+                
+                ConfirmationAlertView(
+                    title: "Confirm Purchase",
+                    message: "Are you sure you want to purchase \(package.title) for \(priceText)?",
+                    confirmButtonText: "Confirm Purchase",
+                    onConfirm: {
+                        showPurchaseConfirmation = false
+                        Task {
+                            await confirmPurchase()
+                        }
+                    },
+                    onCancel: {
+                        showPurchaseConfirmation = false
+                    }
+                )
+            }
         }
     }
 
@@ -433,23 +384,11 @@ struct PurchaseLessonsView: View {
         }
     }
 
-    // MARK: - Helpers
-
-    private func isJeff(_ trainer: Trainer) -> Bool {
-        (trainer.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            .localizedCaseInsensitiveCompare("Jeff Schmitz") == .orderedSame
-    }
-
     // MARK: - Purchase flow
 
     private func purchaseSelectedOption() async {
         guard Auth.auth().currentUser?.uid != nil else {
             alert = .init(title: "Error", message: "You must be signed in to purchase.")
-            return
-        }
-        
-        guard let trainerId = selectedTrainer?.id else {
-            alert = .init(title: "Error", message: "Please select a trainer.")
             return
         }
         
@@ -466,6 +405,20 @@ struct PurchaseLessonsView: View {
         }
         let selectedPackage = packages[selectedPackageIndex]
 
+        // Store for confirmation
+        pendingPurchaseOrgId = orgId
+        pendingPurchasePackage = selectedPackage
+        
+        // Show confirmation dialog
+        showPurchaseConfirmation = true
+    }
+    
+    private func confirmPurchase() async {
+        guard let orgId = pendingPurchaseOrgId,
+              let selectedPackage = pendingPurchasePackage else {
+            return
+        }
+
         // If user wants to use card on file and has selected one
         if useCardOnFile {
             guard let paymentMethodId = selectedPaymentMethodId else {
@@ -476,7 +429,6 @@ struct PurchaseLessonsView: View {
             isPurchasing = true
             await processPurchaseWithSavedCard(
                 paymentMethodId: paymentMethodId,
-                trainerId: trainerId,
                 orgId: orgId,
                 selectedPackage: selectedPackage
             )
@@ -485,10 +437,10 @@ struct PurchaseLessonsView: View {
         }
         
         // Otherwise, proceed with regular payment sheet flow
-        await processPurchase(trainerId: trainerId, orgId: orgId, selectedPackage: selectedPackage)
+        await processPurchase(orgId: orgId, selectedPackage: selectedPackage)
     }
     
-    private func processPurchase(trainerId: String, orgId: String, selectedPackage: PackageOption) async {
+    private func processPurchase(orgId: String, selectedPackage: PackageOption) async {
         isPurchasing = true
         defer { isPurchasing = false }
 
@@ -496,12 +448,13 @@ struct PurchaseLessonsView: View {
             // Ensure user has a Stripe customer (enables saving cards)
             _ = try await customerService.getOrCreateCustomer()
             
-            // Create payment intent - routes to trainer's Stripe Connect account
+            // Create payment intent - routes to organization's Stripe account
+            // Use a placeholder trainerId since passes aren't tied to specific trainers
             let clientSecret = try await stripeService.createPaymentIntent(
                 packageType: selectedPackage.packageType, // Use packageType, not title
                 amount: selectedPackage.priceInCents,
-                trainerId: trainerId,
-                orgId: orgId // Payment goes to trainer's organization
+                trainerId: "general", // Placeholder - passes can be used with any trainer
+                orgId: orgId // Payment goes to organization
             )
             
             // Configure payment sheet with option to save card
@@ -523,16 +476,17 @@ struct PurchaseLessonsView: View {
         }
     }
     
-    private func processPurchaseWithSavedCard(paymentMethodId: String, trainerId: String, orgId: String, selectedPackage: PackageOption) async {
+    private func processPurchaseWithSavedCard(paymentMethodId: String, orgId: String, selectedPackage: PackageOption) async {
         isPurchasing = true
         defer { isPurchasing = false }
         
         do {
             // Create and confirm payment intent with saved card
+            // Use placeholder trainerId since passes aren't tied to specific trainers
             let result = try await stripeService.createAndConfirmPaymentWithSavedCard(
                 packageType: selectedPackage.packageType,
                 amount: selectedPackage.priceInCents,
-                trainerId: trainerId,
+                trainerId: "general", // Placeholder - passes can be used with any trainer
                 orgId: orgId,
                 paymentMethodId: paymentMethodId
             )

@@ -20,6 +20,7 @@ struct MyUpcomingLessonsView: View {
     @State private var showCancelAlert = false
     @State private var isCancelling = false
     @State private var cancelError: String?
+    @State private var selectedBooking: Booking?
 
     private var upcoming: [Booking] {
         let now = Date()
@@ -33,25 +34,6 @@ struct MyUpcomingLessonsView: View {
         return classesService.myRegisteredClasses
             .filter { $0.startTime >= now }
             .sorted { $0.startTime < $1.startTime }
-    }
-    
-    private enum ScheduleItem: Identifiable {
-        case lesson(Booking)
-        case classItem(GroupClass)
-        
-        var id: String {
-            switch self {
-            case .lesson(let booking): return "lesson-\(booking.id ?? "")"
-            case .classItem(let classItem): return "class-\(classItem.id ?? "")"
-            }
-        }
-        
-        var date: Date {
-            switch self {
-            case .lesson(let booking): return booking.startTime ?? .distantFuture
-            case .classItem(let classItem): return classItem.startTime
-            }
-        }
     }
     
     private var allUpcoming: [ScheduleItem] {
@@ -76,59 +58,7 @@ struct MyUpcomingLessonsView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(allUpcoming) { item in
-                    let isCancellable = canCancelItem(item)
-                    switch item {
-                    case .lesson(let booking):
-                        LessonRow(booking: booking,
-                                  trainerName: trainerName(for: booking.trainerUID),
-                                  isCancellable: isCancellable,
-                                  onCancel: {
-                                      if isCancellable {
-                                          itemToCancel = item
-                                          showCancelAlert = true
-                                      } else {
-                                          let hours = settingsService.settings?.minCancellationHours ?? 24
-                                          cancelError = "Lessons cannot be cancelled within \(hours) hours of the start time."
-                                      }
-                                  })
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                if isCancellable {
-                                    Button(role: .destructive) {
-                                        itemToCancel = item
-                                        showCancelAlert = true
-                                    } label: {
-                                        Label("Cancel", systemImage: "xmark.circle")
-                                    }
-                                }
-                            }
-                    case .classItem(let classItem):
-                        ClassRow(classItem: classItem,
-                                 trainerName: trainerName(for: classItem.trainerId),
-                                 isCancellable: isCancellable,
-                                 onCancel: {
-                                      if isCancellable {
-                                          itemToCancel = item
-                                          showCancelAlert = true
-                                      } else {
-                                          let hours = settingsService.settings?.minCancellationHours ?? 24
-                                          cancelError = "Classes cannot be cancelled within \(hours) hours of the start time."
-                                      }
-                                  })
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                if isCancellable {
-                                    Button(role: .destructive) {
-                                        itemToCancel = item
-                                        showCancelAlert = true
-                                    } label: {
-                                        Label("Cancel", systemImage: "xmark.circle")
-                                    }
-                                }
-                            }
-                    }
+                    scheduleItemRow(item)
                 }
             }
         }
@@ -189,10 +119,55 @@ struct MyUpcomingLessonsView: View {
                 Text(error)
             }
         }
+        .sheet(item: $selectedBooking) { booking in
+            SessionDetailSheet(booking: booking, trainersService: trainersService)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private func trainerName(for trainerId: String) -> String {
         trainersService.trainers.first(where: { $0.id == trainerId })?.name ?? "Trainer"
+    }
+    
+    @ViewBuilder
+    private func scheduleItemRow(_ item: ScheduleItem) -> some View {
+        let isCancellable = canCancelItem(item)
+        
+        switch item {
+        case .lesson(let booking):
+            Button {
+                selectedBooking = booking
+            } label: {
+                LessonRow(
+                    booking: booking,
+                    trainerName: trainerName(for: booking.trainerUID),
+                    isCancellable: isCancellable,
+                    onCancel: { handleCancelAction(item, isCancellable, type: "Lessons") }
+                )
+            }
+            .buttonStyle(.plain)
+            .listRowModifiers(item: item, isCancellable: isCancellable, onCancel: { showCancelAlert = true; itemToCancel = item })
+            
+        case .classItem(let classItem):
+            ClassRow(
+                classItem: classItem,
+                trainerName: trainerName(for: classItem.trainerId),
+                isCancellable: isCancellable,
+                onCancel: { handleCancelAction(item, isCancellable, type: "Classes") }
+            )
+            .listRowModifiers(item: item, isCancellable: isCancellable, onCancel: { showCancelAlert = true; itemToCancel = item })
+        }
+    }
+    
+    private func handleCancelAction(_ item: ScheduleItem, _ isCancellable: Bool, type: String) {
+        if isCancellable {
+            itemToCancel = item
+            showCancelAlert = true
+        } else {
+            let hours = settingsService.settings?.minCancellationHours ?? 24
+            cancelError = "\(type) cannot be cancelled within \(hours) hours of the start time."
+        }
     }
     
     private func handleCancellation() async {
@@ -231,6 +206,46 @@ struct MyUpcomingLessonsView: View {
         }
     }
 }
+
+// MARK: - View Extensions
+
+private extension View {
+    func listRowModifiers(item: ScheduleItem, isCancellable: Bool, onCancel: @escaping () -> Void) -> some View {
+        self
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                if isCancellable {
+                    Button(role: .destructive, action: onCancel) {
+                        Label("Cancel", systemImage: "xmark.circle")
+                    }
+                }
+            }
+    }
+}
+
+// MARK: - Schedule Item Type
+
+fileprivate enum ScheduleItem: Identifiable {
+    case lesson(Booking)
+    case classItem(GroupClass)
+    
+    var id: String {
+        switch self {
+        case .lesson(let booking): return "lesson-\(booking.id ?? "")"
+        case .classItem(let classItem): return "class-\(classItem.id ?? "")"
+        }
+    }
+    
+    var date: Date {
+        switch self {
+        case .lesson(let booking): return booking.startTime ?? .distantFuture
+        case .classItem(let classItem): return classItem.startTime
+        }
+    }
+}
+
+// MARK: - Supporting Views
 
 private struct LessonRow: View {
     let booking: Booking

@@ -565,6 +565,15 @@ export const registerForClass = functions.https.onCall(
         // Count number of athletes (1 primary + optional second)
         const athleteCount = secondAthleteName ? 2 : 1;
 
+        // Check if pass has enough lessons for all athletes (1 pass per athlete)
+        const remainingLessons = classPassData.totalLessons - classPassData.lessonsUsed;
+        if (remainingLessons < athleteCount) {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            `Not enough class passes. You need ${athleteCount} pass(es), but only ${remainingLessons} remaining.`
+          );
+        }
+
         // Check if class has enough space for all athletes
         const spotsRemaining = classData.maxParticipants - classData.currentParticipants;
         if (spotsRemaining < athleteCount) {
@@ -587,9 +596,9 @@ export const registerForClass = functions.https.onCall(
           }
         }
 
-        // Increment lessonsUsed on the class pass
+        // Increment lessonsUsed on the class pass by athleteCount (1 pass per athlete)
         transaction.update(classPassRef, {
-          lessonsUsed: admin.firestore.FieldValue.increment(1),
+          lessonsUsed: admin.firestore.FieldValue.increment(athleteCount),
         });
 
         // Increment class participants by number of athletes
@@ -626,12 +635,28 @@ export const registerForClass = functions.https.onCall(
           });
         }
 
+        // Create classRegistration document for tracking user's registered classes
+        // This allows the client app to query which classes a user is registered for
+        const clientOrgId = userData.orgId || null;
+        const registrationId = `${userId}_${classId}`;
+        const registrationRef = db.collection("classRegistrations").doc(registrationId);
+        transaction.set(registrationRef, {
+          userId: userId,
+          clientId: userId, // For backward compatibility with existing queries
+          classId: classId,
+          orgId: clientOrgId,
+          athleteName: primaryAthleteName,
+          secondAthleteName: secondAthleteName || null,
+          athleteCount: athleteCount,
+          classPassPackageId: classPassPackageId,
+          registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
         // Log activity
         const clientFullName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client";
         const className = classData.title || "Unknown Class";
         // athleteCount already declared above
         const athleteNames = secondAthleteName ? `${primaryAthleteName} and ${secondAthleteName}` : primaryAthleteName;
-        const orgId = userData.orgId || null;
 
         const activityRef = db.collection("activities").doc();
         transaction.set(activityRef, {
@@ -654,7 +679,7 @@ export const registerForClass = functions.https.onCall(
             location: classData.location || null,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
           },
-          orgId: orgId,
+          orgId: clientOrgId,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
         });
       });
@@ -1187,6 +1212,11 @@ export const cancelClassRegistration = functions.https.onCall(
 
         // Remove participant from class
         transaction.delete(participantRef);
+        
+        // Delete classRegistration document
+        const registrationId = `${userId}_${classId}`;
+        const registrationRef = db.collection("classRegistrations").doc(registrationId);
+        transaction.delete(registrationRef);
 
         // Log activity
         const userRef = db.collection("users").doc(userId);

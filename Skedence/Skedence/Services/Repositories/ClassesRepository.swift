@@ -111,8 +111,11 @@ final class ClassesRepository: QueryableRepositoryProtocol {
     /// Fetch classes user is registered for
     func fetchUserRegistrations(orgId: String) async throws -> [GroupClass] {
         guard let userId = Auth.auth().currentUser?.uid else {
+            print("❌ No userId in fetchUserRegistrations")
             throw RepositoryError.unauthorized
         }
+        
+        print("🔍 Querying classRegistrations for userId: \(userId), orgId: \(orgId)")
         
         // First get registration IDs
         let registrationsSnapshot = try await db.collection("classRegistrations")
@@ -120,9 +123,16 @@ final class ClassesRepository: QueryableRepositoryProtocol {
             .whereField("orgId", isEqualTo: orgId)
             .getDocuments()
         
+        print("📋 Found \(registrationsSnapshot.documents.count) registrations")
+        for doc in registrationsSnapshot.documents {
+            print("  - Registration: \(doc.documentID), data: \(doc.data())")
+        }
+        
         let classIds = registrationsSnapshot.documents.compactMap { $0.data()["classId"] as? String }
+        print("📝 Class IDs: \(classIds)")
         
         guard !classIds.isEmpty else {
+            print("⚠️ No class IDs found in registrations")
             return []
         }
         
@@ -133,10 +143,12 @@ final class ClassesRepository: QueryableRepositoryProtocol {
                 .whereField(FieldPath.documentID(), in: chunk)
                 .getDocuments()
             
+            print("📚 Fetched \(snapshot.documents.count) classes for chunk \(chunk)")
             let classes = snapshot.documents.compactMap { decodeClass(id: $0.documentID, data: $0.data()) }
             allClasses.append(contentsOf: classes)
         }
         
+        print("✅ Total classes fetched: \(allClasses.count)")
         return allClasses.sorted { $0.startTime < $1.startTime }
     }
     
