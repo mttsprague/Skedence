@@ -142,16 +142,6 @@ export const bookLesson = functions.https.onCall(
       );
     }
 
-    // Rate limiting: prevent abuse (10 booking attempts per minute per user)
-    const rateLimitKey = `booking:${userId}`;
-    const rateCheck = await checkRateLimit(rateLimitKey, 10, 60);
-    if (!rateCheck.allowed) {
-      throw new functions.https.HttpsError(
-        "resource-exhausted",
-        `Too many booking attempts. Please try again at ${rateCheck.resetAt.toISOString()}`
-      );
-    }
-
     const userRef = db.collection("users").doc(userId);
     const lessonPackageRef = userRef
       .collection("lessonPackages")
