@@ -61,6 +61,9 @@ export default function SchedulingPage() {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [selectedTrainer, setSelectedTrainer] = useState<string>('');
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [allTrainersSchedule, setAllTrainersSchedule] = useState<Map<string, ScheduleItem[]>>(new Map());
+  const [viewMode, setViewMode] = useState<'individual' | 'all-trainers'>('individual');
+  const [allTrainersDate, setAllTrainersDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
   const [currentTime, setCurrentTime] = useState<Date | null>(null); // Start as null to avoid hydration mismatch
@@ -84,6 +87,7 @@ export default function SchedulingPage() {
     setToday(now);
     setSelectedDate(now);
     setWeekStart(startOfWeek(now, { weekStartsOn: 0 }));
+    setAllTrainersDate(now);
     setModalSlotDate(now);
   }, []);
 
@@ -127,7 +131,7 @@ export default function SchedulingPage() {
 
   // Load trainers
   useEffect(() => {
-    if (!orgId) return;
+    if (!orgId || !userData) return;
 
     const loadTrainers = async () => {
       try {
@@ -141,19 +145,35 @@ export default function SchedulingPage() {
           lastName: doc.data().lastName,
         }));
         
-        setTrainers(trainersList);
+        // Sort: Owner first, then alphabetically by first name
+        const currentUserName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        const sortedTrainers = trainersList.sort((a, b) => {
+          const aFullName = `${a.firstName} ${a.lastName}`;
+          const bFullName = `${b.firstName} ${b.lastName}`;
+          
+          // Owner goes first
+          if (aFullName === currentUserName) return -1;
+          if (bFullName === currentUserName) return 1;
+          
+          // Otherwise alphabetically by first name
+          return a.firstName.localeCompare(b.firstName);
+        });
+        
+        setTrainers(sortedTrainers);
       } catch (error) {
         console.error('Error loading trainers:', error);
       }
     };
 
     loadTrainers();
-  }, [orgId]);
+  }, [orgId, userData]);
 
   // Load schedule for the week
   useEffect(() => {
-    if (!orgId || !weekStart || !selectedTrainer) {
-      setLoading(false);
+    if (!orgId || !weekStart || !selectedTrainer || viewMode !== 'individual') {
+      if (viewMode === 'individual') {
+        setLoading(false);
+      }
       return;
     }
 
@@ -362,7 +382,150 @@ export default function SchedulingPage() {
     };
 
     loadSchedule();
-  }, [orgId, weekStart, selectedDate, selectedTrainer, trainers]);
+  }, [orgId, weekStart, selectedDate, selectedTrainer, trainers, viewMode]);
+
+  // Load all trainers schedule for single day view
+  useEffect(() => {
+    if (!orgId || !allTrainersDate || viewMode !== 'all-trainers' || trainers.length === 0) {
+      return;
+    }
+
+    const loadAllTrainersSchedule = async () => {
+      setLoading(true);
+      try {
+        const scheduleMap = new Map<string, ScheduleItem[]>();
+        const startDate = startOfDay(allTrainersDate);
+        const endDate = endOfDay(allTrainersDate);
+
+        // Load schedule for each active trainer
+        for (const trainer of trainers) {
+          const trainerId = trainer.id;
+          const trainerName = `${trainer.firstName} ${trainer.lastName}`;
+          const items: ScheduleItem[] = [];
+
+          // Load bookings for this trainer
+          const bookingsRef = collection(db, 'bookings');
+          const bookingsQuery = query(
+            bookingsRef,
+            where('orgId', '==', orgId),
+            where('trainerId', '==', trainerId),
+            where('startTime', '>=', startDate),
+            where('startTime', '<=', endDate)
+          );
+          
+          const bookingsSnapshot = await getDocs(bookingsQuery);
+          
+          for (const docSnap of bookingsSnapshot.docs) {
+            const data = docSnap.data();
+            
+            // Get client name
+            let clientName = 'Unknown Client';
+            const actualClientId = data.clientUID || data.clientId;
+            if (actualClientId) {
+              try {
+                const clientDoc = await getDoc(doc(db, 'users', actualClientId));
+                if (clientDoc.exists()) {
+                  const clientData = clientDoc.data();
+                  clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim() || 'Unknown Client';
+                }
+              } catch (err) {
+                console.error('Error fetching client:', err);
+              }
+            }
+            
+            items.push({
+              id: docSnap.id,
+              type: 'lesson',
+              startTime: data.startTime.toDate(),
+              endTime: data.endTime.toDate(),
+              trainerName,
+              trainerId,
+              clientName,
+            });
+          }
+
+          // Load classes for this trainer
+          const classesRef = collection(db, 'classes');
+          const classesQuery = query(
+            classesRef,
+            where('orgId', '==', orgId),
+            where('trainerId', '==', trainerId),
+            where('startTime', '>=', startDate),
+            where('startTime', '<=', endDate)
+          );
+          
+          const classesSnapshot = await getDocs(classesQuery);
+          
+          for (const docSnap of classesSnapshot.docs) {
+            const data = docSnap.data();
+            
+            items.push({
+              id: docSnap.id,
+              type: 'class',
+              startTime: data.startTime.toDate(),
+              endTime: data.endTime.toDate(),
+              trainerName,
+              trainerId,
+              className: data.title || data.name || 'Untitled Class',
+              studentsCount: (data.registeredStudents || []).length,
+            });
+          }
+
+          // Load shifts for this trainer
+          const schedulesRef = collection(db, 'trainers', trainerId, 'schedules');
+          const schedulesQuery = query(
+            schedulesRef,
+            where('startTime', '>=', startDate),
+            where('startTime', '<=', endDate)
+          );
+          
+          const schedulesSnapshot = await getDocs(schedulesQuery);
+          
+          for (const scheduleDoc of schedulesSnapshot.docs) {
+            const scheduleData = scheduleDoc.data();
+            const isAvailable = scheduleData.isBooked === false || scheduleData.status === 'open' || scheduleData.status === 'unavailable';
+            if (isAvailable) {
+              items.push({
+                id: scheduleDoc.id,
+                type: 'shift',
+                startTime: scheduleData.startTime.toDate(),
+                endTime: scheduleData.endTime.toDate(),
+                trainerName,
+                trainerId,
+                location: scheduleData.location,
+                status: scheduleData.status,
+              });
+            }
+          }
+
+          // Sort by start time
+          items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+          scheduleMap.set(trainerId, items);
+        }
+
+        setAllTrainersSchedule(scheduleMap);
+      } catch (error) {
+        console.error('Error loading all trainers schedule:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAllTrainersSchedule();
+  }, [orgId, allTrainersDate, trainers, viewMode]);
+
+  // Navigation functions for all trainers view
+  const goToPreviousAllTrainersDay = () => {
+    setAllTrainersDate(prev => prev ? addDays(prev, -1) : prev);
+  };
+
+  const goToNextAllTrainersDay = () => {
+    setAllTrainersDate(prev => prev ? addDays(prev, 1) : prev);
+  };
+
+  const goToTodayAllTrainers = () => {
+    setAllTrainersDate(new Date());
+  };
 
   // Navigation functions
   const goToPreviousDay = () => {
@@ -391,6 +554,9 @@ export default function SchedulingPage() {
   const reloadSchedule = () => {
     if (weekStart) {
       setWeekStart(new Date(weekStart));
+    }
+    if (allTrainersDate) {
+      setAllTrainersDate(new Date(allTrainersDate));
     }
   };
 
@@ -451,11 +617,11 @@ export default function SchedulingPage() {
       return null; // Don't show timeline outside schedule hours
     }
     
-    // Calculate position: each hour is 80px (h-[80px]) + 1px border
+    // Calculate position: each hour is 70px (h-[70px]) + 1px border
     const hoursSinceStart = hours - scheduleStartHour;
     const minuteOffset = minutes / 60;
     // Add 1px per hour for the borders between rows
-    const position = (hoursSinceStart + minuteOffset) * 80 + hoursSinceStart;
+    const position = (hoursSinceStart + minuteOffset) * 70 + hoursSinceStart;
     
     return position;
   };
@@ -477,27 +643,35 @@ export default function SchedulingPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={goToPreviousWeek}
+                  onClick={viewMode === 'individual' ? goToPreviousWeek : goToPreviousAllTrainersDay}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Previous Week"
+                  title={viewMode === 'individual' ? "Previous Week" : "Previous Day"}
                 >
                   <ChevronLeft className="h-5 w-5 text-gray-600" />
                 </button>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">
-                    Week of {format(weekStart, 'MMMM d, yyyy')}
+                    {viewMode === 'individual' 
+                      ? `Week of ${format(weekStart, 'MMMM d, yyyy')}`
+                      : format(allTrainersDate!, 'EEEE, MMMM d, yyyy')
+                    }
                   </h1>
-                  <p className="text-sm text-gray-600 mt-1">{scheduleItems.length} appointments</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {viewMode === 'individual' 
+                      ? `${scheduleItems.length} appointments`
+                      : `${Array.from(allTrainersSchedule.values()).reduce((sum, items) => sum + items.length, 0)} appointments`
+                    }
+                  </p>
                 </div>
                 <button
-                  onClick={goToNextWeek}
+                  onClick={viewMode === 'individual' ? goToNextWeek : goToNextAllTrainersDay}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Next Week"
+                  title={viewMode === 'individual' ? "Next Week" : "Next Day"}
                 >
                   <ChevronRight className="h-5 w-5 text-gray-600" />
                 </button>
                 <button
-                  onClick={goToToday}
+                  onClick={viewMode === 'individual' ? goToToday : goToTodayAllTrainers}
                   className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Today
@@ -507,8 +681,16 @@ export default function SchedulingPage() {
                 {/* Trainer Filter */}
                 <select
                   id="trainer-filter"
-                  value={selectedTrainer}
-                  onChange={(e) => setSelectedTrainer(e.target.value)}
+                  value={viewMode === 'all-trainers' ? 'ALL_TRAINERS' : selectedTrainer}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === 'ALL_TRAINERS') {
+                      setViewMode('all-trainers');
+                    } else {
+                      setViewMode('individual');
+                      setSelectedTrainer(value);
+                    }
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-sm"
                 >
                   {trainers.map(trainer => (
@@ -516,6 +698,7 @@ export default function SchedulingPage() {
                       {trainer.firstName} {trainer.lastName}
                     </option>
                   ))}
+                  <option value="ALL_TRAINERS">All Trainers</option>
                 </select>
 
                 <Link
@@ -535,7 +718,7 @@ export default function SchedulingPage() {
               <div className="flex items-center justify-center h-full">
                 <div className="w-12 h-12 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
               </div>
-            ) : (
+            ) : viewMode === 'individual' ? (
               /* Week View (Individual Trainer) */
               <div className="min-w-[900px]">
                 {/* Week Days Header */}
@@ -596,7 +779,7 @@ export default function SchedulingPage() {
                           return (
                             <div
                               key={`${day.toISOString()}-${hour}`}
-                              className="h-[80px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
+                              className="h-[70px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
                               onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
                             >
                               {dayItems.map(item => {
@@ -613,7 +796,7 @@ export default function SchedulingPage() {
                                       }
                                     }}
                                     className={cn(
-                                      'w-full text-left text-xs p-1.5 rounded mb-1 transition-all hover:shadow-md',
+                                      'w-full text-left text-xs p-1.5 rounded mb-1 transition-all hover:shadow-md h-[60px] flex flex-col justify-center',
                                       item.type === 'class' && 'bg-orange-100 border border-orange-300 hover:bg-orange-200',
                                       item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                       item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
@@ -644,6 +827,112 @@ export default function SchedulingPage() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            ) : (
+              /* All Trainers Day View */
+              <div className="overflow-x-auto">
+                <div style={{ minWidth: `${200 + trainers.length * 240}px` }}>
+                  {/* Trainers Header */}
+                  <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                    <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-500 border-r border-gray-200">Time</div>
+                    {trainers.map(trainer => (
+                      <div
+                        key={trainer.id}
+                        className="w-[240px] flex-shrink-0 p-3 text-center border-l border-gray-200"
+                      >
+                        <div className="font-medium text-gray-900">
+                          {trainer.firstName} {trainer.lastName}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {allTrainersSchedule.get(trainer.id)?.length || 0} appointments
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Time Grid */}
+                  <div className="relative">
+                    {/* Current Time Indicator */}
+                    {isMounted && timelinePosition !== null && currentTime && allTrainersDate && isSameDay(currentTime, allTrainersDate) && (
+                      <div
+                        className="absolute left-0 right-0 z-20 pointer-events-none"
+                        style={{ top: `${timelinePosition}px` }}
+                      >
+                        <div className="flex items-center">
+                          <div className="w-[200px] flex-shrink-0 flex justify-end pr-2">
+                            <div className="w-16 h-4 bg-red-500 rounded flex items-center justify-center">
+                              <div className="text-[10px] text-white font-bold">
+                                {format(currentTime, 'h:mm')}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex-1 h-0.5 bg-red-500"></div>
+                        </div>
+                      </div>
+                    )}
+                    {timeSlots.map(hour => {
+                      const hourLabel = hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? '12:00 PM' : `${hour}:00 AM`;
+                      
+                      return (
+                        <div key={hour} className="flex border-b border-gray-200">
+                          <div className="w-[200px] flex-shrink-0 p-3 text-xs text-gray-500 font-medium border-r border-gray-200">
+                            {hourLabel}
+                          </div>
+                          {trainers.map(trainer => {
+                            const trainerItems = (allTrainersSchedule.get(trainer.id) || []).filter(item => 
+                              item.startTime.getHours() === hour
+                            );
+                            
+                            return (
+                              <div
+                                key={`${trainer.id}-${hour}`}
+                                className="w-[240px] flex-shrink-0 h-[70px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
+                                onClick={() => trainerItems.length === 0 && handleEmptySlotClick(allTrainersDate!, hour)}
+                              >
+                                {trainerItems.map(item => {
+                                  const isCompleted = currentTime && item.type === 'lesson' && item.endTime < currentTime;
+                                  return (
+                                    <button
+                                      key={item.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (item.type === 'shift' && item.status === 'open') {
+                                          handleAvailableShiftClick(item);
+                                        } else {
+                                          setSelectedItem(item);
+                                        }
+                                      }}
+                                      className={cn(
+                                        'w-full text-left text-xs p-1.5 rounded mb-1 transition-all hover:shadow-md h-[60px] flex flex-col justify-center',
+                                        item.type === 'class' && 'bg-orange-100 border border-orange-300 hover:bg-orange-200',
+                                        item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
+                                        item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
+                                        item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
+                                        item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
+                                      )}
+                                    >
+                                      <div className="font-semibold truncate">
+                                        {format(item.startTime, 'h:mm a')}
+                                      </div>
+                                      <div className="truncate text-gray-700">
+                                        {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
+                                      </div>
+                                      {item.location && (
+                                        <div className="text-gray-400 text-[10px] truncate">
+                                          {item.location}
+                                        </div>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
