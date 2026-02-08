@@ -818,8 +818,8 @@ export default function SchedulePage() {
                 </div>
               )}
 
-              {/* Cancel Options - Only show for future bookings */}
-              {new Date(selectedBooking.startTime) > new Date() && !showCancelConfirm && !cancellingBooking && (
+              {/* Cancel Options */}
+              {!showCancelConfirm && !cancellingBooking && (
                 <div className="pt-4 border-t space-y-2">
                   <p className="text-sm font-semibold text-gray-700 mb-3">Cancel Session</p>
                   <div className="grid grid-cols-2 gap-3">
