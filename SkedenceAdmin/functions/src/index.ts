@@ -1884,9 +1884,9 @@ export const manualRegisterForClass = functions.https.onCall(
       const adminData = adminDoc.exists ? adminDoc.data() : null;
       const adminName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
       
-      const classDoc = await db.collection("classes").doc(classId).get();
-      const classData = classDoc.exists ? classDoc.data() : null;
-      const className = classData?.title || "Unknown Class";
+      const classForLogging = await db.collection("classes").doc(classId).get();
+      const classDataForLogging = classForLogging.exists ? classForLogging.data() : null;
+      const className = classDataForLogging?.title || "Unknown Class";
       
       const participantName = userId ? "Unknown Client" : `${firstName} ${lastName}`;
       
