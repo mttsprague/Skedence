@@ -792,6 +792,16 @@ export default function SchedulePage() {
                 </div>
               )}
 
+              {/* Lesson Notes - Session-specific */}
+              {selectedBooking.lessonNotes && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-900">Lesson Notes</h3>
+                  <div className="text-sm text-gray-600 bg-green-50 p-3 rounded-lg border border-green-200">
+                    {selectedBooking.lessonNotes}
+                  </div>
+                </div>
+              )}
+
               {/* Cancel Options - Only show for future bookings */}
               {new Date(selectedBooking.startTime) > new Date() && !showCancelConfirm && !cancellingBooking && (
                 <div className="pt-4 border-t space-y-2">

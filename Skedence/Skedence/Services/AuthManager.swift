@@ -128,7 +128,6 @@ final class AuthManager: ObservableObject {
 
             // Debug: Show payload and auth state at write time
             let payload = data.compactMapValues { $0 }
-            let currentUID = Auth.auth().currentUser?.uid ?? "<nil>"
             
             // Build athletes array from provided data
             var athletesArray: [[String: Any]] = []

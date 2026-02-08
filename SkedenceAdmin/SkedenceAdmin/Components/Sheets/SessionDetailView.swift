@@ -23,6 +23,8 @@ struct SessionDetailView: View {
     @State private var showClientCard = false
     @State private var showCancelSuccess = false
     @State private var cancelSuccessMessage = "" // Store the success message
+    @State private var userProfile: UserProfile?
+    @State private var isLoadingProfile = false
     
     var body: some View {
         NavigationView {
@@ -40,6 +42,11 @@ struct SessionDetailView: View {
                     
                     // Athlete information
                     athleteInformationCard
+                    
+                    // Client profile information
+                    if let profile = userProfile {
+                        clientProfileCard(profile: profile)
+                    }
                     
                     // Lesson notes
                     if let notes = booking.lessonNotes, !notes.isEmpty {
@@ -71,6 +78,9 @@ struct SessionDetailView: View {
             }
             .sheet(isPresented: $showClientCard) {
                 ClientCardView(client: client, selectedBooking: nil)
+            }
+            .task {
+                await loadUserProfile()
             }
             .confirmationDialog("Cancel Session", isPresented: $showCancelOptions, titleVisibility: .visible) {
                 Button("Early Cancel (Refund Pass)", role: .destructive) {
@@ -406,6 +416,107 @@ struct SessionDetailView: View {
         }
     }
     
+    // MARK: - Client Profile Card
+    private func clientProfileCard(profile: UserProfile) -> some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Client Information")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    // Emergency Contact
+                    if !profile.emergencyContactName.isEmpty || !profile.emergencyContactNumber.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.secondary)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Emergency Contact")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                if !profile.emergencyContactName.isEmpty {
+                                    Text(profile.emergencyContactName)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                                if !profile.emergencyContactNumber.isEmpty {
+                                    Text(profile.emergencyContactNumber)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Phone Number
+                    if !profile.phoneNumber.isEmpty {
+                        Divider()
+                            .padding(.vertical, 4)
+                        HStack(spacing: 8) {
+                            Image(systemName: "phone.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.secondary)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Phone Number")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(profile.phoneNumber)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                        }
+                    }
+                    
+                    // Referral Source
+                    if let referredBy = profile.referredBy, !referredBy.isEmpty {
+                        Divider()
+                            .padding(.vertical, 4)
+                        HStack(spacing: 8) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.secondary)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Referred By")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(referredBy)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                        }
+                    }
+                    
+                    // Notes for Coach
+                    if let notes = profile.notesForCoach, !notes.isEmpty {
+                        Divider()
+                            .padding(.vertical, 4)
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "note.text")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.secondary)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Notes for Coach")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(notes)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+        }
+    }
+    
     // MARK: - Lesson Notes Card
     private func lessonNotesCard(notes: String) -> some View {
         CardView {
@@ -561,6 +672,46 @@ struct WaiverStatusView: View {
         }
         .task {
             await checkWaiverStatus()
+        }
+    }
+    
+    private func loadUserProfile() async {
+        guard !booking.clientUID.isEmpty else { return }
+        isLoadingProfile = true
+        defer { isLoadingProfile = false }
+        
+        do {
+            let db = Firestore.firestore()
+            let userDoc = try await db.collection("users")
+                .document(booking.clientUID)
+                .getDocument()
+            
+            guard let data = userDoc.data() else { return }
+            
+            // Parse athletes array
+            var athletesArray: [AthleteInfo] = []
+            if let athletesData = data["athletes"] as? [[String: Any]] {
+                for athleteData in athletesData {
+                    if let athlete = try? AthleteInfo(from: athleteData) {
+                        athletesArray.append(athlete)
+                    }
+                }
+            }
+            
+            userProfile = UserProfile(
+                id: userDoc.documentID,
+                emailAddress: data["emailAddress"] as? String ?? "",
+                firstName: data["firstName"] as? String ?? "",
+                lastName: data["lastName"] as? String ?? "",
+                phoneNumber: data["phoneNumber"] as? String ?? "",
+                emergencyContactName: data["emergencyContactName"] as? String ?? "",
+                emergencyContactNumber: data["emergencyContactNumber"] as? String ?? "",
+                referredBy: data["referredBy"] as? String,
+                notesForCoach: data["notesForCoach"] as? String,
+                athletes: athletesArray
+            )
+        } catch {
+            print("Error loading user profile: \(error.localizedDescription)")
         }
     }
     

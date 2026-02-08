@@ -7,12 +7,15 @@
 
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct SessionDetailSheet: View {
     let booking: Booking
     @ObservedObject var trainersService: TrainersService
     
     @Environment(\.dismiss) private var dismiss
+    @State private var userProfile: UserProfile?
+    @State private var isLoadingProfile = false
     
     var body: some View {
         ScrollView {
@@ -44,6 +47,11 @@ struct SessionDetailSheet: View {
                 // Athlete information
                 athleteInformationCard
                 
+                // Client profile information
+                if let profile = userProfile {
+                    profileInformationCard(profile: profile)
+                }
+                
                 // Lesson notes
                 if let notes = booking.lessonNotes, !notes.isEmpty {
                     lessonNotesCard(notes: notes)
@@ -52,6 +60,9 @@ struct SessionDetailSheet: View {
             .padding(.vertical, 8)
         }
         .background(Color(UIColor.systemGroupedBackground))
+        .task {
+            await loadUserProfile()
+        }
     }
     
     // MARK: - Session Details Card
@@ -150,6 +161,86 @@ struct SessionDetailSheet: View {
         }
     }
     
+    // MARK: - Profile Information Card
+    private func profileInformationCard(profile: UserProfile) -> some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Your Information")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    // Emergency Contact
+                    if let emergencyName = profile.emergencyContactName, !emergencyName.isEmpty,
+                       let emergencyNumber = profile.emergencyContactNumber, !emergencyNumber.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.primary)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Emergency Contact")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(emergencyName)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                Text(emergencyNumber)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                        }
+                    }
+                    
+                    // Phone Number
+                    if let phone = profile.phoneNumber, !phone.isEmpty {
+                        if profile.emergencyContactName != nil {
+                            Divider()
+                                .padding(.vertical, 4)
+                        }
+                        HStack(spacing: 8) {
+                            Image(systemName: "phone.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.primary)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Phone Number")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(phone)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                        }
+                    }
+                    
+                    // Notes for Coach
+                    if let notes = profile.notesForCoach, !notes.isEmpty {
+                        Divider()
+                            .padding(.vertical, 4)
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "note.text")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.primary)
+                                .frame(width: 20)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Notes for Coach")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(notes)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+        }
+    }
+    
     // MARK: - Lesson Notes Card
     private func lessonNotesCard(notes: String) -> some View {
         CardView {
@@ -170,6 +261,47 @@ struct SessionDetailSheet: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
+        }
+    }
+    
+    // MARK: - Load User Profile
+    private func loadUserProfile() async {
+        guard let currentUser = Auth.auth().currentUser else { return }
+        isLoadingProfile = true
+        defer { isLoadingProfile = false }
+        
+        do {
+            let db = Firestore.firestore()
+            let userDoc = try await db.collection("users")
+                .document(currentUser.uid)
+                .getDocument()
+            
+            guard let data = userDoc.data() else { return }
+            
+            // Parse athletes array
+            var athletesArray: [AthleteInfo] = []
+            if let athletesData = data["athletes"] as? [[String: Any]] {
+                for athleteData in athletesData {
+                    if let athlete = try? AthleteInfo(from: athleteData) {
+                        athletesArray.append(athlete)
+                    }
+                }
+            }
+            
+            userProfile = UserProfile(
+                id: userDoc.documentID,
+                emailAddress: data["emailAddress"] as? String,
+                firstName: data["firstName"] as? String,
+                lastName: data["lastName"] as? String,
+                phoneNumber: data["phoneNumber"] as? String,
+                emergencyContactName: data["emergencyContactName"] as? String,
+                emergencyContactNumber: data["emergencyContactNumber"] as? String,
+                referredBy: data["referredBy"] as? String,
+                notesForCoach: data["notesForCoach"] as? String,
+                athletes: athletesArray
+            )
+        } catch {
+            print("Error loading user profile: \(error.localizedDescription)")
         }
     }
     
