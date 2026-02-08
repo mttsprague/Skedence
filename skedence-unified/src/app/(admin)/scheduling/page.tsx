@@ -595,7 +595,7 @@ export default function SchedulingPage() {
                           return (
                             <div
                               key={`${day.toISOString()}-${hour}`}
-                              className="min-h-[60px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer"
+                              className="h-[60px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
                               onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
                             >
                               {dayItems.map(item => {
