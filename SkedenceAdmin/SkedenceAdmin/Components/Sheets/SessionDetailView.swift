@@ -620,6 +620,58 @@ struct SessionDetailView: View {
             }
         }
     }
+    
+    // MARK: - Load User Profile
+    private func loadUserProfile() async {
+        guard !booking.clientUID.isEmpty else { return }
+        isLoadingProfile = true
+        defer { isLoadingProfile = false }
+        
+        do {
+            let db = Firestore.firestore()
+            
+            // Load org settings to get required fields
+            if let orgId = auth.currentUser?.orgId {
+                let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
+                if let orgData = orgDoc.data(),
+                   let fields = orgData["intakeFormFieldsPrivate"] as? [[String: Any]] {
+                    requiredFields = Set(fields.filter { ($0["required"] as? Bool) == true }
+                        .compactMap { $0["id"] as? String })
+                }
+            }
+            
+            let userDoc = try await db.collection("users")
+                .document(booking.clientUID)
+                .getDocument()
+            
+            guard let data = userDoc.data() else { return }
+            
+            // Parse athletes array
+            var athletesArray: [AthleteInfo] = []
+            if let athletesData = data["athletes"] as? [[String: Any]] {
+                for athleteData in athletesData {
+                    if let athlete = try? AthleteInfo(from: athleteData) {
+                        athletesArray.append(athlete)
+                    }
+                }
+            }
+            
+            userProfile = UserProfile(
+                id: userDoc.documentID,
+                emailAddress: data["emailAddress"] as? String ?? "",
+                firstName: data["firstName"] as? String ?? "",
+                lastName: data["lastName"] as? String ?? "",
+                phoneNumber: data["phoneNumber"] as? String ?? "",
+                emergencyContactName: data["emergencyContactName"] as? String ?? "",
+                emergencyContactNumber: data["emergencyContactNumber"] as? String ?? "",
+                referredBy: data["referredBy"] as? String,
+                notesForCoach: data["notesForCoach"] as? String,
+                athletes: athletesArray
+            )
+        } catch {
+            print("Error loading user profile: \(error.localizedDescription)")
+        }
+    }
 }
 
 // MARK: - Destructive Button Style
@@ -673,57 +725,6 @@ struct WaiverStatusView: View {
         }
         .task {
             await checkWaiverStatus()
-        }
-    }
-    
-    private func loadUserProfile() async {
-        guard !booking.clientUID.isEmpty else { return }
-        isLoadingProfile = true
-        defer { isLoadingProfile = false }
-        
-        do {
-            let db = Firestore.firestore()
-            
-            // Load org settings to get required fields
-            if let orgId = auth.currentUser?.orgId {
-                let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
-                if let orgData = orgDoc.data(),
-                   let fields = orgData["intakeFormFieldsPrivate"] as? [[String: Any]] {
-                    requiredFields = Set(fields.filter { ($0["required"] as? Bool) == true }
-                        .compactMap { $0["id"] as? String })
-                }
-            }
-            
-            let userDoc = try await db.collection("users")
-                .document(booking.clientUID)
-                .getDocument()
-            
-            guard let data = userDoc.data() else { return }
-            
-            // Parse athletes array
-            var athletesArray: [AthleteInfo] = []
-            if let athletesData = data["athletes"] as? [[String: Any]] {
-                for athleteData in athletesData {
-                    if let athlete = try? AthleteInfo(from: athleteData) {
-                        athletesArray.append(athlete)
-                    }
-                }
-            }
-            
-            userProfile = UserProfile(
-                id: userDoc.documentID,
-                emailAddress: data["emailAddress"] as? String ?? "",
-                firstName: data["firstName"] as? String ?? "",
-                lastName: data["lastName"] as? String ?? "",
-                phoneNumber: data["phoneNumber"] as? String ?? "",
-                emergencyContactName: data["emergencyContactName"] as? String ?? "",
-                emergencyContactNumber: data["emergencyContactNumber"] as? String ?? "",
-                referredBy: data["referredBy"] as? String,
-                notesForCoach: data["notesForCoach"] as? String,
-                athletes: athletesArray
-            )
-        } catch {
-            print("Error loading user profile: \(error.localizedDescription)")
         }
     }
     
