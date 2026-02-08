@@ -63,7 +63,8 @@ export default function SchedulingPage() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null); // Start as null to avoid hydration mismatch
+  const [isMounted, setIsMounted] = useState(false);
   
   // Modal states
   const [showBookLessonModal, setShowBookLessonModal] = useState(false);
@@ -74,14 +75,22 @@ export default function SchedulingPage() {
   const [modalTrainerId, setModalTrainerId] = useState<string>('');
   const [modalTrainerName, setModalTrainerName] = useState<string>('');
 
+  // Set mounted state and initialize current time on client
+  useEffect(() => {
+    setIsMounted(true);
+    setCurrentTime(new Date());
+  }, []);
+
   // Update current time every minute for timeline
   useEffect(() => {
+    if (!isMounted) return;
+    
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000); // Update every minute
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isMounted]);
 
   // Set initial trainer to current user or first trainer
   useEffect(() => {
@@ -419,6 +428,8 @@ export default function SchedulingPage() {
 
   // Calculate timeline position (percentage from top of schedule)
   const calculateTimelinePosition = () => {
+    if (!currentTime) return null; // Don't calculate until client-side mount
+    
     const hours = currentTime.getHours();
     const minutes = currentTime.getMinutes();
     

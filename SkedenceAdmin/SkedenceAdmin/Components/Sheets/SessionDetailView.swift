@@ -49,7 +49,7 @@ struct SessionDetailView: View {
                         clientProfileCard(profile: profile)
                     }
                     
-                    // Lesson notes
+                    // Session-specific notes (filled out during booking)
                     if let notes = booking.lessonNotes, !notes.isEmpty {
                         lessonNotesCard(notes: notes)
                     }
@@ -490,27 +490,6 @@ struct SessionDetailView: View {
                             }
                         }
                     }
-                    
-                    // Session Notes (only if required and available)
-                    if requiredFields.contains("coachNotes"), let notes = booking.lessonNotes, !notes.isEmpty {
-                        Divider()
-                            .padding(.vertical, 4)
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "note.text")
-                                .font(.system(size: 14))
-                                .foregroundStyle(AppTheme.secondary)
-                                .frame(width: 20)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Session Notes")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                Text(notes)
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -606,6 +585,12 @@ struct SessionDetailView: View {
             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
             dismiss()
         } catch let error as NSError {
+            // Detailed error logging
+            print("❌ Cancel error domain: \(error.domain)")
+            print("❌ Cancel error code: \(error.code)")
+            print("❌ Cancel error userInfo: \(error.userInfo)")
+            print("❌ Cancel error localizedDescription: \(error.localizedDescription)")
+            
             // Check if it's a Functions error
             if error.domain == "com.firebase.functions" {
                 if let message = error.userInfo["message"] as? String {
@@ -616,7 +601,7 @@ struct SessionDetailView: View {
                     cancelError = "Cloud Function error: \(error.localizedDescription)"
                 }
             } else {
-                cancelError = error.localizedDescription
+                cancelError = "Error: \(error.localizedDescription)\nCode: \(error.code)\nDomain: \(error.domain)"
             }
         }
     }

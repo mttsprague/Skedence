@@ -808,21 +808,11 @@ export default function SchedulePage() {
                 </div>
               )}
               
-              {/* Notes for Coach */}
-              {requiredFields.has('coachNotes') && selectedBooking.notesForCoach && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">Notes for Coach</h3>
-                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                    {selectedBooking.notesForCoach}
-                  </div>
-                </div>
-              )}
-
-              {/* Lesson Notes - Session-specific */}
+              {/* Session Notes - Show whenever present */}
               {selectedBooking.lessonNotes && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">Lesson Notes</h3>
-                  <div className="text-sm text-gray-600 bg-green-50 p-3 rounded-lg border border-green-200">
+                  <h3 className="font-semibold text-gray-900">Session Notes</h3>
+                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                     {selectedBooking.lessonNotes}
                   </div>
                 </div>

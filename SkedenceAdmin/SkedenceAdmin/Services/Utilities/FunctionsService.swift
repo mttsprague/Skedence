@@ -303,14 +303,33 @@ final class FunctionsService {
             "refundPass": refundPass
         ]
         
+        print("📤 Calling adminCancelLesson with payload: \(payload)")
         
         do {
-            let _ = try await functions.httpsCallable("adminCancelLesson").call(payload)
+            let result = try await functions.httpsCallable("adminCancelLesson").call(payload)
+            print("✅ adminCancelLesson success: \(result.data)")
         } catch let error as NSError {
+            print("❌ adminCancelLesson error caught:")
+            print("   Domain: \(error.domain)")
+            print("   Code: \(error.code)")
+            print("   LocalizedDescription: \(error.localizedDescription)")
+            print("   UserInfo: \(error.userInfo)")
             
             if error.domain == FunctionsErrorDomain {
                 let code = error.code
-                let message = error.localizedDescription
+                // Try to extract the actual error message from various possible locations
+                var message = error.localizedDescription
+                
+                if let details = error.userInfo["details"] as? String {
+                    message = details
+                } else if let nsError = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    message = nsError.localizedDescription
+                } else if let errorInfo = error.userInfo["error"] as? [String: Any],
+                          let errorMessage = errorInfo["message"] as? String {
+                    message = errorMessage
+                }
+                
+                print("   Throwing server error with message: \(message)")
                 throw FunctionsServiceError.server(code: code, message: message)
             }
             throw error

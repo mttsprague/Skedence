@@ -89,6 +89,7 @@ interface BookLessonData {
   athleteName?: string;
   secondAthleteName?: string;
   athleteNames?: string[]; // All athlete names for multi-athlete bookings
+  lessonNotes?: string; // Session-specific notes from client
 }
 
 /**
@@ -133,7 +134,7 @@ export const bookLesson = functions.https.onCall(
     }
     const userId = request.auth.uid;
 
-    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, athleteNames} = request.data;
+    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, athleteNames, lessonNotes} = request.data;
     if (!trainerId || !slotId || !lessonPackageId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
@@ -412,6 +413,7 @@ export const bookLesson = functions.https.onCall(
           athleteName: athleteName || null, // Legacy support
           secondAthleteName: secondAthleteName || null, // Legacy support
           athleteNames: athleteNames || null, // New array format
+          lessonNotes: lessonNotes || null, // Session-specific notes
         });
 
         // Log activity for the booking
@@ -995,6 +997,30 @@ export const adminCancelLesson = functions.https.onCall(
 
       functions.logger.info(`Cancelling booking ${bookingId} for client ${clientId}. RefundPass: ${refundPass}`);
 
+      // Fetch activity logging data before transaction
+      let adminFullName = "Admin";
+      let clientFullName = "Unknown Client";
+      let trainerFullName = "Unknown Trainer";
+      
+      try {
+        const [adminDoc, clientDoc] = await Promise.all([
+          db.collection("trainers").doc(adminUid).get(),
+          db.collection("users").doc(clientId).get()
+        ]);
+        
+        if (adminDoc.exists) {
+          const adminData = adminDoc.data();
+          adminFullName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
+        }
+        
+        if (clientDoc.exists) {
+          const clientData = clientDoc.data();
+          clientFullName = clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
+        }
+      } catch (fetchError) {
+        functions.logger.warn("Error fetching user data for activity log:", fetchError);
+      }
+
       await db.runTransaction(async (transaction) => {
         const bookingDoc = await transaction.get(bookingRef);
 
@@ -1007,28 +1033,67 @@ export const adminCancelLesson = functions.https.onCall(
           throw new Error("Booking data missing during transaction");
         }
 
+        // Fetch trainer data for activity logging BEFORE any writes
+        if (bookingData.trainerId) {
+          const trainerRef = db.collection("trainers").doc(bookingData.trainerId);
+          const trainerDoc = await transaction.get(trainerRef);
+          if (trainerDoc.exists) {
+            const trainerData = trainerDoc.data();
+            trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
+          }
+        }
+
+        // Read package and slot docs BEFORE any writes
+        let packageDoc;
+        let slotDoc;
+        
+        if (refundPass && bookingData.packageId) {
+          const packageRef = db
+            .collection("users")
+            .doc(clientId)
+            .collection("lessonPackages")
+            .doc(bookingData.packageId);
+          packageDoc = await transaction.get(packageRef);
+        }
+        
+        if (bookingData.trainerId && bookingData.slotId) {
+          const trainerSlotRef = db
+            .collection("trainers")
+            .doc(bookingData.trainerId)
+            .collection("schedules")
+            .doc(bookingData.slotId);
+          slotDoc = await transaction.get(trainerSlotRef);
+        }
+
+        // Now perform all writes
         // Get the lesson package and conditionally decrement lessonsUsed based on refundPass
         // If refundPass is true (early cancel), refund the pass. If false (late cancel), don't refund.
-        if (refundPass && bookingData.packageId) {
-          functions.logger.info(`Refunding pass ${bookingData.packageId} for client ${clientId}`);
+        if (refundPass && bookingData.packageId && packageDoc) {
+          functions.logger.info(`Attempting to refund pass ${bookingData.packageId} for client ${clientId}`);
           const packageRef = db
             .collection("users")
             .doc(clientId)
             .collection("lessonPackages")
             .doc(bookingData.packageId);
 
-          const packageDoc = await transaction.get(packageRef);
           if (packageDoc.exists) {
+            const packageData = packageDoc.data();
+            functions.logger.info(`Package found. Current lessonsUsed: ${packageData?.lessonsUsed}, totalLessons: ${packageData?.totalLessons}, expired: ${packageData?.expirationDate ? packageData.expirationDate.toDate() < new Date() : 'N/A'}`);
+            
+            // Refund the pass regardless of package status (expired, etc)
             transaction.update(packageRef, {
               lessonsUsed: admin.firestore.FieldValue.increment(-1),
             });
+            functions.logger.info(`Pass refunded successfully`);
           } else {
-            functions.logger.warn(`Package ${bookingData.packageId} not found for refund`);
+            functions.logger.warn(`Package ${bookingData.packageId} not found - will still cancel booking but pass cannot be refunded`);
           }
+        } else if (refundPass && bookingData.packageId && !packageDoc) {
+          functions.logger.warn(`Package document was not read - this should not happen`);
         }
 
         // Update trainer's schedule slot back to open
-        if (bookingData.trainerId && bookingData.slotId) {
+        if (bookingData.trainerId && bookingData.slotId && slotDoc) {
           functions.logger.info(`Opening slot ${bookingData.slotId} for trainer ${bookingData.trainerId}`);
           const trainerSlotRef = db
             .collection("trainers")
@@ -1036,7 +1101,6 @@ export const adminCancelLesson = functions.https.onCall(
             .collection("schedules")
             .doc(bookingData.slotId);
 
-          const slotDoc = await transaction.get(trainerSlotRef);
           if (slotDoc.exists) {
             transaction.update(trainerSlotRef, {
               status: "open",
@@ -1054,24 +1118,8 @@ export const adminCancelLesson = functions.https.onCall(
         transaction.delete(bookingRef);
 
         // Log activity
-        try {
-          const adminRef = db.collection("trainers").doc(adminUid);
-          const adminDoc = await transaction.get(adminRef);
-          const adminData = adminDoc.exists ? adminDoc.data() : null;
-          const adminFullName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
-          
-          const clientRef = db.collection("users").doc(clientId);
-          const clientDoc = await transaction.get(clientRef);
-          const clientData = clientDoc.exists ? clientDoc.data() : null;
-          const clientFullName = clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
-          
-          const trainerRef = db.collection("trainers").doc(bookingData.trainerId);
-          const trainerDoc = await transaction.get(trainerRef);
-          const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
-          const trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
-
-          const activityRef = db.collection("activities").doc();
-          transaction.set(activityRef, {
+        const activityRef = db.collection("activities").doc();
+        transaction.set(activityRef, {
             type: "lesson_cancelled",
             actorId: adminUid,
             actorName: adminFullName,
@@ -1097,10 +1145,6 @@ export const adminCancelLesson = functions.https.onCall(
             orgId: orgId,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
           });
-        } catch (activityError) {
-          functions.logger.error("Error logging activity (non-fatal):", activityError);
-          // Don't fail the transaction if activity logging fails
-        }
       });
 
       functions.logger.info(
