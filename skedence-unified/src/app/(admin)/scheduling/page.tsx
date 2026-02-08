@@ -613,8 +613,8 @@ export default function SchedulingPage() {
                                       }
                                     }}
                                     className={cn(
-                                      'w-full text-left text-xs p-2 rounded mb-1 transition-all hover:shadow-md',
-                                      item.type === 'class' && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
+                                      'w-full text-left text-xs p-1.5 rounded mb-1 transition-all hover:shadow-md',
+                                      item.type === 'class' && 'bg-orange-100 border border-orange-300 hover:bg-orange-200',
                                       item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                       item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
                                       item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
