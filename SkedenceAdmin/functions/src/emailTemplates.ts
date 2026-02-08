@@ -99,7 +99,7 @@ const DEFAULT_TEMPLATES: Record<string, EmailTemplate> = {
 <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
   <h3>Purchase Details</h3>
   <p><strong>Package:</strong> {{packageName}}</p>
-  <p><strong>Amount:</strong> ${{amount}}</p>
+  <p><strong>Amount:</strong> ${'{'}{{amount}}{'}'}</p>
   <p><strong>Date:</strong> {{date}}</p>
   <p><strong>Sessions Remaining:</strong> {{sessionsRemaining}}</p>
 </div>

@@ -2,6 +2,7 @@
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import {isEmailEnabled} from "./emailSettings";
+import {generateEmail} from "./emailTemplates";
 
 /**
  * Send confirmation email when a client purchases a lesson package
@@ -100,186 +101,32 @@ export const sendPurchaseConfirmation = onDocumentCreated(
         packageName = packageTypeNames[packageData.packageType] || packageData.packageType;
       }
 
+      // Format purchase date
+      const purchaseDate = packageData.purchaseDate?.toDate() || new Date();
+      const formattedDate = purchaseDate.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+
+      // Generate email from template
+      const emailContent = await generateEmail(orgId, "packageReceipt", {
+        clientName,
+        packageName,
+        amount: amount.toFixed(2),
+        date: formattedDate,
+        sessionsRemaining: packageData.totalLessons || 0,
+        orgName,
+      });
+
       await admin.firestore().collection("mail").add({
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
         message: {
-          subject: `✅ Purchase Confirmed - ${packageName}`,
-          text: `Thank You for Your Purchase!
-
-Hi ${clientName},
-
-Thank you for your purchase! ${amount > 0 ? `$${amount.toFixed(2)} has been charged to your card` : "Your payment has been processed"} for the purchase of ${packageName}.
-
-PURCHASE DETAILS
-Package: ${packageName}
-${amount > 0 ? `Amount Charged: $${amount.toFixed(2)}` : ""}
-Lessons: ${packageData.totalLessons || 0}
-Purchase Date: ${packageData.purchaseDate?.toDate().toLocaleDateString("en-US", {year: "numeric", month: "long", day: "numeric"}) || "Today"}
-
-This purchase was made through ${orgName}.
-
-You can now use your lessons to book sessions with trainers or register for classes.
-
-Best,
-The ${orgName} Team`,
-          html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #f4f7fa;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    .email-container {
-      max-width: 600px;
-      margin: 40px auto;
-      background: #ffffff;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-    }
-    .header {
-      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
-      padding: 40px 32px;
-      text-align: center;
-    }
-    .header h1 {
-      margin: 0;
-      font-size: 32px;
-      font-weight: 700;
-      color: #ffffff;
-    }
-    .content {
-      padding: 40px 32px;
-      color: #1a1a1a;
-      line-height: 1.7;
-    }
-    .details-box {
-      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
-      border: 2px solid #33B2AE;
-      border-radius: 12px;
-      padding: 28px;
-      margin: 28px 0;
-    }
-    .details-box h3 {
-      margin: 0 0 20px 0;
-      color: #33B2AE;
-      font-size: 20px;
-      font-weight: 700;
-    }
-    .detail-row {
-      display: flex;
-      align-items: center;
-      margin: 12px 0;
-      font-size: 16px;
-    }
-    .detail-icon {
-      width: 36px;
-      height: 36px;
-      background: #33B2AE;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 12px;
-      font-size: 18px;
-    }
-    .detail-text {
-      flex: 1;
-    }
-    .detail-text strong {
-      display: block;
-      color: #666;
-      font-size: 13px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .org-badge {
-      background: linear-gradient(135deg, #3258A3 0%, #2A4A8C 100%);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      display: inline-block;
-      font-weight: 600;
-      margin: 20px 0;
-      font-size: 18px;
-    }
-    .footer {
-      padding: 24px 32px;
-      background: #f8f9fa;
-      text-align: center;
-      font-size: 14px;
-      color: #666;
-    }
-  </style>
-</head>
-<body>
-  <div class="email-container">
-    <div class="header">
-      <h1>✅ Purchase Confirmed!</h1>
-    </div>
-    <div class="content">
-      <p style="font-size: 18px; margin-bottom: 8px;">Hi ${clientName},</p>
-      <p>Thank you for your purchase! ${amount > 0 ? `<strong>$${amount.toFixed(2)}</strong> has been charged to your card` : "Your payment has been processed"} for the purchase of <strong>${packageName}</strong>.</p>
-      
-      <div class="details-box">
-        <h3>Purchase Details</h3>
-        <div class="detail-row">
-          <div class="detail-icon">📦</div>
-          <div class="detail-text">
-            <strong>Package</strong>
-            ${packageName}
-          </div>
-        </div>
-        ${amount > 0 ? `
-        <div class="detail-row">
-          <div class="detail-icon">💳</div>
-          <div class="detail-text">
-            <strong>Amount Charged</strong>
-            $${amount.toFixed(2)}
-          </div>
-        </div>
-        ` : ""}
-        <div class="detail-row">
-          <div class="detail-icon">🎟️</div>
-          <div class="detail-text">
-            <strong>Lessons Included</strong>
-            ${packageData.totalLessons || 0}
-          </div>
-        </div>
-        <div class="detail-row">
-          <div class="detail-icon">📅</div>
-          <div class="detail-text">
-            <strong>Purchase Date</strong>
-            ${packageData.purchaseDate?.toDate().toLocaleDateString("en-US", {year: "numeric", month: "long", day: "numeric"}) || "Today"}
-          </div>
-        </div>
-      </div>
-      
-      <p style="text-align: center; margin: 32px 0;">
-        <span class="org-badge">Powered by ${orgName}</span>
-      </p>
-      
-      <p>You can now use your lessons to book sessions with trainers or register for classes.</p>
-      
-      <p style="margin-top: 32px;">Best,<br>The ${orgName} Team</p>
-    </div>
-    <div class="footer">
-      <p>This purchase was made through ${orgName}</p>
-    </div>
-  </div>
-</body>
-</html>
-        `,
+          subject: emailContent.subject,
+          html: emailContent.body,
         },
       });
 
@@ -327,232 +174,55 @@ export const sendBookingConfirmation = onDocumentCreated(
       const clientEmail = client.emailAddress || client.email;
       const clientName = booking.clientName || `${client.firstName || ""} ${client.lastName || ""}`.trim() || "there";
       const trainerName = booking.trainerName || `${trainer?.firstName || ""} ${trainer?.lastName || ""}`.trim() || "Your Trainer";
+      const trainerEmail = trainer?.email || trainer?.emailAddress || "";
       const orgName = org?.name || "Skedence";
       const location = booking.location || "Location TBD";
+      const athleteName = booking.athleteName || "";
 
       // Get timezone from org settings, default to America/New_York
       const orgTimezone = org?.settings?.timezone || "America/New_York";
 
       const startTime = booking.startTime.toDate();
-      const endTime = booking.endTime.toDate();
+      const endTime = booking.endTime?.toDate() || new Date(startTime.getTime() + 60 * 60 * 1000); // Default 1 hour
 
-      // Format options with organization's timezone
-      const dateOptions: Intl.DateTimeFormatOptions = {
+      // Calculate duration in minutes
+      const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+
+      // Format date and time with organization's timezone
+      const dateFormatted = startTime.toLocaleDateString("en-US", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
         timeZone: orgTimezone,
-      };
-      const timeOptions: Intl.DateTimeFormatOptions = {
+      });
+      const timeFormatted = startTime.toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
         timeZone: orgTimezone,
-      };
-      const shortDateOptions: Intl.DateTimeFormatOptions = {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        timeZone: orgTimezone,
-      };
+      });
+
+      // Generate email from template
+      const emailContent = await generateEmail(booking.orgId, "bookingConfirmation", {
+        clientName,
+        trainerName,
+        athleteName,
+        date: dateFormatted,
+        time: timeFormatted,
+        duration: durationMinutes,
+        packageName: booking.packageName || booking.lessonPackage || "",
+        location,
+        trainerEmail,
+        orgName,
+      });
 
       await admin.firestore().collection("mail").add({
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
         replyTo: "matt.sprague@skedence.com",
         message: {
-          subject: `✅ Lesson Confirmed with ${trainerName}`,
-          text: `Your Lesson is Confirmed!
-
-Hi ${clientName},
-
-You've successfully booked a session at ${startTime.toLocaleTimeString("en-US", timeOptions)} on ${startTime.toLocaleDateString("en-US", shortDateOptions)} with ${trainerName} through ${orgName}.
-
-SESSION DETAILS
-Trainer: ${trainerName}
-Date: ${startTime.toLocaleDateString("en-US", dateOptions)}
-Time: ${startTime.toLocaleTimeString("en-US", timeOptions)} - ${endTime.toLocaleTimeString("en-US", timeOptions)}
-Location: ${location}
-
-Need to reschedule or cancel? Please contact us at least 24 hours in advance.
-
-See you soon!
-The ${orgName} Team`,
-          html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #f4f7fa;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-    .email-container {
-      max-width: 600px;
-      margin: 40px auto;
-      background: #ffffff;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-    }
-    .header {
-      background: linear-gradient(135deg, #33B2AE 0%, #2A9D99 100%);
-      padding: 40px 32px;
-      text-align: center;
-    }
-    .header h1 {
-      margin: 0;
-      font-size: 32px;
-      font-weight: 700;
-      color: #ffffff;
-    }
-    .content {
-      padding: 40px 32px;
-      color: #1a1a1a;
-      line-height: 1.7;
-    }
-    .details-box {
-      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
-      border: 2px solid #33B2AE;
-      border-radius: 12px;
-      padding: 28px;
-      margin: 28px 0;
-    }
-    .details-box h3 {
-      margin: 0 0 20px 0;
-      color: #33B2AE;
-      font-size: 20px;
-      font-weight: 700;
-    }
-    .detail-row {
-      display: flex;
-      align-items: center;
-      margin: 12px 0;
-      font-size: 16px;
-    }
-    .detail-icon {
-      width: 36px;
-      height: 36px;
-      background: #33B2AE;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 12px;
-      font-size: 18px;
-    }
-    .detail-text {
-      flex: 1;
-    }
-    .detail-text strong {
-      display: block;
-      color: #666;
-      font-size: 13px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .info-box {
-      background: #FFF8E1;
-      border: 2px solid #FFD54F;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 24px 0;
-      font-size: 15px;
-      color: #5D4037;
-    }
-    .org-badge {
-      background: linear-gradient(135deg, #3258A3 0%, #2A4A8C 100%);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      display: inline-block;
-      font-weight: 600;
-      margin: 20px 0;
-      font-size: 18px;
-    }
-    .footer {
-      background: linear-gradient(135deg, #F8FFFE 0%, #F1F9F9 100%);
-      padding: 28px 32px;
-      text-align: center;
-      color: #666;
-      font-size: 14px;
-    }
-  </style>
-</head>
-<body>
-  <div class="email-container">
-    <div class="header">
-      <h1>✅ Lesson Confirmed!</h1>
-    </div>
-    
-    <div class="content">
-      <p style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Hi ${clientName},</p>
-      <p style="font-size: 16px; margin-bottom: 28px;">You've successfully booked a session at <strong>${startTime.toLocaleTimeString("en-US", timeOptions)}</strong> on <strong>${startTime.toLocaleDateString("en-US", shortDateOptions)}</strong> with <strong>${trainerName}</strong> through <strong>${orgName}</strong>.</p>
-      
-      <div class="details-box">
-        <h3>📋 Session Details</h3>
-        
-        <div class="detail-row">
-          <div class="detail-icon">👤</div>
-          <div class="detail-text">
-            <strong>Trainer</strong>
-            ${trainerName}
-          </div>
-        </div>
-        
-        <div class="detail-row">
-          <div class="detail-icon">📅</div>
-          <div class="detail-text">
-            <strong>Date</strong>
-            ${startTime.toLocaleDateString("en-US", dateOptions)}
-          </div>
-        </div>
-        
-        <div class="detail-row">
-          <div class="detail-icon">🕐</div>
-          <div class="detail-text">
-            <strong>Time</strong>
-            ${startTime.toLocaleTimeString("en-US", timeOptions)} - ${endTime.toLocaleTimeString("en-US", timeOptions)}
-          </div>
-        </div>
-        
-        <div class="detail-row">
-          <div class="detail-icon">📍</div>
-          <div class="detail-text">
-            <strong>Location</strong>
-            ${location}
-          </div>
-        </div>
-      </div>
-      
-      <div class="info-box">
-        <strong>⏰ Cancellation Policy</strong><br>
-        Need to reschedule or cancel? Please contact us at least 24 hours in advance.
-      </div>
-      
-      <p style="text-align: center; margin: 32px 0;">
-        <span class="org-badge">Powered by ${orgName}</span>
-      </p>
-      
-      <p style="margin-top: 32px; font-size: 16px;">
-        See you soon! 👋<br>
-        <strong>The ${orgName} Team</strong>
-      </p>
-    </div>
-    
-    <div class="footer">
-      <p>Booking made through ${orgName}</p>
-    </div>
-  </div>
-</body>
-</html>
-        `,
+          subject: emailContent.subject,
+          html: emailContent.body,
         },
       });
 
@@ -848,37 +518,62 @@ export async function sendCancellationConfirmation(
       return;
     }
 
-    // Fetch client info
-    const clientDoc = await admin.firestore().collection("users").doc(bookingData.clientUID).get();
+    // Fetch client, trainer, and org info
+    const [clientDoc, trainerDoc, orgDoc] = await Promise.all([
+      admin.firestore().collection("users").doc(bookingData.clientUID).get(),
+      admin.firestore().collection("trainers").doc(bookingData.trainerId).get(),
+      admin.firestore().collection("organizations").doc(bookingData.orgId).get(),
+    ]);
+
     const clientData = clientDoc.data();
     if (!clientData || !clientData.email) {
       console.error("Client email not found");
       return;
     }
 
-    // Fetch trainer info
-    const trainerDoc = await admin.firestore().collection("trainers").doc(bookingData.trainerId).get();
     const trainerData = trainerDoc.data();
-    const trainerName = trainerData?.name || "Your trainer";
-
-    // Fetch organization info
-    const orgDoc = await admin.firestore().collection("organizations").doc(bookingData.orgId).get();
     const orgData = orgDoc.data();
+    
+    const clientName = `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || "there";
+    const trainerName = trainerData?.name || `${trainerData?.firstName || ""} ${trainerData?.lastName || ""}`.trim() || "Your trainer";
+    const trainerEmail = trainerData?.email || trainerData?.emailAddress || "";
     const orgName = orgData?.name || "Skedence";
     const orgEmail = orgData?.email || "support@skedence.com";
+    const location = bookingData.location || "";
 
-    // Format dates
+    // Get timezone from org settings
+    const orgTimezone = orgData?.settings?.timezone || "America/New_York";
+
+    // Format dates with org's timezone
     const startDate = bookingData.startTime.toDate();
+    const endDate = bookingData.endTime?.toDate() || new Date(startDate.getTime() + 60 * 60 * 1000);
+    
     const formattedDate = startDate.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
+      timeZone: orgTimezone,
     });
     const formattedTime = startDate.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
-      hour12: true,
+      timeZone: orgTimezone,
+    });
+    
+    // Calculate duration
+    const durationMinutes = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60));
+
+    // Generate email from template
+    const emailContent = await generateEmail(bookingData.orgId, "cancellationConfirmation", {
+      clientName,
+      trainerName,
+      date: formattedDate,
+      time: formattedTime,
+      duration: durationMinutes,
+      location,
+      trainerEmail,
+      orgName,
     });
 
     // Send email
@@ -887,29 +582,8 @@ export async function sendCancellationConfirmation(
       from: `${orgName} <no-reply@skedence.com>`,
       replyTo: orgEmail,
       message: {
-        subject: `Lesson Cancelled - ${formattedDate}`,
-        text: `Hi ${clientData.firstName || "there"},\n\nYour lesson has been cancelled.\n\nCancelled Lesson Details:\nTrainer: ${trainerName}\nDate: ${formattedDate}\nTime: ${formattedTime}\n${bookingData.location ? `Location: ${bookingData.location}\n` : ""}\n\nIf this was cancelled in error or you'd like to book a new lesson, please contact us.\n\nBest,\n${orgName}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Lesson Cancelled</h2>
-            
-            <p>Hi ${clientData.firstName || "there"},</p>
-            
-            <p>Your lesson has been cancelled.</p>
-            
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0;">Cancelled Lesson Details</h3>
-              <p><strong>Trainer:</strong> ${trainerName}</p>
-              <p><strong>Date:</strong> ${formattedDate}</p>
-              <p><strong>Time:</strong> ${formattedTime}</p>
-              ${bookingData.location ? `<p><strong>Location:</strong> ${bookingData.location}</p>` : ""}
-            </div>
-            
-            <p>If this was cancelled in error or you'd like to book a new lesson, please contact us.</p>
-            
-            <p>Best,<br>${orgName}</p>
-          </div>
-        `,
+        subject: emailContent.subject,
+        html: emailContent.body,
       },
     });
 
@@ -1030,64 +704,63 @@ export async function sendRescheduleConfirmation(
       return;
     }
 
-    // Fetch client info
-    const clientDoc = await admin.firestore().collection("users").doc(newBookingData.clientUID).get();
+    // Fetch client, trainer, and org info
+    const [clientDoc, trainerDoc, orgDoc] = await Promise.all([
+      admin.firestore().collection("users").doc(newBookingData.clientUID).get(),
+      admin.firestore().collection("trainers").doc(newBookingData.trainerId).get(),
+      admin.firestore().collection("organizations").doc(newBookingData.orgId).get(),
+    ]);
+
     const clientData = clientDoc.data();
     if (!clientData || !clientData.email) {
       console.error("Client email not found");
       return;
     }
 
-    // Fetch trainer info
-    const trainerDoc = await admin.firestore().collection("trainers").doc(newBookingData.trainerId).get();
     const trainerData = trainerDoc.data();
-    const trainerName = trainerData?.name || "Your trainer";
-    const trainerEmail = trainerData?.email || "";
-
-    // Fetch organization info
-    const orgDoc = await admin.firestore().collection("organizations").doc(newBookingData.orgId).get();
     const orgData = orgDoc.data();
+    
+    const clientName = `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || "there";
+    const trainerName = trainerData?.name || `${trainerData?.firstName || ""} ${trainerData?.lastName || ""}`.trim() || "Your trainer";
+    const trainerEmail = trainerData?.email || trainerData?.emailAddress || "";
     const orgName = orgData?.name || "Skedence";
     const orgEmail = orgData?.email || "support@skedence.com";
+    const location = newBookingData.location || "";
 
-    // Format old dates
-    const oldStartDate = oldBookingData.startTime.toDate();
-    const oldFormattedDate = oldStartDate.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    const oldFormattedTime = oldStartDate.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    // Get timezone from org settings
+    const orgTimezone = orgData?.settings?.timezone || "America/New_York";
 
-    // Format new dates
+    // Format new dates with org's timezone
     const newStartDate = newBookingData.startTime.toDate();
+    const newEndDate = newBookingData.endTime?.toDate() || new Date(newStartDate.getTime() + 60 * 60 * 1000);
+    
     const newFormattedDate = newStartDate.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
+      timeZone: orgTimezone,
     });
     const newFormattedTime = newStartDate.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
-      hour12: true,
+      timeZone: orgTimezone,
     });
+    
+    // Calculate duration
+    const durationMinutes = Math.round((newEndDate.getTime() - newStartDate.getTime()) / (1000 * 60));
 
-    let endTimeText = "";
-    if (newBookingData.endTime) {
-      const endDate = newBookingData.endTime.toDate();
-      const endFormattedTime = endDate.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-      endTimeText = ` - ${endFormattedTime}`;
-    }
+    // Generate email from template
+    const emailContent = await generateEmail(newBookingData.orgId, "rescheduleConfirmation", {
+      clientName,
+      trainerName,
+      date: newFormattedDate,
+      time: newFormattedTime,
+      duration: durationMinutes,
+      location,
+      trainerEmail,
+      orgName,
+    });
 
     // Send email
     await admin.firestore().collection("mail").add({
@@ -1095,40 +768,8 @@ export async function sendRescheduleConfirmation(
       from: `${orgName} <no-reply@skedence.com>`,
       replyTo: orgEmail,
       message: {
-        subject: `Lesson Rescheduled - ${newFormattedDate}`,
-        text: `Hi ${clientData.firstName || "there"},\n\nYour lesson has been rescheduled.\n\nOriginal Time:\nDate: ${oldFormattedDate}\nTime: ${oldFormattedTime}\n\nNew Time:\nDate: ${newFormattedDate}\nTime: ${newFormattedTime}${endTimeText}\nTrainer: ${trainerName}\n${newBookingData.location ? `Location: ${newBookingData.location}\n` : ""}\n\nWe look forward to seeing you at the new time!\n\nBest,\n${orgName}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Lesson Rescheduled</h2>
-            
-            <p>Hi ${clientData.firstName || "there"},</p>
-            
-            <p>Your lesson has been rescheduled.</p>
-            
-            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
-              <h3 style="margin-top: 0;">Original Time</h3>
-              <p><strong>Date:</strong> ${oldFormattedDate}</p>
-              <p><strong>Time:</strong> ${oldFormattedTime}</p>
-            </div>
-            
-            <div style="background-color: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; margin: 20px 0;">
-              <h3 style="margin-top: 0;">New Time</h3>
-              <p><strong>Date:</strong> ${newFormattedDate}</p>
-              <p><strong>Time:</strong> ${newFormattedTime}${endTimeText}</p>
-              <p><strong>Trainer:</strong> ${trainerName}</p>
-              ${newBookingData.location ? `<p><strong>Location:</strong> ${newBookingData.location}</p>` : ""}
-              ${newBookingData.notes ? `<p><strong>Notes:</strong> ${newBookingData.notes}</p>` : ""}
-            </div>
-            
-            ${trainerEmail ? `
-              <p>Questions? Contact ${trainerName} at <a href="mailto:${trainerEmail}">${trainerEmail}</a></p>
-            ` : ""}
-            
-            <p>We look forward to seeing you at the new time!</p>
-            
-            <p>Best,<br>${orgName}</p>
-          </div>
-        `,
+        subject: emailContent.subject,
+        html: emailContent.body,
       },
     });
 
