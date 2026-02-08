@@ -361,19 +361,34 @@ struct ScheduleView: View {
                 
                 do {
                     // Query bookings collection for this specific slot
-                    let bookingsSnapshot = try await db.collection("bookings")
-                        .whereField("clientUID", isEqualTo: clientId)
+                    // First try with clientId (new bookings)
+                    var bookingsSnapshot = try await db.collection("bookings")
+                        .whereField("clientId", isEqualTo: clientId)
                         .whereField("trainerId", isEqualTo: slot.trainerId)
                         .whereField("startTime", isEqualTo: Timestamp(date: slot.startTime))
                         .limit(to: 1)
                         .getDocuments()
                     
+                    // If not found, try with clientUID (old bookings)
+                    if bookingsSnapshot.documents.isEmpty {
+                        bookingsSnapshot = try await db.collection("bookings")
+                            .whereField("clientUID", isEqualTo: clientId)
+                            .whereField("trainerId", isEqualTo: slot.trainerId)
+                            .whereField("startTime", isEqualTo: Timestamp(date: slot.startTime))
+                            .limit(to: 1)
+                            .getDocuments()
+                    }
+                    
                     if let bookingDoc = bookingsSnapshot.documents.first {
                         let data = bookingDoc.data()
+                        // Read trainer name from booking document first, fall back to viewModel
+                        let trainerName = data["trainerName"] as? String ?? 
+                            viewModel.allTrainers.first(where: { $0.id == slot.trainerId })?.displayName ?? 
+                            auth.trainerDisplayName ?? "Trainer"
                         booking = ClientBooking(
                             id: bookingDoc.documentID,
                             trainerId: slot.trainerId,
-                            trainerName: auth.trainerDisplayName ?? "Trainer",
+                            trainerName: trainerName,
                             startTime: slot.startTime,
                             endTime: slot.endTime,
                             status: data["status"] as? String ?? "confirmed",
@@ -391,10 +406,12 @@ struct ScheduleView: View {
                 
                 // Fallback to basic booking info if not found
                 if booking == nil {
+                    let trainerName = viewModel.allTrainers.first(where: { $0.id == slot.trainerId })?.displayName ?? 
+                        auth.trainerDisplayName ?? "Trainer"
                     booking = ClientBooking(
                         id: slot.id,
                         trainerId: slot.trainerId,
-                        trainerName: auth.trainerDisplayName ?? "Trainer",
+                        trainerName: trainerName,
                         startTime: slot.startTime,
                         endTime: slot.endTime,
                         status: "confirmed",
