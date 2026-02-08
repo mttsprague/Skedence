@@ -491,8 +491,8 @@ struct SessionDetailView: View {
                         }
                     }
                     
-                    // Notes for Coach (only if required)
-                    if requiredFields.contains("coachNotes"), let notes = profile.notesForCoach, !notes.isEmpty {
+                    // Session Notes (only if required and available)
+                    if requiredFields.contains("coachNotes"), let notes = booking.lessonNotes, !notes.isEmpty {
                         Divider()
                             .padding(.vertical, 4)
                         HStack(alignment: .top, spacing: 8) {
@@ -501,7 +501,7 @@ struct SessionDetailView: View {
                                 .foregroundStyle(AppTheme.secondary)
                                 .frame(width: 20)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Notes for Coach")
+                                Text("Session Notes")
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundStyle(AppTheme.textSecondary)
                                 Text(notes)
@@ -623,7 +623,7 @@ struct SessionDetailView: View {
     
     // MARK: - Load User Profile
     private func loadUserProfile() async {
-        guard !booking.clientUID.isEmpty else { return }
+        guard !client.id.isEmpty else { return }
         isLoadingProfile = true
         defer { isLoadingProfile = false }
         
@@ -631,7 +631,7 @@ struct SessionDetailView: View {
             let db = Firestore.firestore()
             
             // Load org settings to get required fields
-            if let orgId = auth.currentUser?.orgId {
+            if let orgId = auth.currentOrgId {
                 let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
                 if let orgData = orgDoc.data(),
                    let fields = orgData["intakeFormFieldsPrivate"] as? [[String: Any]] {
@@ -641,7 +641,7 @@ struct SessionDetailView: View {
             }
             
             let userDoc = try await db.collection("users")
-                .document(booking.clientUID)
+                .document(client.id)
                 .getDocument()
             
             guard let data = userDoc.data() else { return }
