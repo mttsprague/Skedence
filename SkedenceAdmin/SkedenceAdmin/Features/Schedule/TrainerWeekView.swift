@@ -396,7 +396,9 @@ struct TrainerWeekView: View {
         }
         
         // Handle regular client booking
+        print("DEBUG: Slot tapped - isBooked: \(slot.isBooked), clientId: \(slot.clientId ?? "nil")")
         if slot.isBooked, let clientId = slot.clientId {
+            print("DEBUG: Entering booking query logic")
             // Fetch data BEFORE showing sheet
             Task {
                 // Try to fetch full booking details
@@ -457,6 +459,7 @@ struct TrainerWeekView: View {
                 
                 // Fallback to basic booking info if not found
                 if booking == nil {
+                    print("DEBUG: Using fallback booking, trainer displayName: \(trainerViewModel.trainer?.displayName ?? "nil")")
                     booking = ClientBooking(
                         id: slot.id,
                         trainerId: slot.trainerId,
