@@ -120,7 +120,9 @@ export default function SchedulingPage() {
 
   // Update week when date changes
   useEffect(() => {
-    setWeekStart(startOfWeek(selectedDate, { weekStartsOn: 0 }));
+    if (selectedDate) {
+      setWeekStart(startOfWeek(selectedDate, { weekStartsOn: 0 }));
+    }
   }, [selectedDate]);
 
   // Load trainers
@@ -364,19 +366,19 @@ export default function SchedulingPage() {
 
   // Navigation functions
   const goToPreviousDay = () => {
-    setSelectedDate(prev => addDays(prev, -1));
+    setSelectedDate(prev => prev ? addDays(prev, -1) : prev);
   };
 
   const goToNextDay = () => {
-    setSelectedDate(prev => addDays(prev, 1));
+    setSelectedDate(prev => prev ? addDays(prev, 1) : prev);
   };
 
   const goToPreviousWeek = () => {
-    setWeekStart(prev => addWeeks(prev, -1));
+    setWeekStart(prev => prev ? addWeeks(prev, -1) : prev);
   };
 
   const goToNextWeek = () => {
-    setWeekStart(prev => addWeeks(prev, 1));
+    setWeekStart(prev => prev ? addWeeks(prev, 1) : prev);
   };
 
   const goToToday = () => {
@@ -387,7 +389,9 @@ export default function SchedulingPage() {
 
   // Reload schedule after modal actions - just re-trigger the useEffect
   const reloadSchedule = () => {
-    setWeekStart(new Date(weekStart));
+    if (weekStart) {
+      setWeekStart(new Date(weekStart));
+    }
   };
 
   // Handle empty slot click
@@ -894,28 +898,32 @@ export default function SchedulingPage() {
       </div>
 
       {/* Modals */}
-      <BookLessonModal
-        isOpen={showBookLessonModal}
-        onClose={() => setShowBookLessonModal(false)}
-        slotDate={modalSlotDate}
-        slotHour={modalSlotHour}
-        slotId={modalSlotId}
-        trainerId={modalTrainerId}
-        trainerName={modalTrainerName}
-        orgId={orgId || undefined}
-        onSuccess={reloadSchedule}
-      />
+      {modalSlotDate && (
+        <BookLessonModal
+          isOpen={showBookLessonModal}
+          onClose={() => setShowBookLessonModal(false)}
+          slotDate={modalSlotDate}
+          slotHour={modalSlotHour}
+          slotId={modalSlotId}
+          trainerId={modalTrainerId}
+          trainerName={modalTrainerName}
+          orgId={orgId || undefined}
+          onSuccess={reloadSchedule}
+        />
+      )}
       
-      <CreateAvailabilityModal
-        isOpen={showCreateAvailabilityModal}
-        onClose={() => setShowCreateAvailabilityModal(false)}
-        slotDate={modalSlotDate}
-        slotHour={modalSlotHour}
-        trainerId={modalTrainerId}
-        trainerName={modalTrainerName}
-        orgId={orgId || undefined}
-        onSuccess={reloadSchedule}
-      />
+      {modalSlotDate && (
+        <CreateAvailabilityModal
+          isOpen={showCreateAvailabilityModal}
+          onClose={() => setShowCreateAvailabilityModal(false)}
+          slotDate={modalSlotDate}
+          slotHour={modalSlotHour}
+          trainerId={modalTrainerId}
+          trainerName={modalTrainerName}
+          orgId={orgId || undefined}
+          onSuccess={reloadSchedule}
+        />
+      )}
     </SchedulingSubmenu>
   );
 }

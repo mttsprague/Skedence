@@ -63,9 +63,11 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
 
   // Load bookings for the current month
   useEffect(() => {
-    if (!orgId) return;
+    if (!orgId || !currentMonth) return;
 
     async function loadMonthData() {
+      if (!currentMonth) return;
+      
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
       const startDate = new Date(year, month, 1);
@@ -137,6 +139,7 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentMonth(prevDate => {
+      if (!prevDate) return prevDate;
       const newDate = new Date(prevDate);
       if (direction === 'prev') {
         newDate.setMonth(prevDate.getMonth() - 1);

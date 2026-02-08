@@ -112,10 +112,10 @@ export default function SchedulePage() {
         if (orgDoc.exists()) {
           const orgData = orgDoc.data();
           const fields = orgData.intakeFormFieldsPrivate || orgData.intakeFormFields || [];
-          const required = new Set(
+          const required = new Set<string>(
             fields
               .filter((field: any) => field.required === true)
-              .map((field: any) => field.id)
+              .map((field: any) => field.id as string)
           );
           setRequiredFields(required);
         }
