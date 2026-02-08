@@ -405,7 +405,7 @@ struct TrainerWeekView: View {
                 do {
                     let db = Firestore.firestore()
                     let bookingsSnapshot = try await db.collection("bookings")
-                        .whereField("clientUID", isEqualTo: clientId)
+                        .whereField("clientId", isEqualTo: clientId)
                         .whereField("trainerId", isEqualTo: slot.trainerId)
                         .whereField("startTime", isEqualTo: Timestamp(date: slot.startTime))
                         .limit(to: 1)

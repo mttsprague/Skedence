@@ -398,6 +398,7 @@ export const bookLesson = functions.https.onCall(
 
         transaction.set(newBookingRef, {
           clientUID: userId,
+          clientId: userId, // Add for backward compatibility with queries
           trainerId: trainerId,
           slotId: slotId, // deterministic schedule slot id
           startTime: trainerSlotData.startTime,
