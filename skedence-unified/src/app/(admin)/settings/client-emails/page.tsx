@@ -5,7 +5,8 @@ import { NotificationsSubmenu } from '@/components/admin/notifications-submenu';
 import { useAuth } from '@/hooks/useAuth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
+import { EmailTemplateEditor } from '@/components/admin/email-template-editor';
 
 interface EmailNotificationSettings {
   // Confirmations
@@ -37,6 +38,7 @@ export default function ClientEmailsPage() {
   const [settings, setSettings] = useState<EmailNotificationSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<{ type: string; name: string } | null>(null);
 
   useEffect(() => {
     if (orgId) {
@@ -126,7 +128,7 @@ export default function ClientEmailsPage() {
         </div>
 
         <p className="text-gray-600 mb-8">
-          Control which email notifications are sent to your clients
+          Control which email notifications are sent to your clients and customize the email templates
         </p>
 
         {/* Confirmations Section */}
@@ -138,18 +140,21 @@ export default function ClientEmailsPage() {
               description="All appointments, classes"
               enabled={settings.bookingConfirmation}
               onChange={(value) => updateSetting('bookingConfirmation', value)}
+              onEditTemplate={() => setEditingTemplate({ type: 'bookingConfirmation', name: 'Booking Confirmation' })}
             />
             <EmailToggleRow
               title="Cancellation Confirmation"
               description="All appointments, classes"
               enabled={settings.cancellationConfirmation}
               onChange={(value) => updateSetting('cancellationConfirmation', value)}
+              onEditTemplate={() => setEditingTemplate({ type: 'cancellationConfirmation', name: 'Cancellation Confirmation' })}
             />
             <EmailToggleRow
               title="Reschedule Confirmation"
               description="All appointments, classes"
               enabled={settings.rescheduleConfirmation}
               onChange={(value) => updateSetting('rescheduleConfirmation', value)}
+              onEditTemplate={() => setEditingTemplate({ type: 'rescheduleConfirmation', name: 'Reschedule Confirmation' })}
             />
           </div>
         </div>
@@ -174,6 +179,7 @@ export default function ClientEmailsPage() {
               ]}
               onToggle={(value) => updateSetting('reminders', value)}
               onTimingChange={(value) => updateTimingSetting('reminderTiming', value)}
+              onEditTemplate={() => setEditingTemplate({ type: 'reminders', name: 'Reminder Email' })}
             />
             <EmailToggleRowWithTiming
               title="Follow-ups"
@@ -191,15 +197,27 @@ export default function ClientEmailsPage() {
               ]}
               onToggle={(value) => updateSetting('followUps', value)}
               onTimingChange={(value) => updateTimingSetting('followUpTiming', value)}
+              onEditTemplate={() => setEditingTemplate({ type: 'followUps', name: 'Follow-up Email' })}
             />
             <EmailToggleRow
               title="Package / Gift Certificate Receipt"
               description="Receipt for package or gift certificate purchases"
               enabled={settings.packageReceipt}
               onChange={(value) => updateSetting('packageReceipt', value)}
+              onEditTemplate={() => setEditingTemplate({ type: 'packageReceipt', name: 'Package Receipt' })}
             />
           </div>
         </div>
+
+        {/* Email Template Editor Modal */}
+        {editingTemplate && orgId && (
+          <EmailTemplateEditor
+            orgId={orgId}
+            templateType={editingTemplate.type}
+            templateName={editingTemplate.name}
+            onClose={() => setEditingTemplate(null)}
+          />
+        )}
       </div>
     </NotificationsSubmenu>
   );
@@ -210,9 +228,10 @@ interface EmailToggleRowProps {
   description: string;
   enabled: boolean;
   onChange: (value: boolean) => void;
+  onEditTemplate: () => void;
 }
 
-function EmailToggleRow({ title, description, enabled, onChange }: EmailToggleRowProps) {
+function EmailToggleRow({ title, description, enabled, onChange, onEditTemplate }: EmailToggleRowProps) {
   return (
     <div className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
       <div className="flex-1">
@@ -221,6 +240,14 @@ function EmailToggleRow({ title, description, enabled, onChange }: EmailToggleRo
       </div>
       
       <div className="flex items-center gap-3">
+        <button
+          onClick={onEditTemplate}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Edit Template
+        </button>
+        
         <span className={`text-xs font-medium px-2 py-1 rounded ${
           enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
         }`}>
@@ -253,6 +280,7 @@ interface EmailToggleRowWithTimingProps {
   timingOptions: { value: number; label: string }[];
   onToggle: (value: boolean) => void;
   onTimingChange: (value: number) => void;
+  onEditTemplate: () => void;
 }
 
 function EmailToggleRowWithTiming({ 
@@ -263,7 +291,8 @@ function EmailToggleRowWithTiming({
   timingLabel, 
   timingOptions, 
   onToggle, 
-  onTimingChange 
+  onTimingChange,
+  onEditTemplate
 }: EmailToggleRowWithTimingProps) {
   return (
     <div className="p-4 hover:bg-gray-50 transition-colors">
@@ -274,6 +303,14 @@ function EmailToggleRowWithTiming({
         </div>
         
         <div className="flex items-center gap-3">
+          <button
+            onClick={onEditTemplate}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Edit Template
+          </button>
+          
           <span className={`text-xs font-medium px-2 py-1 rounded ${
             enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
           }`}>
