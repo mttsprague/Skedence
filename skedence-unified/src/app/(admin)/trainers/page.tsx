@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent } from '@/components/ui/card';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, updateData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
-import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X } from 'lucide-react';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X, RotateCcw } from 'lucide-react';
+import { doc as firestoreDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { logTrainerCreated } from '@/lib/activity-logger';
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
 
@@ -21,6 +21,8 @@ export default function TrainersPage() {
   const [newTrainer, setNewTrainer] = useState({ firstName: '', lastName: '', email: '' });
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
@@ -60,8 +62,52 @@ export default function TrainersPage() {
     const search = searchQuery.toLowerCase();
     const fullName = `${trainer.firstName || ''} ${trainer.lastName || ''}`.toLowerCase();
     const email = (trainer.email || trainer.emailAddress || '').toLowerCase();
-    return fullName.includes(search) || email.includes(search);
+    const matchesSearch = fullName.includes(search) || email.includes(search);
+    const matchesTab = activeTab === 'active' ? trainer.isActive : !trainer.isActive;
+    return matchesSearch && matchesTab;
   });
+
+  const handleReactivateTrainer = async (trainerId: string) => {
+    if (!orgId) return;
+    
+    setReactivatingId(trainerId);
+    try {
+      // Update trainer document to set active = true
+      await updateData(firestoreDoc(db, 'trainers', trainerId), {
+        active: true
+      });
+firestoreD
+      // Also update the orgMembers document
+      const memberDocId = `${trainerId}_${orgId}`;
+      await updateData(firestoreDoc(db, 'orgMembers', memberDocId), {
+        isActive: true
+      });
+
+      // Refresh trainers list
+      const trainersQuery = query(
+        collection(db, 'trainers'),
+        where('orgId', '==', orgId)
+      );
+      const snapshot = await getDocs(trainersQuery);
+      const trainersData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          email: data.email || data.emailAddress || '',
+          phone: data.phoneNumber || data.phone || '',
+          role: data.role || 'trainer',
+          isActive: data.active !== false,
+        };
+      }) as User[];
+      setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
+    } catch (error) {
+      console.error('❌ Error reactivating trainer:', error);
+    } finally {
+      setReactivatingId(null);
+    }
+  };
 
   const handleAddTrainer = async () => {
     if (!orgId || !newTrainer.firstName || !newTrainer.lastName || !newTrainer.email) {
@@ -189,28 +235,70 @@ export default function TrainersPage() {
           />
         </div>
 
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
-          </div>
-        ) : filteredTrainers.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <p className="text-gray-500">
-              {searchQuery ? 'No trainers found matching your search.' : 'No trainers yet.'}
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('active')}
+            className={`px-4 py-2 font-medium transition-colors relative ${
+              activeTab === 'active'
+                ? 'text-[#3258A3] border-b-2 border-[#3258A3]'
+                : 'text-gra
+                ? `No ${activeTab} trainers found matching your search.` 
+                : `No ${activeTab} trainers yet.`}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredTrainers.map((trainer) => (
-              <Card key={trainer.id} className="hover:shadow-lg active:shadow-xl transition-shadow cursor-pointer touch-manipulation">
+              <Card key={trainer.id} className="hover:shadow-lg active:shadow-xl transition-shadow touch-manipulation">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg">
+                    <div className={`w-12 h-12 rounded-full ${
+                      trainer.isActive 
+                        ? 'bg-gradient-to-br from-teal-500 to-teal-600' 
+                        : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                    } flex items-center justify-center text-white font-bold text-lg`}>
                       {trainer.firstName?.[0]}{trainer.lastName?.[0]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-semibold text-gray-900 truncate">
                         {trainer.firstName} {trainer.lastName}
+                      </h3>
+                      {(trainer.email || trainer.emailAddress) && (
+                        <div className="flex items-center text-sm text-gray-600 mt-1">
+                          <Mail className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                          <span className="truncate">{trainer.email || trainer.emailAddress}</span>
+                        </div>
+                      )}
+                      {trainer.phone && (
+                        <div className="flex items-center text-sm text-gray-600 mt-1">
+                          <Phone className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                          <span>{trainer.phone}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center text-sm">
+                          {trainer.isActive ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 mr-1.5 text-green-600" />
+                              <span className="text-green-600 font-medium">Active</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-4 w-4 mr-1.5 text-gray-400" />
+                              <span className="text-gray-500">Inactive</span>
+                            </>
+                          )}
+                        </div>
+                        {!trainer.isActive && (
+                          <button
+                            onClick={() => handleReactivateTrainer(trainer.id)}
+                            disabled={reactivatingId === trainer.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-[#3258A3] text-white rounded-lg hover:bg-[#274785] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            {reactivatingId === trainer.id ? 'Reactivating...' : 'Reactivate'}
+                          </buttoniner.firstName} {trainer.lastName}
                       </h3>
                       {(trainer.email || trainer.emailAddress) && (
                         <div className="flex items-center text-sm text-gray-600 mt-1">
