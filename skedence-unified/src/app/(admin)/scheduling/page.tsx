@@ -451,10 +451,10 @@ export default function SchedulingPage() {
       return null; // Don't show timeline outside schedule hours
     }
     
-    // Calculate position: each hour is 60px (min-h-[60px])
+    // Calculate position: each hour is 80px (h-[80px])
     const hoursSinceStart = hours - scheduleStartHour;
     const minuteOffset = minutes / 60;
-    const position = (hoursSinceStart + minuteOffset) * 60;
+    const position = (hoursSinceStart + minuteOffset) * 80;
     
     return position;
   };
@@ -595,7 +595,7 @@ export default function SchedulingPage() {
                           return (
                             <div
                               key={`${day.toISOString()}-${hour}`}
-                              className="h-[60px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
+                              className="h-[80px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
                               onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
                             >
                               {dayItems.map(item => {
