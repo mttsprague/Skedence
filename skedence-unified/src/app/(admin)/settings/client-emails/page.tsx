@@ -15,7 +15,9 @@ interface EmailNotificationSettings {
   
   // Other emails
   reminders: boolean;
+  reminderTiming: number; // hours before appointment
   followUps: boolean;
+  followUpTiming: number; // hours after appointment
   packageReceipt: boolean;
 }
 
@@ -24,7 +26,9 @@ const defaultSettings: EmailNotificationSettings = {
   cancellationConfirmation: true,
   rescheduleConfirmation: true,
   reminders: true,
+  reminderTiming: 24, // 24 hours before
   followUps: true,
+  followUpTiming: 24, // 24 hours after
   packageReceipt: true,
 };
 
@@ -69,6 +73,28 @@ export default function ClientEmailsPage() {
       );
     } catch (error) {
       console.error('Error updating email setting:', error);
+      // Revert on error
+      setSettings(settings);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateTimingSetting = async (key: keyof EmailNotificationSettings, value: number) => {
+    if (!orgId) return;
+
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+
+    setSaving(true);
+    try {
+      await setDoc(
+        doc(db, 'organizations', orgId, 'settings', 'emailNotifications'),
+        newSettings,
+        { merge: true }
+      );
+    } catch (error) {
+      console.error('Error updating timing setting:', error);
       // Revert on error
       setSettings(settings);
     } finally {
@@ -132,17 +158,39 @@ export default function ClientEmailsPage() {
         <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Other Client Emails</h2>
           <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
-            <EmailToggleRow
+            <EmailToggleRowWithTiming
               title="Reminders"
               description="Appointment reminders sent before scheduled time"
               enabled={settings.reminders}
-              onChange={(value) => updateSetting('reminders', value)}
+              timing={settings.reminderTiming}
+              timingLabel="Send"
+              timingOptions={[
+                { value: 1, label: '1 hour before' },
+                { value: 2, label: '2 hours before' },
+                { value: 4, label: '4 hours before' },
+                { value: 12, label: '12 hours before' },
+                { value: 24, label: '24 hours before' },
+                { value: 48, label: '48 hours before' },
+              ]}
+              onToggle={(value) => updateSetting('reminders', value)}
+              onTimingChange={(value) => updateTimingSetting('reminderTiming', value)}
             />
-            <EmailToggleRow
+            <EmailToggleRowWithTiming
               title="Follow-ups"
               description="Follow-up emails sent after appointments"
               enabled={settings.followUps}
-              onChange={(value) => updateSetting('followUps', value)}
+              timing={settings.followUpTiming}
+              timingLabel="Send"
+              timingOptions={[
+                { value: 1, label: '1 hour after' },
+                { value: 2, label: '2 hours after' },
+                { value: 4, label: '4 hours after' },
+                { value: 12, label: '12 hours after' },
+                { value: 24, label: '24 hours after' },
+                { value: 48, label: '48 hours after' },
+              ]}
+              onToggle={(value) => updateSetting('followUps', value)}
+              onTimingChange={(value) => updateTimingSetting('followUpTiming', value)}
             />
             <EmailToggleRow
               title="Package / Gift Certificate Receipt"
@@ -192,6 +240,77 @@ function EmailToggleRow({ title, description, enabled, onChange }: EmailToggleRo
           />
         </button>
       </div>
+    </div>
+  );
+}
+
+interface EmailToggleRowWithTimingProps {
+  title: string;
+  description: string;
+  enabled: boolean;
+  timing: number;
+  timingLabel: string;
+  timingOptions: { value: number; label: string }[];
+  onToggle: (value: boolean) => void;
+  onTimingChange: (value: number) => void;
+}
+
+function EmailToggleRowWithTiming({ 
+  title, 
+  description, 
+  enabled, 
+  timing, 
+  timingLabel, 
+  timingOptions, 
+  onToggle, 
+  onTimingChange 
+}: EmailToggleRowWithTimingProps) {
+  return (
+    <div className="p-4 hover:bg-gray-50 transition-colors">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex-1">
+          <h3 className="text-sm font-medium text-gray-900">{title}</h3>
+          <p className="text-sm text-gray-500 mt-1">{description}</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <span className={`text-xs font-medium px-2 py-1 rounded ${
+            enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+          }`}>
+            {enabled ? 'On' : 'Off'}
+          </span>
+          
+          <button
+            onClick={() => onToggle(!enabled)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              enabled ? 'bg-blue-600' : 'bg-gray-200'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                enabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+      
+      {enabled && (
+        <div className="flex items-center gap-2 pl-0">
+          <span className="text-sm text-gray-600">{timingLabel}:</span>
+          <select
+            value={timing}
+            onChange={(e) => onTimingChange(Number(e.target.value))}
+            className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+          >
+            {timingOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 }
