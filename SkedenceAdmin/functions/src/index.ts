@@ -22,6 +22,7 @@ export * from "./stripe-direct";
 
 // Export migration/utility functions
 export * from "./backfill-activities";
+export * from "./backfill-recent-activities";
 
 // Export billing/subscription functions
 export * from "./billing";

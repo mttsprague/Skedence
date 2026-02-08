@@ -124,6 +124,67 @@ export default function TrainersPage() {
     }
   };
 
+  const handleDeactivateTrainer = async (trainerId: string) => {
+    if (!orgId) return;
+    
+    const trainer = trainers.find(t => t.id === trainerId);
+    if (!trainer) return;
+    
+    if (!confirm(`Are you sure you want to deactivate ${trainer.firstName} ${trainer.lastName}? They will no longer be able to access the system.`)) {
+      return;
+    }
+    
+    setReactivatingId(trainerId);
+    try {
+      // Update trainer document to set active = false
+      await updateDoc(doc(db, 'trainers', trainerId), {
+        active: false
+      });
+
+      // Also update the orgMembers document
+      const memberDocId = `${trainerId}_${orgId}`;
+      await updateDoc(doc(db, 'orgMembers', memberDocId), {
+        isActive: false
+      });
+
+      // Log activity
+      if (user && userData) {
+        await logTrainerDeactivated({
+          orgId: orgId,
+          actorId: user.uid,
+          actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+          actorRole: 'admin',
+          trainerId: trainerId,
+          trainerName: `${trainer.firstName} ${trainer.lastName}`,
+        });
+      }
+
+      // Refresh trainers list
+      const trainersQuery = query(
+        collection(db, 'trainers'),
+        where('orgId', '==', orgId)
+      );
+      const snapshot = await getDocs(trainersQuery);
+      const trainersData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          email: data.email || data.emailAddress || '',
+          phone: data.phoneNumber || data.phone || '',
+          role: data.role || 'trainer',
+          isActive: data.active !== false,
+        };
+      }) as User[];
+      setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
+    } catch (error) {
+      console.error('❌ Error deactivating trainer:', error);
+    } finally {
+      setReactivatingId(null);
+    }
+  };
+
   const handleAddTrainer = async () => {
     if (!orgId || !newTrainer.firstName || !newTrainer.lastName || !newTrainer.email) {
       setAddError('Please fill in all fields');
@@ -329,7 +390,16 @@ export default function TrainersPage() {
                             </>
                           )}
                         </div>
-                        {!trainer.isActive && (
+                        {trainer.isActive ? (
+                          <button
+                            onClick={() => handleDeactivateTrainer(trainer.id)}
+                            disabled={reactivatingId === trainer.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            {reactivatingId === trainer.id ? 'Deactivating...' : 'Deactivate'}
+                          </button>
+                        ) : (
                           <button
                             onClick={() => handleReactivateTrainer(trainer.id)}
                             disabled={reactivatingId === trainer.id}
