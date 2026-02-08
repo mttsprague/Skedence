@@ -174,6 +174,9 @@ final class ClassesRepository: QueryableRepositoryProtocol {
         
         let priceInCents = data["priceInCents"] as? Int ?? 2000
         
+        // Eligible package IDs (defaults to empty array for backward compatibility)
+        let eligiblePackageIds = data["eligiblePackageIds"] as? [String] ?? []
+        
         return GroupClass(
             id: id,
             title: title,
@@ -188,7 +191,8 @@ final class ClassesRepository: QueryableRepositoryProtocol {
             trainerName: trainerName,
             createdBy: createdBy,
             createdAt: createdAt,
-            priceInCents: priceInCents
+            priceInCents: priceInCents,
+            eligiblePackageIds: eligiblePackageIds
         )
     }
     

@@ -307,18 +307,13 @@ struct PricingTabView: View {
     private func deactivatePackage(at packageIndex: Int, from tierIndex: Int) {
         let package = editingTiers[tierIndex].packages[packageIndex]
         
-        // Show confirmation dialog
-        let confirmTitle = "Deactivate \"\(package.title)\"?"
-        let confirmMessage = "This package will be hidden from the admin and client apps. Existing passes will remain valid. You can reactivate it later from the web admin portal."
+        // Set package as inactive - changes aren't saved until user clicks Save
+        editingTiers[tierIndex].packages[packageIndex].active = false
         
+        // Show info message
         alertItem = AlertItem(
-            title: confirmTitle,
-            message: confirmMessage,
-            primaryButton: Alert.Button.destructive(Text("Deactivate")) {
-                // Set package as inactive
-                editingTiers[tierIndex].packages[packageIndex].active = false
-            },
-            secondaryButton: Alert.Button.cancel()
+            title: "Package Deactivated",
+            message: "\"\(package.title)\" has been deactivated. Click Save to apply changes. This package will be hidden from the admin and client apps, but existing passes will remain valid."
         )
     }
     

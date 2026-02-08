@@ -229,6 +229,9 @@ final class ClassesService: ObservableObject {
         // Price defaults to 2000 cents ($20) for backward compatibility with existing classes
         let priceInCents = data["priceInCents"] as? Int ?? 2000
         
+        // Eligible package IDs (defaults to empty array for backward compatibility)
+        let eligiblePackageIds = data["eligiblePackageIds"] as? [String] ?? []
+        
         return GroupClass(
             id: id,
             title: title,
@@ -243,7 +246,8 @@ final class ClassesService: ObservableObject {
             trainerName: trainerName,
             createdBy: createdBy,
             createdAt: createdAt,
-            priceInCents: priceInCents
+            priceInCents: priceInCents,
+            eligiblePackageIds: eligiblePackageIds
         )
     }
 }
