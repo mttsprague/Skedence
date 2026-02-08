@@ -1210,20 +1210,10 @@ private struct RegisterForm: View {
     @State private var confirm = ""
     @State private var firstName = ""
     @State private var lastName = ""
+    @State private var phoneNumber = ""
     @State private var athleteFirstName = ""
     @State private var athleteLastName = ""
     @State private var athleteBirthday = ""
-    @State private var athlete2FirstName = ""
-    @State private var athlete2LastName = ""
-    @State private var athlete2Birthday = ""
-    @State private var athlete3FirstName = ""
-    @State private var athlete3LastName = ""
-    @State private var athlete3Birthday = ""
-    @State private var athletePosition = ""
-    @State private var athlete2Position = ""
-    @State private var athlete3Position = ""
-    @State private var notesForCoach = ""
-    @State private var phoneNumber = ""
     
     private var passwordsMatch: Bool {
         password == confirm && !password.isEmpty
@@ -1235,12 +1225,11 @@ private struct RegisterForm: View {
         passwordsMatch &&
         !firstName.isEmpty &&
         !lastName.isEmpty &&
+        !phoneNumber.isEmpty &&
         !athleteFirstName.isEmpty &&
         !athleteLastName.isEmpty &&
         !athleteBirthday.isEmpty &&
         isValidBirthday(athleteBirthday) &&
-        !athletePosition.isEmpty &&
-        !phoneNumber.isEmpty &&
         validatedOrgId != nil &&
         !isRegistering
     }
@@ -1402,18 +1391,18 @@ private struct RegisterForm: View {
                 
                 // Primary Athlete Section
                 VStack(alignment: .leading, spacing: 16) {
-                    ProfileSectionHeader(icon: "person.fill", title: "Primary Athlete")
+                    ProfileSectionHeader(icon: "person.fill", title: "Athlete Information")
                     
                     HStack(spacing: 12) {
                         FormField(
-                            icon: "calendar.badge.clock",
+                            icon: "person.circle",
                             placeholder: "First Name",
                             text: $athleteFirstName,
                             textContentType: .givenName
                         )
                         
                         FormField(
-                            icon: "calendar.badge.clock",
+                            icon: "person.circle",
                             placeholder: "Last Name",
                             text: $athleteLastName,
                             textContentType: .familyName
@@ -1429,124 +1418,6 @@ private struct RegisterForm: View {
                     .onChangeCompat(of: athleteBirthday) { newValue in
                         athleteBirthday = formatBirthdayInput(newValue)
                     }
-                    
-                    FormField(
-                        icon: "star.fill",
-                        placeholder: "Position (e.g., Setter, Outside Hitter)",
-                        text: $athletePosition
-                    )
-                }
-                .padding(.horizontal)
-                
-                // Additional Athletes Section
-                VStack(alignment: .leading, spacing: 16) {
-                    ProfileSectionHeader(
-                        icon: "person.2.fill",
-                        title: "Additional Athletes",
-                        subtitle: "Optional"
-                    )
-                    
-                    // Athlete 2
-                    VStack(spacing: 12) {
-                        HStack(spacing: 12) {
-                            FormField(
-                                icon: "tag",
-                                placeholder: "Athlete 2 First Name",
-                                text: $athlete2FirstName,
-                                textContentType: .givenName
-                            )
-                            
-                            FormField(
-                                icon: "tag",
-                                placeholder: "Last Name",
-                                text: $athlete2LastName,
-                                textContentType: .familyName
-                            )
-                        }
-                        
-                        if !athlete2FirstName.isEmpty || !athlete2LastName.isEmpty {
-                            FormField(
-                                icon: "calendar",
-                                placeholder: "Birthday (MM/DD/YYYY)",
-                                text: $athlete2Birthday,
-                                keyboardType: .numberPad
-                            )
-                            .onChangeCompat(of: athlete2Birthday) { newValue in
-                                athlete2Birthday = formatBirthdayInput(newValue)
-                            }
-                            
-                            FormField(
-                                icon: "star",
-                                placeholder: "Position",
-                                text: $athlete2Position
-                            )
-                        }
-                    }
-                    
-                    // Athlete 3
-                    VStack(spacing: 12) {
-                        HStack(spacing: 12) {
-                            FormField(
-                                icon: "tag",
-                                placeholder: "Athlete 3 First Name",
-                                text: $athlete3FirstName,
-                                textContentType: .givenName
-                            )
-                            
-                            FormField(
-                                icon: "tag",
-                                placeholder: "Last Name",
-                                text: $athlete3LastName,
-                                textContentType: .familyName
-                            )
-                        }
-                        
-                        if !athlete3FirstName.isEmpty || !athlete3LastName.isEmpty {
-                            FormField(
-                                icon: "calendar",
-                                placeholder: "Birthday (MM/DD/YYYY)",
-                                text: $athlete3Birthday,
-                                keyboardType: .numberPad
-                            )
-                            .onChangeCompat(of: athlete3Birthday) { newValue in
-                                athlete3Birthday = formatBirthdayInput(newValue)
-                            }
-                            
-                            FormField(
-                                icon: "star",
-                                placeholder: "Position",
-                                text: $athlete3Position
-                            )
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                
-                // Notes Section
-                VStack(alignment: .leading, spacing: 16) {
-                    ProfileSectionHeader(
-                        icon: "note.text",
-                        title: "Notes for Coach",
-                        subtitle: "Optional"
-                    )
-                    
-                    TextEditor(text: $notesForCoach)
-                        .frame(height: 100)
-                        .padding(12)
-                        .background(Color(UIColor.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            Group {
-                                if notesForCoach.isEmpty {
-                                    Text("Share any goals, experience level, or special considerations...")
-                                        .foregroundStyle(.secondary)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 20)
-                                        .allowsHitTesting(false)
-                                }
-                            },
-                            alignment: .topLeading
-                        )
                 }
                 .padding(.horizontal)
                 
@@ -1693,16 +1564,16 @@ private struct RegisterForm: View {
             athleteFirstName: athleteFirstName.isEmpty ? nil : athleteFirstName,
             athleteLastName: athleteLastName.isEmpty ? nil : athleteLastName,
             athleteBirthday: athleteBirthday.isEmpty ? nil : athleteBirthday,
-            athlete2FirstName: athlete2FirstName.isEmpty ? nil : athlete2FirstName,
-            athlete2LastName: athlete2LastName.isEmpty ? nil : athlete2LastName,
-            athlete2Birthday: athlete2Birthday.isEmpty ? nil : athlete2Birthday,
-            athlete3FirstName: athlete3FirstName.isEmpty ? nil : athlete3FirstName,
-            athlete3LastName: athlete3LastName.isEmpty ? nil : athlete3LastName,
-            athlete3Birthday: athlete3Birthday.isEmpty ? nil : athlete3Birthday,
-            athletePosition: athletePosition.isEmpty ? nil : athletePosition,
-            athlete2Position: athlete2Position.isEmpty ? nil : athlete2Position,
-            athlete3Position: athlete3Position.isEmpty ? nil : athlete3Position,
-            notesForCoach: notesForCoach.isEmpty ? nil : notesForCoach,
+            athlete2FirstName: nil,
+            athlete2LastName: nil,
+            athlete2Birthday: nil,
+            athlete3FirstName: nil,
+            athlete3LastName: nil,
+            athlete3Birthday: nil,
+            athletePosition: nil,
+            athlete2Position: nil,
+            athlete3Position: nil,
+            notesForCoach: nil,
             phoneNumber: phoneNumber.isEmpty ? nil : phoneNumber,
             orgId: validatedOrgId
         )

@@ -69,6 +69,7 @@ struct BookView: View {
     // Waiver status tracking for each athlete dropdown
     @State private var athleteWaiverStatus: [Int: Bool] = [:] // index -> hasWaiver
     @State private var isNewAthlete: [Int: Bool] = [:] // index -> isNew
+    @State private var athleteInfoExpanded: [Int: Bool] = [:] // index -> isExpanded
     
     // Trainer filter state
     @State private var showTrainerFilter = false
@@ -984,19 +985,34 @@ struct BookView: View {
             ForEach(Array(selectedAthletes.enumerated()), id: \.offset) { index, athleteName in
                 if let name = athleteName {
                     VStack(alignment: .leading, spacing: Spacing.md) {
-                        Text("\(name) Information")
-                            .font(.headingMedium)
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .padding(.horizontal, Spacing.lg)
-                        
-                        CardView(padding: Spacing.md) {
-                            // Use dynamic intake form fields for this athlete
-                            DynamicIntakeFormView(
-                                formData: getOrCreateIntakeForm(for: index),
-                                fields: intakeFormService.fields
-                            )
+                        HStack {
+                            Text("\(name) Information")
+                                .font(.headingMedium)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Spacer()
+                            Button {
+                                withAnimation {
+                                    athleteInfoExpanded[index] = !(athleteInfoExpanded[index] ?? true)
+                                }
+                            } label: {
+                                Image(systemName: (athleteInfoExpanded[index] ?? true) ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(AppTheme.primary)
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(.horizontal, Spacing.lg)
+                        
+                        if athleteInfoExpanded[index] ?? true {
+                            CardView(padding: Spacing.md) {
+                                // Use dynamic intake form fields for this athlete
+                                DynamicIntakeFormView(
+                                    formData: getOrCreateIntakeForm(for: index),
+                                    fields: intakeFormService.fields
+                                )
+                            }
+                            .padding(.horizontal, Spacing.lg)
+                        }
                     }
                 }
             }

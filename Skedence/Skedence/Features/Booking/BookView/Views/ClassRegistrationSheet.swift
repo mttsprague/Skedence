@@ -45,6 +45,10 @@ struct ClassRegistrationSheet: View {
     @State private var isCheckingWaivers = false
     @State private var waiverCheckComplete = false
     
+    // UI state for collapsible sections
+    @State private var primaryAthleteInfoExpanded = true
+    @State private var newAthleteInfoExpanded = true
+    
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
         let validPackageTypes = getCurrentPackageTypes(category: "class")
@@ -581,12 +585,27 @@ struct ClassRegistrationSheet: View {
     
     private var primaryAthleteFormUI: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("\(selectedAthleteName ?? "Athlete") Information")
-                .font(.headingMedium)
-                .foregroundStyle(AppTheme.textPrimary)
+            HStack {
+                Text("\(selectedAthleteName ?? "Athlete") Information")
+                    .font(.headingMedium)
+                    .foregroundStyle(AppTheme.textPrimary)
+                Spacer()
+                Button {
+                    withAnimation {
+                        primaryAthleteInfoExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: primaryAthleteInfoExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AppTheme.primary)
+                }
+                .buttonStyle(.plain)
+            }
             
-            CardView(padding: Spacing.md) {
-                DynamicIntakeFormView(formData: intakeFormData, fields: intakeFormService.fields)
+            if primaryAthleteInfoExpanded {
+                CardView(padding: Spacing.md) {
+                    DynamicIntakeFormView(formData: intakeFormData, fields: intakeFormService.fields)
+                }
             }
         }
     }
@@ -741,12 +760,27 @@ struct ClassRegistrationSheet: View {
     
     private var newAthleteFormUI: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("New Athlete Information")
-                .font(.headingMedium)
-                .foregroundStyle(AppTheme.textPrimary)
+            HStack {
+                Text("New Athlete Information")
+                    .font(.headingMedium)
+                    .foregroundStyle(AppTheme.textPrimary)
+                Spacer()
+                Button {
+                    withAnimation {
+                        newAthleteInfoExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: newAthleteInfoExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AppTheme.primary)
+                }
+                .buttonStyle(.plain)
+            }
             
-            CardView(padding: Spacing.md) {
-                DynamicIntakeFormView(formData: newAthleteIntakeData, fields: intakeFormService.fields)
+            if newAthleteInfoExpanded {
+                CardView(padding: Spacing.md) {
+                    DynamicIntakeFormView(formData: newAthleteIntakeData, fields: intakeFormService.fields)
+                }
             }
         }
     }
