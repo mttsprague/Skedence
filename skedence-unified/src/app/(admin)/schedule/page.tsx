@@ -678,6 +678,29 @@ export default function SchedulePage() {
           </DialogHeader>
           {selectedBooking && (
             <div className="space-y-5 py-4">
+              {(() => {
+                console.log('🔴 DIALOG RENDERING - selectedBooking:', selectedBooking);
+                console.log('🔴 CHECK YOUR CONSOLE - Dialog is open!');
+                return null;
+              })()}
+              
+              {/* DEBUG: Test visibility */}
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                backgroundColor: 'red',
+                color: 'white',
+                padding: '20px',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                zIndex: 99999
+              }}>
+                🔴 TEST: CAN YOU SEE THIS RED BAR? 🔴
+              </div>
+              
               {/* Client Header */}
               <div className="flex items-center gap-3 pb-4 border-b">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-xl">
@@ -705,7 +728,36 @@ export default function SchedulePage() {
                   </div>
                 )}
               </div>
-              
+              {/* ========== CANCEL BUTTONS - TOP POSITION ========== */}
+              <div className="p-5 bg-gradient-to-r from-orange-100 to-red-100 border-4 border-red-600 rounded-xl shadow-lg">
+                <h3 className="text-xl font-black text-red-700 mb-4 text-center animate-pulse">
+                  ⚠️ CANCEL THIS SESSION
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => {
+                      alert('Early cancel button clicked!');
+                      console.log('Early cancel clicked');
+                      setShowCancelConfirm('early');
+                    }}
+                    className="px-6 py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-md text-base transform hover:scale-105 transition"
+                  >
+                    🕐 Early Cancel
+                    <div className="text-xs mt-1">Refund Pass</div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      alert('Late cancel button clicked!');
+                      console.log('Late cancel clicked');
+                      setShowCancelConfirm('late');
+                    }}
+                    className="px-6 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md text-base transform hover:scale-105 transition"
+                  >
+                    ⏰ Late Cancel
+                    <div className="text-xs mt-1">No Refund</div>
+                  </button>
+                </div>
+              </div>              
               {/* Participants - Booked Athletes */}
               {((selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0) || selectedBooking.athleteName || selectedBooking.secondAthleteName) && (
                 <div className="space-y-2">
@@ -814,31 +866,6 @@ export default function SchedulePage() {
                   <h3 className="font-semibold text-gray-900">Session Notes</h3>
                   <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                     {selectedBooking.lessonNotes}
-                  </div>
-                </div>
-              )}
-
-              {/* Cancel Options */}
-              {!showCancelConfirm && !cancellingBooking && (
-                <div className="pt-4 border-t space-y-2">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">Cancel Session</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      onClick={() => setShowCancelConfirm('early')}
-                      variant="outline"
-                      className="border-orange-500 text-orange-600 hover:bg-orange-50"
-                    >
-                      Early Cancel
-                      <span className="block text-xs font-normal mt-1">Refund Pass</span>
-                    </Button>
-                    <Button
-                      onClick={() => setShowCancelConfirm('late')}
-                      variant="outline"
-                      className="border-red-500 text-red-600 hover:bg-red-50"
-                    >
-                      Late Cancel
-                      <span className="block text-xs font-normal mt-1">No Refund</span>
-                    </Button>
                   </div>
                 </div>
               )}
