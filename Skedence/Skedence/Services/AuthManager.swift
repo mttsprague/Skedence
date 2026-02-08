@@ -129,11 +129,50 @@ final class AuthManager: ObservableObject {
             // Debug: Show payload and auth state at write time
             let payload = data.compactMapValues { $0 }
             let currentUID = Auth.auth().currentUser?.uid ?? "<nil>"
-            print("AuthManager.register → Attempting setData for uid=\(uid)")
-            print("AuthManager.register → Current Auth UID at write time: \(currentUID) (matches: \(currentUID == uid))")
-            print("AuthManager.register → Payload: \(payload)")
+            
+            // Build athletes array from provided data
+            var athletesArray: [[String: Any]] = []
+            
+            // Add first athlete if provided
+            if let athleteFirst = athleteFirstName, let athleteLast = athleteLastName,
+               !athleteFirst.isEmpty || !athleteLast.isEmpty {
+                var athlete1: [String: Any] = [:]
+                if !athleteFirst.isEmpty { athlete1["firstName"] = athleteFirst }
+                if !athleteLast.isEmpty { athlete1["lastName"] = athleteLast }
+                if let birthday = athleteBirthday, !birthday.isEmpty { athlete1["birthday"] = birthday }
+                if let position = athletePosition, !position.isEmpty { athlete1["position"] = position }
+                athletesArray.append(athlete1)
+            }
+            
+            // Add second athlete if provided
+            if let athlete2First = athlete2FirstName, let athlete2Last = athlete2LastName,
+               !athlete2First.isEmpty || !athlete2Last.isEmpty {
+                var athlete2: [String: Any] = [:]
+                if !athlete2First.isEmpty { athlete2["firstName"] = athlete2First }
+                if !athlete2Last.isEmpty { athlete2["lastName"] = athlete2Last }
+                if let birthday = athlete2Birthday, !birthday.isEmpty { athlete2["birthday"] = birthday }
+                if let position = athlete2Position, !position.isEmpty { athlete2["position"] = position }
+                athletesArray.append(athlete2)
+            }
+            
+            // Add third athlete if provided
+            if let athlete3First = athlete3FirstName, let athlete3Last = athlete3LastName,
+               !athlete3First.isEmpty || !athlete3Last.isEmpty {
+                var athlete3: [String: Any] = [:]
+                if !athlete3First.isEmpty { athlete3["firstName"] = athlete3First }
+                if !athlete3Last.isEmpty { athlete3["lastName"] = athlete3Last }
+                if let birthday = athlete3Birthday, !birthday.isEmpty { athlete3["birthday"] = birthday }
+                if let position = athlete3Position, !position.isEmpty { athlete3["position"] = position }
+                athletesArray.append(athlete3)
+            }
+            
+            // Merge athletes array into payload
+            var finalPayload = payload
+            if !athletesArray.isEmpty {
+                finalPayload["athletes"] = athletesArray
+            }
 
-            try await db.collection("users").document(uid).setData(payload)
+            try await db.collection("users").document(uid).setData(finalPayload)
             
             // Create orgMembers entry if orgId provided
             if let orgId = orgId {
@@ -146,7 +185,6 @@ final class AuthManager: ObservableObject {
                     "isActive": true,
                     "joinedAt": Timestamp(date: now)
                 ])
-                print("✅ Created orgMember for \(uid) in org \(orgId) with ID: \(membershipId)")
             }
             
             // Track sign up event
@@ -182,17 +220,8 @@ final class AuthManager: ObservableObject {
             }
             
             authError = nil
-            print("AuthManager.register → setData succeeded for uid=\(uid)")
             return true
         } catch {
-            // Print full NSError details so we can see domain/code/userInfo
-            let ns = error as NSError
-            print("AuthManager.register → ERROR during setData")
-            print("  Error: \(error)")
-            print("  Domain: \(ns.domain)")
-            print("  Code: \(ns.code)")
-            print("  UserInfo: \(ns.userInfo)")
-
             authError = error.localizedDescription
             return false
         }

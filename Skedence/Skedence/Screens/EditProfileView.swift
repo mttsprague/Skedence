@@ -3,7 +3,7 @@ import FirebaseAuth
 
 struct EditProfileView: View {
     @Environment(\.dismiss) var dismiss
-    @StateObject private var usersService = UsersService()
+    @EnvironmentObject var usersService: UsersService
     
     // Parent/Guardian fields
     @State private var firstName: String = ""
