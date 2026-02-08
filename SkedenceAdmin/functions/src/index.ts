@@ -20,6 +20,9 @@ export * from "./stripe-connect";
 // Export Stripe Direct functions (organization's own keys)
 export * from "./stripe-direct";
 
+// Export migration/utility functions
+export * from "./backfill-activities";
+
 // Export billing/subscription functions
 export * from "./billing";
 
