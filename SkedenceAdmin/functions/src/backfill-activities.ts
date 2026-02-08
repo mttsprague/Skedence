@@ -11,7 +11,11 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
 export const backfillActivities = functions.https.onRequest(async (req, res) => {
-  const orgId = 'KFdD3OPexhMLQ4LlSZVF'; // Your org ID
+  // Get orgId from query parameter or use default
+  const orgId = req.query.orgId as string || 'KFdD3OPexhMLQ4LlSZVF';
+  
+  console.log('Starting backfill for orgId:', orgId);
+  
   let activityCount = 0;
   const results: any = {};
   
@@ -20,11 +24,24 @@ export const backfillActivities = functions.https.onRequest(async (req, res) => 
     
     // 1. Backfill trainer creations
     console.log('Processing trainers...');
-    const trainersSnap = await db.collection('trainers')
+    const trainersSnap = await db.collection('trainers').limit(5).get();
+    console.log('Found trainers:', trainersSnap.size);
+    
+    // Debug: log first trainer
+    if (!trainersSnap.empty) {
+      const firstTrainer = trainersSnap.docs[0].data();
+      console.log('Sample trainer data:', JSON.stringify(firstTrainer));
+      console.log('Trainer orgId:', firstTrainer.orgId);
+    }
+    
+    const trainersWithOrgSnap = await db.collection('trainers')
       .where('orgId', '==', orgId)
       .get();
     
-    for (const doc of trainersSnap.docs) {
+    console.log(`Trainers with orgId ${orgId}:`, trainersWithOrgSnap.size);
+    console.log(`Trainers with orgId ${orgId}:`, trainersWithOrgSnap.size);
+    
+    for (const doc of trainersWithOrgSnap.docs) {
       const trainer = doc.data();
       const createdAt = trainer.createdAt?.toDate() || new Date();
       
@@ -47,7 +64,7 @@ export const backfillActivities = functions.https.onRequest(async (req, res) => 
       });
       activityCount++;
     }
-    results.trainers = trainersSnap.size;
+    results.trainers = trainersWithOrgSnap.size;
     
     // 2. Backfill lesson bookings
     console.log('Processing bookings...');
