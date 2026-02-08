@@ -18,6 +18,8 @@ interface PackageOption {
   packageType: string;
   lessonCount: number;
   packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'classPass';
+  expirationDays: number; // Days until pass expires after purchase (e.g., 365)
+  active: boolean; // Whether this package is currently available for purchase
 }
 
 interface PricingTier {
@@ -48,7 +50,15 @@ export default function PricingPage() {
           const pricingData = data.pricingStructure;
           
           if (pricingData && pricingData.tiers && Array.isArray(pricingData.tiers) && pricingData.tiers.length > 0) {
-            setTiers(pricingData.tiers);
+            // Ensure all packages have active field (default true for backward compatibility)
+            const tiersWithActive = pricingData.tiers.map((tier: PricingTier) => ({
+              ...tier,
+              packages: tier.packages.map((pkg: PackageOption) => ({
+                ...pkg,
+                active: pkg.active !== undefined ? pkg.active : true
+              }))
+            }));
+            setTiers(tiersWithActive);
           }
         }
       } catch (error) {
@@ -93,7 +103,9 @@ export default function PricingPage() {
       priceInCents: 0,
       packageType: '', // Will be auto-generated from title
       lessonCount: 1,
-      packageCategory: 'oneAthlete'
+      packageCategory: 'oneAthlete',
+      expirationDays: 365, // Default to 1 year
+      active: true // Default to active
     });
     setTiers(newTiers);
   };
@@ -106,8 +118,14 @@ export default function PricingPage() {
       return;
     }
 
+    // Only allow deleting inactive packages
+    if (packageToDelete.active) {
+      setMessage({ type: 'error', text: 'Cannot delete active packages. Please deactivate first.' });
+      return;
+    }
+
     // Confirm deletion
-    if (!confirm(`Delete "${packageToDelete.title}"? This will also remove all purchased passes of this type from client accounts.`)) {
+    if (!confirm(`Permanently delete "${packageToDelete.title}"? This will also remove all purchased passes of this type from client accounts. This action cannot be undone.`)) {
       return;
     }
 
@@ -133,7 +151,7 @@ export default function PricingPage() {
 
       setMessage({ 
         type: 'success', 
-        text: `Package deleted. ${data.message}` 
+        text: `Package permanently deleted. ${data.message}` 
       });
     } catch (error) {
       console.error('Error deleting package:', error);
@@ -144,6 +162,26 @@ export default function PricingPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const deactivatePackage = (tierIndex: number, packageIndex: number) => {
+    const packageToDeactivate = tiers[tierIndex].packages[packageIndex];
+    
+    if (!confirm(`Deactivate "${packageToDeactivate.title}"? This will hide it from the client app and prevent new purchases.`)) {
+      return;
+    }
+
+    const newTiers = [...tiers];
+    newTiers[tierIndex].packages[packageIndex].active = false;
+    setTiers(newTiers);
+    setMessage({ type: 'info', text: 'Package deactivated. Click Save to apply changes.' });
+  };
+
+  const reactivatePackage = (tierIndex: number, packageIndex: number) => {
+    const newTiers = [...tiers];
+    newTiers[tierIndex].packages[packageIndex].active = true;
+    setTiers(newTiers);
+    setMessage({ type: 'info', text: 'Package reactivated. Click Save to apply changes.' });
   };
 
   const updatePackage = (tierIndex: number, packageIndex: number, field: string, value: any) => {
@@ -216,6 +254,148 @@ export default function PricingPage() {
     }
   };
 
+  // Helper function to render package fields
+  const renderPackageFields = (tierIndex: number, packageIndex: number, pkg: PackageOption, isActive: boolean) => {
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-gray-600">
+            {pkg.title || `Package ${packageIndex + 1}`}
+            {!isActive && <span className="ml-2 text-xs bg-gray-400 text-white px-2 py-0.5 rounded">INACTIVE</span>}
+          </span>
+          <div className="flex gap-2">
+            {isActive ? (
+              <Button
+                onClick={() => deactivatePackage(tierIndex, packageIndex)}
+                variant="ghost"
+                size="sm"
+                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                disabled={saving}
+                title="Deactivate package"
+              >
+                Deactivate
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => reactivatePackage(tierIndex, packageIndex)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                  disabled={saving}
+                  title="Reactivate package"
+                >
+                  Reactivate
+                </Button>
+                <Button
+                  onClick={() => deletePackage(tierIndex, packageIndex)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  disabled={saving}
+                  title="Permanently delete package"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-600">Title</label>
+          <input
+            type="text"
+            value={pkg.title}
+            onChange={(e) => updatePackage(tierIndex, packageIndex, 'title', e.target.value)}
+            placeholder="e.g., 1 Athlete Private Lesson"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            disabled={!isActive}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-600">Description</label>
+          <textarea
+            value={pkg.description}
+            onChange={(e) => updatePackage(tierIndex, packageIndex, 'description', e.target.value)}
+            placeholder="Package description (optional)"
+            rows={2}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            disabled={!isActive}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-gray-700">Package Category *</label>
+          <select
+            value={pkg.packageCategory}
+            onChange={(e) => updatePackage(tierIndex, packageIndex, 'packageCategory', e.target.value as PackageOption['packageCategory'])}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            disabled={!isActive}
+          >
+            <option value="oneAthlete">1 Athlete - Private Lesson</option>
+            <option value="twoAthlete">2 Athletes - Private Lesson</option>
+            <option value="threeAthlete">3 Athletes - Private Lesson</option>
+            <option value="fourAthlete">4 Athletes - Private Lesson</option>
+            <option value="classPass">Group Class</option>
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-600">Passes</label>
+            <input
+              type="number"
+              value={pkg.lessonCount}
+              onChange={(e) => updatePackage(tierIndex, packageIndex, 'lessonCount', parseInt(e.target.value) || 1)}
+              min="1"
+              className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+              disabled={!isActive}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-600">Price ($)</label>
+            <input
+              type="number"
+              value={(pkg.priceInCents / 100).toFixed(2)}
+              onChange={(e) => {
+                const dollars = parseFloat(e.target.value) || 0;
+                updatePackage(tierIndex, packageIndex, 'priceInCents', Math.round(dollars * 100));
+              }}
+              min="0"
+              step="0.01"
+              className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+              disabled={!isActive}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-600">Expiration (Days)</label>
+          <input
+            type="number"
+            value={pkg.expirationDays}
+            onChange={(e) => updatePackage(tierIndex, packageIndex, 'expirationDays', parseInt(e.target.value) || 365)}
+            min="1"
+            className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            placeholder="365"
+            disabled={!isActive}
+          />
+          <p className="text-xs text-gray-500 mt-1">Pass expires this many days after purchase</p>
+        </div>
+        
+        {/* Show auto-generated type for reference */}
+        {pkg.title && (
+          <div className="text-xs text-gray-500 italic">
+            Auto-generated type: <span className="font-mono">{pkg.packageType}</span>
+          </div>
+        )}
+      </>
+    );
+  };
+
   if (loading) {
     return (
       <SchedulingSubmenu>
@@ -239,10 +419,16 @@ export default function PricingPage() {
           <h1 className="text-3xl font-bold text-gray-900">Pricing Structure</h1>
           <p className="text-gray-600 mt-1">Set up pricing tiers and package options</p>
           {tiers.length > 0 && (
-            <p className="text-sm text-green-600 mt-2 flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
-              Currently: {tiers.length} tier(s), {tiers.reduce((sum, t) => sum + t.packages.length, 0)} package(s)
-            </p>
+            <div className="flex gap-4 mt-2">
+              <p className="text-sm text-green-600 flex items-center gap-2">
+                <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
+                Active: {tiers.flatMap(t => t.packages.filter(p => p.active)).length} package(s)
+              </p>
+              <p className="text-sm text-gray-500 flex items-center gap-2">
+                <span className="flex h-2 w-2 rounded-full bg-gray-400"></span>
+                Inactive: {tiers.flatMap(t => t.packages.filter(p => !p.active)).length} package(s)
+              </p>
+            </div>
           )}
         </div>
 
@@ -257,126 +443,83 @@ export default function PricingPage() {
         )}
 
         <div className="space-y-6">
-          {tiers.map((tier, tierIndex) => (
-            <Card key={tier.id} className="border-2">
-              <CardHeader className="bg-gray-50">
-                <div className="flex items-center gap-4">
-                  <input
-                    type="text"
-                    value={tier.tierName}
-                    onChange={(e) => updateTierName(tierIndex, e.target.value)}
-                    placeholder="Tier Name (e.g., Master, Elite, Pro)"
-                    className="flex-1 px-4 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
-                  />
-                  {tiers.length > 1 && (
-                    <Button
-                      onClick={() => deleteTier(tierIndex)}
-                      variant="destructive"
-                      size="sm"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                {tier.packages.map((pkg, packageIndex) => (
-                  <div key={pkg.id} className="p-4 bg-gray-50 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-600">Package {packageIndex + 1}</span>
+          {tiers.map((tier, tierIndex) => {
+            const activePackages = tier.packages.filter(pkg => pkg.active);
+            const inactivePackages = tier.packages.filter(pkg => !pkg.active);
+            
+            return (
+              <Card key={tier.id} className="border-2">
+                <CardHeader className="bg-gray-50">
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="text"
+                      value={tier.tierName}
+                      onChange={(e) => updateTierName(tierIndex, e.target.value)}
+                      placeholder="Tier Name (e.g., Master, Elite, Pro)"
+                      className="flex-1 px-4 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    />
+                    {tiers.length > 1 && (
                       <Button
-                        onClick={() => deletePackage(tierIndex, packageIndex)}
-                        variant="ghost"
+                        onClick={() => deleteTier(tierIndex)}
+                        variant="destructive"
                         size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        disabled={saving}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-600">Title</label>
-                      <input
-                        type="text"
-                        value={pkg.title}
-                        onChange={(e) => updatePackage(tierIndex, packageIndex, 'title', e.target.value)}
-                        placeholder="e.g., 1 Athlete Private Lesson"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-600">Description</label>
-                      <textarea
-                        value={pkg.description}
-                        onChange={(e) => updatePackage(tierIndex, packageIndex, 'description', e.target.value)}
-                        placeholder="Package description (optional)"
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-gray-700">Package Category *</label>
-                      <select
-                        value={pkg.packageCategory}
-                        onChange={(e) => updatePackage(tierIndex, packageIndex, 'packageCategory', e.target.value as PackageOption['packageCategory'])}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
-                      >
-                        <option value="oneAthlete">1 Athlete - Private Lesson</option>
-                        <option value="twoAthlete">2 Athletes - Private Lesson</option>
-                        <option value="threeAthlete">3 Athletes - Private Lesson</option>
-                        <option value="fourAthlete">4 Athletes - Private Lesson</option>
-                        <option value="classPass">Group Class</option>
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-600">Passes</label>
-                        <input
-                          type="number"
-                          value={pkg.lessonCount}
-                          onChange={(e) => updatePackage(tierIndex, packageIndex, 'lessonCount', parseInt(e.target.value) || 1)}
-                          min="1"
-                          className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-600">Price ($)</label>
-                        <input
-                          type="number"
-                          value={(pkg.priceInCents / 100).toFixed(2)}
-                          onChange={(e) => updatePackage(tierIndex, packageIndex, 'priceInCents', Math.round(parseFloat(e.target.value) * 100) || 0)}
-                          min="0"
-                          step="0.01"
-                          className="w-full px-3 py-2 text-right border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Show auto-generated type for reference */}
-                    {pkg.title && (
-                      <div className="text-xs text-gray-500 italic">
-                        Auto-generated type: <span className="font-mono">{pkg.packageType}</span>
-                      </div>
                     )}
                   </div>
-                ))}
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  {/* Active Packages Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-green-700">ACTIVE PRICING</h3>
+                      <span className="text-xs text-gray-500">({activePackages.length})</span>
+                    </div>
+                    {activePackages.length === 0 ? (
+                      <p className="text-sm text-gray-500 italic">No active packages</p>
+                    ) : (
+                      activePackages.map((pkg) => {
+                        const packageIndex = tier.packages.indexOf(pkg);
+                        return (
+                          <div key={pkg.id} className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
+                            {renderPackageFields(tierIndex, packageIndex, pkg, true)}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
 
-                <Button
-                  onClick={() => addPackage(tierIndex)}
-                  variant="outline"
-                  className="w-full border-dashed border-2 py-6"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Package
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  {/* Inactive Packages Section */}
+                  {inactivePackages.length > 0 && (
+                    <div className="space-y-4 pt-4 border-t-2 border-gray-200">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-gray-600">INACTIVE PRICING</h3>
+                        <span className="text-xs text-gray-500">({inactivePackages.length})</span>
+                      </div>
+                      {inactivePackages.map((pkg) => {
+                        const packageIndex = tier.packages.indexOf(pkg);
+                        return (
+                          <div key={pkg.id} className="p-4 bg-gray-100 border border-gray-300 rounded-lg space-y-3 opacity-75">
+                            {renderPackageFields(tierIndex, packageIndex, pkg, false)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={() => addPackage(tierIndex)}
+                    variant="outline"
+                    className="w-full border-dashed border-2 py-6"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Package
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
 
           <Button
             onClick={addTier}

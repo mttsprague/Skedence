@@ -22,6 +22,7 @@ struct GroupClass: Identifiable, Codable, Hashable {
     let createdBy: String // Admin user ID
     let createdAt: Date
     let priceInCents: Int // Registration price in cents (e.g., 2000 = $20.00)
+    var eligiblePackageIds: [String] // Package IDs that can be used to register for this class
     
     var isFull: Bool {
         currentParticipants >= maxParticipants

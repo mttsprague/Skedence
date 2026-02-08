@@ -116,18 +116,23 @@ class PricingStructureService: ObservableObject {
     
     // MARK: - Computed Properties
     
-    /// Get all package options across all tiers (for dropdowns)
+    /// Get all active package options across all tiers (for dropdowns)
     var allPackageOptions: [PackageOption] {
-        pricingStructure?.allPackages ?? []
+        let allPackages = pricingStructure?.allPackages ?? []
+        return allPackages.filter { $0.active }
     }
     
-    /// Get package titles for picker
+    /// Get package titles for picker (active packages only)
     var packageTitles: [String] {
         allPackageOptions.map { $0.title }
     }
     
-    /// Find package by title
+    /// Find active package by title
     func package(withTitle title: String) -> PackageOption? {
-        pricingStructure?.package(withTitle: title)
+        guard let pkg = pricingStructure?.package(withTitle: title) else {
+            return nil
+        }
+        // Only return if package is active
+        return pkg.active ? pkg : nil
     }
 }

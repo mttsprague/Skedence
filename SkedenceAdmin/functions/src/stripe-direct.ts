@@ -457,9 +457,21 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         // Get lesson count from package definition
         const totalLessons = validPackages[packageType].lessons;
 
+        // Get expiration days from pricing structure (default 365 if not found)
+        let expirationDays = 365;
+        if (orgData?.pricingStructure?.tiers) {
+          for (const tier of orgData.pricingStructure.tiers) {
+            const pkg = tier.packages.find((p: any) => p.packageType === packageType);
+            if (pkg && pkg.expirationDays) {
+              expirationDays = pkg.expirationDays;
+              break;
+            }
+          }
+        }
+
         // Create the lesson package in the correct location: users/{userId}/lessonPackages
         const expirationDate = new Date();
-        expirationDate.setMonth(expirationDate.getMonth() + 12);
+        expirationDate.setDate(expirationDate.getDate() + expirationDays);
 
         await db
           .collection("users")
@@ -647,6 +659,9 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
 
       console.log(`🔍 Checking pricing structure for package: ${packageType}`);
 
+      // Get totalLessons and expirationDays from pricing structure
+      let expirationDays = 365; // Default
+
       if (orgData?.pricingStructure?.tiers) {
         console.log(`📋 Found ${orgData.pricingStructure.tiers.length} pricing tiers`);
 
@@ -657,7 +672,8 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
           const pkg = tier.packages.find((p: any) => p.packageType === packageType);
           if (pkg) {
             totalLessons = pkg.lessonCount || 1;
-            console.log(`✅ Found matching package! lessonCount: ${totalLessons}`);
+            expirationDays = pkg.expirationDays || 365;
+            console.log(`✅ Found matching package! lessonCount: ${totalLessons}, expirationDays: ${expirationDays}`);
             break;
           }
         }
@@ -680,6 +696,7 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
         if (!packagesSnapshot.empty) {
           const pkgData = packagesSnapshot.docs[0].data();
           totalLessons = pkgData.lessonCount || 1;
+          expirationDays = pkgData.expirationDays || 365;
           console.log("✅ Found package in subcollection! lessonCount: ${totalLessons}");
         } else {
           console.log("⚠️ No package found in subcollection either, using default: 1");
@@ -688,7 +705,7 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
 
       // Create the lesson package
       const expirationDate = new Date();
-      expirationDate.setMonth(expirationDate.getMonth() + 12);
+      expirationDate.setDate(expirationDate.getDate() + expirationDays);
 
       // Store package in users/{userId}/lessonPackages to match existing structure
       await db

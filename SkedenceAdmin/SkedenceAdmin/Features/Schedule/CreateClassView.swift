@@ -16,6 +16,7 @@ struct CreateClassView: View {
     
     // Convenience accessor
     private var locationsService: LocationsService { dependencies.locations }
+    private var pricingService: PricingStructureService { dependencies.pricing }
     let onCreated: () -> Void
     
     @State private var title = ""
@@ -31,6 +32,13 @@ struct CreateClassView: View {
     @State private var isRecurring = false
     @State private var recurringEndDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
     @State private var selectedDays: Set<Int> = [] // 1=Sunday, 2=Monday, etc.
+    @State private var selectedPackageIds: Set<String> = [] // Selected class pass package IDs
+    
+    // Computed property for active class pass packages
+    private var activeClassPasses: [PackageOption] {
+        guard let pricing = pricingService.pricingStructure else { return [] }
+        return pricing.allPackages.filter { $0.packageCategory == .classPass && $0.active }
+    }
     
     var body: some View {
         NavigationView {
@@ -97,6 +105,85 @@ struct CreateClassView: View {
                 
                 Section("Capacity") {
                     Stepper("Max Participants: \(maxParticipants)", value: $maxParticipants, in: 1...50)
+                }
+                
+                Section {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Eligible Class Passes *")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        Text("Select which class pass types can be used to register for this class")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        if activeClassPasses.isEmpty {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text("No active class passes found. Create class passes in Pricing first.")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                            .padding(Spacing.sm)
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(CornerRadius.sm)
+                        } else {
+                            ForEach(activeClassPasses) { pkg in
+                                Button {
+                                    if selectedPackageIds.contains(pkg.id) {
+                                        selectedPackageIds.remove(pkg.id)
+                                    } else {
+                                        selectedPackageIds.insert(pkg.id)
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: selectedPackageIds.contains(pkg.id) ? "checkmark.square.fill" : "square")
+                                            .foregroundStyle(selectedPackageIds.contains(pkg.id) ? AppTheme.primary : AppTheme.textSecondary)
+                                        Text(pkg.title)
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            
+                            if !selectedPackageIds.isEmpty {
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                    Text("Selected: \(selectedPackageIds.count) pass type(s)")
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(AppTheme.primary)
+                                    
+                                    FlowLayout(spacing: Spacing.xs) {
+                                        ForEach(Array(selectedPackageIds), id: \.self) { pkgId in
+                                            if let pkg = activeClassPasses.first(where: { $0.id == pkgId }) {
+                                                HStack(spacing: 4) {
+                                                    Text(pkg.title)
+                                                        .font(.caption2)
+                                                    Button {
+                                                        selectedPackageIds.remove(pkgId)
+                                                    } label: {
+                                                        Image(systemName: "xmark.circle.fill")
+                                                            .font(.caption2)
+                                                    }
+                                                }
+                                                .padding(.horizontal, Spacing.xs)
+                                                .padding(.vertical, 4)
+                                                .background(AppTheme.primary.opacity(0.1))
+                                                .foregroundStyle(AppTheme.primary)
+                                                .cornerRadius(CornerRadius.sm)
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(Spacing.sm)
+                                .background(AppTheme.primary.opacity(0.05))
+                                .cornerRadius(CornerRadius.sm)
+                            }
+                        }
+                    }
                 }
                 
                 if let errorMessage = errorMessage {
@@ -208,7 +295,8 @@ struct CreateClassView: View {
                         location: location.name,
                         trainerId: trainerId,
                         trainerName: trainerName,
-                        priceInCents: 0
+                        priceInCents: 0,
+                        eligiblePackageIds: Array(selectedPackageIds)
                     )
                 }
             } else {
@@ -223,7 +311,8 @@ struct CreateClassView: View {
                     location: location.name,
                     trainerId: trainerId,
                     trainerName: trainerName,
-                    priceInCents: 0
+                    priceInCents: 0,
+                    eligiblePackageIds: Array(selectedPackageIds)
                 )
             }
             
@@ -259,5 +348,49 @@ struct DayButton: View {
                 .cornerRadius(18)
         }
         .buttonStyle(.plain)
+    }
+}
+
+// Simple flow layout for wrapping package chips
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(in: proposal.replacingUnspecifiedDimensions().width, subviews: subviews, spacing: spacing)
+        return result.size
+    }
+    
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + result.frames[index].minX, y: bounds.minY + result.frames[index].minY), proposal: .unspecified)
+        }
+    }
+    
+    struct FlowResult {
+        var frames: [CGRect] = []
+        var size: CGSize = .zero
+        
+        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
+            var currentX: CGFloat = 0
+            var currentY: CGFloat = 0
+            var lineHeight: CGFloat = 0
+            
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+                
+                if currentX + size.width > maxWidth && currentX > 0 {
+                    currentX = 0
+                    currentY += lineHeight + spacing
+                    lineHeight = 0
+                }
+                
+                frames.append(CGRect(x: currentX, y: currentY, width: size.width, height: size.height))
+                lineHeight = max(lineHeight, size.height)
+                currentX += size.width + spacing
+            }
+            
+            self.size = CGSize(width: maxWidth, height: currentY + lineHeight)
+        }
     }
 }

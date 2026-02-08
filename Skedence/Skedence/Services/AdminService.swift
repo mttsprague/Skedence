@@ -331,6 +331,7 @@ final class AdminService: ObservableObject {
             .collection("pricingStructure").document("current").getDocument()
         
         var packageCategory: String = "pass" // Default to pass for backward compatibility
+        var expirationDays: Int = 365 // Default to 1 year
         
         if let pricingData = pricingDoc.data(),
            let tiers = pricingData["tiers"] as? [[String: Any]] {
@@ -339,9 +340,13 @@ final class AdminService: ObservableObject {
                 if let packages = tier["packages"] as? [[String: Any]] {
                     for package in packages {
                         if let pkgType = package["packageType"] as? String,
-                           pkgType == passType,
-                           let category = package["packageCategory"] as? String {
-                            packageCategory = category
+                           pkgType == passType {
+                            if let category = package["packageCategory"] as? String {
+                                packageCategory = category
+                            }
+                            if let expDays = package["expirationDays"] as? Int {
+                                expirationDays = expDays
+                            }
                             break
                         }
                     }
@@ -350,7 +355,7 @@ final class AdminService: ObservableObject {
         }
         
         let now = Date()
-        let expirationDate = Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now.addingTimeInterval(365 * 24 * 60 * 60)
+        let expirationDate = Calendar.current.date(byAdding: .day, value: expirationDays, to: now) ?? now.addingTimeInterval(Double(expirationDays) * 24 * 60 * 60)
         
         let passData: [String: Any] = [
             "packageType": passType, // This must be packageType (e.g., "private"), not title

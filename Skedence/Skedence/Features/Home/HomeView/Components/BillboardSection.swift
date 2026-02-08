@@ -45,17 +45,6 @@ struct BillboardSection: View {
                 
                 // Message Content
                 HStack(alignment: .top, spacing: Spacing.md) {
-                    // Icon
-                    ZStack {
-                        Circle()
-                            .fill(AppTheme.primary.opacity(0.1))
-                            .frame(width: 40, height: 40)
-                        
-                        Image(systemName: "megaphone.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(AppTheme.primary)
-                    }
-                    
                     // Message Text
                     Text(message)
                         .font(.system(size: 15, weight: .regular))

@@ -56,10 +56,11 @@ struct PricingTabView: View {
                     .padding()
             } else {
                 if let structure = pricingService.pricingStructure {
+                    let activePackages = structure.allPackages.filter { $0.active }
                     HStack(spacing: Spacing.xs) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(AppTheme.success)
-                        Text("Currently: \(structure.tiers.count) tier(s), \(structure.allPackages.count) package(s)")
+                        Text("Currently: \(structure.tiers.count) tier(s), \(activePackages.count) active package(s)")
                             .font(.caption)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -151,8 +152,11 @@ struct PricingTabView: View {
                 }
             }
             
+            // Only show active packages
             ForEach(editingTiers[tierIndex].packages.indices, id: \.self) { packageIndex in
-                packageRow(tierIndex: tierIndex, packageIndex: packageIndex)
+                if editingTiers[tierIndex].packages[packageIndex].active {
+                    packageRow(tierIndex: tierIndex, packageIndex: packageIndex)
+                }
             }
             
             Button {
@@ -185,11 +189,15 @@ struct PricingTabView: View {
                     .foregroundStyle(AppTheme.textSecondary)
                 Spacer()
                 Button {
-                    deletePackage(at: packageIndex, from: tierIndex)
+                    deactivatePackage(at: packageIndex, from: tierIndex)
                 } label: {
-                    Image(systemName: "trash")
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    HStack(spacing: 4) {
+                        Image(systemName: "minus.circle")
+                            .font(.caption)
+                        Text("Deactivate")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.orange)
                 }
             }
             
@@ -294,6 +302,24 @@ struct PricingTabView: View {
     
     private func deletePackage(at packageIndex: Int, from tierIndex: Int) {
         editingTiers[tierIndex].packages.remove(at: packageIndex)
+    }
+    
+    private func deactivatePackage(at packageIndex: Int, from tierIndex: Int) {
+        let package = editingTiers[tierIndex].packages[packageIndex]
+        
+        // Show confirmation dialog
+        let confirmTitle = "Deactivate \"\(package.title)\"?"
+        let confirmMessage = "This package will be hidden from the admin and client apps. Existing passes will remain valid. You can reactivate it later from the web admin portal."
+        
+        alertItem = AlertItem(
+            title: confirmTitle,
+            message: confirmMessage,
+            primaryButton: Alert.Button.destructive(Text("Deactivate")) {
+                // Set package as inactive
+                editingTiers[tierIndex].packages[packageIndex].active = false
+            },
+            secondaryButton: Alert.Button.cancel()
+        )
     }
     
     private func savePricingStructure() {

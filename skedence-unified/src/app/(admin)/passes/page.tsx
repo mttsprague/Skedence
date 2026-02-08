@@ -23,6 +23,7 @@ interface PackageOption {
   priceInCents: number;
   packageType: string;
   packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'classPass';
+  expirationDays: number; // Days until expiration after purchase
 }
 
 // Helper function to get display name for package category
@@ -131,7 +132,8 @@ export default function PassesPage() {
                     title: pkg.title || pkg.packageType,
                     priceInCents: pkg.priceInCents || 0,
                     packageType: pkg.packageType,
-                    packageCategory: pkg.packageCategory || 'pass'
+                    packageCategory: pkg.packageCategory || 'pass',
+                    expirationDays: pkg.expirationDays || 365
                   });
                 });
               }
@@ -200,7 +202,9 @@ export default function PassesPage() {
         // Add passes to client
         const now = new Date();
         const expirationDate = new Date(now);
-        expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+        // Use expirationDays from package, default to 365 if not set
+        const daysToExpire = selectedPackage.expirationDays || 365;
+        expirationDate.setDate(expirationDate.getDate() + daysToExpire);
 
         const passData = {
           packageType: selectedPackage.packageType,

@@ -142,7 +142,8 @@ final class AdminService: ObservableObject {
         location: String,
         trainerId: String,
         trainerName: String,
-        priceInCents: Int
+        priceInCents: Int,
+        eligiblePackageIds: [String] = []
     ) async throws {
         guard let uid = Auth.auth().currentUser?.uid else {
             throw AdminServiceError.notAuthenticated
@@ -182,7 +183,8 @@ final class AdminService: ObservableObject {
             "trainerName": trainerName,
             "createdBy": uid,
             "createdAt": Timestamp(date: Date()),
-            "priceInCents": priceInCents
+            "priceInCents": priceInCents,
+            "eligiblePackageIds": eligiblePackageIds
         ]
         
         let classRef = try await db.collection("classes").addDocument(data: classData)
@@ -458,6 +460,7 @@ final class AdminService: ObservableObject {
         
         var packageCategory: String = "pass" // Default to pass for backward compatibility
         var packageName: String? = nil
+        var expirationDays: Int = 365 // Default to 1 year
         
         if let tiers = pricingData["tiers"] as? [[String: Any]] {
             // Search for the package in all tiers
@@ -472,6 +475,9 @@ final class AdminService: ObservableObject {
                             if let title = package["title"] as? String {
                                 packageName = title
                             }
+                            if let expDays = package["expirationDays"] as? Int {
+                                expirationDays = expDays
+                            }
                             break
                         }
                     }
@@ -480,7 +486,7 @@ final class AdminService: ObservableObject {
         }
         
         let now = Date()
-        let expirationDate = Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now.addingTimeInterval(365 * 24 * 60 * 60)
+        let expirationDate = Calendar.current.date(byAdding: .day, value: expirationDays, to: now) ?? now.addingTimeInterval(Double(expirationDays) * 24 * 60 * 60)
         
         var passData: [String: Any] = [
             "packageType": passType, // This must be packageType (e.g., "private"), not title

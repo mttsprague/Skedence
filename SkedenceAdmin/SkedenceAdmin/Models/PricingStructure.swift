@@ -49,6 +49,8 @@ struct PackageOption: Codable, Identifiable, Hashable {
     var packageCategory: PackageCategory = .classPass // Determines if this can be used for lessons or classes
     var lessonCount: Int = 1 // Number of lessons/units in this package (e.g., 1, 5, 10)
     var description: String = "" // Package description
+    var expirationDays: Int = 365 // Days until pass expires after purchase
+    var active: Bool = true // Whether this package is currently available for purchase
     
     /// Formatted price for display (e.g., "$80.00")
     var formattedPrice: String {
@@ -77,7 +79,9 @@ struct PackageOption: Codable, Identifiable, Hashable {
         packageType: String,
         packageCategory: PackageCategory = .classPass,
         lessonCount: Int = 1,
-        description: String = ""
+        description: String = "",
+        expirationDays: Int = 365,
+        active: Bool = true
     ) {
         self.id = id
         self.title = title
@@ -86,9 +90,11 @@ struct PackageOption: Codable, Identifiable, Hashable {
         self.packageCategory = packageCategory
         self.lessonCount = lessonCount
         self.description = description
+        self.expirationDays = expirationDays
+        self.active = active
     }
     
-    // Custom decoding to handle missing description field for backward compatibility
+    // Custom decoding to handle missing fields for backward compatibility
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -98,9 +104,11 @@ struct PackageOption: Codable, Identifiable, Hashable {
         packageCategory = try container.decodeIfPresent(PackageCategory.self, forKey: .packageCategory) ?? .classPass
         lessonCount = try container.decodeIfPresent(Int.self, forKey: .lessonCount) ?? 1
         description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
+        expirationDays = try container.decodeIfPresent(Int.self, forKey: .expirationDays) ?? 365
+        active = try container.decodeIfPresent(Bool.self, forKey: .active) ?? true
     }
     
-    // Custom encoding to ensure all fields including packageCategory are saved
+    // Custom encoding to ensure all fields are saved
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
@@ -110,10 +118,12 @@ struct PackageOption: Codable, Identifiable, Hashable {
         try container.encode(packageCategory, forKey: .packageCategory)
         try container.encode(lessonCount, forKey: .lessonCount)
         try container.encode(description, forKey: .description)
+        try container.encode(expirationDays, forKey: .expirationDays)
+        try container.encode(active, forKey: .active)
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, title, priceInCents, packageType, packageCategory, lessonCount, description
+        case id, title, priceInCents, packageType, packageCategory, lessonCount, description, expirationDays, active
     }
 }
 

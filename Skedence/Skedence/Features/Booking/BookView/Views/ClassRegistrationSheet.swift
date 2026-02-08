@@ -51,15 +51,24 @@ struct ClassRegistrationSheet: View {
     
     private var availableClassPasses: [LessonPackage] {
         let now = Date()
-        let validPackageTypes = getCurrentPackageTypes(category: "class")
+        
+        // Get eligible package IDs from the class
+        let eligibleIds = Set(classItem.eligiblePackageIds)
+        
+        // Filter packages based on class eligibility
         let filtered = packagesService.packages.filter { pkg -> Bool in
             let canBook = pkg.canBookClasses
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
-            let hasClassCategory = pkg.packageCategory == "classPass" || pkg.packageCategory == "class" // backward compatibility
-            let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
-            return canBook && hasRemaining && notExpired && hasClassCategory && isCurrentPackage
+            let hasClassCategory = pkg.packageCategory == "classPass" || pkg.packageCategory == "class"
+            
+            // Check if package is in eligible list (if list is empty, allow all class passes for backward compatibility)
+            let isEligible = eligibleIds.isEmpty || eligibleIds.contains(pkg.packageType)
+            
+            return canBook && hasRemaining && notExpired && hasClassCategory && isEligible
         }
+        
+        // Group by package type, keeping the one with earliest expiration
         var packagesByType: [String: LessonPackage] = [:]
         for pkg in filtered.sorted(by: { $0.expirationDate < $1.expirationDate }) {
             if packagesByType[pkg.packageType] == nil {

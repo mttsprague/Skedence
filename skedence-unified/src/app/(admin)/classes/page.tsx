@@ -34,6 +34,7 @@ interface GroupClass {
   priceInCents: number; // Added to match iOS schema
   isRecurring: boolean;
   recurringPattern?: string;
+  eligiblePackageIds?: string[]; // Package IDs that can be used to register for this class
 }
 
 interface Participant {
@@ -45,11 +46,19 @@ interface Participant {
   classPassPackageId?: string;
 }
 
+interface PackageOption {
+  id: string;
+  title: string;
+  packageCategory: string;
+  active: boolean;
+}
+
 export default function ClassesPage() {
   const { orgId } = useAuth();
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [classes, setClasses] = useState<GroupClass[]>([]);
+  const [packages, setPackages] = useState<PackageOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState<GroupClass | null>(null);
@@ -57,6 +66,7 @@ export default function ClassesPage() {
   const [viewingParticipants, setViewingParticipants] = useState<GroupClass | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
 
   // Form state
   const [form, setForm] = useState({
@@ -71,6 +81,40 @@ export default function ClassesPage() {
     isRecurring: false,
     recurringPattern: 'weekly',
   });
+
+  // Load active class pass packages
+  useEffect(() => {
+    if (!orgId) return;
+
+    async function loadPackages() {
+      try {
+        const orgDoc = await getDocs(query(collection(db, 'organizations'), where('__name__', '==', orgId)));
+        if (!orgDoc.empty) {
+          const pricingStructure = orgDoc.docs[0].data().pricingStructure;
+          if (pricingStructure && pricingStructure.tiers) {
+            const allPackages: PackageOption[] = [];
+            pricingStructure.tiers.forEach((tier: any) => {
+              tier.packages.forEach((pkg: any) => {
+                if (pkg.packageCategory === 'classPass' && pkg.active !== false) {
+                  allPackages.push({
+                    id: pkg.id,
+                    title: pkg.title,
+                    packageCategory: pkg.packageCategory,
+                    active: pkg.active !== false,
+                  });
+                }
+              });
+            });
+            setPackages(allPackages);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading packages:', error);
+      }
+    }
+
+    loadPackages();
+  }, [orgId, showForm]); // Reload when form opens to get latest packages
 
   useEffect(() => {
     if (!orgId) return;
@@ -162,6 +206,7 @@ export default function ClassesPage() {
         priceInCents: 0, // Default to free
         isRecurring: form.isRecurring,
         recurringPattern: form.isRecurring ? form.recurringPattern : null,
+        eligiblePackageIds: selectedPackageIds, // Add eligible package IDs
       };
 
       if (editingClass) {
@@ -276,6 +321,8 @@ export default function ClassesPage() {
       isRecurring: cls.isRecurring,
       recurringPattern: cls.recurringPattern || 'weekly',
     });
+    // Load eligible package IDs if they exist
+    setSelectedPackageIds(cls.eligiblePackageIds || []);
     setShowForm(true);
   };
 
@@ -364,6 +411,7 @@ export default function ClassesPage() {
     });
     setEditingClass(null);
     setShowForm(false);
+    setSelectedPackageIds([]); // Reset selected packages
   };
 
   const getTrainerName = (trainerId: string) => {
@@ -523,6 +571,61 @@ export default function ClassesPage() {
                             </option>
                           ))}
                         </select>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Eligible Class Passes *
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Select which class pass types can be used to register for this class
+                      </p>
+                      {packages.length === 0 ? (
+                        <div className="w-full px-3 py-2 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-800">
+                          No active class pass packages found. Please create class passes in Pricing first.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {packages.map(pkg => (
+                            <label key={pkg.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedPackageIds.includes(pkg.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedPackageIds([...selectedPackageIds, pkg.id]);
+                                  } else {
+                                    setSelectedPackageIds(selectedPackageIds.filter(id => id !== pkg.id));
+                                  }
+                                }}
+                                className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                              />
+                              <span className="text-sm font-medium text-gray-700">{pkg.title}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      {selectedPackageIds.length > 0 && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-xs font-medium text-blue-800 mb-2">Selected Class Passes ({selectedPackageIds.length}):</p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedPackageIds.map(id => {
+                              const pkg = packages.find(p => p.id === id);
+                              return pkg ? (
+                                <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                  {pkg.title}
+                                  <button
+                                    onClick={() => setSelectedPackageIds(selectedPackageIds.filter(pid => pid !== id))}
+                                    className="hover:text-blue-600"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
 
