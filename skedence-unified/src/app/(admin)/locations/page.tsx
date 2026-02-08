@@ -9,7 +9,7 @@ import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, g
 import { db } from '@/lib/firebase';
 import { MapPin, Plus, Edit2, Trash2, X, AlertCircle, Building2, Crown } from 'lucide-react';
 import { Location } from '@/types/location';
-import { logLocationCreated } from '@/lib/activity-logger';
+import { logLocationCreated, logLocationUpdated, logLocationDeleted } from '@/lib/activity-logger';
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
 
 type SubscriptionTier = 'starter' | 'studio' | 'academy' | 'enterprise';
@@ -140,12 +140,27 @@ export default function LocationsPage() {
       return;
     }
 
+    const locationToDelete = locations.find(loc => loc.id === locationId);
+    if (!locationToDelete) return;
+
     try {
       // Soft delete by setting isActive to false
       await updateDoc(doc(db, 'locations', locationId), {
         isActive: false,
         updatedAt: Timestamp.fromDate(new Date()),
       });
+      
+      // Log activity
+      if (user && userData) {
+        await logLocationDeleted({
+          orgId: orgId!,
+          actorId: user.uid,
+          actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+          actorRole: 'admin',
+          locationId: locationId,
+          locationName: locationToDelete.name,
+        });
+      }
       
       setLocations(locations.filter(loc => loc.id !== locationId));
     } catch (error) {
@@ -175,6 +190,20 @@ export default function LocationsPage() {
       if (editingLocation) {
         // Update existing location
         await updateDoc(doc(db, 'locations', editingLocation.id), locationData);
+        
+        // Log activity
+        if (user && userData) {
+          const fullAddress = `${form.addressLine1}, ${form.city}, ${form.state} ${form.zipCode}`;
+          await logLocationUpdated({
+            orgId: orgId,
+            actorId: user.uid,
+            actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+            actorRole: 'admin',
+            locationId: editingLocation.id,
+            locationName: form.name,
+            address: fullAddress,
+          });
+        }
         
         // Reload locations
         const locationsQuery = query(

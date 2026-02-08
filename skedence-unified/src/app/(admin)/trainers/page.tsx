@@ -9,7 +9,7 @@ import { db } from '@/lib/firebase';
 import { User } from '@/types';
 import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X, RotateCcw } from 'lucide-react';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
-import { logTrainerCreated } from '@/lib/activity-logger';
+import { logTrainerCreated, logTrainerActivated, logTrainerDeactivated } from '@/lib/activity-logger';
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
 
 export default function TrainersPage() {
@@ -70,6 +70,9 @@ export default function TrainersPage() {
   const handleReactivateTrainer = async (trainerId: string) => {
     if (!orgId) return;
     
+    const trainer = trainers.find(t => t.id === trainerId);
+    if (!trainer) return;
+    
     setReactivatingId(trainerId);
     try {
       // Update trainer document to set active = true
@@ -82,6 +85,18 @@ export default function TrainersPage() {
       await updateDoc(doc(db, 'orgMembers', memberDocId), {
         isActive: true
       });
+
+      // Log activity
+      if (user && userData) {
+        await logTrainerActivated({
+          orgId: orgId,
+          actorId: user.uid,
+          actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+          actorRole: 'admin',
+          trainerId: trainerId,
+          trainerName: `${trainer.firstName} ${trainer.lastName}`,
+        });
+      }
 
       // Refresh trainers list
       const trainersQuery = query(

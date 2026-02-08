@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Plus, Minus, Package, User } from 'lucide-react';
+import { logPassIssued } from '@/lib/activity-logger';
 
 interface Client {
   id: string;
@@ -223,6 +224,22 @@ export default function PassesPage() {
           collection(db, 'organizations', orgId!, 'users', selectedClient.userId, 'packages'),
           passData
         );
+
+        // Log activity
+        if (user && userData) {
+          await logPassIssued({
+            orgId: orgId!,
+            actorId: user.uid,
+            actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+            actorRole: 'admin',
+            clientId: selectedClient.userId,
+            clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+            passType: selectedPackage.packageType,
+            passTitle: selectedPackage.title,
+            quantity: quantity,
+            totalSessions: quantity,
+          });
+        }
 
         setMessage({
           type: 'success',

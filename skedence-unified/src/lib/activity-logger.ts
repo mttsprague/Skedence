@@ -318,3 +318,224 @@ export async function logLocationCreated(params: {
     orgId: params.orgId,
   });
 }
+
+export async function logLocationUpdated(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  locationId: string;
+  locationName: string;
+  address: string;
+}) {
+  return logActivity({
+    type: 'location_updated',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.locationId,
+    targetName: params.locationName,
+    targetType: 'location',
+    description: `${params.actorName} updated location "${params.locationName}"`,
+    metadata: {
+      locationId: params.locationId,
+      address: params.address,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logLocationDeleted(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  locationId: string;
+  locationName: string;
+}) {
+  return logActivity({
+    type: 'location_deleted',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.locationId,
+    targetName: params.locationName,
+    targetType: 'location',
+    description: `${params.actorName} deleted location "${params.locationName}"`,
+    metadata: {
+      locationId: params.locationId,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logPassIssued(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  clientId: string;
+  clientName: string;
+  passType: string;
+  passTitle: string;
+  quantity: number;
+  totalSessions: number;
+}) {
+  return logActivity({
+    type: 'pass_purchased',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.clientId,
+    targetName: params.clientName,
+    targetType: 'client',
+    description: `${params.actorName} issued ${params.quantity} ${params.passTitle} (${params.totalSessions} total sessions) to ${params.clientName}`,
+    metadata: {
+      clientId: params.clientId,
+      passType: params.passType,
+      passTitle: params.passTitle,
+      quantity: params.quantity,
+      totalSessions: params.totalSessions,
+      issuedBy: params.actorId,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logClientProfileUpdated(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin' | 'client';
+  clientId: string;
+  clientName: string;
+  fields: string[];
+}) {
+  return logActivity({
+    type: 'client_profile_updated',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.clientId,
+    targetName: params.clientName,
+    targetType: 'client',
+    description: `${params.actorName} updated ${params.clientName}'s profile (${params.fields.join(', ')})`,
+    metadata: {
+      clientId: params.clientId,
+      updatedFields: params.fields,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logClassUpdated(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  classId: string;
+  className: string;
+  trainerId: string;
+  trainerName: string;
+  startTime: Date;
+  fields: string[];
+}) {
+  return logActivity({
+    type: 'class_created',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.classId,
+    targetName: params.className,
+    targetType: 'class',
+    description: `${params.actorName} updated class "${params.className}" (${params.fields.join(', ')})`,
+    metadata: {
+      classId: params.classId,
+      trainerId: params.trainerId,
+      trainerName: params.trainerName,
+      startTime: params.startTime.toISOString(),
+      updatedFields: params.fields,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logClassDeleted(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  classId: string;
+  className: string;
+  trainerId: string;
+  trainerName: string;
+  startTime: Date;
+  participantCount: number;
+}) {
+  return logActivity({
+    type: 'class_canceled',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.classId,
+    targetName: params.className,
+    targetType: 'class',
+    description: `${params.actorName} deleted class "${params.className}" (${params.participantCount} participants notified)`,
+    metadata: {
+      classId: params.classId,
+      trainerId: params.trainerId,
+      trainerName: params.trainerName,
+      startTime: params.startTime.toISOString(),
+      participantCount: params.participantCount,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logTrainerActivated(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  trainerId: string;
+  trainerName: string;
+}) {
+  return logActivity({
+    type: 'trainer_activated',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.trainerId,
+    targetName: params.trainerName,
+    targetType: 'trainer',
+    description: `${params.actorName} reactivated trainer ${params.trainerName}`,
+    metadata: {
+      trainerId: params.trainerId,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logTrainerDeactivated(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  trainerId: string;
+  trainerName: string;
+}) {
+  return logActivity({
+    type: 'trainer_deactivated',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.trainerId,
+    targetName: params.trainerName,
+    targetType: 'trainer',
+    description: `${params.actorName} deactivated trainer ${params.trainerName}`,
+    metadata: {
+      trainerId: params.trainerId,
+    },
+    orgId: params.orgId,
+  });
+}

@@ -1879,6 +1879,39 @@ export const manualRegisterForClass = functions.https.onCall(
         currentParticipants: admin.firestore.FieldValue.increment(1),
       });
 
+      // Log activity
+      const adminDoc = await db.collection("trainers").doc(request.auth.uid).get();
+      const adminData = adminDoc.exists ? adminDoc.data() : null;
+      const adminName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
+      
+      const classDoc = await db.collection("classes").doc(classId).get();
+      const classData = classDoc.exists ? classDoc.data() : null;
+      const className = classData?.title || "Unknown Class";
+      
+      const participantName = userId ? "Unknown Client" : `${firstName} ${lastName}`;
+      
+      await db.collection("activities").add({
+        type: "class_enrollment",
+        actorId: request.auth.uid,
+        actorName: adminName,
+        actorRole: "admin",
+        targetId: classId,
+        targetName: className,
+        targetType: "class",
+        description: userId 
+          ? `${adminName} registered client for ${className}` 
+          : `${adminName} manually registered ${participantName} for ${className}`,
+        metadata: {
+          classId: classId,
+          participantName: participantName,
+          isManualEntry: !userId,
+          classPassPackageId: classPassPackageId || null,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        orgId: orgId,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
       return {success: true};
     } catch (error) {
       console.error("❌ Error in manualRegisterForClass:", error);

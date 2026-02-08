@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'fireb
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
 import { Save, X, User as UserIcon, Search } from 'lucide-react';
+import { logClientProfileUpdated } from '@/lib/activity-logger';
 
 export default function ClientsPage() {
   const { orgId } = useAuth();
@@ -165,6 +166,28 @@ export default function ClientsPage() {
       updateData.athlete3Position = editedClient.athlete3Position || '';
       
       await updateDoc(userRef, updateData);
+      
+      // Log activity
+      if (user && userData) {
+        const updatedFields: string[] = [];
+        if (updateData.firstName || updateData.lastName) updatedFields.push('name');
+        if (updateData.emailAddress) updatedFields.push('email');
+        if (updateData.phoneNumber) updatedFields.push('phone');
+        if (updateData.emergencyContactName || updateData.emergencyContactNumber) updatedFields.push('emergency contact');
+        if (updateData.athletes) updatedFields.push('athletes');
+        if (updateData.referredBy) updatedFields.push('referral');
+        if (updateData.notesForCoach) updatedFields.push('notes');
+        
+        await logClientProfileUpdated({
+          orgId: orgId!,
+          actorId: user.uid,
+          actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+          actorRole: 'admin',
+          clientId: editedClient.id,
+          clientName: `${editedClient.firstName} ${editedClient.lastName}`,
+          fields: updatedFields,
+        });
+      }
       
       setClients(prev => prev.map(c => c.id === editedClient.id ? editedClient : c));
       setSelectedClient(editedClient);

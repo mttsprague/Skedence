@@ -9,6 +9,7 @@ import { db } from '@/lib/firebase';
 import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { Location } from '@/types/location';
+import { logClassCreated, logClassUpdated, logClassDeleted } from '@/lib/activity-logger';
 
 interface Trainer {
   id: string;
@@ -211,6 +212,25 @@ export default function ClassesPage() {
 
       if (editingClass) {
         await updateDoc(doc(db, 'classes', editingClass.id), classData);
+        
+        // Log activity
+        if (user && userData) {
+          const trainer = trainers.find(t => t.id === form.trainerId);
+          const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
+          await logClassUpdated({
+            orgId: orgId,
+            actorId: user.uid,
+            actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+            actorRole: 'admin',
+            classId: editingClass.id,
+            className: form.title,
+            trainerId: form.trainerId,
+            trainerName: trainerName,
+            startTime: startDateTime,
+            fields: ['time', 'details'], // Could be more specific
+          });
+        }
+        
         // Reload classes
         const classesQuery = query(collection(db, 'classes'), where('orgId', '==', orgId));
         const classesSnapshot = await getDocs(classesQuery);
@@ -260,9 +280,47 @@ export default function ClassesPage() {
               { ...scheduleSlots[i], classId: docRef.id }
             );
           }
+          
+          // Log activity for recurring class series
+          if (user && userData) {
+            const trainer = trainers.find(t => t.id === form.trainerId);
+            const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
+            await logClassCreated({
+              orgId: orgId,
+              actorId: user.uid,
+              actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+              actorRole: 'admin',
+              classId: 'recurring',
+              className: `${form.title} (12-week series)`,
+              trainerId: form.trainerId,
+              trainerName: trainerName,
+              startTime: startDateTime,
+              maxParticipants: form.maxCapacity,
+              location: locationName,
+            });
+          }
         } else {
           // Single class
           const docRef = await addDoc(collection(db, 'classes'), classData);
+          
+          // Log activity
+          if (user && userData) {
+            const trainer = trainers.find(t => t.id === form.trainerId);
+            const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
+            await logClassCreated({
+              orgId: orgId,
+              actorId: user.uid,
+              actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+              actorRole: 'admin',
+              classId: docRef.id,
+              className: form.title,
+              trainerId: form.trainerId,
+              trainerName: trainerName,
+              startTime: startDateTime,
+              maxParticipants: form.maxCapacity,
+              location: locationName,
+            });
+          }
           
           // Create trainer schedule slot to block off time (matching iOS)
           const bookingData = {
@@ -327,12 +385,19 @@ export default function ClassesPage() {
   };
 
   const handleDelete = async (classId: string) => {
+    const classToDelete = classes.find(c => c.id === classId);
+    if (!classToDelete) return;
+    
+    const trainer = trainers.find(t => t.id === classToDelete.trainerId);
+    const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
+    
     if (!confirm('Are you sure you want to delete this class? This will cancel the class for all registered participants.')) return;
 
     try {
       // Get all participants first
       const participantsQuery = query(collection(db, 'classes', classId, 'participants'));
       const participantsSnapshot = await getDocs(participantsQuery);
+      const participantCount = participantsSnapshot.size;
       
       // Delete participant registrations and update user bookings
       for (const participantDoc of participantsSnapshot.docs) {
@@ -360,6 +425,22 @@ export default function ClassesPage() {
         
         // Delete participant document
         await deleteDoc(participantDoc.ref);
+      }
+      
+      // Log activity
+      if (user && userData) {
+        await logClassDeleted({
+          orgId: orgId,
+          actorId: user.uid,
+          actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+          actorRole: 'admin',
+          classId: classId,
+          className: classToDelete.title,
+          trainerId: classToDelete.trainerId,
+          trainerName: trainerName,
+          startTime: classToDelete.startTime.toDate(),
+          participantCount: participantCount,
+        });
       }
       
       // Finally, delete the class itself
