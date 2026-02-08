@@ -25,6 +25,7 @@ struct SessionDetailView: View {
     @State private var cancelSuccessMessage = "" // Store the success message
     @State private var userProfile: UserProfile?
     @State private var isLoadingProfile = false
+    @State private var requiredFields: Set<String> = []
     
     var body: some View {
         NavigationView {
@@ -425,8 +426,8 @@ struct SessionDetailView: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 VStack(alignment: .leading, spacing: 12) {
-                    // Emergency Contact
-                    if !profile.emergencyContactName.isEmpty || !profile.emergencyContactNumber.isEmpty {
+                    // Emergency Contact (only if required)
+                    if requiredFields.contains("emergencyContactName") && (!profile.emergencyContactName.isEmpty || !profile.emergencyContactNumber.isEmpty) {
                         HStack(spacing: 8) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 14))
@@ -450,8 +451,8 @@ struct SessionDetailView: View {
                         }
                     }
                     
-                    // Phone Number
-                    if !profile.phoneNumber.isEmpty {
+                    // Phone Number (only if required)
+                    if requiredFields.contains("phoneNumber") && !profile.phoneNumber.isEmpty {
                         Divider()
                             .padding(.vertical, 4)
                         HStack(spacing: 8) {
@@ -470,8 +471,8 @@ struct SessionDetailView: View {
                         }
                     }
                     
-                    // Referral Source
-                    if let referredBy = profile.referredBy, !referredBy.isEmpty {
+                    // Referral Source (only if required)
+                    if requiredFields.contains("referredBy"), let referredBy = profile.referredBy, !referredBy.isEmpty {
                         Divider()
                             .padding(.vertical, 4)
                         HStack(spacing: 8) {
@@ -490,8 +491,8 @@ struct SessionDetailView: View {
                         }
                     }
                     
-                    // Notes for Coach
-                    if let notes = profile.notesForCoach, !notes.isEmpty {
+                    // Notes for Coach (only if required)
+                    if requiredFields.contains("coachNotes"), let notes = profile.notesForCoach, !notes.isEmpty {
                         Divider()
                             .padding(.vertical, 4)
                         HStack(alignment: .top, spacing: 8) {
@@ -682,6 +683,17 @@ struct WaiverStatusView: View {
         
         do {
             let db = Firestore.firestore()
+            
+            // Load org settings to get required fields
+            if let orgId = auth.currentUser?.orgId {
+                let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
+                if let orgData = orgDoc.data(),
+                   let fields = orgData["intakeFormFieldsPrivate"] as? [[String: Any]] {
+                    requiredFields = Set(fields.filter { ($0["required"] as? Bool) == true }
+                        .compactMap { $0["id"] as? String })
+                }
+            }
+            
             let userDoc = try await db.collection("users")
                 .document(booking.clientUID)
                 .getDocument()

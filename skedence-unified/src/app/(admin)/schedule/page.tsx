@@ -93,6 +93,7 @@ export default function SchedulePage() {
   const [selectedClass, setSelectedClass] = useState<GroupClass | null>(null);
   const [cancellingBooking, setCancellingBooking] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
+  const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set());
 
   // Set initial trainer to current user
   useEffect(() => {
@@ -100,6 +101,31 @@ export default function SchedulePage() {
       setSelectedTrainerId(user.uid);
     }
   }, [user]);
+
+  // Load required fields from org settings
+  useEffect(() => {
+    if (!orgId) return;
+    
+    async function loadRequiredFields() {
+      try {
+        const orgDoc = await getDoc(doc(db, 'organizations', orgId!));
+        if (orgDoc.exists()) {
+          const orgData = orgDoc.data();
+          const fields = orgData.intakeFormFieldsPrivate || orgData.intakeFormFields || [];
+          const required = new Set(
+            fields
+              .filter((field: any) => field.required === true)
+              .map((field: any) => field.id)
+          );
+          setRequiredFields(required);
+        }
+      } catch (error) {
+        console.error('Error loading required fields:', error);
+      }
+    }
+
+    loadRequiredFields();
+  }, [orgId]);
 
   // Load trainers if admin
   useEffect(() => {
@@ -762,7 +788,7 @@ export default function SchedulePage() {
               )}
               
               {/* Emergency Contact */}
-              {selectedBooking.emergencyContactName && (
+              {requiredFields.has('emergencyContactName') && selectedBooking.emergencyContactName && (
                 <div className="space-y-2">
                   <h3 className="font-semibold text-gray-900">Emergency Contact</h3>
                   <div className="text-sm">
@@ -775,7 +801,7 @@ export default function SchedulePage() {
               )}
               
               {/* Referral */}
-              {selectedBooking.referredBy && (
+              {requiredFields.has('referredBy') && selectedBooking.referredBy && (
                 <div className="space-y-2">
                   <h3 className="font-semibold text-gray-900">Referred By</h3>
                   <div className="text-sm text-gray-900">{selectedBooking.referredBy}</div>
@@ -783,7 +809,7 @@ export default function SchedulePage() {
               )}
               
               {/* Notes for Coach */}
-              {selectedBooking.notesForCoach && (
+              {requiredFields.has('coachNotes') && selectedBooking.notesForCoach && (
                 <div className="space-y-2">
                   <h3 className="font-semibold text-gray-900">Notes for Coach</h3>
                   <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
