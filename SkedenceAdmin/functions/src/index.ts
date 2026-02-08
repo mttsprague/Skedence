@@ -191,15 +191,6 @@ export const bookLesson = functions.https.onCall(
               );
             }
 
-            // Check quota limits
-            const quotaCheck = await checkQuota(orgId, "bookings");
-            if (!quotaCheck.allowed) {
-              throw new functions.https.HttpsError(
-                "resource-exhausted",
-                `Daily booking limit reached (${quotaCheck.current}/${quotaCheck.limit}). Upgrade your plan for more capacity.`
-              );
-            }
-
             const orgData = orgDoc.data();
             const billing = orgData?.billing;
 
