@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
-import { Save, X, User as UserIcon } from 'lucide-react';
+import { Save, X, User as UserIcon, Search } from 'lucide-react';
 
 export default function ClientsPage() {
   const { orgId } = useAuth();
@@ -16,6 +16,7 @@ export default function ClientsPage() {
   const [selectedClient, setSelectedClient] = useState<User | null>(null);
   const [editedClient, setEditedClient] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!orgId) return;
@@ -114,6 +115,14 @@ export default function ClientsPage() {
 
     loadClients();
   }, [orgId]);
+
+  const filteredClients = clients.filter(client => {
+    if (!searchQuery) return true;
+    const search = searchQuery.toLowerCase();
+    const fullName = `${client.firstName || ''} ${client.lastName || ''}`.toLowerCase();
+    const email = (client.email || client.emailAddress || '').toLowerCase();
+    return fullName.includes(search) || email.includes(search);
+  });
 
   const handleClientSelect = (client: User) => {
     setSelectedClient(client);
@@ -221,10 +230,22 @@ export default function ClientsPage() {
           <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage your client list and edit profiles</p>
         </div>
 
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+          <input
+            type="text"
+            placeholder="Search clients by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent touch-manipulation text-base"
+          />
+        </div>
+
         <Card>
           <CardContent className="p-4 sm:p-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Client to View/Edit
+              Select Client to View/Edit {filteredClients.length < clients.length && `(${filteredClients.length} of ${clients.length})`}
             </label>
             <div className="relative">
               <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -237,7 +258,7 @@ export default function ClientsPage() {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-base bg-white"
               >
                 <option value="">-- Select a client --</option>
-                {clients.map(client => (
+                {filteredClients.map(client => (
                   <option key={client.id} value={client.id}>
                     {client.firstName} {client.lastName} {client.email ? `(${client.email})` : ''}
                   </option>
