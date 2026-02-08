@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent } from '@/components/ui/card';
-import { collection, query, where, getDocs, orderBy, doc, updateData } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
 import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X, RotateCcw } from 'lucide-react';
-import { doc as firestoreDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { logTrainerCreated } from '@/lib/activity-logger';
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
 
@@ -73,13 +73,13 @@ export default function TrainersPage() {
     setReactivatingId(trainerId);
     try {
       // Update trainer document to set active = true
-      await updateData(firestoreDoc(db, 'trainers', trainerId), {
+      await updateDoc(doc(db, 'trainers', trainerId), {
         active: true
       });
-firestoreD
+
       // Also update the orgMembers document
       const memberDocId = `${trainerId}_${orgId}`;
-      await updateData(firestoreDoc(db, 'orgMembers', memberDocId), {
+      await updateDoc(doc(db, 'orgMembers', memberDocId), {
         isActive: true
       });
 
@@ -242,7 +242,31 @@ firestoreD
             className={`px-4 py-2 font-medium transition-colors relative ${
               activeTab === 'active'
                 ? 'text-[#3258A3] border-b-2 border-[#3258A3]'
-                : 'text-gra
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Active ({trainers.filter(t => t.isActive).length})
+          </button>
+          <button
+            onClick={() => setActiveTab('inactive')}
+            className={`px-4 py-2 font-medium transition-colors relative ${
+              activeTab === 'inactive'
+                ? 'text-[#3258A3] border-b-2 border-[#3258A3]'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Inactive ({trainers.filter(t => !t.isActive).length})
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
+        ) : filteredTrainers.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg border">
+            <p className="text-gray-500">
+              {searchQuery 
                 ? `No ${activeTab} trainers found matching your search.` 
                 : `No ${activeTab} trainers yet.`}
             </p>
@@ -298,31 +322,7 @@ firestoreD
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
                             {reactivatingId === trainer.id ? 'Reactivating...' : 'Reactivate'}
-                          </buttoniner.firstName} {trainer.lastName}
-                      </h3>
-                      {(trainer.email || trainer.emailAddress) && (
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
-                          <Mail className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                          <span className="truncate">{trainer.email || trainer.emailAddress}</span>
-                        </div>
-                      )}
-                      {trainer.phone && (
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
-                          <Phone className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                          <span>{trainer.phone}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center text-sm mt-2">
-                        {trainer.isActive ? (
-                          <>
-                            <CheckCircle2 className="h-4 w-4 mr-1.5 text-green-600" />
-                            <span className="text-green-600 font-medium">Active</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="h-4 w-4 mr-1.5 text-gray-400" />
-                            <span className="text-gray-500">Inactive</span>
-                          </>
+                          </button>
                         )}
                       </div>
                     </div>
