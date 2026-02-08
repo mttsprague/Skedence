@@ -404,12 +404,23 @@ struct TrainerWeekView: View {
                 
                 do {
                     let db = Firestore.firestore()
-                    let bookingsSnapshot = try await db.collection("bookings")
+                    // First try with clientId (new bookings)
+                    var bookingsSnapshot = try await db.collection("bookings")
                         .whereField("clientId", isEqualTo: clientId)
                         .whereField("trainerId", isEqualTo: slot.trainerId)
                         .whereField("startTime", isEqualTo: Timestamp(date: slot.startTime))
                         .limit(to: 1)
                         .getDocuments()
+                    
+                    // If not found, try with clientUID (old bookings)
+                    if bookingsSnapshot.documents.isEmpty {
+                        bookingsSnapshot = try await db.collection("bookings")
+                            .whereField("clientUID", isEqualTo: clientId)
+                            .whereField("trainerId", isEqualTo: slot.trainerId)
+                            .whereField("startTime", isEqualTo: Timestamp(date: slot.startTime))
+                            .limit(to: 1)
+                            .getDocuments()
+                    }
                     
                     if let bookingDoc = bookingsSnapshot.documents.first {
                         let data = bookingDoc.data()
