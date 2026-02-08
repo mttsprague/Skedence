@@ -404,6 +404,7 @@ struct TrainerWeekView: View {
                 
                 do {
                     let db = Firestore.firestore()
+                    print("DEBUG: Searching for booking with clientId: \(clientId), trainerId: \(slot.trainerId)")
                     // First try with clientId (new bookings)
                     var bookingsSnapshot = try await db.collection("bookings")
                         .whereField("clientId", isEqualTo: clientId)
@@ -412,20 +413,29 @@ struct TrainerWeekView: View {
                         .limit(to: 1)
                         .getDocuments()
                     
+                    print("DEBUG: clientId query found \(bookingsSnapshot.documents.count) documents")
+                    
                     // If not found, try with clientUID (old bookings)
                     if bookingsSnapshot.documents.isEmpty {
+                        print("DEBUG: Trying clientUID query")
                         bookingsSnapshot = try await db.collection("bookings")
                             .whereField("clientUID", isEqualTo: clientId)
                             .whereField("trainerId", isEqualTo: slot.trainerId)
                             .whereField("startTime", isEqualTo: Timestamp(date: slot.startTime))
                             .limit(to: 1)
                             .getDocuments()
+                        print("DEBUG: clientUID query found \(bookingsSnapshot.documents.count) documents")
                     }
                     
                     if let bookingDoc = bookingsSnapshot.documents.first {
                         let data = bookingDoc.data()
+                        print("DEBUG: Booking document found: \(bookingDoc.documentID)")
+                        print("DEBUG: Booking data: \(data)")
+                        print("DEBUG: trainerName field: \(data["trainerName"] as? String ?? "nil")")
+                        print("DEBUG: trainer displayName: \(trainerViewModel.trainer?.displayName ?? "nil")")
                         // Try to get trainer name from booking document, fall back to trainer displayName, then to "Trainer"
                         let trainerName = data["trainerName"] as? String ?? trainerViewModel.trainer?.displayName ?? "Trainer"
+                        print("DEBUG: Final trainerName: \(trainerName)")
                         booking = ClientBooking(
                             id: bookingDoc.documentID,
                             trainerId: slot.trainerId,
