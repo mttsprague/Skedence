@@ -1069,7 +1069,7 @@ export const adminCancelLesson = functions.https.onCall(
         // Get the lesson package and conditionally decrement lessonsUsed based on refundPass
         // If refundPass is true (early cancel), refund the pass. If false (late cancel), don't refund.
         if (refundPass && bookingData.packageId && packageDoc) {
-          functions.logger.info(`Attempting to refund pass ${bookingData.packageId} for client ${clientId}`);
+          functions.logger.info(`Refunding pass ${bookingData.packageId} for client ${clientId}`);
           const packageRef = db
             .collection("users")
             .doc(clientId)
@@ -1077,19 +1077,12 @@ export const adminCancelLesson = functions.https.onCall(
             .doc(bookingData.packageId);
 
           if (packageDoc.exists) {
-            const packageData = packageDoc.data();
-            functions.logger.info(`Package found. Current lessonsUsed: ${packageData?.lessonsUsed}, totalLessons: ${packageData?.totalLessons}, expired: ${packageData?.expirationDate ? packageData.expirationDate.toDate() < new Date() : 'N/A'}`);
-            
-            // Refund the pass regardless of package status (expired, etc)
             transaction.update(packageRef, {
               lessonsUsed: admin.firestore.FieldValue.increment(-1),
             });
-            functions.logger.info(`Pass refunded successfully`);
           } else {
-            functions.logger.warn(`Package ${bookingData.packageId} not found - will still cancel booking but pass cannot be refunded`);
+            functions.logger.warn(`Package ${bookingData.packageId} not found for refund`);
           }
-        } else if (refundPass && bookingData.packageId && !packageDoc) {
-          functions.logger.warn(`Package document was not read - this should not happen`);
         }
 
         // Update trainer's schedule slot back to open

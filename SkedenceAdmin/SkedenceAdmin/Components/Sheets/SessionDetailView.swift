@@ -585,12 +585,6 @@ struct SessionDetailView: View {
             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
             dismiss()
         } catch let error as NSError {
-            // Detailed error logging
-            print("❌ Cancel error domain: \(error.domain)")
-            print("❌ Cancel error code: \(error.code)")
-            print("❌ Cancel error userInfo: \(error.userInfo)")
-            print("❌ Cancel error localizedDescription: \(error.localizedDescription)")
-            
             // Check if it's a Functions error
             if error.domain == "com.firebase.functions" {
                 if let message = error.userInfo["message"] as? String {
@@ -601,7 +595,7 @@ struct SessionDetailView: View {
                     cancelError = "Cloud Function error: \(error.localizedDescription)"
                 }
             } else {
-                cancelError = "Error: \(error.localizedDescription)\nCode: \(error.code)\nDomain: \(error.domain)"
+                cancelError = error.localizedDescription
             }
         }
     }

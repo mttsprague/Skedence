@@ -549,7 +549,7 @@ export default function SchedulingPage() {
                 {/* Time Grid */}
                 <div className="relative">
                   {/* Current Time Indicator */}
-                  {timelinePosition !== null && (
+                  {isMounted && timelinePosition !== null && currentTime && (
                     <div
                       className="absolute left-0 right-0 z-20 pointer-events-none"
                       style={{ top: `${timelinePosition}px` }}
