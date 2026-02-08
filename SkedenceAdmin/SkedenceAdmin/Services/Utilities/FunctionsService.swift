@@ -304,7 +304,7 @@ final class FunctionsService {
         ]
         
         do {
-            let result = try await functions.httpsCallable("adminCancelLesson").call(payload)
+            _ = try await functions.httpsCallable("adminCancelLesson").call(payload)
         } catch let error as NSError {
             if error.domain == FunctionsErrorDomain {
                 let code = error.code

@@ -41,8 +41,10 @@ interface SchedulingSubmenuProps {
 export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: SchedulingSubmenuProps) {
   const pathname = usePathname();
   const { orgId } = useAuth();
-  const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date());
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
   const [daysWithBookings, setDaysWithBookings] = useState<Set<string>>(new Set());
+  const [today, setToday] = useState<Date | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -50,6 +52,14 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
   ];
 
   const dayAbbrevs = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  // Initialize dates client-side
+  useEffect(() => {
+    setIsMounted(true);
+    const now = new Date();
+    setToday(now);
+    setCurrentMonth(selectedDate || now);
+  }, [selectedDate]);
 
   // Load bookings for the current month
   useEffect(() => {
@@ -138,8 +148,7 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
   };
 
   const isToday = (date: Date | null) => {
-    if (!date) return false;
-    const today = new Date();
+    if (!date || !today) return false;
     return date.toDateString() === today.toDateString();
   };
 
@@ -154,7 +163,11 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
     }
   };
 
-  const days = getDaysInMonth(currentMonth);
+  const days = currentMonth ? getDaysInMonth(currentMonth) : [];
+
+  if (!isMounted || !currentMonth) {
+    return <div className="flex h-screen bg-gray-50 items-center justify-center"><div className="text-gray-500">Loading...</div></div>;
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -198,8 +211,8 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
           {/* Calendar Grid */}
           <div className="grid grid-cols-7 gap-1">
             {/* Day headers */}
-            {dayAbbrevs.map(day => (
-              <div key={day} className="text-xs text-center text-white/50 font-medium pb-1">
+            {dayAbbrevs.map((day, index) => (
+              <div key={`day-header-${index}`} className="text-xs text-center text-white/50 font-medium pb-1">
                 {day}
               </div>
             ))}

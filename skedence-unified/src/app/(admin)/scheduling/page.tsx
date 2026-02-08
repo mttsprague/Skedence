@@ -56,20 +56,21 @@ interface AthleteInfo {
 
 export default function SchedulingPage() {
   const { orgId, user, userData } = useAuth();
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [weekStart, setWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 0 }));
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [weekStart, setWeekStart] = useState<Date | null>(null);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [selectedTrainer, setSelectedTrainer] = useState<string>('');
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
   const [currentTime, setCurrentTime] = useState<Date | null>(null); // Start as null to avoid hydration mismatch
+  const [today, setToday] = useState<Date | null>(null); // Start as null to avoid hydration mismatch
   const [isMounted, setIsMounted] = useState(false);
   
   // Modal states
   const [showBookLessonModal, setShowBookLessonModal] = useState(false);
   const [showCreateAvailabilityModal, setShowCreateAvailabilityModal] = useState(false);
-  const [modalSlotDate, setModalSlotDate] = useState<Date>(new Date());
+  const [modalSlotDate, setModalSlotDate] = useState<Date | null>(null);
   const [modalSlotHour, setModalSlotHour] = useState<number>(9);
   const [modalSlotId, setModalSlotId] = useState<string>(''); // Actual slot document ID
   const [modalTrainerId, setModalTrainerId] = useState<string>('');
@@ -78,7 +79,12 @@ export default function SchedulingPage() {
   // Set mounted state and initialize current time on client
   useEffect(() => {
     setIsMounted(true);
-    setCurrentTime(new Date());
+    const now = new Date();
+    setCurrentTime(now);
+    setToday(now);
+    setSelectedDate(now);
+    setWeekStart(startOfWeek(now, { weekStartsOn: 0 }));
+    setModalSlotDate(now);
   }, []);
 
   // Update current time every minute for timeline
@@ -416,7 +422,7 @@ export default function SchedulingPage() {
   };
 
   // Generate week days
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDays = weekStart ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)) : [];
 
   // Get items for a specific day
   const getItemsForDay = (day: Date) => {
@@ -450,6 +456,11 @@ export default function SchedulingPage() {
   };
 
   const timelinePosition = calculateTimelinePosition();
+
+  // Don't render until dates are initialized client-side
+  if (!isMounted || !weekStart || !selectedDate) {
+    return <div className="h-full flex items-center justify-center"><div className="text-gray-500">Loading...</div></div>;
+  }
 
   return (
     <SchedulingSubmenu selectedDate={selectedDate} onDateSelect={setSelectedDate}>
@@ -530,7 +541,7 @@ export default function SchedulingPage() {
                       key={day.toISOString()}
                       className={cn(
                         'p-3 text-center border-l border-gray-200',
-                        isSameDay(day, new Date()) && 'bg-blue-50'
+                        today && isSameDay(day, today) && 'bg-blue-50'
                       )}
                     >
                       <div className="text-xs font-medium text-gray-500">
@@ -538,7 +549,7 @@ export default function SchedulingPage() {
                       </div>
                       <div className={cn(
                         'text-2xl font-bold mt-1',
-                        isSameDay(day, new Date()) ? 'text-blue-600' : 'text-gray-900'
+                        today && isSameDay(day, today) ? 'text-blue-600' : 'text-gray-900'
                       )}>
                         {format(day, 'd')}
                       </div>
@@ -584,7 +595,7 @@ export default function SchedulingPage() {
                               onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
                             >
                               {dayItems.map(item => {
-                                const isCompleted = item.type === 'lesson' && item.endTime < new Date();
+                                const isCompleted = currentTime && item.type === 'lesson' && item.endTime < currentTime;
                                 return (
                                   <button
                                     key={item.id}

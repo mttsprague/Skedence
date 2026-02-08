@@ -580,6 +580,19 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // ACTIVITIES COLLECTION (Activity Feed/Audit Log)
+    // =========================================================================
+    match /activities/{activityId} {
+      // Admins and owners can read activities for their org
+      allow read: if isSignedIn() 
+        && 'orgId' in resource.data 
+        && isOrgAdmin(resource.data.orgId);
+      
+      // Only backend/cloud functions can write activities
+      allow write: if false;
+    }
+
+    // =========================================================================
     // DENY ALL OTHER ACCESS
     // =========================================================================
     match /{document=**} {
