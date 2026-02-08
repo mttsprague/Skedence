@@ -451,10 +451,11 @@ export default function SchedulingPage() {
       return null; // Don't show timeline outside schedule hours
     }
     
-    // Calculate position: each hour is 80px (h-[80px])
+    // Calculate position: each hour is 80px (h-[80px]) + 1px border
     const hoursSinceStart = hours - scheduleStartHour;
     const minuteOffset = minutes / 60;
-    const position = (hoursSinceStart + minuteOffset) * 80;
+    // Add 1px per hour for the borders between rows
+    const position = (hoursSinceStart + minuteOffset) * 80 + hoursSinceStart;
     
     return position;
   };
