@@ -11,7 +11,7 @@ import { Save, X, User as UserIcon, Search } from 'lucide-react';
 import { logClientProfileUpdated } from '@/lib/activity-logger';
 
 export default function ClientsPage() {
-  const { orgId } = useAuth();
+  const { orgId, user, userData } = useAuth();
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<User | null>(null);
@@ -168,7 +168,7 @@ export default function ClientsPage() {
       await updateDoc(userRef, updateData);
       
       // Log activity
-      if (user && userData) {
+      if (orgId && user && userData) {
         const updatedFields: string[] = [];
         if (updateData.firstName || updateData.lastName) updatedFields.push('name');
         if (updateData.emailAddress) updatedFields.push('email');
@@ -179,7 +179,7 @@ export default function ClientsPage() {
         if (updateData.notesForCoach) updatedFields.push('notes');
         
         await logClientProfileUpdated({
-          orgId: orgId!,
+          orgId: orgId,
           actorId: user.uid,
           actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
           actorRole: 'admin',

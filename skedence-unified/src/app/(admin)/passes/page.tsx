@@ -62,7 +62,7 @@ interface LessonPackage {
 }
 
 export default function PassesPage() {
-  const { orgId } = useAuth();
+  const { orgId, user, userData } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [packages, setPackages] = useState<PackageOption[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -226,9 +226,9 @@ export default function PassesPage() {
         );
 
         // Log activity
-        if (user && userData) {
+        if (orgId && user && userData) {
           await logPassIssued({
-            orgId: orgId!,
+            orgId: orgId,
             actorId: user.uid,
             actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
             actorRole: 'admin',

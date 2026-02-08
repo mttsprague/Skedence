@@ -55,7 +55,7 @@ interface PackageOption {
 }
 
 export default function ClassesPage() {
-  const { orgId } = useAuth();
+  const { orgId, user, userData } = useAuth();
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [classes, setClasses] = useState<GroupClass[]>([]);
@@ -214,7 +214,7 @@ export default function ClassesPage() {
         await updateDoc(doc(db, 'classes', editingClass.id), classData);
         
         // Log activity
-        if (user && userData) {
+        if (orgId && user && userData) {
           const trainer = trainers.find(t => t.id === form.trainerId);
           const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
           await logClassUpdated({
@@ -282,7 +282,7 @@ export default function ClassesPage() {
           }
           
           // Log activity for recurring class series
-          if (user && userData) {
+          if (orgId && user && userData) {
             const trainer = trainers.find(t => t.id === form.trainerId);
             const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
             await logClassCreated({
@@ -304,7 +304,7 @@ export default function ClassesPage() {
           const docRef = await addDoc(collection(db, 'classes'), classData);
           
           // Log activity
-          if (user && userData) {
+          if (orgId && user && userData) {
             const trainer = trainers.find(t => t.id === form.trainerId);
             const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
             await logClassCreated({
@@ -428,7 +428,7 @@ export default function ClassesPage() {
       }
       
       // Log activity
-      if (user && userData) {
+      if (orgId && user && userData) {
         await logClassDeleted({
           orgId: orgId,
           actorId: user.uid,
