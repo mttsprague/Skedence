@@ -413,10 +413,12 @@ struct TrainerWeekView: View {
                     
                     if let bookingDoc = bookingsSnapshot.documents.first {
                         let data = bookingDoc.data()
+                        // Try to get trainer name from booking document, fall back to trainer displayName, then to "Trainer"
+                        let trainerName = data["trainerName"] as? String ?? trainerViewModel.trainer?.displayName ?? "Trainer"
                         booking = ClientBooking(
                             id: bookingDoc.documentID,
                             trainerId: slot.trainerId,
-                            trainerName: trainerViewModel.trainer?.displayName ?? "Trainer",
+                            trainerName: trainerName,
                             startTime: slot.startTime,
                             endTime: slot.endTime,
                             status: data["status"] as? String ?? "confirmed",

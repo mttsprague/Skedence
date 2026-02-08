@@ -349,7 +349,8 @@ struct AllTrainersDayView: View {
                     
                     if let bookingDoc = bookingsSnapshot.documents.first {
                         let data = bookingDoc.data()
-                        let trainerName = viewModel.trainers
+                        // Try to get trainer name from booking document first
+                        let trainerName = data["trainerName"] as? String ?? viewModel.trainers
                             .first(where: { $0.id == slot.trainerId })?
                             .displayName ?? "Trainer"
                         
