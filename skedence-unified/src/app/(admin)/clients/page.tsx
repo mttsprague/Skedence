@@ -50,16 +50,17 @@ interface PaymentMethod {
   id: string;
   brand: string;
   last4: string;
-  expiryMonth: number;
-  expiryYear: number;
-  isDefault: boolean;
+  expiryMonth?: number;
+  expiryYear?: number;
+  expMonth?: number;
+  expYear?: number;
+  isDefault?: boolean;
 }
 
-interface Waiver {
+interface PricingPackage {
   id: string;
-  athleteName: string;
-  signedAt: Timestamp;
-  ipAddress?: string;
+  title: string;
+  isActive: boolean;
 }
 
 interface Transaction {
@@ -77,7 +78,7 @@ interface Transaction {
   type?: string;
 }
 
-type TabType = 'profile' | 'upcoming' | 'history' | 'passes' | 'documents' | 'payments' | 'waivers' | 'receipts';
+type TabType = 'profile' | 'upcoming' | 'history' | 'passes' | 'documents' | 'payments' | 'receipts';
 
 export default function ClientsPage() {
   const { orgId, user, userData } = useAuth();
@@ -95,8 +96,8 @@ export default function ClientsPage() {
   const [packages, setPackages] = useState<LessonPackage[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [waivers, setWaivers] = useState<Waiver[]>([]);
   const [receipts, setReceipts] = useState<Transaction[]>([]);
+  const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>([]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -262,6 +263,16 @@ export default function ClientsPage() {
         })) as Document[];
         setDocuments(docsData);
 
+        // Load pricing packages to check if they're active
+        const pricingSnap = await getDocs(
+          collection(db, 'organizations', orgId, 'pricingPackages')
+        );
+        const pricingData = pricingSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as PricingPackage[];
+        setPricingPackages(pricingData);
+
         // Load payment methods
         const paymentsSnap = await getDocs(
           collection(db, 'users', selectedClient.id, 'paymentMethods')
@@ -270,18 +281,8 @@ export default function ClientsPage() {
           id: doc.id,
           ...doc.data(),
         })) as PaymentMethod[];
+        console.log('Payment methods loaded:', paymentsData.length, paymentsData);
         setPaymentMethods(paymentsData);
-
-        // Load waivers
-        const waiversSnap = await getDocs(
-          collection(db, 'users', selectedClient.id, 'waivers')
-        );
-        const waiversData = waiversSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Waiver[];
-        console.log('Loaded waivers:', waiversData.length, waiversData);
-        setWaivers(waiversData);
 
         // Load receipts/transactions
         const receiptsQuery = query(
@@ -494,10 +495,12 @@ export default function ClientsPage() {
                   { id: 'profile' as TabType, label: 'Profile', icon: UserIcon },
                   { id: 'upcoming' as TabType, label: 'Upcoming', icon: Calendar, count: upcomingBookings.length },
                   { id: 'history' as TabType, label: 'History', icon: History, count: pastBookings.length },
-                  { id: 'passes' as TabType, label: 'Passes', icon: Package, count: packages.filter(p => p.remainingLessons > 0).length },
+                  { id: 'passes' as TabType, label: 'Passes', icon: Package, count: packages.filter(p => {
+                    const pkg = pricingPackages.find(pp => pp.id === p.packageType || pp.title === p.packageName);
+                    return p.remainingLessons > 0 && (!pkg || pkg.isActive !== false);
+                  }).length },
                   { id: 'documents' as TabType, label: 'Documents', icon: FileText, count: documents.length },
                   { id: 'payments' as TabType, label: 'Payments', icon: CreditCard, count: paymentMethods.length },
-                  { id: 'waivers' as TabType, label: 'Waivers', icon: Receipt, count: waivers.length },
                   { id: 'receipts' as TabType, label: 'Receipts', icon: Receipt, count: receipts.length },
                 ].map((tab) => {
                   const Icon = tab.icon;
@@ -943,11 +946,17 @@ export default function ClientsPage() {
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          {packages.filter(p => p.remainingLessons > 0).length > 0 && (
+                          {packages.filter(p => {
+                            const pricingPkg = pricingPackages.find(pp => pp.id === p.packageType || pp.title === p.packageName);
+                            return p.remainingLessons > 0 && (!pricingPkg || pricingPkg.isActive !== false);
+                          }).length > 0 && (
                             <div>
                               <h3 className="text-lg font-semibold mb-3 text-gray-900">Active Passes</h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {packages.filter(p => p.remainingLessons > 0).map((pkg) => (
+                                {packages.filter(p => {
+                                  const pricingPkg = pricingPackages.find(pp => pp.id === p.packageType || pp.title === p.packageName);
+                                  return p.remainingLessons > 0 && (!pricingPkg || pricingPkg.isActive !== false);
+                                }).map((pkg) => (
                                   <Card key={pkg.id}>
                                     <CardContent className="pt-6">
                                       <div className="space-y-2">
@@ -976,11 +985,17 @@ export default function ClientsPage() {
                             </div>
                           )}
 
-                          {packages.filter(p => p.remainingLessons <= 0).length > 0 && (
+                          {packages.filter(p => {
+                            const pricingPkg = pricingPackages.find(pp => pp.id === p.packageType || pp.title === p.packageName);
+                            return p.remainingLessons <= 0 || (pricingPkg && pricingPkg.isActive === false);
+                          }).length > 0 && (
                             <div>
                               <h3 className="text-lg font-semibold mb-3 text-gray-900">Used/Expired Passes</h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {packages.filter(p => p.remainingLessons <= 0).map((pkg) => (
+                                {packages.filter(p => {
+                                  const pricingPkg = pricingPackages.find(pp => pp.id === p.packageType || pp.title === p.packageName);
+                                  return p.remainingLessons <= 0 || (pricingPkg && pricingPkg.isActive === false);
+                                }).map((pkg) => (
                                   <Card key={pkg.id} className="opacity-60">
                                     <CardContent className="pt-6">
                                       <div className="space-y-2">
@@ -1072,7 +1087,7 @@ export default function ClientsPage() {
                                         {method.brand.charAt(0).toUpperCase() + method.brand.slice(1)} •••• {method.last4}
                                       </p>
                                       <p className="text-sm text-gray-600">
-                                        Expires {method.expiryMonth}/{method.expiryYear}
+                                        Expires {method.expiryMonth || method.expMonth}/{method.expiryYear || method.expYear}
                                       </p>
                                     </div>
                                   </div>
@@ -1080,48 +1095,6 @@ export default function ClientsPage() {
                                     <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                                       Default
                                     </span>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {activeTab === 'waivers' && (
-                  <Card>
-                    <CardContent className="p-6">
-                      {waivers.length === 0 ? (
-                        <div className="p-12 text-center text-gray-500">
-                          <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                          <p>No waivers signed</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {waivers.map((waiver) => (
-                            <Card key={waiver.id}>
-                              <CardContent className="pt-6">
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <p className="font-semibold text-gray-900">{waiver.athleteName}</p>
-                                    <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                                      Signed
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-gray-600">
-                                    Signed on {waiver.signedAt.toDate().toLocaleDateString('en-US', {
-                                      month: 'long',
-                                      day: 'numeric',
-                                      year: 'numeric',
-                                      hour: 'numeric',
-                                      minute: '2-digit'
-                                    })}
-                                  </p>
-                                  {waiver.ipAddress && (
-                                    <p className="text-xs text-gray-500">IP: {waiver.ipAddress}</p>
                                   )}
                                 </div>
                               </CardContent>
