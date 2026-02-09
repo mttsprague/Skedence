@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
-import { Save, X, User as UserIcon, Search } from 'lucide-react';
+import { Save, X, User as UserIcon, Search, Eye } from 'lucide-react';
 import { logClientProfileUpdated } from '@/lib/activity-logger';
 
 export default function ClientsPage() {
   const { orgId, user, userData } = useAuth();
+  const router = useRouter();
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<User | null>(null);
@@ -297,6 +299,13 @@ export default function ClientsPage() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Client Profile</h2>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push(`/clients/detail?id=${selectedClient.id}`)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-[#3258A3] rounded-lg hover:bg-[#2A4A8C] flex items-center gap-2 transition-colors"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View Details
+                  </button>
                   <button
                     onClick={handleCancel}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
