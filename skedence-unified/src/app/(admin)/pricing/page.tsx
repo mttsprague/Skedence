@@ -358,14 +358,24 @@ export default function PricingPage() {
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-600">Price ($)</label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={(pkg.priceInCents / 100).toFixed(2)}
               onChange={(e) => {
-                const dollars = parseFloat(e.target.value) || 0;
-                updatePackage(tierIndex, packageIndex, 'priceInCents', Math.round(dollars * 100));
+                const value = e.target.value;
+                // Allow empty string while typing
+                if (value === '') {
+                  updatePackage(tierIndex, packageIndex, 'priceInCents', 0);
+                  return;
+                }
+                // Only accept valid decimal numbers
+                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                  const dollars = parseFloat(value) || 0;
+                  updatePackage(tierIndex, packageIndex, 'priceInCents', Math.round(dollars * 100));
+                }
               }}
-              min="0"
-              step="0.01"
+              onFocus={(e) => e.target.select()}
+              placeholder="0.00"
               className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
               disabled={!isActive}
             />
