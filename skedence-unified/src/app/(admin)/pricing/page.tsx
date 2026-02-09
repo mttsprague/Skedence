@@ -17,7 +17,7 @@ interface PackageOption {
   priceInCents: number;
   packageType: string;
   lessonCount: number;
-  packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'classPass';
+  packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'class';
   expirationDays: number; // Days until pass expires after purchase (e.g., 365)
   active: boolean; // Whether this package is currently available for purchase
 }
@@ -338,7 +338,7 @@ export default function PricingPage() {
             <option value="twoAthlete">2 Athletes - Private Lesson</option>
             <option value="threeAthlete">3 Athletes - Private Lesson</option>
             <option value="fourAthlete">4 Athletes - Private Lesson</option>
-            <option value="classPass">Group Class</option>
+            <option value="class">Group Class</option>
           </select>
         </div>
 

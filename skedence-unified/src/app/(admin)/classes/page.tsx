@@ -69,6 +69,7 @@ export default function ClassesPage() {
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -92,12 +93,13 @@ export default function ClassesPage() {
       try {
         const orgDoc = await getDocs(query(collection(db, 'organizations'), where('__name__', '==', orgId)));
         if (!orgDoc.empty) {
-          const pricingStructure = orgDoc.docs[0].data().pricingStructure;
+          const orgData = orgDoc.docs[0].data();
+          const pricingStructure = orgData.pricingStructure;
           if (pricingStructure && pricingStructure.tiers) {
             const allPackages: PackageOption[] = [];
             pricingStructure.tiers.forEach((tier: any) => {
               tier.packages.forEach((pkg: any) => {
-                if (pkg.packageCategory === 'classPass' && pkg.active !== false) {
+                if (pkg.packageCategory === 'class' && pkg.active !== false) {
                   allPackages.push({
                     id: pkg.id,
                     title: pkg.title,
@@ -175,7 +177,8 @@ export default function ClassesPage() {
 
   const handleSubmit = async () => {
     if (!orgId || !form.title || !form.trainerId || !form.locationId) {
-      alert('Please fill in all required fields');
+      setNotification({ type: 'error', message: 'Please fill in all required fields' });
+      setTimeout(() => setNotification(null), 5000);
       return;
     }
 
@@ -214,22 +217,27 @@ export default function ClassesPage() {
       if (editingClass) {
         await updateDoc(doc(db, 'classes', editingClass.id), classData);
         
-        // Log activity
+        // Log activity (non-blocking)
         if (orgId && user && userData) {
-          const trainer = trainers.find(t => t.id === form.trainerId);
-          const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
-          await logClassUpdated({
-            orgId: orgId,
-            actorId: user.uid,
-            actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-            actorRole: 'admin',
-            classId: editingClass.id,
-            className: form.title,
-            trainerId: form.trainerId,
-            trainerName: trainerName,
-            startTime: startDateTime,
-            fields: ['time', 'details'], // Could be more specific
-          });
+          try {
+            const trainer = trainers.find(t => t.id === form.trainerId);
+            const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
+            await logClassUpdated({
+              orgId: orgId,
+              actorId: user.uid,
+              actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+              actorRole: 'admin',
+              classId: editingClass.id,
+              className: form.title,
+              trainerId: form.trainerId,
+              trainerName: trainerName,
+              startTime: startDateTime,
+              fields: ['time', 'details'], // Could be more specific
+            });
+          } catch (logError) {
+            console.error('❌ Failed to log activity:', logError);
+            // Don't block the save operation
+          }
         }
         
         // Reload classes
@@ -241,6 +249,9 @@ export default function ClassesPage() {
         })) as GroupClass[];
         // Sort chronologically - earliest (next upcoming) first
         setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
+        
+        setNotification({ type: 'success', message: 'Class successfully updated' });
+        setTimeout(() => setNotification(null), 5000);
       } else {
         // Create class document(s)
         if (form.isRecurring && form.recurringPattern === 'weekly') {
@@ -282,45 +293,53 @@ export default function ClassesPage() {
             );
           }
           
-          // Log activity for recurring class series
+          // Log activity for recurring class series (non-blocking)
           if (orgId && user && userData) {
-            const trainer = trainers.find(t => t.id === form.trainerId);
-            const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
-            await logClassCreated({
-              orgId: orgId,
-              actorId: user.uid,
-              actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-              actorRole: 'admin',
-              classId: 'recurring',
-              className: `${form.title} (12-week series)`,
-              trainerId: form.trainerId,
-              trainerName: trainerName,
-              startTime: startDateTime,
-              maxParticipants: form.maxCapacity,
-              location: locationName,
-            });
+            try {
+              const trainer = trainers.find(t => t.id === form.trainerId);
+              const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
+              await logClassCreated({
+                orgId: orgId,
+                actorId: user.uid,
+                actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+                actorRole: 'admin',
+                classId: 'recurring',
+                className: `${form.title} (12-week series)`,
+                trainerId: form.trainerId,
+                trainerName: trainerName,
+                startTime: startDateTime,
+                maxParticipants: form.maxCapacity,
+                location: locationName,
+              });
+            } catch (logError) {
+              console.error('❌ Failed to log activity:', logError);
+            }
           }
         } else {
           // Single class
           const docRef = await addDoc(collection(db, 'classes'), classData);
           
-          // Log activity
+          // Log activity (non-blocking)
           if (orgId && user && userData) {
-            const trainer = trainers.find(t => t.id === form.trainerId);
-            const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
-            await logClassCreated({
-              orgId: orgId,
-              actorId: user.uid,
-              actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-              actorRole: 'admin',
-              classId: docRef.id,
-              className: form.title,
-              trainerId: form.trainerId,
-              trainerName: trainerName,
-              startTime: startDateTime,
-              maxParticipants: form.maxCapacity,
-              location: locationName,
-            });
+            try {
+              const trainer = trainers.find(t => t.id === form.trainerId);
+              const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
+              await logClassCreated({
+                orgId: orgId,
+                actorId: user.uid,
+                actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+                actorRole: 'admin',
+                classId: docRef.id,
+                className: form.title,
+                trainerId: form.trainerId,
+                trainerName: trainerName,
+                startTime: startDateTime,
+                maxParticipants: form.maxCapacity,
+                location: locationName,
+              });
+            } catch (logError) {
+              console.error('❌ Failed to log activity:', logError);
+            }
           }
           
           // Create trainer schedule slot to block off time (matching iOS)
@@ -354,9 +373,15 @@ export default function ClassesPage() {
       }
 
       resetForm();
+      setNotification({ type: 'success', message: editingClass ? 'Class successfully updated' : 'Class successfully created' });
+      setTimeout(() => setNotification(null), 5000);
     } catch (error) {
       console.error('Error saving class:', error);
-      alert(`Error saving class: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setNotification({ 
+        type: 'error', 
+        message: `Error saving class: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      });
+      setTimeout(() => setNotification(null), 5000);
     } finally {
       setSaving(false);
     }
@@ -536,6 +561,38 @@ export default function ClassesPage() {
           </div>
         ) : (
           <>
+            {/* Success/Error Notification */}
+            {notification && (
+              <div className={`fixed top-4 right-4 z-50 max-w-md rounded-lg shadow-lg p-4 flex items-start gap-3 animate-in slide-in-from-top-5 ${
+                notification.type === 'success' 
+                  ? 'bg-green-50 border border-green-200' 
+                  : 'bg-red-50 border border-red-200'
+              }`}>
+                <div className={`flex-shrink-0 ${notification.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {notification.type === 'success' ? (
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${notification.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                    {notification.message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setNotification(null)}
+                  className={`flex-shrink-0 ${notification.type === 'success' ? 'text-green-400 hover:text-green-600' : 'text-red-400 hover:text-red-600'}`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Class Form */}
             {showForm && (
               <Card>
