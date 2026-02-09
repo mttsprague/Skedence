@@ -62,7 +62,22 @@ interface Waiver {
   ipAddress?: string;
 }
 
-type TabType = 'profile' | 'upcoming' | 'history' | 'passes' | 'documents' | 'payments' | 'waivers';
+interface Transaction {
+  id: string;
+  userId: string;
+  amount: number;
+  description?: string;
+  createdAt: Timestamp;
+  status: string;
+  stripePaymentIntentId?: string;
+  paymentIntentId?: string;
+  packageId?: string;
+  packageName?: string;
+  orgId?: string;
+  type?: string;
+}
+
+type TabType = 'profile' | 'upcoming' | 'history' | 'passes' | 'documents' | 'payments' | 'waivers' | 'receipts';
 
 export default function ClientsPage() {
   const { orgId, user, userData } = useAuth();
@@ -81,6 +96,7 @@ export default function ClientsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [waivers, setWaivers] = useState<Waiver[]>([]);
+  const [receipts, setReceipts] = useState<Transaction[]>([]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -264,7 +280,25 @@ export default function ClientsPage() {
           id: doc.id,
           ...doc.data(),
         })) as Waiver[];
+        console.log('Loaded waivers:', waiversData.length, waiversData);
         setWaivers(waiversData);
+
+        // Load receipts/transactions
+        const receiptsQuery = query(
+          collection(db, 'transactions'),
+          where('userId', '==', selectedClient.id),
+          where('orgId', '==', orgId)
+        );
+        const receiptsSnap = await getDocs(receiptsQuery);
+        const receiptsData = receiptsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Transaction[];
+        console.log('Loaded receipts:', receiptsData.length, receiptsData);
+        const sortedReceipts = receiptsData.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+        setReceipts(sortedReceipts);
+
+        console.log('Payment methods loaded:', paymentsData.length, paymentsData);
 
       } catch (error) {
         console.error('Error loading tab data:', error);
@@ -464,6 +498,7 @@ export default function ClientsPage() {
                   { id: 'documents' as TabType, label: 'Documents', icon: FileText, count: documents.length },
                   { id: 'payments' as TabType, label: 'Payments', icon: CreditCard, count: paymentMethods.length },
                   { id: 'waivers' as TabType, label: 'Waivers', icon: Receipt, count: waivers.length },
+                  { id: 'receipts' as TabType, label: 'Receipts', icon: Receipt, count: receipts.length },
                 ].map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -1088,6 +1123,61 @@ export default function ClientsPage() {
                                   {waiver.ipAddress && (
                                     <p className="text-xs text-gray-500">IP: {waiver.ipAddress}</p>
                                   )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {activeTab === 'receipts' && (
+                  <Card>
+                    <CardContent className="p-6">
+                      {receipts.length === 0 ? (
+                        <div className="p-12 text-center text-gray-500">
+                          <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                          <p>No purchase receipts</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {receipts.map((receipt) => (
+                            <Card key={receipt.id}>
+                              <CardContent className="pt-6">
+                                <div className="flex items-start justify-between">
+                                  <div className="space-y-1 flex-1">
+                                    <p className="font-semibold text-gray-900">
+                                      {receipt.description || receipt.packageName || 'Purchase'}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      {receipt.createdAt.toDate().toLocaleDateString('en-US', {
+                                        month: 'long',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit'
+                                      })}
+                                    </p>
+                                    {receipt.stripePaymentIntentId && (
+                                      <p className="text-xs text-gray-500">
+                                        ID: {receipt.stripePaymentIntentId || receipt.paymentIntentId}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-lg font-bold text-[#3258A3]">
+                                      ${(receipt.amount / 100).toFixed(2)}
+                                    </p>
+                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                      receipt.status === 'succeeded' ? 'bg-green-100 text-green-700' :
+                                      receipt.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {receipt.status}
+                                    </span>
+                                  </div>
                                 </div>
                               </CardContent>
                             </Card>
