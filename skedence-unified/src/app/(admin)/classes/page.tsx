@@ -68,6 +68,7 @@ export default function ClassesPage() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
 
   // Form state
   const [form, setForm] = useState({
@@ -205,7 +206,7 @@ export default function ClassesPage() {
         createdBy: orgId, // Using orgId as placeholder for current user
         createdAt: Timestamp.fromDate(new Date()),
         priceInCents: 0, // Default to free
-        isRecurring: form.isRecurring,
+        isRecurring: form.isRecurring || false,
         recurringPattern: form.isRecurring ? form.recurringPattern : null,
         eligiblePackageIds: selectedPackageIds, // Add eligible package IDs
       };
@@ -355,7 +356,7 @@ export default function ClassesPage() {
       resetForm();
     } catch (error) {
       console.error('Error saving class:', error);
-      alert('Error saving class');
+      alert(`Error saving class: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
@@ -381,7 +382,7 @@ export default function ClassesPage() {
     });
     // Load eligible package IDs if they exist
     setSelectedPackageIds(cls.eligiblePackageIds || []);
-    setShowForm(true);
+    // DON'T set showForm(true) - edit inline instead
   };
 
   const handleDelete = async (classId: string) => {
@@ -504,6 +505,12 @@ export default function ClassesPage() {
   const getLocationName = (locationName?: string) => {
     return locationName || 'No location';
   };
+
+  // Filter classes by upcoming/completed
+  const now = new Date();
+  const upcomingClasses = classes.filter(cls => cls.endTime.toDate() > now);
+  const completedClasses = classes.filter(cls => cls.endTime.toDate() <= now);
+  const displayedClasses = activeTab === 'upcoming' ? upcomingClasses : completedClasses;
 
   return (
     <SchedulingSubmenu>
@@ -763,20 +770,230 @@ export default function ClassesPage() {
               </Card>
             )}
 
+            {/* Tabs for Upcoming/Completed */}
+            <div className="border-b border-gray-200">
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setActiveTab('upcoming')}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    activeTab === 'upcoming'
+                      ? 'border-[#3258A3] text-[#3258A3]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Upcoming Classes ({upcomingClasses.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('completed')}
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    activeTab === 'completed'
+                      ? 'border-[#3258A3] text-[#3258A3]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Completed Classes ({completedClasses.length})
+                </button>
+              </div>
+            </div>
+
             {/* Classes List */}
             <div className="grid grid-cols-1 gap-4">
-              {classes.length === 0 ? (
+              {displayedClasses.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-12">
                     <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No classes scheduled</p>
-                    <p className="text-sm text-gray-400 mt-1">Click "New Class" to create one</p>
+                    <p className="text-gray-500">
+                      {activeTab === 'upcoming' ? 'No upcoming classes scheduled' : 'No completed classes'}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {activeTab === 'upcoming' && 'Click "New Class" to create one'}
+                    </p>
                   </CardContent>
                 </Card>
               ) : (
-                classes.map(cls => (
+                displayedClasses.map((cls) => (
                   <Card key={cls.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
+                      {editingClass?.id === cls.id ? (
+                        /* Inline Edit Form */
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">Edit Class</h3>
+                            <button
+                              onClick={resetForm}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Class Title *</label>
+                              <input
+                                type="text"
+                                value={form.title}
+                                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Trainer *</label>
+                              <select
+                                value={form.trainerId}
+                                onChange={(e) => setForm({ ...form, trainerId: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                              >
+                                <option value="">Select trainer</option>
+                                {trainers.map(trainer => (
+                                  <option key={trainer.id} value={trainer.id}>
+                                    {trainer.firstName} {trainer.lastName}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                              <input
+                                type="date"
+                                value={form.date}
+                                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+                                <input
+                                  type="time"
+                                  value={form.startTime}
+                                  onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
+                                <input
+                                  type="time"
+                                  value={form.endTime}
+                                  onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+                              <select
+                                value={form.locationId}
+                                onChange={(e) => setForm({ ...form, locationId: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                              >
+                                <option value="">Select a location</option>
+                                {locations.map(location => (
+                                  <option key={location.id} value={location.id}>{location.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Max Capacity *</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={form.maxCapacity}
+                                onChange={(e) => setForm({ ...form, maxCapacity: parseInt(e.target.value) || 1 })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                              <textarea
+                                value={form.description}
+                                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                rows={2}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Eligible Class Passes *
+                              </label>
+                              <p className="text-xs text-gray-500 mb-2">
+                                Select which class pass types can be used to register for this class
+                              </p>
+                              {packages.length === 0 ? (
+                                <div className="w-full px-3 py-2 border border-yellow-300 bg-yellow-50 rounded-lg text-sm text-yellow-800">
+                                  No active class pass packages found. Please create class passes in Pricing first.
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {packages.map(pkg => (
+                                    <label key={pkg.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedPackageIds.includes(pkg.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedPackageIds([...selectedPackageIds, pkg.id]);
+                                          } else {
+                                            setSelectedPackageIds(selectedPackageIds.filter(id => id !== pkg.id));
+                                          }
+                                        }}
+                                        className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                                      />
+                                      <span className="text-sm font-medium text-gray-700">{pkg.title}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                              {selectedPackageIds.length > 0 && (
+                                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                  <p className="text-xs font-medium text-blue-800 mb-2">Selected Class Passes ({selectedPackageIds.length}):</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {selectedPackageIds.map(id => {
+                                      const pkg = packages.find(p => p.id === id);
+                                      return pkg ? (
+                                        <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                          {pkg.title}
+                                          <button
+                                            onClick={() => setSelectedPackageIds(selectedPackageIds.filter(pid => pid !== id))}
+                                            className="hover:text-blue-600"
+                                          >
+                                            ×
+                                          </button>
+                                        </span>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-3 pt-4 border-t">
+                            <button
+                              onClick={resetForm}
+                              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleSubmit}
+                              disabled={saving}
+                              className="px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] transition-colors disabled:opacity-50"
+                            >
+                              {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Display Mode */
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-start gap-3">
@@ -842,6 +1059,7 @@ export default function ClassesPage() {
                           </button>
                         </div>
                       </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))
