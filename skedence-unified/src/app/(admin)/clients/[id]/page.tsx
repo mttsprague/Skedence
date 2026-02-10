@@ -8,6 +8,8 @@ import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'fireb
 import { db } from '@/lib/firebase';
 import { ArrowLeft, Calendar, Package, FileText, CreditCard, User as UserIcon, Receipt, History } from 'lucide-react';
 
+export const dynamicParams = true;
+
 interface ClientData {
   id: string;
   firstName: string;
