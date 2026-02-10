@@ -18,7 +18,8 @@ struct AthleteSelectionCard: View {
     let onAddNew: () -> Void
     
     private var ordinalNumber: String {
-        ["First", "Second", "Third", "Fourth"][index]
+        let ordinals = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"]
+        return ordinals[safe: index] ?? "Athlete \(index + 1)"
     }
     
     var body: some View {

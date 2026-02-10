@@ -108,6 +108,7 @@ struct EditProfileView: View {
                             Text("Beginner").tag("Beginner")
                             Text("Intermediate").tag("Intermediate")
                             Text("Advanced").tag("Advanced")
+                            Text("Elite").tag("Elite")
                         }
                         .pickerStyle(.menu)
                         

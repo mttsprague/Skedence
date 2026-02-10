@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
@@ -56,42 +56,25 @@ interface PaymentMethod {
   id: string;
   brand: string;
   last4: string;
-  expiryMonth?: number;
-  expiryYear?: number;
-  expMonth?: number;
-  expYear?: number;
-  isDefault?: boolean;
+  expiryMonth: number;
+  expiryYear: number;
+  isDefault: boolean;
 }
 
-interface Transaction {
+interface Waiver {
   id: string;
-  userId: string;
-  amount: number;
-  description?: string;
-  createdAt: Timestamp;
-  status: string;
-  stripePaymentIntentId?: string;
-  paymentIntentId?: string;
-  packageId?: string;
-  packageName?: string;
-  orgId?: string;
-  type?: string;
+  athleteName: string;
+  signedAt: Timestamp;
+  ipAddress?: string;
 }
 
-interface PricingPackage {
-  id: string;
-  title: string;
-  packageType: string;
-  active: boolean;
-}
+type TabType = 'overview' | 'upcoming' | 'history' | 'passes' | 'documents' | 'payments' | 'waivers';
 
-type TabType = 'overview' | 'upcoming' | 'history' | 'passes' | 'documents' | 'payments' | 'receipts';
-
-function ClientDetailContent() {
-  const searchParams = useSearchParams();
+export default function ClientDetailPage() {
+  const params = useParams();
   const router = useRouter();
   const { orgId } = useAuth();
-  const clientId = searchParams.get('id');
+  const clientId = params.id as string;
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
@@ -101,8 +84,7 @@ function ClientDetailContent() {
   const [packages, setPackages] = useState<LessonPackage[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [receipts, setReceipts] = useState<Transaction[]>([]);
-  const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>([]);
+  const [waivers, setWaivers] = useState<Waiver[]>([]);
 
   useEffect(() => {
     if (!orgId || !clientId) return;
@@ -110,7 +92,6 @@ function ClientDetailContent() {
     async function loadClientData() {
       try {
         if (!orgId || !clientId) return; // Type guard
-
         // Load client basic info
         const userDoc = await getDoc(doc(db, 'users', clientId));
         if (!userDoc.exists()) {
@@ -185,65 +166,25 @@ function ClientDetailContent() {
         })) as Document[];
         setDocuments(docsData);
 
-        // Load pricing packages to check if they're active
-        const orgDoc = await getDoc(doc(db, 'organizations', orgId));
-        if (orgDoc.exists()) {
-          const orgData = orgDoc.data();
-          const pricingStructure = orgData.pricingStructure;
-          if (pricingStructure?.tiers) {
-            const allPackages: PricingPackage[] = [];
-            pricingStructure.tiers.forEach((tier: any) => {
-              tier.packages.forEach((pkg: any) => {
-                allPackages.push({
-                  id: pkg.id,
-                  title: pkg.title,
-                  packageType: pkg.packageType,
-                  active: pkg.active !== false,
-                });
-              });
-            });
-            setPricingPackages(allPackages);
-          }
-        }
-
-        // Load payment methods using Cloud Function (like iOS app)
-        try {
-          const { getFunctions, httpsCallable } = await import('firebase/functions');
-          const functions = getFunctions(undefined, 'us-central1');
-          const getPaymentMethodsDirectAdmin = httpsCallable(functions, 'getPaymentMethodsDirectAdmin');
-          const result = await getPaymentMethodsDirectAdmin({ userId: clientId, orgId });
-          const data = result.data as any;
-          if (data?.paymentMethods) {
-            const methodsData = data.paymentMethods.map((method: any) => ({
-              id: method.id,
-              brand: method.brand,
-              last4: method.last4,
-              expMonth: method.expMonth,
-              expYear: method.expYear,
-              isDefault: method.isDefault,
-            }));
-            console.log('Payment methods loaded via Cloud Function:', methodsData.length, methodsData);
-            setPaymentMethods(methodsData);
-          }
-        } catch (error) {
-          console.error('Error loading payment methods:', error);
-          // Non-blocking error
-        }
-
-        // Load receipts/transactions
-        const receiptsQuery = query(
-          collection(db, 'transactions'),
-          where('userId', '==', clientId),
-          where('orgId', '==', orgId)
+        // Load payment methods
+        const paymentsSnap = await getDocs(
+          collection(db, 'users', clientId, 'paymentMethods')
         );
-        const receiptsSnap = await getDocs(receiptsQuery);
-        const receiptsData = receiptsSnap.docs.map(doc => ({
+        const paymentsData = paymentsSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-        })) as Transaction[];
-        console.log('Receipts loaded:', receiptsData.length, receiptsData);
-        const sortedReceipts = receiptsData.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-        setReceipts(sortedReceipts);
+        })) as PaymentMethod[];
+        setPaymentMethods(paymentsData);
+
+        // Load waivers
+        const waiversSnap = await getDocs(
+          collection(db, 'users', clientId, 'waivers')
+        );
+        const waiversData = waiversSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Waiver[];
+        setWaivers(waiversData);
 
       } catch (error) {
         console.error('Error loading client data:', error);
@@ -267,31 +208,14 @@ function ClientDetailContent() {
     return null;
   }
 
-  // Filter passes by active pricing packages
-  const getPassStatus = (pkg: LessonPackage) => {
-    // Check if the package's pricing definition exists and is active
-    const pricingPackage = pricingPackages.find(p => p.packageType === pkg.packageType);
-    
-    // If no pricing package found, treat as inactive (package was deleted or doesn't exist)
-    if (!pricingPackage) {
-      return false;
-    }
-    
-    // Pass is active only if it has remaining lessons AND its pricing package is active
-    return pkg.remainingLessons > 0 && pricingPackage.active === true;
-  };
-
-  const activePasses = packages.filter(getPassStatus);
-  const expiredPasses = packages.filter(p => !getPassStatus(p));
-
   const tabs: { id: TabType; label: string; icon: any; count?: number }[] = [
     { id: 'overview', label: 'Overview', icon: UserIcon },
     { id: 'upcoming', label: 'Upcoming', icon: Calendar, count: upcomingBookings.length },
     { id: 'history', label: 'History', icon: History, count: pastBookings.length },
-    { id: 'passes', label: 'Passes', icon: Package, count: activePasses.length },
+    { id: 'passes', label: 'Passes', icon: Package, count: packages.filter(p => p.remainingLessons > 0).length },
     { id: 'documents', label: 'Documents', icon: FileText, count: documents.length },
     { id: 'payments', label: 'Payment Methods', icon: CreditCard, count: paymentMethods.length },
-    { id: 'receipts', label: 'Receipts', icon: Receipt, count: receipts.length },
+    { id: 'waivers', label: 'Waivers', icon: Receipt, count: waivers.length },
   ];
 
   return (
@@ -315,14 +239,14 @@ function ClientDetailContent() {
 
         {/* Tabs */}
         <div className="border-b border-gray-200 bg-white rounded-t-lg">
-          <nav className="flex gap-1 p-2 overflow-x-auto">
+          <nav className="flex gap-1 p-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                     activeTab === tab.id
                       ? 'bg-[#3258A3] text-white'
                       : 'text-gray-600 hover:bg-gray-100'
@@ -351,17 +275,17 @@ function ClientDetailContent() {
             <OverviewTab 
               client={client} 
               upcomingCount={upcomingBookings.length}
-              activePackagesCount={activePasses.length}
+              activePassesCount={packages.filter(p => p.remainingLessons > 0).length}
               totalSessions={packages.reduce((sum, p) => sum + p.totalLessons, 0)}
               completedSessions={packages.reduce((sum, p) => sum + p.lessonsUsed, 0)}
             />
           )}
           {activeTab === 'upcoming' && <UpcomingTab bookings={upcomingBookings} />}
           {activeTab === 'history' && <HistoryTab bookings={pastBookings} />}
-        {activeTab === 'passes' && <PassesTab activePasses={activePasses} expiredPasses={expiredPasses} />}
-        {activeTab === 'documents' && <DocumentsTab documents={documents} />}
-        {activeTab === 'payments' && <PaymentsTab methods={paymentMethods} />}
-          {activeTab === 'receipts' && <ReceiptsTab receipts={receipts} />}
+          {activeTab === 'passes' && <PassesTab packages={packages} />}
+          {activeTab === 'documents' && <DocumentsTab documents={documents} />}
+          {activeTab === 'payments' && <PaymentsTab methods={paymentMethods} />}
+          {activeTab === 'waivers' && <WaiversTab waivers={waivers} />}
         </div>
       </div>
     </div>
@@ -372,13 +296,13 @@ function ClientDetailContent() {
 function OverviewTab({ 
   client, 
   upcomingCount, 
-  activePackagesCount, 
+  activePassesCount, 
   totalSessions,
   completedSessions 
 }: { 
   client: ClientData; 
   upcomingCount: number; 
-  activePackagesCount: number;
+  activePassesCount: number;
   totalSessions: number;
   completedSessions: number;
 }) {
@@ -393,8 +317,8 @@ function OverviewTab({
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{activePackagesCount}</div>
-            <div className="text-sm text-gray-600">Active Pricing Packages</div>
+            <div className="text-2xl font-bold text-green-600">{activePassesCount}</div>
+            <div className="text-sm text-gray-600">Active Passes</div>
           </CardContent>
         </Card>
         <Card>
@@ -556,8 +480,8 @@ function HistoryTab({ bookings }: { bookings: Booking[] }) {
   );
 }
 
-function PassesTab({ activePasses, expiredPasses }: { activePasses: LessonPackage[]; expiredPasses: LessonPackage[] }) {
-  if (activePasses.length === 0 && expiredPasses.length === 0) {
+function PassesTab({ packages }: { packages: LessonPackage[] }) {
+  if (packages.length === 0) {
     return (
       <div className="p-12 text-center text-gray-500">
         <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
@@ -566,13 +490,16 @@ function PassesTab({ activePasses, expiredPasses }: { activePasses: LessonPackag
     );
   }
 
+  const activePackages = packages.filter(p => p.remainingLessons > 0);
+  const expiredPackages = packages.filter(p => p.remainingLessons <= 0);
+
   return (
     <div className="p-6 space-y-6">
-      {activePasses.length > 0 && (
+      {activePackages.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold mb-3 text-gray-900">Active Passes</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {activePasses.map((pkg) => (
+            {activePackages.map((pkg) => (
               <Card key={pkg.id}>
                 <CardContent className="pt-6">
                   <div className="space-y-2">
@@ -601,11 +528,11 @@ function PassesTab({ activePasses, expiredPasses }: { activePasses: LessonPackag
         </div>
       )}
 
-      {expiredPasses.length > 0 && (
+      {expiredPackages.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold mb-3 text-gray-900">Used/Expired Passes</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {expiredPasses.map((pkg) => (
+            {expiredPackages.map((pkg) => (
               <Card key={pkg.id} className="opacity-60">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
@@ -700,7 +627,7 @@ function PaymentsTab({ methods }: { methods: PaymentMethod[] }) {
                       {method.brand.charAt(0).toUpperCase() + method.brand.slice(1)} •••• {method.last4}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Expires {method.expMonth || method.expiryMonth}/{method.expYear || method.expiryYear}
+                      Expires {method.expiryMonth}/{method.expiryYear}
                     </p>
                   </div>
                 </div>
@@ -718,12 +645,12 @@ function PaymentsTab({ methods }: { methods: PaymentMethod[] }) {
   );
 }
 
-function ReceiptsTab({ receipts }: { receipts: Transaction[] }) {
-  if (receipts.length === 0) {
+function WaiversTab({ waivers }: { waivers: Waiver[] }) {
+  if (waivers.length === 0) {
     return (
       <div className="p-12 text-center text-gray-500">
         <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-        <p>No purchase receipts</p>
+        <p>No waivers signed</p>
       </div>
     );
   }
@@ -731,62 +658,33 @@ function ReceiptsTab({ receipts }: { receipts: Transaction[] }) {
   return (
     <div className="p-6">
       <div className="space-y-3">
-        {receipts.map((receipt) => (
-          <Card key={receipt.id}>
+        {waivers.map((waiver) => (
+          <Card key={waiver.id}>
             <CardContent className="pt-6">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">
-                    {receipt.description || receipt.packageName || 'Purchase'}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {receipt.createdAt?.toDate?.()?.toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                  {receipt.stripePaymentIntentId && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      ID: {receipt.stripePaymentIntentId}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-[#3258A3]">
-                    ${((receipt.amount || 0) / 100).toFixed(2)}
-                  </p>
-                  <span
-                    className={`inline-block mt-1 px-3 py-1 text-xs font-medium rounded-full ${
-                      receipt.status === 'succeeded'
-                        ? 'bg-green-100 text-green-700'
-                        : receipt.status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {receipt.status}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-gray-900">{waiver.athleteName}</p>
+                  <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    Signed
                   </span>
                 </div>
+                <p className="text-sm text-gray-600">
+                  Signed on {waiver.signedAt.toDate().toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit'
+                  })}
+                </p>
+                {waiver.ipAddress && (
+                  <p className="text-xs text-gray-500">IP: {waiver.ipAddress}</p>
+                )}
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
     </div>
-  );
-}
-
-export default function ClientDetailPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    }>
-      <ClientDetailContent />
-    </Suspense>
   );
 }

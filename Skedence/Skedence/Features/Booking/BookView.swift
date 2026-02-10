@@ -939,11 +939,11 @@ struct BookView: View {
                         .foregroundStyle(AppTheme.textPrimary)
                         .padding(.horizontal, Spacing.lg)
                     
-                    ForEach(0..<athleteCount, id: \.self) { index in
+                    ForEach(0..<min(athleteCount, selectedAthletes.count), id: \.self) { index in
                         athleteSelectionCard(for: index, athleteCount: athleteCount)
                     }
                 }
-                .onAppear {
+                .task(id: athleteCount) {
                     ensureSelectedAthletesCount(athleteCount)
                 }
                 .onChangeCompat(of: selectedPackage?.id) { _, _ in
@@ -962,6 +962,7 @@ struct BookView: View {
             hasWaiver: athleteWaiverStatus[index],
             isNew: isNewAthlete[index],
             onSelect: { athleteName in
+                guard index < selectedAthletes.count else { return }
                 selectedAthletes[index] = athleteName
                 isNewAthlete[index] = false
                 loadAthleteProfileData(athleteName: athleteName, index: index)

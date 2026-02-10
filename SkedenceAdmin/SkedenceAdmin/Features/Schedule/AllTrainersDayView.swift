@@ -87,90 +87,72 @@ struct AllTrainersDayView: View {
     private let rowVerticalPadding: CGFloat = 1
     private let timeColWidth: CGFloat = 44
     private let columnSpacing: CGFloat = 0
-    private let gridHeaderVPad: CGFloat = 6
+    private let gridHeaderVPad: CGFloat = 2
     private let horizontalPaddingPerCell: CGFloat = 2
     
     // Track if we've done initial scroll to current time
     @State private var hasScrolledToCurrentTime = false
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header avatar + name (current user)
-                header
-
-                // Day navigation controls
-                HStack {
-                    Button {
-                        shiftDay(by: -1)
-                    } label: {
-                        Image(systemName: "chevron.left.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.primary)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Spacer()
-                    
-                    Text(scheduleViewModel.selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
-                        .font(.headline)
-                    
-                    Spacer()
-                    
-                    Button {
-                        shiftDay(by: 1)
-                    } label: {
-                        Image(systemName: "chevron.right.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.primary)
-                    }
-                    .buttonStyle(.plain)
+        VStack(spacing: 0) {
+            // Day navigation controls - DEBUG: Add red background
+            HStack {
+                Button {
+                    shiftDay(by: -1)
+                } label: {
+                    Image(systemName: "chevron.left.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.primary)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-
-                let headerRowHeight: CGFloat = 56.0 // trainer avatar+name header height
+                .buttonStyle(.plain)
                 
-                AllTrainersDayGrid(
-                    trainers: viewModel.trainers,
-                    visibleHours: scheduleViewModel.visibleHours,
-                    selectedDate: scheduleViewModel.selectedDate,
-                    isAdmin: auth.isAdmin,
-                    rowHeight: rowHeight,
-                    rowVerticalPadding: rowVerticalPadding,
-                    timeColWidth: timeColWidth,
-                    columnSpacing: columnSpacing,
-                    gridHeaderVPad: gridHeaderVPad,
-                    horizontalPaddingPerCell: horizontalPaddingPerCell,
-                    headerRowHeight: headerRowHeight,
-                    hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
-                    slotFor: { trainerId, hour in
-                        viewModel.slotFor(trainerId: trainerId, atHour: hour)
-                    },
-                    onSlotTap: { slot in
-                        handleSlotTap(slot)
-                    },
-                    onEmptyCellTap: { trainerId, hour in
-                        if auth.isAdmin {
-                            editorContext = ScheduleEditorContext(day: viewModel.currentDay, hour: hour, trainerId: trainerId)
-                        }
-                    }
-                )
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 50)
-                        .onEnded { value in
-                            let horizontalMovement = value.translation.width
-                            if horizontalMovement < -50 {
-                                // Swipe left - next day
-                                shiftDay(by: 1)
-                            } else if horizontalMovement > 50 {
-                                // Swipe right - previous day
-                                shiftDay(by: -1)
-                            }
-                        }
-                )
+                Spacer()
+                
+                Text(scheduleViewModel.selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
+                    .font(.subheadline)
+                
+                Spacer()
+                
+                Button {
+                    shiftDay(by: 1)
+                } label: {
+                    Image(systemName: "chevron.right.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
             }
-            .gesture(
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            let headerRowHeight: CGFloat = 44.0 // trainer avatar+name header height
+            
+            AllTrainersDayGrid(
+                trainers: viewModel.trainers,
+                visibleHours: scheduleViewModel.visibleHours,
+                selectedDate: scheduleViewModel.selectedDate,
+                isAdmin: auth.isAdmin,
+                rowHeight: rowHeight,
+                rowVerticalPadding: rowVerticalPadding,
+                timeColWidth: timeColWidth,
+                columnSpacing: columnSpacing,
+                gridHeaderVPad: gridHeaderVPad,
+                horizontalPaddingPerCell: horizontalPaddingPerCell,
+                headerRowHeight: headerRowHeight,
+                hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
+                slotFor: { trainerId, hour in
+                    viewModel.slotFor(trainerId: trainerId, atHour: hour)
+                },
+                onSlotTap: { slot in
+                    handleSlotTap(slot)
+                },
+                onEmptyCellTap: { trainerId, hour in
+                    if auth.isAdmin {
+                        editorContext = ScheduleEditorContext(day: viewModel.currentDay, hour: hour, trainerId: trainerId)
+                    }
+                }
+            )
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 50)
                     .onEnded { value in
                         let horizontalMovement = value.translation.width
@@ -183,117 +165,111 @@ struct AllTrainersDayView: View {
                         }
                     }
             )
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("All Trainers · Day")
-                        .font(.headline)
-                }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
+        .task {
+            if let orgId = auth.currentOrgId {
+                await viewModel.loadInitial(
+                    selectedDate: scheduleViewModel.selectedDate,
+                    orgId: orgId
+                )
             }
-            .sheet(item: $sessionDetailContext) { context in
-                SessionDetailView(client: context.client, booking: context.booking)
-                    .environmentObject(dependencies)
-            }
-            .sheet(item: $editorContext) { context in
+        }
+        .onChange(of: scheduleViewModel.selectedDate) { _, newValue in
+            Task {
                 if let orgId = auth.currentOrgId {
-                    // Configure AvailabilityEditorSheet for admin editing a specific trainer
-                    AvailabilityEditorSheet(
-                        defaultDay: scheduleViewModel.selectedDate,
-                        defaultHour: context.hour,
-                        isAdmin: auth.isAdmin,
-                        editingTrainerId: context.trainerId,
-                        orgId: orgId,
-                        onSaveSingle: { day, start, end, status, applyToAll, location in
-                            Task {
-                                // If applying to all trainers (only valid for unavailability)
-                                if applyToAll && status == .unavailable {
-                                    await scheduleViewModel.setCustomSlotForAllTrainers(
-                                        on: day,
-                                        startTime: start,
-                                        endTime: end,
-                                        status: status,
-                                        location: location
-                                    )
-                                } else {
-                                    // Set which trainer we’re editing, then save single/multi-hour slots
-                                    scheduleViewModel.editingTrainerId = context.trainerId
-                                    await scheduleViewModel.setCustomSlot(
-                                        on: day,
-                                        startTime: start,
-                                        endTime: end,
-                                        status: status,
-                                        location: location
-                                    )
-                                }
-                                // Reload day view after saving
-                                await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
-                            }
-                        },
-                        onSaveOngoing: { startDate, endDate, dailyStartHour, dailyEndHour, slotDuration, daysOfWeek, status, applyToAll, location in
-                            Task {
-                                if applyToAll && status == .unavailable {
-                                    await scheduleViewModel.openAvailabilityForAllTrainers(
-                                        start: startDate,
-                                        end: endDate,
-                                        dailyStartHour: dailyStartHour,
-                                        dailyEndHour: dailyEndHour,
-                                        slotDurationMinutes: slotDuration,
-                                        selectedDaysOfWeek: daysOfWeek,
-                                        status: status,
-                                        location: location
-                                    )
-                                } else {
-                                    scheduleViewModel.editingTrainerId = context.trainerId
-                                    await scheduleViewModel.openAvailability(
-                                        start: startDate,
-                                        end: endDate,
-                                        dailyStartHour: dailyStartHour,
-                                        dailyEndHour: dailyEndHour,
-                                        slotDurationMinutes: slotDuration,
-                                        selectedDaysOfWeek: daysOfWeek,
-                                        status: status,
-                                        location: location
-                                    )
-                                }
-                                await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
-                            }
-                        },
-                        onBookingCompleted: {
-                            await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
-                        }
-                    )
-                }
-            }
-            .sheet(isPresented: $classParticipantsShown) {
-                if let classId = selectedClassId, let className = selectedClassName {
-                    ClassParticipantsView(
-                        classId: classId,
-                        classTitle: className,
-                        preloadedParticipants: preloadedParticipants
-                    )
-                    .environmentObject(dependencies)
-                } else {
-                    // Always return a view to satisfy the ViewBuilder's opaque return type
-                    EmptyView()
-                }
-            }
-            .task {
-                if let orgId = auth.currentOrgId {
-                    await viewModel.loadInitial(
-                        selectedDate: scheduleViewModel.selectedDate,
-                        orgId: orgId
-                    )
-                }
-            }
-            .onChange(of: scheduleViewModel.selectedDate) { _, newValue in
-                Task {
-                    if let orgId = auth.currentOrgId {
-                        await viewModel.reload(for: newValue, orgId: orgId)
-                    }
+                    await viewModel.reload(for: newValue, orgId: orgId)
                 }
             }
         }
-        .navigationViewStyle(.stack)
+        .sheet(item: $sessionDetailContext) { context in
+            SessionDetailView(client: context.client, booking: context.booking)
+                .environmentObject(dependencies)
+        }
+        .sheet(item: $editorContext) { context in
+            if let orgId = auth.currentOrgId {
+                // Configure AvailabilityEditorSheet for admin editing a specific trainer
+                AvailabilityEditorSheet(
+                    defaultDay: scheduleViewModel.selectedDate,
+                    defaultHour: context.hour,
+                    isAdmin: auth.isAdmin,
+                    editingTrainerId: context.trainerId,
+                    orgId: orgId,
+                    onSaveSingle: { day, start, end, status, applyToAll, location in
+                        Task {
+                            // If applying to all trainers (only valid for unavailability)
+                            if applyToAll && status == .unavailable {
+                                await scheduleViewModel.setCustomSlotForAllTrainers(
+                                    on: day,
+                                    startTime: start,
+                                    endTime: end,
+                                    status: status,
+                                    location: location
+                                )
+                            } else {
+                                // Set which trainer we're editing, then save single/multi-hour slots
+                                scheduleViewModel.editingTrainerId = context.trainerId
+                                await scheduleViewModel.setCustomSlot(
+                                    on: day,
+                                    startTime: start,
+                                    endTime: end,
+                                    status: status,
+                                    location: location
+                                )
+                            }
+                            // Reload day view after saving
+                            await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
+                        }
+                    },
+                    onSaveOngoing: { startDate, endDate, dailyStartHour, dailyEndHour, slotDuration, daysOfWeek, status, applyToAll, location in
+                        Task {
+                            if applyToAll && status == .unavailable {
+                                await scheduleViewModel.openAvailabilityForAllTrainers(
+                                    start: startDate,
+                                    end: endDate,
+                                    dailyStartHour: dailyStartHour,
+                                    dailyEndHour: dailyEndHour,
+                                    slotDurationMinutes: slotDuration,
+                                    selectedDaysOfWeek: daysOfWeek,
+                                    status: status,
+                                    location: location
+                                )
+                            } else {
+                                scheduleViewModel.editingTrainerId = context.trainerId
+                                await scheduleViewModel.openAvailability(
+                                    start: startDate,
+                                    end: endDate,
+                                    dailyStartHour: dailyStartHour,
+                                    dailyEndHour: dailyEndHour,
+                                    slotDurationMinutes: slotDuration,
+                                    selectedDaysOfWeek: daysOfWeek,
+                                    status: status,
+                                    location: location
+                                )
+                            }
+                            await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
+                        }
+                    },
+                    onBookingCompleted: {
+                        await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $classParticipantsShown) {
+            if let classId = selectedClassId, let className = selectedClassName {
+                ClassParticipantsView(
+                    classId: classId,
+                    classTitle: className,
+                    preloadedParticipants: preloadedParticipants
+                )
+                .environmentObject(dependencies)
+            } else {
+                // Always return a view to satisfy the ViewBuilder's opaque return type
+                EmptyView()
+            }
+        }
     }
     
     func handleSlotTap(_ slot: TrainerScheduleSlot) {
@@ -614,30 +590,25 @@ private struct AllTrainersDayGrid: View {
     let onEmptyCellTap: (_ trainerId: String, _ hour: Int) -> Void
 
     var body: some View {
-        GeometryReader { geometry in
-            let trainerCount = CGFloat(max(1, trainers.count))
-            let totalHorizontalPadding = horizontalPaddingPerCell * 2 * trainerCount
-            let availableWidth = geometry.size.width - timeColWidth - totalHorizontalPadding
-            let calculatedTrainerWidth = max(40, availableWidth / trainerCount)
-
-            ScrollableGridContent(
-                trainers: trainers,
-                visibleHours: visibleHours,
-                rowHeight: rowHeight,
-                rowVerticalPadding: rowVerticalPadding,
-                timeColWidth: timeColWidth,
-                columnSpacing: columnSpacing,
-                gridHeaderVPad: gridHeaderVPad,
-                headerRowHeight: headerRowHeight,
-                calculatedTrainerWidth: calculatedTrainerWidth,
-                horizontalPaddingPerCell: horizontalPaddingPerCell,
-                selectedDate: selectedDate,
-                hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
-                slotFor: slotFor,
-                onSlotTap: onSlotTap,
-                onEmptyCellTap: onEmptyCellTap
-            )
-        }
+        let calculatedTrainerWidth: CGFloat = 120
+        
+        ScrollableGridContent(
+            trainers: trainers,
+            visibleHours: visibleHours,
+            rowHeight: rowHeight,
+            rowVerticalPadding: rowVerticalPadding,
+            timeColWidth: timeColWidth,
+            columnSpacing: columnSpacing,
+            gridHeaderVPad: gridHeaderVPad,
+            headerRowHeight: headerRowHeight,
+            calculatedTrainerWidth: calculatedTrainerWidth,
+            horizontalPaddingPerCell: horizontalPaddingPerCell,
+            selectedDate: selectedDate,
+            hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
+            slotFor: slotFor,
+            onSlotTap: onSlotTap,
+            onEmptyCellTap: onEmptyCellTap
+        )
     }
 
     private func hourLabel(_ hour: Int) -> String {
@@ -680,34 +651,42 @@ private struct ScrollableGridContent: View {
     let onEmptyCellTap: (_ trainerId: String, _ hour: Int) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Sticky trainer headers at top
-            HStack(spacing: 0) {
-                // Spacer for time column
-                Color.clear
-                    .frame(width: timeColWidth)
-                
-                // Trainer headers
-                HStack(spacing: columnSpacing) {
-                    ForEach(trainers) { trainer in
-                        TrainerHeaderCell(trainer: trainer)
-                            .frame(width: calculatedTrainerWidth, height: headerRowHeight)
-                    }
-                }
-                .padding(.vertical, gridHeaderVPad)
-                .padding(.leading, 6)
-                .padding(.trailing, 8)
-            }
-            .background(Color(UIColor.systemBackground))
-            .zIndex(1)
-            
-            // Scrollable content
-            ScrollViewReader { verticalScrollProxy in
-                ScrollView(.vertical, showsIndicators: true) {
-                    ZStack(alignment: .topLeading) {
+        ScrollViewReader { verticalScrollProxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                GeometryReader { geometry in
+                    let trainerCount = CGFloat(max(1, trainers.count))
+                    let maxTrainersForWidth: CGFloat = 4 // Cap at 4 trainers for width calculation
+                    let trainersForWidth = min(trainerCount, maxTrainersForWidth)
+                    let totalHorizontalPadding = horizontalPaddingPerCell * 2 * trainersForWidth
+                    let availableWidth = geometry.size.width - timeColWidth - totalHorizontalPadding - 20 // Extra padding for scrollbar
+                    let dynamicTrainerWidth = max(120, availableWidth / trainersForWidth)
+                    
+                    VStack(spacing: 0) {
+                        // Trainer headers at top - with horizontal scroll
                         HStack(spacing: 0) {
-                            // Fixed left time column
-                            VStack(spacing: 0) {
+                            // Spacer for time column
+                            Color.clear
+                                .frame(width: timeColWidth)
+                            
+                            // Scrollable trainer headers
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: columnSpacing) {
+                                    ForEach(trainers) { trainer in
+                                        TrainerHeaderCell(trainer: trainer)
+                                            .frame(width: dynamicTrainerWidth, height: headerRowHeight)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.leading, 6)
+                                .padding(.trailing, 8)
+                            }
+                        }
+                        
+                        // Grid content
+                        ZStack(alignment: .topLeading) {
+                            HStack(spacing: 0) {
+                                // Fixed left time column
+                                VStack(spacing: 0) {
                                 ForEach(visibleHours, id: \.self) { hour in
                                     Text(hourLabel(hour))
                                         .font(.caption2)
@@ -722,13 +701,14 @@ private struct ScrollableGridContent: View {
                             .frame(width: timeColWidth)
                             .background(Color(UIColor.systemGray6))
 
-                            // Right: grid cells only
-                            VStack(spacing: 0) {
+                            // Right: horizontally scrollable grid cells
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
 
-                                ForEach(visibleHours, id: \.self) { hour in
-                                    HStack(spacing: columnSpacing) {
-                                        ForEach(trainers) { trainer in
-                                            ZStack(alignment: .topLeading) {
+                                    ForEach(visibleHours, id: \.self) { hour in
+                                        HStack(spacing: columnSpacing) {
+                                            ForEach(trainers) { trainer in
+                                                ZStack(alignment: .topLeading) {
                                                 // Empty cell background
                                                 RoundedRectangle(cornerRadius: 12)
                                                     .fill(Color(UIColor.systemGray5))
@@ -742,7 +722,7 @@ private struct ScrollableGridContent: View {
                                                         }
                                                 }
                                             }
-                                            .frame(width: calculatedTrainerWidth, height: rowHeight)
+                                            .frame(width: dynamicTrainerWidth, height: rowHeight)
                                             .padding(.horizontal, horizontalPaddingPerCell)
                                             .contentShape(Rectangle())
                                             .onTapGesture {
@@ -758,34 +738,36 @@ private struct ScrollableGridContent: View {
                                 }
                             }
                             .padding(.bottom, 8)
+                            } // Close ScrollView horizontal
                         } // Close HStack
                     
-                // Timeline scrolls WITH content and stays at the current time position (e.g., 5pm line stays at 5pm)
-                if Calendar.current.isDateInToday(selectedDate) {
-                    TimelineView(.everyMinute) { context in
-                        if let y = currentTimeYOffset(
-                            for: context.date,
-                            firstHour: visibleHours.first,
-                            rowHeight: rowHeight,
-                            rowVerticalPadding: rowVerticalPadding,
-                            visibleHours: visibleHours
-                        ) {
-                            HStack(spacing: 0) {
-                                Circle()
-                                    .fill(.red)
-                                    .frame(width: 10, height: 10)
-                                Rectangle()
-                                    .fill(Color.red)
-                                    .frame(height: 2)
+                        // Timeline scrolls WITH content and stays at the current time position (e.g., 5pm line stays at 5pm)
+                        if Calendar.current.isDateInToday(selectedDate) {
+                            TimelineView(.everyMinute) { context in
+                                if let y = currentTimeYOffset(
+                                    for: context.date,
+                                    firstHour: visibleHours.first,
+                                    rowHeight: rowHeight,
+                                    rowVerticalPadding: rowVerticalPadding,
+                                    visibleHours: visibleHours
+                                ) {
+                                    HStack(spacing: 0) {
+                                        Circle()
+                                            .fill(.red)
+                                            .frame(width: 10, height: 10)
+                                        Rectangle()
+                                            .fill(Color.red)
+                                            .frame(height: 2)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .offset(x: 0, y: y)
+                                    .allowsHitTesting(false)
+                                }
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .offset(x: 0, y: y)
-                            .allowsHitTesting(false)
                         }
-                    }
-                }
                     } // Close ZStack
                     .background(Color(UIColor.systemGray6))
+                    } // Close VStack
                     .onAppear {
                         scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
                     }
@@ -794,9 +776,9 @@ private struct ScrollableGridContent: View {
                             scrollToCurrentTime(verticalScrollProxy: verticalScrollProxy)
                         }
                     }
-                } // Close ScrollView
-            } // Close ScrollViewReader
-        } // Close outer VStack
+                } // Close GeometryReader
+            } // Close ScrollView
+        } // Close ScrollViewReader
     }
     
     private func currentTimeYOffset(for date: Date, firstHour: Int?, rowHeight: CGFloat, rowVerticalPadding: CGFloat, visibleHours: [Int]) -> CGFloat? {
