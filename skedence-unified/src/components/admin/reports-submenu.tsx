@@ -4,17 +4,17 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  LayoutDashboard,
   CalendarCheck,
   DollarSign,
+  Users,
   ArrowLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const submenuItems = [
-  { name: 'Dashboard', href: '/reports/dashboard', icon: LayoutDashboard },
   { name: 'Appointments', href: '/reports/appointments', icon: CalendarCheck },
   { name: 'Revenue', href: '/reports/revenue', icon: DollarSign },
+  { name: 'Users', href: '/reports/users', icon: Users },
 ];
 
 interface ReportsSubmenuProps {
