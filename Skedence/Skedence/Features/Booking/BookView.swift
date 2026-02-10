@@ -32,6 +32,7 @@ struct BookView: View {
     @StateObject private var intakeFormData = IntakeFormData()
     @StateObject private var newAthleteIntakeData = IntakeFormData()
     @State private var athleteIntakeForms: [Int: IntakeFormData] = [:] // One form per athlete index
+    @State private var formUpdateTrigger = false // Toggles to trigger validation re-check
     
     @Binding var initialMode: Int
     @Binding var selectedTab: Int
@@ -148,7 +149,9 @@ struct BookView: View {
             return
         }
         
-        let athleteForm = getOrCreateIntakeForm(for: index)
+        guard let athleteForm = athleteIntakeForms[index] else {
+            return
+        }
         
         // Pre-populate intake form data from profile
         athleteForm.populateFromUserProfile(profile)
@@ -208,6 +211,9 @@ struct BookView: View {
     
     // Validate that all required athlete information is filled
     private var isAthleteInfoComplete: Bool {
+        // Use formUpdateTrigger to force re-evaluation when forms change
+        let _ = formUpdateTrigger
+        
         guard let pkg = selectedPackage,
               let category = getPackageCategory(pkg),
               category.isPrivateLesson else {
@@ -216,20 +222,30 @@ struct BookView: View {
         
         let requiredCount = category.athleteCount
         
-        // Check that all required athlete slots are filled
-        guard selectedAthletes.count == requiredCount else {
+        // Check that array is sized correctly (allow slightly more for safety)
+        guard selectedAthletes.count >= requiredCount else {
             return false
         }
-        for athleteName in selectedAthletes {
-            if athleteName == nil {
+        
+        // Check that all required athlete slots are filled
+        for index in 0..<requiredCount {
+            if selectedAthletes[safe: index] == nil {
                 return false
             }
         }
         
         // Check ALL athletes' info using dynamic form validation
         for index in 0..<requiredCount {
-            let athleteForm = getOrCreateIntakeForm(for: index)
-            if !athleteForm.areAllRequiredFieldsComplete(intakeFormService.fields) {
+            guard let athleteForm = athleteIntakeForms[index] else {
+                return false
+            }
+            
+            // Check only required fields are complete
+            let incompleteRequired = intakeFormService.fields.filter { field in
+                field.required && !athleteForm.isFieldComplete(field)
+            }
+            
+            if !incompleteRequired.isEmpty {
                 return false
             }
         }
@@ -453,9 +469,10 @@ struct BookView: View {
             athleteWaiverStatus[index] = false
             
             // Copy data from newAthleteIntakeData to this athlete's form
-            let athleteForm = getOrCreateIntakeForm(for: index)
-            for (key, value) in newAthleteIntakeData.fieldValues {
-                athleteForm.setValue(value, forField: key)
+            if let athleteForm = athleteIntakeForms[index] {
+                for (key, value) in newAthleteIntakeData.fieldValues {
+                    athleteForm.setValue(value, forField: key)
+                }
             }
             
             // Close sheet
@@ -965,6 +982,16 @@ struct BookView: View {
                 guard index < selectedAthletes.count else { return }
                 selectedAthletes[index] = athleteName
                 isNewAthlete[index] = false
+                
+                // Ensure intake form exists for this athlete
+                if athleteIntakeForms[index] == nil {
+                    let newForm = IntakeFormData()
+                    newForm.onUpdate = {
+                        formUpdateTrigger.toggle()
+                    }
+                    athleteIntakeForms[index] = newForm
+                }
+                
                 loadAthleteProfileData(athleteName: athleteName, index: index)
                 Task {
                     await checkWaiverStatusForAthlete(athleteName: athleteName, index: index)
@@ -1004,11 +1031,12 @@ struct BookView: View {
                         }
                         .padding(.horizontal, Spacing.lg)
                         
-                        if athleteInfoExpanded[index] ?? true {
+                        if athleteInfoExpanded[index] ?? true,
+                           let athleteForm = athleteIntakeForms[index] {
                             CardView(padding: Spacing.md) {
                                 // Use dynamic intake form fields for this athlete
                                 DynamicIntakeFormView(
-                                    formData: getOrCreateIntakeForm(for: index),
+                                    formData: athleteForm,
                                     fields: intakeFormService.fields
                                 )
                             }
@@ -1347,9 +1375,11 @@ struct BookView: View {
         defer { bookingInFlight = false }
         
         do {
-            // Save athlete information to profile for first athlete if provided
-            if let firstAthlete = selectedAthletes.first, let athleteName = firstAthlete {
-                try await saveAthleteInfoToProfile(athleteName: athleteName)
+            // Save all athlete information to profile
+            for (index, athleteName) in selectedAthletes.enumerated() {
+                if let name = athleteName, let athleteForm = athleteIntakeForms[index] {
+                    try await saveAthleteInfoToProfile(athleteName: name, formData: athleteForm)
+                }
             }
             
             let packageId = selectedPackage?.id ?? ""
@@ -1483,20 +1513,20 @@ struct BookView: View {
     }
     
     // Save athlete info provided during booking to user profile
-    private func saveAthleteInfoToProfile(athleteName: String) async throws {
+    private func saveAthleteInfoToProfile(athleteName: String, formData: IntakeFormData) async throws {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         guard let profile = usersService.currentUser else { return }
         
         let db = Firestore.firestore()
         let userRef = db.collection("users").document(userId)
         
-        // Extract values from dynamic form data
-        let birthday = intakeFormData.fieldValues["athleteBirthday"] as? String ?? ""
-        let schoolTeam = intakeFormData.fieldValues["schoolTeam"] as? String ?? ""
-        let experienceLevel = intakeFormData.fieldValues["experienceLevel"] as? String ?? ""
-        let position = intakeFormData.fieldValues["position"] as? String ?? ""
-        let emergencyName = intakeFormData.fieldValues["emergencyContactName"] as? String ?? ""
-        let emergencyPhone = intakeFormData.fieldValues["emergencyContactNumber"] as? String ?? ""
+        // Extract values from the athlete's form data
+        let birthday = formData.fieldValues["athleteBirthday"] as? String ?? ""
+        let schoolTeam = formData.fieldValues["schoolTeam"] as? String ?? ""
+        let experienceLevel = formData.fieldValues["experienceLevel"] as? String ?? ""
+        let position = formData.fieldValues["position"] as? String ?? ""
+        let emergencyName = formData.fieldValues["emergencyContactName"] as? String ?? ""
+        let emergencyPhone = formData.fieldValues["emergencyContactNumber"] as? String ?? ""
         
         // Find the athlete in the profile
         let athletes = profile.athletes ?? []
@@ -1767,8 +1797,10 @@ struct BookView: View {
         
         do {
             // Save athlete information to profile for first athlete if provided
-            if let firstAthlete = selectedAthletes.first, let athleteName = firstAthlete {
-                try await saveAthleteInfoToProfile(athleteName: athleteName)
+            if let firstAthlete = selectedAthletes.first,
+               let athleteName = firstAthlete,
+               let form = athleteIntakeForms[0] {
+                try await saveAthleteInfoToProfile(athleteName: athleteName, formData: form)
             }
             
             let packageId = selectedPackage?.id ?? ""

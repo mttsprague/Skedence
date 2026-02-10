@@ -149,9 +149,12 @@ class IntakeFormService: ObservableObject {
 // Dynamic form data storage
 class IntakeFormData: ObservableObject {
     @Published var fieldValues: [String: Any] = [:]
+    var onUpdate: (() -> Void)?
     
     func setValue(_ value: Any, forField fieldId: String) {
         fieldValues[fieldId] = value
+        objectWillChange.send()
+        onUpdate?()
     }
     
     func getValue(forField fieldId: String) -> Any? {
