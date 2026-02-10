@@ -235,12 +235,9 @@ service cloud.firestore {
 
       // Lesson Packages subcollection
       match /lessonPackages/{packageId} {
-        // Owner can read their own packages
-        // Trainers/admins in ANY org the user belongs to can read packages
-        allow read: if isSignedIn() && (
-          request.auth.uid == userId 
-          || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
-        );
+        // Any authenticated user can read packages (needed for admin operations)
+        allow read: if isSignedIn();
+        allow list: if isSignedIn();
 
         // Owner or admins can create packages
         // packageCategory can be: private, 1_athlete, 2_athlete, 3_athlete, 4_athlete, class_pass, etc.
@@ -248,15 +245,16 @@ service cloud.firestore {
           && 'orgId' in request.resource.data 
           && (request.auth.uid == userId || canManageOrgData(request.resource.data.orgId));
 
-        // Trainers/admins can update packages (for booking decrements)
+        // Trainers/admins can update packages (for booking decrements and admin operations)
+        // Check orgId in existing document, not in request (since partial updates don't include all fields)
         allow update: if isSignedIn()
-          && 'orgId' in request.resource.data 
-          && isOrgTrainer(request.resource.data.orgId);
+          && 'orgId' in resource.data 
+          && isOrgTrainer(resource.data.orgId);
         
-        // Only admins can delete
+        // Admins/trainers can delete packages
         allow delete: if isSignedIn()
           && 'orgId' in resource.data 
-          && isOrgAdmin(resource.data.orgId);
+          && canManageOrgData(resource.data.orgId);
       }
 
       // Documents subcollection
@@ -443,8 +441,12 @@ service cloud.firestore {
       // Trainers/admins can update packages (for booking decrements)
       allow update: if belongsToUserOrg() && isOrgTrainer(resource.data.orgId);
       
-      // Only admins can delete
-      allow delete: if belongsToUserOrg() && isOrgAdmin(resource.data.orgId);
+      // Admins can delete packages (e.g., removing passes from client)
+      // Allow if org check passes OR if user owns the package
+      allow delete: if isSignedIn() && (
+        (belongsToUserOrg() && canManageOrgData(resource.data.orgId))
+        || request.auth.uid == resource.data.userId
+      );
     }
 
     // =========================================================================
