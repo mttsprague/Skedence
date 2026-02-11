@@ -17,10 +17,19 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  
-  // Step 2: Business Details
   const [businessName, setBusinessName] = useState("");
+  const [timezone, setTimezone] = useState("America/New_York");
+  const [currency, setCurrency] = useState("USD");
+  
+  // Step 2: Business Contact Details
   const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
   
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,6 +37,11 @@ export default function RegisterPage() {
   const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!businessName.trim()) {
+      setError("Business name is required");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -46,8 +60,8 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
-    if (!businessName.trim()) {
-      setError("Business name is required");
+    if (!phone.trim()) {
+      setError("Phone number is required");
       return;
     }
 
@@ -67,12 +81,12 @@ export default function RegisterPage() {
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
-      // Create organization document - MATCH ADMIN APP SCHEMA EXACTLY
-      await setDoc(orgRef, {
+      // Build organization data - MATCH ADMIN APP SCHEMA EXACTLY
+      const orgData: any = {
         name: businessName,
         ownerUserId: userId,
-        contactPhone: phone || "",
-        contactEmail: email,
+        contactPhone: phone,
+        contactEmail: contactEmail || email,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         status: "active",
@@ -96,10 +110,28 @@ export default function RegisterPage() {
           trialEndsAt: trialEndsAt
         },
         settings: {
-          timezone: "America/New_York",
-          currency: "USD"
+          timezone: timezone,
+          currency: currency
         }
-      });
+      };
+
+      // Add optional fields if provided
+      if (website) {
+        orgData.website = website;
+      }
+
+      if (addressLine1) {
+        orgData.address = {
+          line1: addressLine1,
+          line2: addressLine2 || "",
+          city: city,
+          state: state,
+          zipCode: zipCode
+        };
+      }
+
+      // Create organization document
+      await setDoc(orgRef, orgData);
 
       // Create trainer document - MATCH ADMIN APP SCHEMA EXACTLY
       await setDoc(doc(db, "trainers", userId), {
@@ -190,6 +222,21 @@ export default function RegisterPage() {
         {/* Step 1: Account Creation */}
         {step === 1 && (
           <form onSubmit={handleStep1} className="space-y-4">
+            <div>
+              <label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-1">
+                Business Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="businessName"
+                type="text"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Elite Training Studio"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
@@ -248,7 +295,7 @@ export default function RegisterPage() {
                 required
                 minLength={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="••••••••"
+                placeholder="Min 6 characters"
               />
             </div>
 
@@ -264,8 +311,43 @@ export default function RegisterPage() {
                 required
                 minLength={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="••••••••"
+                placeholder="Re-enter password"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Timezone
+                </label>
+                <select
+                  id="timezone"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="America/New_York">Eastern (ET)</option>
+                  <option value="America/Chicago">Central (CT)</option>
+                  <option value="America/Denver">Mountain (MT)</option>
+                  <option value="America/Los_Angeles">Pacific (PT)</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">
+                  Currency
+                </label>
+                <select
+                  id="currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="CAD">CAD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                </select>
+              </div>
             </div>
 
             {error && (
@@ -280,36 +362,133 @@ export default function RegisterPage() {
           </form>
         )}
 
-        {/* Step 2: Business Details */}
+        {/* Step 2: Business Contact Details */}
         {step === 2 && (
-          <form onSubmit={handleStep2} className="space-y-4">
-            <div>
-              <label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-1">
-                Business Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="businessName"
-                type="text"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Elite Training Studio"
-              />
-            </div>
+          <form onSubmit={handleStep2} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="space-y-4">
+              <div className="border-b pb-3">
+                <h3 className="font-semibold text-gray-900 mb-1">Contact Information</h3>
+                <p className="text-xs text-gray-500">Help clients reach you</p>
+              </div>
 
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number <span className="text-gray-400 text-xs">(optional)</span>
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="(555) 123-4567"
-              />
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Business Phone <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                  Contact Email <span className="text-gray-400 text-xs">(optional)</span>
+                </label>
+                <input
+                  id="contactEmail"
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="contact@yourbusiness.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
+                  Website <span className="text-gray-400 text-xs">(optional)</span>
+                </label>
+                <input
+                  id="website"
+                  type="url"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://yourbusiness.com"
+                />
+              </div>
+
+              <div className="border-b pb-3 mt-6">
+                <h3 className="font-semibold text-gray-900 mb-1">Business Address</h3>
+                <p className="text-xs text-gray-500">Optional - shown to clients when booking</p>
+              </div>
+
+              <div>
+                <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-700 mb-1">
+                  Address Line 1
+                </label>
+                <input
+                  id="addressLine1"
+                  type="text"
+                  value={addressLine1}
+                  onChange={(e) => setAddressLine1(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="123 Main Street"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="addressLine2" className="block text-sm font-medium text-gray-700 mb-1">
+                  Address Line 2 <span className="text-gray-400 text-xs">(optional)</span>
+                </label>
+                <input
+                  id="addressLine2"
+                  type="text"
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Suite 100"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                  City
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="New York"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                    State
+                  </label>
+                  <input
+                    id="state"
+                    type="text"
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="NY"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700 mb-1">
+                    ZIP Code
+                  </label>
+                  <input
+                    id="zipCode"
+                    type="text"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="10001"
+                  />
+                </div>
+              </div>
             </div>
 
             {error && (
@@ -318,7 +497,7 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-4 border-t sticky bottom-0 bg-white">
               <Button
                 type="button"
                 variant="outline"
