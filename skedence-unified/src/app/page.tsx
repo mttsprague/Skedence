@@ -47,8 +47,19 @@ export default function HomePage() {
               <li><a href="#features">Features</a></li>
               <li><a href="#pricing">Pricing</a></li>
               <li><a href="/support">Support</a></li>
-              <li><a href="/about">About</a></li>
-              <li><a href="/login">Admin Portal</a></li>
+              <li className="dropdown">
+                <a href="#" className="dropdown-toggle">
+                  About
+                  <svg className="dropdown-arrow" width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </a>
+                <ul className="dropdown-menu">
+                  <li><a href="/about">About Us</a></li>
+                  <li><a href="/demo.html">Product Demo</a></li>
+                </ul>
+              </li>
+              <li><a href="/login">Sign In / Register</a></li>
               <li><a href="#cta" className="btn btn-primary">Start Free Trial</a></li>
             </ul>
           </div>

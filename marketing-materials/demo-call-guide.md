@@ -29,17 +29,17 @@
 ### 1. Introduction (1-2 minutes)
 
 **Script:**
-> "Thanks for taking the time to chat! I know you're busy, so I'll keep this focused. I pulled up your [website/Instagram] - looks like you're doing [specific observation about their business]. Before I jump into the demo, can you tell me quickly what your biggest challenge is with managing your training business right now?"
+> "Thanks for taking the time to chat! I know you're busy, so I'll keep this focused. I pulled up your [website/Instagram] - looks like you're doing [specific observation about their business]. Before I jump into the demo, I want to ask: What's your biggest headache right now running your training business? Is it scattered tools, manual follow-ups, losing track of packages, or not having clear data on what's working?"
 
 **Listen for:**
-- Scheduling hassles
-- Payment tracking
+- Juggling multiple apps/tools
 - Time spent on admin
-- Client communication
-- Growing the team
+- Revenue leaks (expired packages, forgotten sessions)
+- No business visibility/analytics
+- Client communication overload
 
 **Transition:**
-> "Got it. Well, let me show you exactly how Skedence solves that..."
+> "Got it. Well, let me show you exactly how Skedence solves that specific problem..."
 
 ---
 
@@ -127,9 +127,9 @@
 ### 6. Pricing & Closing (2-3 minutes)
 
 **Present Pricing:**
-> "So pricing is straightforward: $49 per month, everything included. No setup fees, no contracts, cancel anytime. The only other cost is Stripe's processing fees - 2.9% plus 30 cents per transaction, which is standard."
+> "So pricing is really affordable: $29 per month, everything included. No setup fees, no contracts, cancel anytime. The only other cost is Stripe's processing fees - 2.9% plus 30 cents per transaction, which is standard. Less than one training session to solve all your admin headaches."
 
-> "We also offer a 14-day free trial, no credit card required. You can set up your whole business, test it with a few clients, and make sure it works for you before paying anything."
+> "We also offer a 14-day free trial. You can set up your whole business, test it with real clients, and make sure it works for you."
 
 **Address Concerns:**
 
@@ -139,16 +139,16 @@
 **Common concerns & responses:**
 
 **"Seems complicated to set up"**
-> "Most people are live and taking bookings within an hour. And we offer a complimentary onboarding call where we walk through setup with you."
+> "Actually, most trainers are live and taking bookings within 30 minutes. It's simpler than you think, and we offer setup help if needed."
 
-**"Will my clients use the app?"**
-> "They can book on the web too, but we find over 80% prefer the app once they try it. It's as easy as using Instagram."
+**"Will my clients actually use it?"**
+> "Your clients already use apps way more complex than this. Booking a session is easier than ordering food on DoorDash. Plus, they can book 24/7 without waiting for you to respond."
 
 **"I already use [other tool]"**
-> "I get it. The difference is Skedence brings everything together - you're not juggling 3-4 different tools. And we can help you import your existing clients."
+> "I get it. The difference is you're probably using 3-4 different tools that don't talk to each other. Skedence puts everything in one place so you stop losing time and money in the cracks between systems."
 
 **"Need to think about it"**
-> "Of course! How about this - I'll send you a login to a demo account so you can click around yourself. And I'll include that one-page overview PDF. Does it make sense to reconnect in a few days?"
+> "Totally fair. Here's what I'll do - I'll send you a one-page overview and access to a demo account so you can explore on your own time. Can we reconnect in a few days after you've had a chance to check it out?"
 
 **Ask for Next Step:**
 > "Based on what you've seen, do you want to try the free trial? I can send you a signup link right now, and I'm happy to jump on a quick call when you're setting up if you need help."

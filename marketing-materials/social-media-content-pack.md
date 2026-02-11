@@ -8,23 +8,24 @@
 ### Post 1: Problem/Solution
 **Caption:**
 ```
-Stop juggling 5 different apps just to run your training business 🤯
+Booking app, payment app, client tracking spreadsheet, manual reminder texts... 😓
 
-Skedence brings everything together:
-✨ Automated scheduling
-💳 Payment processing
-📊 Business analytics
-📱 Mobile apps
-✍️ Digital waivers
+How many hours are you losing to scattered tools?
 
-Save 10+ hours per week and give your clients a 5-star experience.
+Skedence brings it all together:
+✅ All-in-one platform
+🤖 Automated communication
+💰 Smart package tracking
+📈 Business intelligence
 
-Try free for 14 days → Link in bio
+Save 10+ hours per week. Focus on training, not admin.
+
+$29/month, 14-day free trial → Link in bio
 
 #personaltrainer #fitnessbusiness #gymowner #fitnesscoach #personaltraining #fitnesstechnology #businessautomation #timemanagement
 ```
 
-**Visual Suggestion:** Split screen showing chaos (multiple app icons, calendar, spreadsheets) vs. calm (single Skedence interface)
+**Visual Suggestion:** Split screen showing chaos (multiple app icons scattered, stressed trainer) vs. calm (single clean Skedence interface, happy trainer)
 
 ---
 
@@ -51,34 +52,36 @@ You wake up to new bookings. They love the convenience. Everyone wins.
 ### Post 3: Revenue Growth
 **Caption:**
 ```
-Package deals boost revenue 📈
+Losing money to expired packages you forgot about? 💸
 
-With Skedence, you can:
-• Create unlimited pricing packages
-• Auto-track session usage
-• Set expiration dates
-• Let clients buy 24/7
+Clients forgetting how many sessions they have left?
 
-Trainers see 30% revenue increase from package sales alone.
+Skedence tracks everything automatically:
+• Real-time session credits
+• Low balance alerts  
+• Expiration warnings
+• Automatic renewals
 
-Stop leaving money on the table.
-Start your free trial → Link in bio
+Trainers stop losing $500-$2000/month in leaked revenue.
 
-#personaltrainer #fitnessbusiness #revenuegrowth #passiveincome #fitnessprofessional #businessgrowth #trainersofinstagram
+Don't leave money on the table.
+$29/month, 14-day free trial → Link in bio
+
+#personaltrainer #fitnessbusiness #revenuegrowth #businessgrowth #fitnessprofessional #trainsmart #trainersofinstagram
 ```
 
-**Visual Suggestion:** Upward trending graph or before/after revenue comparison
+**Visual Suggestion:** Dollar bills slipping through fingers vs. secure vault/piggy bank
 
 ---
 
 ### Post 4: Client Testimonial (Template)
 **Caption:**
 ```
-"Since switching to Skedence, I've added 20 new clients and reduced my admin time by 70%. The automated booking alone has been a game-changer." - Sarah J., Personal Trainer
+"I was drowning in admin work—texts, spreadsheets, payment tracking. Since switching to Skedence, I've gotten back 12 hours a week and added 20 new clients. Best $29/month I've ever spent." - Sarah J., Personal Trainer
 
-Ready to transform your business too?
+Ready to get your life back?
 
-Try Skedence free for 14 days → Link in bio
+$29/month, 14-day free trial → Link in bio
 
 #personaltrainer #businesssuccess #testimonial #fitnessbusiness #trainsmart #fitnessprofessional
 ```
@@ -495,8 +498,8 @@ Free trial link in bio.
 ## 🎨 Visual Asset Guidelines
 
 ### Color Palette:
-- Primary: #667eea (purple-blue)
-- Secondary: #764ba2 (purple)
+- Primary: #3258A3 (purple-blue)
+- Secondary: #1e3a70 (purple)
 - Accent: Use gradients from primary to secondary
 - Text: #333333 (dark gray) or white
 - Background: #f8f9fa (light gray) or white

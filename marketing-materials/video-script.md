@@ -3,29 +3,29 @@
 
 ---
 
-## SCENE 1: OPENING (0:00-0:15)
-**Visual:** Logo animation with gradient background
+## SCENE 1: OPENING (0:00-0:20)
+**Visual:** Logo animation with gradient background, then quick cuts of frustrated trainer
 **Narration:**
-"Running a training business shouldn't be complicated. Between scheduling, payments, and client management, you're spending more time on admin than actual training."
+"Let me guess... You're using one app for booking, another for payments, spreadsheets for tracking, and spending hours every week on reminder texts. Sound familiar? You became a trainer to help people, not to be buried in admin work."
 
 ---
 
-## SCENE 2: THE PROBLEM (0:15-0:30)
+## SCENE 2: THE PROBLEMS (0:20-0:40)
 **Visual:** Quick cuts showing:
-- Messy spreadsheets
-- Multiple app icons
-- Text message chains
-- Paper forms and waivers
+- Multiple app icons on phone (chaos)
+- Text messages piling up
+- Confused client asking "how many sessions do I have left?"
+- Expired package notification being missed
 
 **Narration:**
-"Juggling multiple apps, manually tracking bookings, chasing payments... There's a better way."
+"Scattered tools waste your time. Manual follow-ups drain your energy. Packages expire without anyone noticing. And you have no idea if your business is growing or stagnating. Every trainer faces these same headaches."
 
 ---
 
-## SCENE 3: SOLUTION INTRO (0:30-0:45)
-**Visual:** Skedence logo, smooth transition to web portal dashboard
+## SCENE 3: SOLUTION INTRO (0:40-0:55)
+**Visual:** Skedence logo, smooth transition to clean web portal dashboard
 **Narration:**
-"Meet Skedence - the all-in-one platform that brings everything together. Scheduling, payments, client management, and analytics in one beautiful system."
+"That's exactly why we built Skedence. One platform. Four solutions. Everything you need to run your business—scheduling, payments, client tracking, and analytics—all in one place. No more juggling tools. No more lost time."
 
 ---
 
@@ -107,30 +107,30 @@
 **Visual:** Photo or video of happy trainer
 **Text on screen:** "Sarah J., Personal Trainer"
 **Narration:**
-"Since switching to Skedence, I've added 20 new clients and reduced my admin time by 70%. The automated booking alone has been a game-changer."
+"I was drowning in admin work before Skedence. Now I've gotten back 12 hours a week and added 20 new clients. Best $29/month I've ever spent."
 
 ---
 
 ## SCENE 8: PRICING & CTA (2:30-2:50)
 **Visual:** Clean pricing slide with key points
 **Text on screen:**
-- $49/month - Everything included
+- $29/month - Everything included
 - 14-Day Free Trial
-- No credit card required
+- 10+ Hours Saved Weekly
 
 **Narration:**
-"Get started with Skedence for just $49 per month. Everything included - unlimited clients, bookings, and features. Try it free for 14 days, no credit card required."
+"Get started with Skedence for just $29 per month. Less than one training session. Everything included - unlimited clients, bookings, and features. Try it free for 14 days."
 
 ---
 
 ## SCENE 9: CLOSING (2:50-3:00)
 **Visual:** Skedence logo with website URL
 **Text on screen:**
-- polyface-ae6d3.web.app
-- hello@skedence.com
+- Skedence.com
+- Matt.Sprague@Skedence.com
 
 **Narration:**
-"Transform your training business today. Visit us at polyface-ae6d3.web.app or email hello@skedence.com to schedule a demo."
+"Stop losing time and money to scattered tools. Visit Skedence.com or email Matt.Sprague@Skedence.com to get started."
 
 **End card:** "Skedence - Transform Your Training Business"
 
@@ -138,10 +138,10 @@
 
 ## PRODUCTION NOTES
 
-### Visual Style:
+**Visual Style:**
 - Clean, modern aesthetic matching the brand
 - Smooth transitions between scenes
-- Use gradient colors (purple to blue: #667eea to #764ba2)
+- Use gradient colors (blue primary: #3258A3 to dark blue: #1e3a70)
 - Minimize text on screen - let visuals speak
 - Use cursor highlights for screen recordings
 
@@ -198,7 +198,7 @@ For social media or quick email attachments:
 
 ## CALL-TO-ACTION VARIATIONS
 
-**Soft CTA:** "Learn more at polyface-ae6d3.web.app"
+**Soft CTA:** "Learn more at Skedence.com"
 **Medium CTA:** "Start your free 14-day trial today"
 **Strong CTA:** "Schedule a demo and get set up in under an hour"
 

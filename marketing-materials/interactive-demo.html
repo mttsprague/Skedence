@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence Interactive Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3258A3 0%, #1e3a70 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 18px;
+            color: #666;
+        }
+
+        .video-container {
+            width: 100%;
+            max-width: 1200px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .video-screen {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #f8f9fa;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .slide-content {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .slide-image {
+            max-width: 85%;
+            max-height: 450px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .slide-caption {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            padding: 16px 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 650px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .slide-caption strong {
+            color: #3258A3;
+        }
+
+        .slide-title {
+            font-size: 52px;
+            font-weight: 800;
+            color: #1e3a70;
+            margin-bottom: 18px;
+            text-shadow: none;
+        }
+
+        .slide-subtitle {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 35px;
+        }
+
+        .problem-cards,
+        .solution-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .problem-card {
+            background: rgba(220, 53, 69, 0.15);
+            border-left: 3px solid #dc3545;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .problem-card h3 {
+            color: #dc3545;
+            margin-bottom: 6px;
+            font-size: 15px;
+        }
+
+        .problem-card p {
+            color: #444;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .solution-card {
+            background: rgba(50, 88, 163, 0.15);
+            border-left: 3px solid #3258A3;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .solution-card h3 {
+            color: #3258A3;
+            margin-bottom: 6px;
+            font-size: 15px;
+        }
+
+        .solution-card p {
+            color: #444;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            max-width: 850px;
+        }
+
+        .feature-item {
+            background: rgba(50, 88, 163, 0.12);
+            padding: 16px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .feature-item .icon {
+            font-size: 26px;
+            margin-bottom: 6px;
+        }
+
+        .feature-item h3 {
+            color: #3258A3;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .feature-item p {
+            color: #555;
+            font-size: 11px;
+        }
+
+        .app-showcase {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .app-card {
+            background: linear-gradient(135deg, #3258A3 0%, #1e3a70 100%);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: left;
+            box-shadow: 0 4px 12px rgba(50, 88, 163, 0.2);
+        }
+
+        .app-card h3 {
+            color: #ffffff;
+            font-size: 24px;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .app-card .app-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .app-card ul {
+            list-style: none;
+            margin-top: 15px;
+        }
+
+        .app-card li {
+            color: #e8f0ff;
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .app-card li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #6fb3ff;
+            font-weight: bold;
+        }
+
+        .video-controls {
+            background: #ffffff;
+            border-top: 2px solid #e0e0e0;
+            padding: 18px 25px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .control-btn {
+            background: #3258A3;
+            border: none;
+            color: white;
+            padding: 11px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            background: #26488d;
+        }
+
+        .control-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3258A3;
+            transition: width 0.3s ease;
+        }
+
+        .slide-counter {
+            color: #666;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 65px;
+            text-align: center;
+        }
+
+        .cta-overlay {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3258A3;
+            padding: 14px 32px;
+            border-radius: 7px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            color: white;
+            box-shadow: 0 4px 16px rgba(50, 88, 163, 0.4);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 50;
+        }
+
+        .cta-overlay.show {
+            opacity: 1;
+        }
+
+        .cta-overlay:hover {
+            background: #26488d;
+            transform: translateX(-50%) translateY(-2px);
+        }
+
+        .footer {
+            margin-top: 35px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: #3258A3;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="header">
+        <h1>Skedence</h1>
+        <p>Transform Your Training Business</p>
+    </div>
+
+    <div class="video-container">
+        
+        <div class="video-screen">
+            
+            <!-- Slide 1: Opening -->
+            <div class="slide active">
+                <div class="slide-content">
+                    <h1 class="slide-title">Skedence</h1>
+                    <p class="slide-subtitle">The All-in-One Platform for Training Businesses</p>
+                    <div class="problem-cards">
+                        <div class="problem-card">
+                            <h3>😓 Scattered Tools</h3>
+                            <p>One app for booking, another for payments, spreadsheets...</p>
+                        </div>
+                        <div class="problem-card">
+                            <h3>📧 Manual Work</h3>
+                            <p>Hours every week on reminder texts and follow-ups</p>
+                        </div>
+                        <div class="problem-card">
+                            <h3>💸 Revenue Leaks</h3>
+                            <p>Packages expire, sessions go untracked, money slips away</p>
+                        </div>
+                        <div class="problem-card">
+                            <h3>📊 Flying Blind</h3>
+                            <p>No idea if your business is growing or what's working</p>
+                        </div>
+                    </div>
+                    <div class="slide-caption">
+                        You became a trainer to help people, not to be buried in admin work.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2: Solutions -->
+            <div class="slide">
+                <div class="slide-content">
+                    <h1 class="slide-title">One Platform. Four Solutions.</h1>
+                    <div class="solution-cards">
+                        <div class="solution-card">
+                            <h3>✅ All-in-One Platform</h3>
+                            <p>Everything in one place—no more switching between apps</p>
+                        </div>
+                        <div class="solution-card">
+                            <h3>🤖 Automated Communication</h3>
+                            <p>Automatic reminders, confirmations, and notifications</p>
+                        </div>
+                        <div class="solution-card">
+                            <h3>💰 Smart Package Tracking</h3>
+                            <p>Real-time tracking with automatic expiration alerts</p>
+                        </div>
+                        <div class="solution-card">
+                            <h3>📈 Business Intelligence</h3>
+                            <p>Clear dashboards showing what's working</p>
+                        </div>
+                    </div>
+                    <div class="slide-caption">
+                        Everything you need to run your training business in one automated system.
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Slide 4: Appointments -->
+            <div class="slide">
+                <div class="slide-content">
+                    <img src="Screenshots/WebApp1.png" alt="Appointments" class="slide-image" onerror="this.style.display='none'">
+                    <div class="slide-caption">
+                        <strong>Smart Scheduling:</strong> Visual calendar with all appointments. Filter by trainer, status, or type.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 5: Clients -->
+            <div class="slide">
+                <div class="slide-content">
+                    <img src="Screenshots/WebApp2.png" alt="Clients" class="slide-image" onerror="this.style.display='none'">
+                    <div class="slide-caption">
+                        <strong>Client Management:</strong> Complete database with booking history, package usage, and payment records.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6: Revenue -->
+            <div class="slide">
+                <div class="slide-content">
+                    <img src="Screenshots/WebApp3.png" alt="Revenue" class="slide-image" onerror="this.style.display='none'">
+                    <div class="slide-caption">
+                        <strong>Revenue Tracking:</strong> See exactly where your money comes from. Which packages sell best and payment trends.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7: Reports -->
+            <div class="slide">
+                <div class="slide-content">
+                    <img src="Screenshots/WebApp4.png" alt="Reports" class="slide-image" onerror="this.style.display='none'">
+                    <div class="slide-caption">
+                        <strong>Business Intelligence:</strong> Deep analytics on appointments, client sign-ups, and revenue trends.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 8: iOS Apps -->
+            <div class="slide">
+                <div class="slide-content">
+                    <h2 style="font-size: 36px; color: #1e3a70; margin-bottom: 25px; font-weight: 800;">Native iOS Apps Included</h2>
+                    <div style="display: flex; gap: 30px; align-items: center; justify-content: center; max-width: 1000px;">
+                        <div style="flex: 1; text-align: center;">
+                            <img src="Screenshots/Skedence/Home.PNG" alt="Client App" style="max-height: 420px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);" onerror="this.style.display='none'">
+                            <div style="margin-top: 15px;">
+                                <h3 style="color: #3258A3; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Client App</h3>
+                                <p style="color: #666; font-size: 13px; line-height: 1.5;">
+                                    📱 Book sessions 24/7<br>
+                                    💳 Apple Pay checkout<br>
+                                    📊 Track package credits<br>
+                                    🔔 Push notifications
+                                </p>
+                            </div>
+                        </div>
+                        <div style="flex: 1; text-align: center;">
+                            <img src="Screenshots/SkedenceAdmin/ScheduleView.PNG" alt="Trainer App" style="max-height: 420px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);" onerror="this.style.display='none'">
+                            <div style="margin-top: 15px;">
+                                <h3 style="color: #3258A3; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Trainer App</h3>
+                                <p style="color: #666; font-size: 13px; line-height: 1.5;">
+                                    📅 Daily schedule view<br>
+                                    👥 Client management<br>
+                                    💰 Revenue tracking<br>
+                                    📲 Booking alerts
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="slide-caption">
+                        Professional mobile experience for both you and your clients—no extra cost.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 9: Features -->
+            <div class="slide">
+                <div class="slide-content">
+                    <h2 style="font-size: 34px; color: #1e3a70; margin-bottom: 18px;">Everything You Need</h2>
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <div class="icon">📅</div>
+                            <h3>24/7 Booking</h3>
+                            <p>Clients book while you sleep</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="icon">💳</div>
+                            <h3>Stripe Payments</h3>
+                            <p>Secure, automatic processing</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="icon">📦</div>
+                            <h3>Package Management</h3>
+                            <p>Track credits & expirations</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="icon">📊</div>
+                            <h3>Real-time Analytics</h3>
+                            <p>Know what's working</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="icon">👥</div>
+                            <h3>Multi-Trainer</h3>
+                            <p>Scale from solo to team</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="icon">⏰</div>
+                            <h3>Save 10+ Hours</h3>
+                            <p>Every single week</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 10: CTA -->
+            <div class="slide">
+                <div class="slide-content">
+                    <h1 class="slide-title">Ready to Transform?</h1>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <p style="font-size: 44px; font-weight: 800; color: #3258A3; margin-bottom: 8px;">$29/month</p>
+                        <p style="font-size: 22px; color: #666; margin-bottom: 25px;">14-Day Free Trial</p>
+                        <p style="font-size: 18px; color: #555; max-width: 550px; margin: 0 auto;">
+                            Less than one training session to get back 10+ hours a week and stop losing revenue.
+                        </p>
+                    </div>
+                    <div class="slide-caption">
+                        Visit <strong>Skedence.com</strong> or email <strong>Matt.Sprague@Skedence.com</strong> to get started today.
+                    </div>
+                </div>
+            </div>
+
+            <!-- CTA Button -->
+            <a href="mailto:Matt.Sprague@Skedence.com?subject=Request Demo Video" class="cta-overlay" id="ctaButton">
+                Get Started Today
+            </a>
+
+        </div>
+
+        <div class="video-controls">
+            <button class="control-btn" id="prevBtn">← Prev</button>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="slide-counter" id="slideCounter">1 / 11</span>
+            <button class="control-btn" id="nextBtn">Next →</button>
+        </div>
+        
+    </div>
+
+    <div class="footer">
+        <p>Questions? Email <a href="mailto:Matt.Sprague@Skedence.com">Matt.Sprague@Skedence.com</a> or visit <a href="https://Skedence.com">Skedence.com</a></p>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const slideCounter = document.getElementById('slideCounter');
+        const ctaButton = document.getElementById('ctaButton');
+
+        let currentSlide = 0;
+
+        function showSlide(index) {
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('active', i === index);
+            });
+            currentSlide = index;
+            updateProgress();
+            updateButtons();
+            
+            // Show CTA on last slide
+            if (index === slides.length - 1) {
+                setTimeout(() => ctaButton.classList.add('show'), 500);
+            } else {
+                ctaButton.classList.remove('show');
+            }
+        }
+
+        function updateProgress() {
+            const progress = ((currentSlide + 1) / slides.length) * 100;
+            progressFill.style.width = progress + '%';
+            slideCounter.textContent = `${currentSlide + 1} / ${slides.length}`;
+        }
+
+        function updateButtons() {
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === slides.length - 1;
+        }
+
+        function nextSlide() {
+            if (currentSlide < slides.length - 1) {
+                showSlide(currentSlide + 1);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                showSlide(currentSlide - 1);
+            }
+        }
+
+        // Event listeners
+        prevBtn.addEventListener('click', prevSlide);
+        nextBtn.addEventListener('click', nextSlide);
+
+        // Click progress bar to jump to slide
+        progressBar.addEventListener('click', (e) => {
+            const rect = progressBar.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const percent = x / rect.width;
+            const targetSlide = Math.floor(percent * slides.length);
+            showSlide(Math.min(targetSlide, slides.length - 1));
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        // Initialize
+        updateButtons();
+    </script>
+</body>
+</html>

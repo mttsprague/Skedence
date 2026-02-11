@@ -79,8 +79,20 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm">
-          <a href="/setup-password" className="text-blue-600 hover:underline">
+        <div className="mt-6 text-center">
+          <p className="text-gray-600 text-sm mb-2">
+            Don't have an account yet?
+          </p>
+          <a 
+            href="/register" 
+            className="text-blue-600 hover:text-blue-700 font-medium text-sm hover:underline"
+          >
+            Register Now →
+          </a>
+        </div>
+
+        <div className="mt-4 text-center text-sm">
+          <a href="/setup-password" className="text-gray-500 hover:text-gray-700 hover:underline">
             Need to set up your password?
           </a>
         </div>

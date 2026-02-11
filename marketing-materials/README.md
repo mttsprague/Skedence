@@ -18,7 +18,7 @@ A beautiful 11-page HTML presentation that can be:
 - Problem statement
 - Solution overview
 - Feature deep dives
-- Admin portal tour
+- Admin portal tour (with screenshot)
 - Mobile app showcase
 - Technology & security
 - Business benefits
@@ -27,6 +27,23 @@ A beautiful 11-page HTML presentation that can be:
 - Call to action
 
 **Best for:** In-person meetings, detailed email attachments, follow-up after initial contact
+
+### 1b. **product-showcase.html** - Visual Product Tour (NEW!)
+A stunning visual walkthrough with 10+ pages of actual product screenshots:
+- **Full-color screenshots** - Real admin portal and mobile app interfaces
+- **Feature callouts** - Annotations explaining what each screen does
+- **Three platforms** - Web portal, client app, and admin app
+
+**Contents:**
+- Admin dashboard screenshots
+- Client management interface
+- Analytics and reports views
+- Payment integration
+- Client mobile app screens (10+ screenshots)
+- Trainer admin app screens (10+ screenshots)
+- Complete ecosystem overview
+
+**Best for:** Visual learners, "show me the product" prospects, leaving behind after demos
 
 ---
 
@@ -189,7 +206,7 @@ Before sending, customize:
 **Provide them:**
 - video-script.md file
 - Access to demo account (or screen recordings)
-- Brand colors (#667eea, #764ba2)
+- Brand colors (#3258A3, #1e3a70)
 - Logo files
 
 ---
@@ -249,7 +266,7 @@ If pricing changes, update in:
 - Both email templates (pricing mentions)
 
 ### Adding Your Branding
-All materials use Skedence colors (#667eea, #764ba2). To customize:
+All materials use Skedence colors (#3258A3, #1e3a70). To customize:
 - Find and replace color codes in HTML files
 - Update logo text if you have logo images
 - Adjust fonts if you have brand fonts
@@ -327,8 +344,8 @@ A: Absolutely. Bank-level encryption, PCI compliance, automatic backups, and 99.
 ## 📞 Contact & Support
 
 For questions about using these materials:
-- **Email:** hello@skedence.com
-- **Website:** polyface-ae6d3.web.app
+- **Email:** Matt.Sprague@Skedence.com
+- **Website:** Skedence.com
 
 ---
 
