@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
-import { Download, ArrowUpDown } from 'lucide-react';
+import { Download, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface RevenueData {
   date: string;
@@ -23,6 +23,19 @@ interface PackageRevenue {
   totalRevenue: number;
 }
 
+interface AppointmentDetail {
+  id: string;
+  date: Date;
+  clientName: string;
+  clientEmail: string;
+  trainerName: string;
+  type: string;
+  cost: number;
+  paidViaPass: boolean;
+  packageType?: string;
+  status: 'scheduled' | 'cancelled' | 'no-show';
+}
+
 type SortField = 'packageType' | 'count' | 'paidCount' | 'adminAddedCount' | 'totalRevenue';
 type SortDirection = 'asc' | 'desc';
 type ChartFilter = 'all' | 'paid' | 'adminAdded' | 'none';
@@ -34,10 +47,15 @@ export default function RevenuePage() {
   const [tableData, setTableData] = useState<PackageRevenue[]>([]);
   const [sortField, setSortField] = useState<SortField>('packageType');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [appointments, setAppointments] = useState<AppointmentDetail[]>([]);
   
   // Filters
   const [dateRange, setDateRange] = useState(format(new Date(), 'yyyy-MM'));
   const [chartFilter, setChartFilter] = useState<ChartFilter>('all');
+  
+  // Detailed appointments list state
+  const [showDetailedList, setShowDetailedList] = useState(false);
+  const [detailPaymentFilter, setDetailPaymentFilter] = useState<'all' | 'pass' | 'direct'>('all');
 
   // Generate month options: 4 months future + current + all past months + "All"
   const monthOptions = (() => {
@@ -256,10 +274,135 @@ export default function RevenuePage() {
       
       setTableData(tableDataArray);
       
+      // Load appointment details
+      await loadAppointmentDetails(startDate, endDate);
+      
     } catch (error) {
       console.error('Error loading revenue:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAppointmentDetails(startDate: Date, endDate: Date) {
+    if (!orgId) return;
+    
+    try {
+      const appointmentsList: AppointmentDetail[] = [];
+      
+      // Load bookings
+      const bookingsQuery = query(
+        collection(db, 'bookings'),
+        where('orgId', '==', orgId),
+        where('startTime', '>=', Timestamp.fromDate(startDate)),
+        where('startTime', '<=', Timestamp.fromDate(endDate))
+      );
+      
+      const bookingsSnapshot = await getDocs(bookingsQuery);
+      
+      for (const bookingDoc of bookingsSnapshot.docs) {
+        const data = bookingDoc.data();
+        const startTime = data.startTime.toDate();
+        
+        // Determine status
+        let status: 'scheduled' | 'cancelled' | 'no-show' = 'scheduled';
+        if (data.status === 'cancelled' || data.cancelled === true) {
+          status = 'cancelled';
+        } else if (data.status === 'no-show' || data.noShow === true) {
+          status = 'no-show';
+        }
+        
+        // Get client info
+        const clientId = data.clientUID || data.clientId;
+        let clientName = 'Unknown Client';
+        let clientEmail = '';
+        
+        if (clientId) {
+          try {
+            const clientDoc = await getDocs(query(
+              collection(db, 'users'),
+              where('__name__', '==', clientId)
+            ));
+            if (!clientDoc.empty) {
+              const clientData = clientDoc.docs[0].data();
+              clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim();
+              clientEmail = clientData.emailAddress || clientData.email || '';
+            }
+          } catch (err) {
+            // Ignore
+          }
+        }
+        
+        // Get trainer info
+        let trainerName = 'Unknown Trainer';
+        if (data.trainerId) {
+          try {
+            const trainerDoc = await getDocs(query(
+              collection(db, 'trainers'),
+              where('__name__', '==', data.trainerId)
+            ));
+            if (!trainerDoc.empty) {
+              const trainerData = trainerDoc.docs[0].data();
+              trainerName = `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim();
+            }
+          } catch (err) {
+            // Ignore
+          }
+        }
+        
+        // Determine type and cost
+        const athleteCount = Array.isArray(data.athletes) ? data.athletes.length : 1;
+        const type = athleteCount > 1 ? `${athleteCount}-Athlete Session` : 'Private Session (1 Athlete)';
+        const cost = data.cost || (athleteCount > 1 ? 80 + (athleteCount - 1) * 20 : 80);
+        
+        // Check if paid via pass
+        const paidViaPass = !!data.packageId;
+        let packageType: string | undefined;
+        
+        if (paidViaPass && clientId) {
+          // Try to get package type
+          try {
+            let pkgDoc = await getDocs(query(
+              collection(db, 'organizations', orgId, 'users', clientId, 'packages'),
+              where('__name__', '==', data.packageId)
+            ));
+            
+            if (pkgDoc.empty) {
+              pkgDoc = await getDocs(query(
+                collection(db, 'users', clientId, 'lessonPackages'),
+                where('__name__', '==', data.packageId)
+              ));
+            }
+            
+            if (!pkgDoc.empty) {
+              const pkgData = pkgDoc.docs[0].data();
+              packageType = pkgData.packageName || pkgData.name || 'Package';
+            }
+          } catch (err) {
+            // Ignore
+          }
+        }
+        
+        appointmentsList.push({
+          id: bookingDoc.id,
+          date: startTime,
+          clientName,
+          clientEmail,
+          trainerName,
+          type,
+          cost,
+          paidViaPass,
+          packageType,
+          status
+        });
+      }
+      
+      // Sort by most recent first
+      appointmentsList.sort((a, b) => b.date.getTime() - a.date.getTime());
+      setAppointments(appointmentsList);
+      
+    } catch (error) {
+      console.error('Error loading appointment details:', error);
     }
   }
 
@@ -356,6 +499,46 @@ export default function RevenuePage() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `revenue-${dateRange}.csv`;
+    a.click();
+  }
+
+  function getFilteredDetailedAppointments() {
+    return appointments.filter(apt => {
+      // Payment filter
+      if (detailPaymentFilter === 'pass' && !apt.paidViaPass) {
+        return false;
+      }
+      if (detailPaymentFilter === 'direct' && apt.paidViaPass) {
+        return false;
+      }
+      
+      return true;
+    });
+  }
+
+  function exportDetailedAppointments() {
+    const filtered = getFilteredDetailedAppointments();
+    const csv = [
+      ['Date', 'Time', 'Client', 'Email', 'Trainer', 'Type', 'Status', 'Cost', 'Paid Via Pass', 'Package'],
+      ...filtered.map(apt => [
+        format(apt.date, 'MMM d, yyyy'),
+        format(apt.date, 'h:mm a'),
+        apt.clientName,
+        apt.clientEmail,
+        apt.trainerName,
+        apt.type,
+        apt.status,
+        `$${apt.cost.toFixed(2)}`,
+        apt.paidViaPass ? 'Yes' : 'No',
+        apt.packageType || 'N/A'
+      ])
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `appointments-revenue-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
   }
 
@@ -613,8 +796,125 @@ export default function RevenuePage() {
                 </tbody>
               </table>
             </div>
+
+            <div className="mt-4 text-center">
+              <button 
+                onClick={() => setShowDetailedList(!showDetailedList)}
+                className="text-sm text-gray-600 hover:text-gray-900 font-medium inline-flex items-center gap-2"
+              >
+                View Past Appointments
+                {showDetailedList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Detailed Appointments List */}
+        {showDetailedList && (
+          <Card>
+            <CardContent className="pt-6">
+              {/* Filter and Export */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium text-gray-700">Filter by:</label>
+                  <select
+                    value={detailPaymentFilter}
+                    onChange={(e) => setDetailPaymentFilter(e.target.value as 'all' | 'pass' | 'direct')}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  >
+                    <option value="all">All Payments</option>
+                    <option value="pass">Paid via Pass</option>
+                    <option value="direct">Direct Payment</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={exportDetailedAppointments}
+                  className="px-4 py-2 bg-[#3258A3] text-white rounded-md hover:bg-[#2a4a8a] transition-colors font-medium inline-flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </button>
+              </div>
+
+              {/* Appointments Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Date & Time</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Client</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Trainer</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Type</th>
+                      <th className="text-center py-3 px-4 font-semibold text-gray-900">Status</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-900">Cost</th>
+                      <th className="text-center py-3 px-4 font-semibold text-gray-900">Paid Via Pass</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Package</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredDetailedAppointments().length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-8 text-gray-500">
+                          No appointments found matching the selected filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      getFilteredDetailedAppointments().map(apt => (
+                        <tr key={apt.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {format(apt.date, 'MMM d, yyyy')}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {format(apt.date, 'h:mm a')}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-sm font-medium text-gray-900">{apt.clientName}</div>
+                            <div className="text-xs text-gray-600">{apt.clientEmail}</div>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-900">{apt.trainerName}</td>
+                          <td className="py-3 px-4 text-sm text-gray-900">{apt.type}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              apt.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              apt.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {apt.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right text-sm font-medium text-gray-900">
+                            ${apt.cost.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              apt.paidViaPass ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {apt.paidViaPass ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {apt.packageType || '-'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {getFilteredDetailedAppointments().length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Showing {getFilteredDetailedAppointments().length} of {appointments.length} appointments
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
