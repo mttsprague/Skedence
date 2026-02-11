@@ -1,8 +1,9 @@
 # CLAUDE.md - Complete Skedence/CoachFlow Project Reference
 
-**Last Updated:** February 6, 2026  
+**Last Updated:** February 10, 2026  
 **Firebase Project:** polyface-ae6d3  
-**Production Domain:** https://skedence.com  
+**Production Domain:** https://polyface-ae6d3.web.app (Unified Admin Portal)
+**Legacy Domain:** https://skedence.com (Old marketing site - not actively used)
 **Status:** Production (Live with Stripe payments)
 
 ---
@@ -57,91 +58,140 @@ A multi-tenant SaaS platform for fitness and sports organizations to manage:
 
 ## 🌐 Website Architecture
 
+### Current Architecture (Updated Feb 2026)
+
+**Active Admin Portal:** `skedence-unified/` - Next.js 16.1.6 app
+- **Live URL:** https://polyface-ae6d3.web.app
+- **Framework:** Next.js 16.1.6 with App Router
+- **Build Mode:** Static export (`output: 'export'`)
+- **Deployment:** Firebase Hosting (direct to root)
+- **Build Output:** `out/` directory
+
 ### Domain & Hosting Structure
 
-**IMPORTANT:** All public URLs must use **skedence.com** domain. Never reference polyface-ae6d3.web.app in user-facing links.
+**IMPORTANT:** The unified admin portal is deployed to **polyface-ae6d3.web.app**. The legacy skedence.com domain and old admin portal are no longer actively used.
 
 #### Live Sites
-- **Marketing Site:** https://skedence.com
+- **Unified Admin Portal:** https://polyface-ae6d3.web.app
+  - Location: `/skedence-unified/`
+  - Next.js 16.1.6 static site
+  - Full admin dashboard with reports, clients, trainers, scheduling, etc.
+  - Built with: `npm run build` (outputs to `out/`)
+  - Deployed with: `firebase deploy --only hosting`
+
+- **Legacy Marketing Site:** https://skedence.com (inactive)
   - Location: `/web/index.html`
-  - Static HTML with Tailwind CSS
-  - Header contains "Admin Portal" link → `/admin-portal/`
+  - Old static HTML site
+  - No longer actively maintained
 
-- **Admin Portal:** https://skedence.com/admin-portal/
-  - Location: `/admin-portal/` (Next.js 16.1.4)
-  - Built files deployed to: `/web/admin-portal/`
-  - Owner login and management dashboard
-  - Accessible from marketing site header link
-
-- **Password Setup:** https://skedence.com/admin-portal/setup-password
-  - Location: `/admin-portal/src/app/setup-password/`
-  - Used by trainer invitation emails
-  - Email auto-fill, dual password validation, iOS app download
+- **Legacy Admin Portal:** https://skedence.com/admin-portal/ (inactive)
+  - Location: `/admin-portal/` (old Next.js 14 app)
+  - Replaced by unified portal
+  - No longer deployed
 
 #### Firebase Hosting Configuration
-**File:** `/web/firebase.json`
+**File:** `/skedence-unified/firebase.json`
 
 ```json
 {
   "hosting": {
-    "public": ".",
+    "public": "out",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
       {
-        "source": "/admin-portal/**",
-        "destination": "/admin-portal/index.html"
-      },
-      {
-        "source": "/**",
+        "source": "**",
         "destination": "/index.html"
       }
-    ]
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
   }
 }
 ```
 
 **How it works:**
-1. `/admin-portal/**` routes to admin portal Next.js app
-2. All other routes (`/**`) serve marketing site
+1. All routes (`**`) are handled by the Next.js app via client-side routing
+2. `cleanUrls: true` removes `.html` extensions
+3. Static export mode means all routes are pre-rendered at build time
+4. Dynamic routes (like `/clients/[id]`) are disabled for static export compatibility
 
 #### Deployment Process
 
-**Deploy Everything:**
+**Deploy Unified Admin Portal:**
 ```bash
-./deploy-website.sh
+cd skedence-unified
+npm run build
+firebase deploy --only hosting
 ```
 
 **What it does:**
-1. Builds admin portal: `cd admin-portal && npm run build`
-2. Copies build to web: `cp -r admin-portal/out web/admin-portal`
-3. Deploys to Firebase: `cd web && firebase deploy --only hosting`
+1. Builds Next.js app with static export: `next build`
+2. Generates static files in: `out/` directory
+3. Deploys to Firebase Hosting: `firebase deploy --only hosting`
+4. Goes live at: https://polyface-ae6d3.web.app
+
+**Quick Deploy Script:**
+```bash
+cd "/Users/matthewsprague/Documents/GitHub/Skedence Apps/skedence-unified"
+npm run build && firebase deploy --only hosting
+```
 
 **Manual Steps:**
 ```bash
-# Build admin portal only
-cd admin-portal && npm run build
+# Build only
+cd skedence-unified && npm run build
 
-# Deploy hosting only
-cd web && firebase deploy --only hosting
+# Deploy only (must build first)
+cd skedence-unified && firebase deploy --only hosting
 
-# Deploy Cloud Functions
+# Deploy Cloud Functions (separate)
 cd SkedenceAdmin/functions && firebase deploy --only functions
 ```
 
+**Important Notes:**
+- Always build before deploying (`npm run build`)
+- Build output goes to `out/` directory (not committed to git)
+- Static export mode means no server-side rendering
+- Dynamic routes like `/clients/[id]` require `generateStaticParams()` or must be disabled
+- Current setup uses query params (e.g., `/clients/detail?id=xxx`) instead of path params
+
 ### File Locations Reference
 
-#### Marketing Website
-- **HTML:** `/web/index.html`
-- **CSS:** `/web/styles.css`
-- **Images:** `/web/images/`
-- **Firebase Config:** `/web/firebase.json`
+#### Unified Admin Portal (Current - Active)
+- **Root Directory:** `/skedence-unified/`
+- **Source Code:** `/skedence-unified/src/`
+- **Pages:** `/skedence-unified/src/app/`
+- **Components:** `/skedence-unified/src/components/`
+- **Configuration:** `/skedence-unified/next.config.ts`
+- **Firebase Config:** `/skedence-unified/firebase.json`
+- **Build Output:** `/skedence-unified/out/` (generated, not committed)
+- **Package Manager:** npm
+- **Node Version:** 20.x
 
-#### Admin Portal (Next.js)
-- **Source Code:** `/admin-portal/src/`
-- **Pages:** `/admin-portal/src/app/`
-- **Components:** `/admin-portal/src/components/`
-- **Configuration:** `/admin-portal/next.config.ts`
-- **Build Output:** `/admin-portal/out/` (generated, not committed)
-- **Deployed Location:** `/web/admin-portal/` (copied from build)
+#### Key Admin Portal Features
+- **Reports Section:**
+  - `/reports/appointments` - Appointment analytics (default view)
+  - `/reports/revenue` - Revenue tracking
+  - `/reports/users` - Client sign-up analytics (new as of Feb 10, 2026)
+  - Dashboard tab removed as of Feb 10, 2026
+  
+- **Main Sections:**
+  - `/activity` - Activity feed
+  - `/clients` - Client management (uses `/clients/detail?id=xxx` for details)
+  - `/trainers` - Trainer management  
+  - `/schedule` - Scheduling calendar
+  - `/passes` - Lesson package management
+  - `/pricing` - Pricing structure configuration
+  - `/settings` - Organization settings, intake forms, notifications, etc.
+
+#### Legacy Sites (Inactive)
+- **Old Marketing Site:** `/web/` (not deployed)
+- **Old Admin Portal:** `/admin-portal/` (replaced by unified portal)
+- **Old Admin Portal Legacy:** `/admin-portal-legacy/` (archived)
 
 #### Cloud Functions
 - **Source:** `/SkedenceAdmin/functions/src/`
@@ -157,27 +207,33 @@ cd SkedenceAdmin/functions && firebase deploy --only functions
 
 ### Critical Rules
 
-1. **Always use skedence.com domain** in:
-   - Email templates
-   - Hardcoded links
-   - OAuth redirects
-   - Share links
+1. **Admin Portal URL:**
+   - Production: https://polyface-ae6d3.web.app
+   - Always use this URL for testing and sharing
+   - Legacy skedence.com domain is no longer active
    
-2. **Never use polyface-ae6d3.web.app** in:
-   - User-facing emails
-   - Public documentation
-   - Social media links
-   - App configurations
+2. **Static Export Limitations:**
+   - Cannot use dynamic routes like `/clients/[id]` without `generateStaticParams()`
+   - Use query parameters instead: `/clients/detail?id=xxx`
+   - All routes must be statically generated at build time
+   - No server-side rendering (SSR) or API routes
 
-3. **Admin Portal basePath:**
-   - Must be set to `'/admin-portal'` in `/admin-portal/next.config.ts`
-   - Matches Firebase hosting subdirectory structure
-   - DO NOT remove or change without updating firebase.json
+3. **Build Requirements:**
+   - Must run `npm run build` before deploying
+   - Build output goes to `out/` directory
+   - Clean build recommended: `rm -rf .next out && npm run build`
+   - Check for TypeScript errors before deploying
 
-4. **Deployment Order:**
-   - Always build admin portal before deploying hosting
-   - Deploy functions separately if only email templates changed
-   - Test on skedence.com (not polyface domain) after deployment
+4. **Firebase Project:**
+   - Project ID: `polyface-ae6d3`
+   - All deployments go to this project
+   - Use `firebase use polyface-ae6d3` to ensure correct project
+
+5. **Deployment Order:**
+   - Always build before deploying: `npm run build && firebase deploy --only hosting`
+   - Deploy functions separately if email templates change
+   - Test on polyface-ae6d3.web.app after deployment
+   - Commit changes to git after successful deployment
 
 ---
 

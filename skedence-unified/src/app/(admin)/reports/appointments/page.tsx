@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
-import { Download, ArrowUpDown } from 'lucide-react';
+import { Download, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Appointment {
   id: string;
@@ -18,12 +18,21 @@ interface Appointment {
   status: 'scheduled' | 'cancelled' | 'no-show';
   duration: number;
   trainerId?: string;
+  clientId?: string;
+  clientName?: string;
+  clientEmail?: string;
 }
 
 interface Trainer {
   id: string;
   firstName: string;
   lastName: string;
+}
+
+interface Client {
+  id: string;
+  name: string;
+  email: string;
 }
 
 interface ChartData {
@@ -53,11 +62,20 @@ export default function AppointmentsPage() {
   const [sortField, setSortField] = useState<SortField>('type');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   
   // Filters
   const [dateRange, setDateRange] = useState(format(new Date(), 'yyyy-MM'));
   const [showFilter, setShowFilter] = useState('all');
   const [trainerFilter, setTrainerFilter] = useState('all');
+  
+  // Detailed appointments list state
+  const [showDetailedList, setShowDetailedList] = useState(false);
+  const [detailClientFilter, setDetailClientFilter] = useState('all');
+  const [detailTrainerFilter, setDetailTrainerFilter] = useState('all');
+  const [detailMonthFilter, setDetailMonthFilter] = useState('all');
+  const [detailStatusFilter, setDetailStatusFilter] = useState('all');
+  const [detailTypeFilter, setDetailTypeFilter] = useState('all');
   
   // Generate month options: 4 months future + current + all past months + "All"
   const monthOptions = (() => {
@@ -96,10 +114,11 @@ export default function AppointmentsPage() {
     return options;
   })();
 
-  // Load trainers on mount
+  // Load trainers and clients on mount
   useEffect(() => {
     if (!orgId) return;
     loadTrainers();
+    loadClients();
   }, [orgId]);
 
   useEffect(() => {
@@ -124,6 +143,47 @@ export default function AppointmentsPage() {
       setTrainers(loadedTrainers);
     } catch (error) {
       console.error('Error loading trainers:', error);
+    }
+  }
+
+  async function loadClients() {
+    if (!orgId) return;
+    try {
+      const orgMembersQuery = query(
+        collection(db, 'orgMembers'),
+        where('orgId', '==', orgId),
+        where('role', '==', 'client')
+      );
+      const snapshot = await getDocs(orgMembersQuery);
+      const clientIds = snapshot.docs.map(doc => doc.data().userId);
+      
+      // Load client details in batches
+      const loadedClients: Client[] = [];
+      const chunkSize = 30;
+      
+      for (let i = 0; i < clientIds.length; i += chunkSize) {
+        const chunk = clientIds.slice(i, i + chunkSize);
+        const usersQuery = query(
+          collection(db, 'users'),
+          where('__name__', 'in', chunk)
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        
+        usersSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          loadedClients.push({
+            id: doc.id,
+            name: `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Unknown',
+            email: data.emailAddress || data.email || ''
+          });
+        });
+      }
+      
+      // Sort by name
+      loadedClients.sort((a, b) => a.name.localeCompare(b.name));
+      setClients(loadedClients);
+    } catch (error) {
+      console.error('Error loading clients:', error);
     }
   }
 
@@ -178,6 +238,25 @@ export default function AppointmentsPage() {
         // Use cost from booking or default based on athlete count
         const cost = data.cost || (athleteCount > 1 ? 80 + (athleteCount - 1) * 20 : 80);
         
+        // Get client info
+        const clientId = data.clientUID || data.clientId;
+        let clientName = 'Unknown Client';
+        let clientEmail = '';
+        
+        if (clientId) {
+          try {
+            const clientDocRef = doc(db, 'users', clientId);
+            const clientDoc = await getDoc(clientDocRef);
+            if (clientDoc.exists()) {
+              const clientData = clientDoc.data();
+              clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim() || 'Unknown Client';
+              clientEmail = clientData.emailAddress || clientData.email || '';
+            }
+          } catch (err) {
+            // Ignore errors, use default
+          }
+        }
+        
         // Filter by trainer if specified
         if (trainerFilter !== 'all' && data.trainerId !== trainerFilter) {
           continue;
@@ -191,7 +270,10 @@ export default function AppointmentsPage() {
           endTime,
           status,
           duration,
-          trainerId: data.trainerId
+          trainerId: data.trainerId,
+          clientId,
+          clientName,
+          clientEmail
         });
       }
 
@@ -367,6 +449,73 @@ export default function AppointmentsPage() {
     a.download = `appointments-${dateRange}.csv`;
     a.click();
   }
+
+  function getFilteredDetailedAppointments() {
+    return appointments.filter(apt => {
+      // Client filter
+      if (detailClientFilter !== 'all' && apt.clientId !== detailClientFilter) {
+        return false;
+      }
+      
+      // Trainer filter
+      if (detailTrainerFilter !== 'all' && apt.trainerId !== detailTrainerFilter) {
+        return false;
+      }
+      
+      // Month filter
+      if (detailMonthFilter !== 'all') {
+        const aptMonth = format(apt.startTime, 'yyyy-MM');
+        if (aptMonth !== detailMonthFilter) {
+          return false;
+        }
+      }
+      
+      // Status filter
+      if (detailStatusFilter !== 'all' && apt.status !== detailStatusFilter) {
+        return false;
+      }
+      
+      // Type filter
+      if (detailTypeFilter !== 'all' && apt.type !== detailTypeFilter) {
+        return false;
+      }
+      
+      return true;
+    }).sort((a, b) => b.startTime.getTime() - a.startTime.getTime()); // Most recent first
+  }
+
+  function exportDetailedAppointments() {
+    const filtered = getFilteredDetailedAppointments();
+    const csv = [
+      ['Date', 'Time', 'Client', 'Email', 'Trainer', 'Type', 'Status', 'Duration (hrs)', 'Cost'],
+      ...filtered.map(apt => {
+        const trainer = trainers.find(t => t.id === apt.trainerId);
+        const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown';
+        
+        return [
+          format(apt.startTime, 'MMM d, yyyy'),
+          format(apt.startTime, 'h:mm a'),
+          apt.clientName || 'Unknown',
+          apt.clientEmail || '',
+          trainerName,
+          apt.type,
+          apt.status,
+          apt.duration.toFixed(2),
+          `$${apt.cost.toFixed(2)}`
+        ];
+      })
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `detailed-appointments-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+  }
+
+  // Get unique appointment types from loaded appointments
+  const appointmentTypes = Array.from(new Set(appointments.map(apt => apt.type))).sort();
 
   const totalQuantity = tableData.reduce((sum, row) => sum + row.quantity, 0);
   const totalAmount = tableData.reduce((sum, row) => sum + row.total, 0);
@@ -594,12 +743,197 @@ export default function AppointmentsPage() {
             </div>
 
             <div className="mt-4 text-center">
-              <button className="text-sm text-gray-600 hover:text-gray-900 font-medium">
-                View Appointments▼
+              <button 
+                onClick={() => setShowDetailedList(!showDetailedList)}
+                className="text-sm text-gray-600 hover:text-gray-900 font-medium inline-flex items-center gap-2"
+              >
+                View Appointments
+                {showDetailedList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Detailed Appointments List */}
+        {showDetailedList && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Detailed Appointments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Filters for detailed view */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Client
+                  </label>
+                  <select
+                    value={detailClientFilter}
+                    onChange={(e) => setDetailClientFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  >
+                    <option value="all">All Clients</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trainer
+                  </label>
+                  <select
+                    value={detailTrainerFilter}
+                    onChange={(e) => setDetailTrainerFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  >
+                    <option value="all">All Trainers</option>
+                    {trainers.map(trainer => (
+                      <option key={trainer.id} value={trainer.id}>
+                        {trainer.firstName} {trainer.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Month
+                  </label>
+                  <select
+                    value={detailMonthFilter}
+                    onChange={(e) => setDetailMonthFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  >
+                    <option value="all">All Months</option>
+                    {monthOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={detailStatusFilter}
+                    onChange={(e) => setDetailStatusFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="no-show">No Show</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type
+                  </label>
+                  <select
+                    value={detailTypeFilter}
+                    onChange={(e) => setDetailTypeFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  >
+                    <option value="all">All Types</option>
+                    {appointmentTypes.map(type => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    onClick={exportDetailedAppointments}
+                    className="w-full px-4 py-2 bg-[#3258A3] text-white rounded-md hover:bg-[#2a4a8a] transition-colors font-medium inline-flex items-center justify-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </button>
+                </div>
+              </div>
+
+              {/* Appointments List */}
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {getFilteredDetailedAppointments().length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No appointments found matching the selected filters.
+                  </div>
+                ) : (
+                  getFilteredDetailedAppointments().map(apt => {
+                    const trainer = trainers.find(t => t.id === apt.trainerId);
+                    const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
+                    
+                    return (
+                      <div
+                        key={apt.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Date & Time</div>
+                            <div className="font-medium text-sm">
+                              {format(apt.startTime, 'MMM d, yyyy')}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {format(apt.startTime, 'h:mm a')} - {format(apt.endTime, 'h:mm a')}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Client</div>
+                            <div className="font-medium text-sm">{apt.clientName || 'Unknown'}</div>
+                            <div className="text-xs text-gray-600">{apt.clientEmail}</div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Trainer</div>
+                            <div className="font-medium text-sm">{trainerName}</div>
+                            <div className="text-xs text-gray-600">{apt.type}</div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Details</div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                apt.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                                apt.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {apt.status}
+                              </span>
+                              <span className="text-sm font-medium">${apt.cost.toFixed(2)}</span>
+                              <span className="text-xs text-gray-600">
+                                {apt.duration.toFixed(1)}h
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {getFilteredDetailedAppointments().length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Showing {getFilteredDetailedAppointments().length} of {appointments.length} appointments
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
