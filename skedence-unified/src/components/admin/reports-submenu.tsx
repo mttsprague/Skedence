@@ -7,7 +7,8 @@ import {
   CalendarCheck,
   DollarSign,
   Users,
-  ArrowLeft
+  ArrowLeft,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +16,7 @@ const submenuItems = [
   { name: 'Appointments', href: '/reports/appointments', icon: CalendarCheck },
   { name: 'Revenue', href: '/reports/revenue', icon: DollarSign },
   { name: 'Users', href: '/reports/users', icon: Users },
+  { name: 'Import/Export', href: '/reports/import-export', icon: Download },
 ];
 
 interface ReportsSubmenuProps {
