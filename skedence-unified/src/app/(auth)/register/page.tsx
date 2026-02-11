@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, collection } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -57,48 +57,76 @@ export default function RegisterPage() {
       // Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+      const userId = user.uid;
 
-      // Generate unique organization ID
-      const orgId = `org_${Date.now()}_${user.uid.substring(0, 8)}`;
+      // Generate organization document reference (Firestore will create the ID)
+      const orgRef = doc(collection(db, "organizations"));
+      const orgId = orgRef.id;
 
-      // Create organization document
-      await setDoc(doc(db, "organizations", orgId), {
+      // Calculate trial end date (14 days from now)
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+      // Create organization document - MATCH ADMIN APP SCHEMA EXACTLY
+      await setDoc(orgRef, {
         name: businessName,
-        ownerId: user.uid,
-        contactEmail: email,
+        ownerUserId: userId,
         contactPhone: phone || "",
+        contactEmail: email,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        subscription: {
-          plan: "trial",
-          status: "active",
-          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+        status: "active",
+        branding: {
+          primaryColor: "#33B2AE",
+          logoUrl: ""
         },
-        onboardingComplete: false,
+        stripe: {
+          connectAccountId: null,
+          publishableKey: null,
+          onboardingComplete: false,
+          chargesEnabled: false,
+          payoutsEnabled: false,
+          onboardingUrl: null
+        },
+        billing: {
+          plan: "free",
+          status: "trialing",
+          isActive: true,
+          isInGrace: false,
+          trialEndsAt: trialEndsAt
+        },
+        settings: {
+          timezone: "America/New_York",
+          currency: "USD"
+        }
       });
 
-      // Create trainer document
-      await setDoc(doc(db, "trainers", user.uid), {
+      // Create trainer document - MATCH ADMIN APP SCHEMA EXACTLY
+      await setDoc(doc(db, "trainers", userId), {
+        orgId: orgId,
         firstName: firstName,
         lastName: lastName,
-        emailAddress: email,
-        phoneNumber: phone || "",
-        orgId: orgId,
-        userId: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        email: email,
+        active: true,
+        isAdmin: true,
+        createdAt: serverTimestamp()
       });
 
-      // Create orgMember document
-      await setDoc(doc(db, "orgMembers", `${user.uid}_${orgId}`), {
-        userId: user.uid,
+      // Create orgMember document - MATCH ADMIN APP SCHEMA EXACTLY
+      await setDoc(doc(db, "orgMembers", `${userId}_${orgId}`), {
         orgId: orgId,
+        userId: userId,
         role: "owner",
-        joinedAt: serverTimestamp(),
+        isActive: true,
+        createdAt: serverTimestamp()
       });
+
+      // Store orgId for step 3
+      sessionStorage.setItem('newOrgId', orgId);
 
       // Move to mobile app notification step
       setStep(3);
+      setLoading(false);
     } catch (err: any) {
       setError(err.message || "Failed to create account");
       setLoading(false);
@@ -108,12 +136,18 @@ export default function RegisterPage() {
   const handleComplete = async () => {
     // Mark onboarding as complete
     try {
-      const orgId = `org_${Date.now()}_${auth.currentUser?.uid.substring(0, 8)}`;
-      await setDoc(
-        doc(db, "organizations", orgId),
-        { onboardingComplete: true },
-        { merge: true }
-      );
+      const orgId = sessionStorage.getItem('newOrgId');
+      if (orgId) {
+        await setDoc(
+          doc(db, "organizations", orgId),
+          { 
+            onboardingCompletedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          },
+          { merge: true }
+        );
+        sessionStorage.removeItem('newOrgId');
+      }
     } catch (error) {
       console.error("Error completing onboarding:", error);
     }
