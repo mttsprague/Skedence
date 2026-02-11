@@ -33,7 +33,7 @@ const navigation = [
   },
   { 
     name: 'Reports', 
-    href: '/reports/dashboard', 
+    href: '/reports', 
     icon: BarChart3,
     hasSubmenu: true,
     description: 'View analytics and business insights'

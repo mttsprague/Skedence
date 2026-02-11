@@ -317,6 +317,25 @@ export default function AppointmentsPage() {
             status = 'no-show';
           }
           
+          // Get client info from participant data
+          const clientId = participantData.userId;
+          let clientName = 'Unknown Client';
+          let clientEmail = '';
+          
+          if (clientId) {
+            try {
+              const clientDocRef = doc(db, 'users', clientId);
+              const clientDoc = await getDoc(clientDocRef);
+              if (clientDoc.exists()) {
+                const clientData = clientDoc.data();
+                clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim() || 'Unknown Client';
+                clientEmail = clientData.emailAddress || clientData.email || '';
+              }
+            } catch (err) {
+              // Ignore errors, use default
+            }
+          }
+          
           // Class registrations
           const cost = classData.priceInCents ? classData.priceInCents / 100 : 45;
           
@@ -328,7 +347,10 @@ export default function AppointmentsPage() {
             endTime,
             status,
             duration,
-            trainerId: classData.trainerId
+            trainerId: classData.trainerId,
+            clientId,
+            clientName,
+            clientEmail
           });
         }
       }

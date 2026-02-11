@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence - Transform Your Training Business</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 100vh;
+            padding: 60px 80px;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .cover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .cover h1 {
+            font-size: 72px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            letter-spacing: -2px;
+        }
+
+        .cover .tagline {
+            font-size: 32px;
+            font-weight: 300;
+            margin-bottom: 50px;
+            opacity: 0.95;
+        }
+
+        .cover .subtitle {
+            font-size: 20px;
+            opacity: 0.85;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.8;
+        }
+
+        h2 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: #667eea;
+        }
+
+        h3 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .section-subtitle {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 50px;
+            line-height: 1.6;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            margin-top: 50px;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 35px;
+            border-radius: 16px;
+            border-left: 5px solid #667eea;
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .feature-card p {
+            color: #555;
+            font-size: 16px;
+            line-height: 1.7;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin-top: 15px;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+            color: #444;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            margin: 60px 0;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+        }
+
+        .stat-number {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 18px;
+            opacity: 0.95;
+            font-weight: 500;
+        }
+
+        .screenshot {
+            width: 100%;
+            height: 500px;
+            background: #f0f0f0;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 18px;
+            margin: 40px 0;
+            border: 2px solid #e0e0e0;
+        }
+
+        .benefits {
+            background: #f8f9fa;
+            padding: 50px;
+            border-radius: 20px;
+            margin-top: 40px;
+        }
+
+        .benefits ul {
+            list-style: none;
+        }
+
+        .benefits li {
+            padding: 20px;
+            font-size: 18px;
+            border-bottom: 1px solid #e0e0e0;
+            position: relative;
+            padding-left: 50px;
+        }
+
+        .benefits li:last-child {
+            border-bottom: none;
+        }
+
+        .benefits li:before {
+            content: "→";
+            position: absolute;
+            left: 15px;
+            color: #667eea;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .pricing-card {
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 20px;
+            padding: 50px;
+            text-align: center;
+            max-width: 500px;
+            margin: 40px auto;
+        }
+
+        .pricing-card .price {
+            font-size: 64px;
+            font-weight: 800;
+            color: #667eea;
+            margin: 30px 0;
+        }
+
+        .pricing-card .price-note {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 40px;
+        }
+
+        .cta-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 50px;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .contact-info {
+            text-align: center;
+            font-size: 18px;
+            color: #666;
+            margin-top: 40px;
+        }
+
+        .contact-info a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .tech-stack {
+            display: flex;
+            justify-content: space-around;
+            margin: 50px 0;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 16px;
+        }
+
+        .tech-item {
+            text-align: center;
+        }
+
+        .tech-item .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .tech-item .label {
+            font-size: 16px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        @media print {
+            .page {
+                padding: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- COVER PAGE -->
+    <div class="page cover">
+        <h1>Skedence</h1>
+        <div class="tagline">Transform Your Training Business</div>
+        <div class="subtitle">
+            The all-in-one platform that streamlines scheduling, payments, and client management 
+            for personal trainers, fitness studios, and wellness professionals.
+        </div>
+    </div>
+
+    <!-- PROBLEM PAGE -->
+    <div class="page">
+        <h2>The Challenge</h2>
+        <div class="section-subtitle">
+            Running a training business shouldn't be this complicated
+        </div>
+
+        <div class="benefits">
+            <ul>
+                <li>Juggling multiple apps for scheduling, payments, and client management</li>
+                <li>Manual booking confirmations and payment tracking eating up valuable time</li>
+                <li>Missing revenue opportunities due to poor package management</li>
+                <li>No clear visibility into business performance and growth metrics</li>
+                <li>Clients frustrated with complicated booking processes</li>
+                <li>Paper waivers and forms creating administrative overhead</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 60px; font-size: 24px; color: #667eea; font-weight: 600;">
+            There's a better way →
+        </div>
+    </div>
+
+    <!-- SOLUTION PAGE -->
+    <div class="page">
+        <h2>Your Complete Business Solution</h2>
+        <div class="section-subtitle">
+            Skedence brings everything together in one powerful, easy-to-use platform
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>📅 Smart Scheduling</h3>
+                <p>Automated booking system that works 24/7. Clients book appointments instantly while you sleep. Real-time calendar sync prevents double-bookings.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>💳 Integrated Payments</h3>
+                <p>Secure payment processing with Stripe. Sell packages, memberships, and single sessions. Automatic invoicing and receipt generation.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>👥 Client Management</h3>
+                <p>Complete client profiles with booking history, package usage, and communication logs. Know exactly where every client stands.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>📊 Business Analytics</h3>
+                <p>Real-time revenue tracking, appointment analytics, and growth metrics. Make data-driven decisions to scale your business.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>📱 Mobile Apps</h3>
+                <p>Native iOS apps for both trainers and clients. Manage your business and book sessions on the go with beautiful, intuitive interfaces.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>✍️ Digital Waivers</h3>
+                <p>Customizable waiver templates with e-signature support. Store everything securely in the cloud. Never lose a signed form again.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEATURES DEEP DIVE -->
+    <div class="page">
+        <h2>Powerful Features Built for Trainers</h2>
+        
+        <h3>🗓️ Advanced Scheduling System</h3>
+        <ul class="feature-list">
+            <li>Recurring appointments and class schedules</li>
+            <li>Multi-trainer support with individual calendars</li>
+            <li>Automated email/SMS reminders (coming soon)</li>
+            <li>Customizable booking windows and cancellation policies</li>
+            <li>Waitlist management for popular time slots</li>
+            <li>Location-based scheduling for multiple studios</li>
+        </ul>
+
+        <h3 style="margin-top: 40px;">💰 Flexible Pricing & Packages</h3>
+        <ul class="feature-list">
+            <li>Create unlimited pricing tiers and packages</li>
+            <li>Session bundles with auto-expiration dates</li>
+            <li>Subscription/membership billing</li>
+            <li>Promotional codes and discounts</li>
+            <li>Automatic payment tracking and reminders</li>
+            <li>Refund and credit management</li>
+        </ul>
+
+        <h3 style="margin-top: 40px;">📈 Comprehensive Reporting</h3>
+        <ul class="feature-list">
+            <li>Revenue reports with payment method breakdown</li>
+            <li>Appointment analytics by client, trainer, and type</li>
+            <li>Client sign-up and retention tracking</li>
+            <li>Export data to CSV for custom analysis</li>
+            <li>Filter by date, status, and multiple criteria</li>
+            <li>Visual charts and trend analysis</li>
+        </ul>
+    </div>
+
+    <!-- ADMIN PORTAL FEATURES -->
+    <div class="page">
+        <h2>Web Admin Portal</h2>
+        <div class="section-subtitle">
+            Manage your entire business from any browser
+        </div>
+
+        <div class="screenshot">
+            [Dashboard Screenshot - Shows key metrics, upcoming appointments, and quick actions]
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>Dashboard Overview</h3>
+                <p>See your entire business at a glance. Today's schedule, recent bookings, revenue metrics, and important notifications.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>Client Directory</h3>
+                <p>Complete client database with search, filters, and detailed profiles. Track packages, appointments, and payment history.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>Trainer Management</h3>
+                <p>Add team members, set availability, assign specialties, and track performance. Perfect for growing studios.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>Calendar View</h3>
+                <p>Visual calendar with drag-and-drop scheduling. Filter by trainer, location, or appointment type.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>Package Management</h3>
+                <p>Create and manage pricing packages, track usage, and set expiration policies. See which packages drive the most revenue.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>Reports & Analytics</h3>
+                <p>Deep dive into your business metrics. Revenue breakdowns, appointment trends, client acquisition, and more.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOBILE APPS -->
+    <div class="page">
+        <h2>Native Mobile Apps</h2>
+        <div class="section-subtitle">
+            Beautiful, fast, and intuitive on iOS
+        </div>
+
+        <h3>👔 Skedence Admin (For Trainers)</h3>
+        <ul class="feature-list">
+            <li>View and manage your schedule on the go</li>
+            <li>Quick client lookup and booking history</li>
+            <li>Accept or reschedule appointments</li>
+            <li>Add notes after each session</li>
+            <li>Check real-time availability</li>
+            <li>Push notifications for new bookings</li>
+        </ul>
+
+        <h3 style="margin-top: 40px;">💪 Skedence Client (For Your Clients)</h3>
+        <ul class="feature-list">
+            <li>Browse available time slots and book instantly</li>
+            <li>View upcoming appointments and history</li>
+            <li>Track package credits and expiration dates</li>
+            <li>Purchase new packages with Apple Pay</li>
+            <li>Update profile and preferences</li>
+            <li>Digital waiver signing</li>
+        </ul>
+
+        <div style="text-align: center; margin-top: 50px; color: #667eea; font-size: 18px; font-weight: 600;">
+            Give your clients a 5-star booking experience
+        </div>
+    </div>
+
+    <!-- TECHNOLOGY -->
+    <div class="page">
+        <h2>Built on Enterprise Technology</h2>
+        <div class="section-subtitle">
+            Reliable, secure, and scalable infrastructure
+        </div>
+
+        <div class="tech-stack">
+            <div class="tech-item">
+                <div class="icon">🔥</div>
+                <div class="label">Firebase Backend</div>
+            </div>
+            <div class="tech-item">
+                <div class="icon">💳</div>
+                <div class="label">Stripe Payments</div>
+            </div>
+            <div class="tech-item">
+                <div class="icon">🔒</div>
+                <div class="label">Bank-Level Security</div>
+            </div>
+            <div class="tech-item">
+                <div class="icon">☁️</div>
+                <div class="label">Cloud Infrastructure</div>
+            </div>
+        </div>
+
+        <div class="benefits">
+            <h3 style="color: #333; margin-bottom: 30px;">Why This Matters</h3>
+            <ul>
+                <li><strong>99.9% Uptime:</strong> Your business is always accessible</li>
+                <li><strong>PCI Compliant:</strong> Secure payment processing you can trust</li>
+                <li><strong>Automatic Backups:</strong> Your data is safe and recoverable</li>
+                <li><strong>Scales With You:</strong> From solo trainer to multi-location studio</li>
+                <li><strong>Regular Updates:</strong> New features and improvements automatically deployed</li>
+                <li><strong>GDPR Ready:</strong> Privacy compliance built-in</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- BENEFITS -->
+    <div class="page">
+        <h2>Transform Your Business</h2>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number">10+</span>
+                <span class="stat-label">Hours Saved Per Week</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">30%</span>
+                <span class="stat-label">Revenue Increase</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">95%</span>
+                <span class="stat-label">Client Satisfaction</span>
+            </div>
+        </div>
+
+        <h3>Real Business Impact</h3>
+        
+        <div class="benefits">
+            <ul>
+                <li><strong>Save Time:</strong> Automate scheduling and payments so you can focus on training</li>
+                <li><strong>Increase Revenue:</strong> Never miss a booking opportunity with 24/7 online scheduling</li>
+                <li><strong>Reduce No-Shows:</strong> Automated reminders keep clients committed</li>
+                <li><strong>Grow Faster:</strong> Scale from solo to team with multi-trainer support</li>
+                <li><strong>Better Experience:</strong> Give clients a professional, modern booking experience</li>
+                <li><strong>Make Decisions:</strong> Data-driven insights help you optimize pricing and scheduling</li>
+                <li><strong>Go Paperless:</strong> Digital waivers and forms eliminate administrative burden</li>
+                <li><strong>Stay Organized:</strong> Everything in one place - no more juggling multiple tools</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- PRICING -->
+    <div class="page">
+        <h2>Simple, Transparent Pricing</h2>
+        <div class="section-subtitle">
+            No setup fees. No hidden costs. Cancel anytime.
+        </div>
+
+        <div class="pricing-card">
+            <h3>Professional Plan</h3>
+            <div class="price">$49<span style="font-size: 28px; font-weight: 400;">/month</span></div>
+            <div class="price-note">Everything you need to run your training business</div>
+            
+            <ul class="feature-list" style="text-align: left; margin: 30px 0;">
+                <li>Unlimited clients and appointments</li>
+                <li>Web admin portal access</li>
+                <li>iOS mobile apps (trainer & client)</li>
+                <li>Integrated Stripe payments</li>
+                <li>Digital waivers</li>
+                <li>Analytics and reporting</li>
+                <li>Email support</li>
+                <li>Regular feature updates</li>
+            </ul>
+
+            <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 12px; margin-top: 30px;">
+                <strong>+ Stripe processing fees:</strong><br>
+                2.9% + $0.30 per transaction
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px; font-size: 18px; color: #666;">
+            <strong>Free 14-Day Trial</strong> • No Credit Card Required
+        </div>
+    </div>
+
+    <!-- GETTING STARTED -->
+    <div class="page">
+        <h2>Getting Started is Easy</h2>
+        <div class="section-subtitle">
+            Launch your professional training business in under an hour
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3 style="color: #667eea;">1. Sign Up</h3>
+                <p>Create your account and set up your business profile. Add your branding, locations, and service descriptions.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3 style="color: #667eea;">2. Configure</h3>
+                <p>Set your availability, create pricing packages, and customize your booking policies. We'll guide you through each step.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3 style="color: #667eea;">3. Connect Stripe</h3>
+                <p>Link your Stripe account for payment processing. Approve in seconds - you don't need a Stripe account to start.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3 style="color: #667eea;">4. Go Live</h3>
+                <p>Share your booking link with clients and start accepting appointments. We'll be here to help every step of the way.</p>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 60px;">
+            <div style="font-size: 24px; margin-bottom: 20px; color: #333;">
+                <strong>Need help getting started?</strong>
+            </div>
+            <div style="font-size: 18px; color: #666; margin-bottom: 30px;">
+                We offer complimentary onboarding calls to help you set up your account<br>
+                and migrate from your current system.
+            </div>
+        </div>
+    </div>
+
+    <!-- CALL TO ACTION -->
+    <div class="page cover">
+        <h2 style="color: white; font-size: 56px;">Ready to Transform Your Business?</h2>
+        <div style="font-size: 24px; margin: 40px 0; opacity: 0.95;">
+            Join hundreds of trainers who have streamlined their operations<br>
+            and grown their revenue with Skedence
+        </div>
+
+        <a href="mailto:hello@skedence.com" class="cta-button">
+            Schedule a Demo
+        </a>
+
+        <a href="mailto:hello@skedence.com" class="cta-button" style="margin-left: 20px; background: white; color: #667eea;">
+            Start Free Trial
+        </a>
+
+        <div class="contact-info" style="color: white; opacity: 0.9;">
+            <p style="margin-top: 80px; font-size: 20px;">
+                <strong>Contact Us</strong><br>
+                <a href="mailto:hello@skedence.com" style="color: white;">hello@skedence.com</a><br>
+                Visit us at <a href="https://polyface-ae6d3.web.app" style="color: white;">polyface-ae6d3.web.app</a>
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>
