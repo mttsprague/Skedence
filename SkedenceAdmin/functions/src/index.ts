@@ -786,60 +786,72 @@ export const cancelLesson = functions.https.onCall(
 
         // Update trainer's schedule slot back to open
         if (bookingData.trainerId && bookingData.slotId) {
-          const trainerSlotRef = db
-            .collection("trainers")
-            .doc(bookingData.trainerId)
-            .collection("schedules")
-            .doc(bookingData.slotId);
+          try {
+            const trainerSlotRef = db
+              .collection("trainers")
+              .doc(bookingData.trainerId)
+              .collection("schedules")
+              .doc(bookingData.slotId);
 
-          const slotDoc = await transaction.get(trainerSlotRef);
-          if (slotDoc.exists) {
-            transaction.update(trainerSlotRef, {
-              status: "open",
-              clientId: null,
-              clientName: null,
-              bookedAt: null,
-            });
+            const slotDoc = await transaction.get(trainerSlotRef);
+            if (slotDoc.exists) {
+              transaction.update(trainerSlotRef, {
+                status: "open",
+                clientId: null,
+                clientName: null,
+                bookedAt: null,
+              });
+            }
+          } catch (slotError) {
+            // Log but don't fail - slot might not exist
+            functions.logger.warn(`Could not update trainer slot: ${slotError}`);
           }
         }
 
         // Delete the booking
         transaction.delete(bookingRef);
 
-        // Log activity
-        const userRef = db.collection("users").doc(userId);
-        const userDoc = await transaction.get(userRef);
-        const userData = userDoc.exists ? userDoc.data() : null;
-        const clientFullName = userData ? `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
-        
-        const trainerRef = db.collection("trainers").doc(bookingData.trainerId);
-        const trainerDoc = await transaction.get(trainerRef);
-        const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
-        const trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
+        // Log activity - safely handle missing data
+        try {
+          const userRef = db.collection("users").doc(userId);
+          const userDoc = await transaction.get(userRef);
+          const userData = userDoc.exists ? userDoc.data() : null;
+          const clientFullName = userData ? `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
+          
+          let trainerFullName = "Unknown Trainer";
+          if (bookingData.trainerId) {
+            const trainerRef = db.collection("trainers").doc(bookingData.trainerId);
+            const trainerDoc = await transaction.get(trainerRef);
+            const trainerData = trainerDoc.exists ? trainerDoc.data() : null;
+            trainerFullName = trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || "Unknown Trainer" : "Unknown Trainer";
+          }
 
-        const activityRef = db.collection("activities").doc();
-        transaction.set(activityRef, {
-          type: "lesson_cancelled",
-          actorId: userId,
-          actorName: clientFullName,
-          actorRole: "client",
-          targetId: bookingData.trainerId,
-          targetName: trainerFullName,
-          targetType: "trainer",
-          description: `${clientFullName} cancelled a lesson with ${trainerFullName}`,
-          metadata: {
-            bookingId: bookingId,
-            slotId: bookingData.slotId || null,
-            startTime: bookingData.startTime || null,
-            endTime: bookingData.endTime || null,
-            location: bookingData.location || null,
-            athleteName: bookingData.athleteName || null,
-            secondAthleteName: bookingData.secondAthleteName || null,
+          const activityRef = db.collection("activities").doc();
+          transaction.set(activityRef, {
+            type: "lesson_cancelled",
+            actorId: userId,
+            actorName: clientFullName,
+            actorRole: "client",
+            targetId: bookingData.trainerId || null,
+            targetName: trainerFullName,
+            targetType: "trainer",
+            description: `${clientFullName} cancelled a lesson with ${trainerFullName}`,
+            metadata: {
+              bookingId: bookingId,
+              slotId: bookingData.slotId || null,
+              startTime: bookingData.startTime || null,
+              endTime: bookingData.endTime || null,
+              location: bookingData.location || null,
+              athleteName: bookingData.athleteName || null,
+              secondAthleteName: bookingData.secondAthleteName || null,
+            },
+            orgId: bookingData.orgId || null,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          orgId: bookingData.orgId || null,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
+          });
+        } catch (activityError) {
+          // Log but don't fail - activity logging is not critical
+          functions.logger.warn(`Could not log activity: ${activityError}`);
+        }
       });
 
       functions.logger.info(`User ${userId} cancelled booking ${bookingId}`);
