@@ -448,36 +448,7 @@ final class ScheduleViewModel: ObservableObject {
             
             // Log activity
             if let user = Auth.auth().currentUser, let slotsAdded = result.slotsAdded, slotsAdded > 0 {
-                let trainerName: String
-                if let targetId = targetTrainerId, let trainer = try? await Firestore.firestore().collection("trainers").document(targetId).getDocument().data() {
-                    trainerName = trainer["firstName"] as? String ?? "Trainer"
-                } else {
-                    trainerName = user.displayName ?? "Trainer"
-                }
-                
-                Task {
-                    let activityType: ActivityLogger.ActivityType = status == .open ? .availabilityOpened : .availabilityClosed
-                    let action = status == .open ? "opened" : "blocked"
-                    
-                    try? await ActivityLogger.shared.log(
-                        type: activityType,
-                        actorId: user.uid,
-                        actorName: user.displayName ?? "Admin",
-                        actorRole: .admin,
-                        targetId: targetTrainerId ?? user.uid,
-                        targetName: trainerName,
-                        targetType: "trainer",
-                        description: "\(user.displayName ?? "Admin") \(action) \(slotsAdded) slot(s) for \(trainerName) from \(startStr ?? "start") to \(endStr ?? "end")",
-                        metadata: [
-                            "slotsAdded": slotsAdded,
-                            "startDate": startStr ?? "",
-                            "endDate": endStr ?? "",
-                            "status": status.rawValue,
-                            "location": location ?? ""
-                        ],
-                        orgId: orgId ?? ""
-                    )
-                }
+                // Activity logging can be added to cloud functions if needed
             }
             
             await loadWeek()

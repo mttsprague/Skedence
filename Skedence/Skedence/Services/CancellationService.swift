@@ -49,36 +49,7 @@ final class CancellationService: ObservableObject {
         do {
             _ = try await repository.cancelLesson(bookingId: bookingId)
             
-            // Log activity after successful cancellation
-            if let bookingData = bookingData,
-               let orgId = bookingData["orgId"] as? String,
-               let clientName = bookingData["clientName"] as? String,
-               let trainerName = bookingData["trainerName"] as? String,
-               let trainerId = bookingData["trainerId"] as? String,
-               let clientId = bookingData["clientId"] as? String {
-                
-                let startTime = (bookingData["startTime"] as? Timestamp)?.dateValue() ?? Date()
-                
-                Task {
-                    try? await ActivityLogger.shared.log(
-                        type: .lessonCanceled,
-                        actorId: uid,
-                        actorName: user.displayName ?? clientName,
-                        actorRole: .client,
-                        targetId: bookingId,
-                        targetName: "\(clientName) with \(trainerName)",
-                        targetType: "lesson",
-                        description: "\(user.displayName ?? clientName) canceled lesson for \(clientName) with \(trainerName) scheduled for \(ActivityLogger.formatDateTime(startTime))",
-                        metadata: [
-                            "lessonId": bookingId,
-                            "clientId": clientId,
-                            "trainerId": trainerId,
-                            "startTime": startTime.ISO8601Format()
-                        ],
-                        orgId: orgId
-                    )
-                }
-            }
+            // Activity logging now handled by cloud function
         } catch let cancelError {
             let wrappedError = CancellationError.cancellationFailed(cancelError.localizedDescription)
             self.error = wrappedError

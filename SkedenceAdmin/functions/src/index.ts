@@ -7,6 +7,8 @@ import {
   checkRateLimit,
   checkOrgAccess,
 } from "./quotas";
+import {ActivityTypes} from "./utils/activityTypes";
+import {getUserDisplayName, getTrainerDisplayName} from "./utils/activityLogger";
 
 // Initialize Firebase Admin SDK once when the function container starts
 admin.initializeApp();
@@ -406,7 +408,7 @@ export const bookLesson = functions.https.onCall(
         if (orgId) {
           const activityRef = db.collection("activities").doc();
           transaction.set(activityRef, {
-            type: "lesson_booked",
+            type: ActivityTypes.LESSON_BOOKED,
             actorId: userId,
             actorName: clientFullName,
             actorRole: "client",
@@ -648,7 +650,7 @@ export const registerForClass = functions.https.onCall(
 
         const activityRef = db.collection("activities").doc();
         transaction.set(activityRef, {
-          type: "class_registered",
+          type: ActivityTypes.CLASS_REGISTERED,
           actorId: userId,
           actorName: clientFullName,
           actorRole: "client",
@@ -738,8 +740,9 @@ export const cancelLesson = functions.https.onCall(
           );
         }
 
-        // Verify user owns this booking
-        if (bookingData.clientUID !== userId) {
+        // Verify user owns this booking - check both clientUID and clientId for compatibility
+        const bookingClientId = bookingData.clientUID || bookingData.clientId;
+        if (!bookingClientId || bookingClientId !== userId) {
           throw new functions.https.HttpsError(
             "permission-denied",
             "You can only cancel your own bookings."
@@ -786,25 +789,23 @@ export const cancelLesson = functions.https.onCall(
 
         // Update trainer's schedule slot back to open
         if (bookingData.trainerId && bookingData.slotId) {
-          try {
-            const trainerSlotRef = db
-              .collection("trainers")
-              .doc(bookingData.trainerId)
-              .collection("schedules")
-              .doc(bookingData.slotId);
+          const trainerSlotRef = db
+            .collection("trainers")
+            .doc(bookingData.trainerId)
+            .collection("schedules")
+            .doc(bookingData.slotId);
 
-            const slotDoc = await transaction.get(trainerSlotRef);
-            if (slotDoc.exists) {
-              transaction.update(trainerSlotRef, {
-                status: "open",
-                clientId: null,
-                clientName: null,
-                bookedAt: null,
-              });
-            }
-          } catch (slotError) {
-            // Log but don't fail - slot might not exist
-            functions.logger.warn(`Could not update trainer slot: ${slotError}`);
+          const slotDoc = await transaction.get(trainerSlotRef);
+          if (slotDoc.exists) {
+            functions.logger.info(`Updating slot ${bookingData.slotId} for trainer ${bookingData.trainerId} to open`);
+            transaction.update(trainerSlotRef, {
+              status: "open",
+              clientId: null,
+              clientName: null,
+              bookedAt: null,
+            });
+          } else {
+            functions.logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId}`);
           }
         }
 
@@ -828,7 +829,7 @@ export const cancelLesson = functions.https.onCall(
 
           const activityRef = db.collection("activities").doc();
           transaction.set(activityRef, {
-            type: "lesson_cancelled",
+            type: ActivityTypes.LESSON_CANCELLED,
             actorId: userId,
             actorName: clientFullName,
             actorRole: "client",
@@ -1111,7 +1112,7 @@ export const adminCancelLesson = functions.https.onCall(
         // Log activity
         const activityRef = db.collection("activities").doc();
         transaction.set(activityRef, {
-            type: "lesson_cancelled",
+            type: ActivityTypes.LESSON_CANCELLED,
             actorId: adminUid,
             actorName: adminFullName,
             actorRole: "admin",
@@ -1265,7 +1266,7 @@ export const cancelClassRegistration = functions.https.onCall(
 
         const activityRef = db.collection("activities").doc();
         transaction.set(activityRef, {
-          type: "class_cancelled",
+          type: ActivityTypes.CLASS_CANCELLED,
           actorId: userId,
           actorName: clientFullName,
           actorRole: "client",
@@ -1904,7 +1905,7 @@ export const manualRegisterForClass = functions.https.onCall(
       const participantName = userId ? "Unknown Client" : `${firstName} ${lastName}`;
       
       await db.collection("activities").add({
-        type: "class_enrollment",
+        type: ActivityTypes.CLASS_ENROLLMENT,
         actorId: request.auth.uid,
         actorName: adminName,
         actorRole: "admin",

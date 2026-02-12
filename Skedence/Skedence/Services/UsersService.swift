@@ -214,26 +214,7 @@ final class UsersService: ObservableObject {
         
         try await repository.updateUserFields(userId: uid, fields: updateData)
         
-        // Log activity
-        if let orgId = await getOrgIdForUser(uid) {
-            Task {
-                try? await ActivityLogger.shared.log(
-                    type: .clientProfileUpdated,
-                    actorId: uid,
-                    actorName: "\(firstName) \(lastName)",
-                    actorRole: .client,
-                    targetId: uid,
-                    targetName: "\(firstName) \(lastName)",
-                    targetType: "user",
-                    description: "\(firstName) \(lastName) updated their profile",
-                    metadata: [
-                        "email": emailAddress,
-                        "phoneNumber": phoneNumber ?? ""
-                    ],
-                    orgId: orgId
-                )
-            }
-        }
+        // Activity logging handled by cloud functions
         
         // Reload the profile after update
         try await loadUserProfile()

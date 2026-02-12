@@ -842,33 +842,7 @@ final class FirestoreService {
         // Commit all changes atomically
         try await batch.commit()
         
-        // Log activity for admin/owner booking
-        if let currentUser = Auth.auth().currentUser {
-            let actorName = currentUser.displayName ?? "Admin"
-            let startTime = startTs.dateValue()
-            let endTime = endTs.dateValue()
-            
-            try? await ActivityLogger.shared.log(
-                type: .lessonBooked,
-                actorId: currentUser.uid,
-                actorName: actorName,
-                actorRole: .admin,
-                targetId: safeClientId,
-                targetName: clientName,
-                targetType: "client",
-                description: "\(actorName) booked a lesson for \(clientName) with \(trainerName) on \(ActivityLogger.formatDateTime(startTime))",
-                metadata: [
-                    "trainerId": safeTrainerId,
-                    "trainerName": trainerName,
-                    "startTime": ActivityLogger.formatDateTime(startTime),
-                    "endTime": ActivityLogger.formatDateTime(endTime),
-                    "packageId": safePackageId,
-                    "bookingId": bookingRef.documentID,
-                    "timestamp": Timestamp(date: Date())
-                ],
-                orgId: safeOrgId
-            )
-        }
+        // Activity logging handled by cloud functions
         
         #else
         throw FirestoreServiceError.notAvailable

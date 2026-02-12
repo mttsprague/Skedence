@@ -295,38 +295,7 @@ struct ClientCardView: View {
                 clientId: client.id
             )
             
-            // Log activity
-            if let user = Auth.auth().currentUser,
-               let bookingData = bookingData,
-               let startTime = (bookingData["startTime"] as? Timestamp)?.dateValue(),
-               let trainerId = bookingData["trainerId"] as? String {
-                
-                Task {
-                    // Fetch trainer name
-                    let trainerDoc = try? await Firestore.firestore().collection("trainers").document(trainerId).getDocument()
-                    let trainerName = (trainerDoc?.data()?["firstName"] as? String) ?? "Trainer"
-                    let actorName = (user.displayName as String?) ?? "Admin"
-                    
-                    try? await ActivityLogger.shared.log(
-                        type: .lessonCanceled,
-                        actorId: user.uid,
-                        actorName: actorName,
-                        actorRole: .admin,
-                        targetId: bookingId,
-                        targetName: "Lesson with \(trainerName)",
-                        targetType: "booking",
-                        description: "\(actorName) canceled lesson for \(client.firstName) with \(trainerName) scheduled for \(ActivityLogger.formatDateTime(startTime))",
-                        metadata: [
-                            "bookingId": bookingId,
-                            "clientId": client.id,
-                            "trainerId": trainerId,
-                            "startTime": startTime.ISO8601Format(),
-                            "canceledBy": "admin"
-                        ],
-                        orgId: orgId
-                    )
-                }
-            }
+            // Activity logging handled by cancelLesson cloud function
             
             // Reload the client data after successful cancellation
             await viewModel.loadClientData(

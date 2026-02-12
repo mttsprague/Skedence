@@ -206,29 +206,7 @@ final class AdminService: ObservableObject {
         try await db.collection("trainers").document(trainerId)
             .collection("schedules").addDocument(data: bookingData)
         
-        // Log activity
-        if let user = Auth.auth().currentUser {
-            Task {
-                try? await ActivityLogger.shared.log(
-                    type: .classCreated,
-                    actorId: uid,
-                    actorName: user.displayName ?? "Admin",
-                    actorRole: .admin,
-                    targetId: classRef.documentID,
-                    targetName: title,
-                    targetType: "class",
-                    description: "\(user.displayName ?? "Admin") created class \"\(title)\" with \(trainerName) for \(ActivityLogger.formatDateTime(startTime))",
-                    metadata: [
-                        "classId": classRef.documentID,
-                        "trainerId": trainerId,
-                        "startTime": startTime.ISO8601Format(),
-                        "maxParticipants": maxParticipants,
-                        "location": location
-                    ],
-                    orgId: orgId
-                )
-            }
-        }
+        // Activity logging handled by cloud functions
     }
     
     // Toggle class registration status

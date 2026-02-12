@@ -78,30 +78,7 @@ final class BookingManager: ObservableObject {
             let booking = try decodeBooking(from: bookingDict)
             print("BookingManager.bookLesson → Success. Booking id: \(booking.id ?? "<nil>")")
             
-            // Log activity
-            if let orgIdFromUser = try? await getOrgIdForUser(uid), 
-               let startTime = booking.startTime {
-                Task {
-                    try? await ActivityLogger.shared.log(
-                        type: .lessonBooked,
-                        actorId: uid,
-                        actorName: user.displayName ?? "Client",
-                        actorRole: .client,
-                        targetId: trainerId,
-                        targetName: dict["trainerName"] as? String ?? "Trainer",
-                        targetType: "trainer",
-                        description: "\(user.displayName ?? "Client") booked a lesson with \(dict["trainerName"] as? String ?? "Trainer") for \(ActivityLogger.formatDateTime(startTime))",
-                        metadata: [
-                            "lessonId": booking.id ?? "",
-                            "startTime": startTime.ISO8601Format(),
-                            "endTime": booking.endTime?.ISO8601Format() ?? "",
-                            "location": booking.location ?? "",
-                            "packageType": packageId
-                        ],
-                        orgId: orgIdFromUser
-                    )
-                }
-            }
+            // Activity logging now handled by cloud function
             
             return booking
         }
