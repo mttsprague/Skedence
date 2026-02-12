@@ -387,24 +387,29 @@ export default function ActivityPage() {
           where('orgId', '==', orgId),
           where('startTime', '>=', dayStart),
           where('startTime', '<=', dayEnd),
-          where('status', '==', 'confirmed'),
           orderBy('startTime', 'asc')
         );
         
         const bookingsSnap = await getDocs(bookingsQuery);
         
-        const bookings: BookingSnapshot[] = bookingsSnap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            trainerId: data.trainerId || '',
-            trainerName: data.trainerName || 'Unknown Trainer',
-            clientName: data.clientName || 'Unknown Client',
-            startTime: data.startTime?.toDate() || new Date(),
-            endTime: data.endTime?.toDate() || new Date(),
-            location: data.location || 'TBD',
-          };
-        });
+        const bookings: BookingSnapshot[] = bookingsSnap.docs
+          .filter(doc => {
+            const data = doc.data();
+            // Filter for confirmed bookings in code instead of query
+            return data.status === 'confirmed';
+          })
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              trainerId: data.trainerId || '',
+              trainerName: data.trainerName || 'Unknown Trainer',
+              clientName: data.clientName || 'Unknown Client',
+              startTime: data.startTime?.toDate() || new Date(),
+              endTime: data.endTime?.toDate() || new Date(),
+              location: data.location || 'TBD',
+            };
+          });
         
         setTodayBookings(bookings);
       } catch (error) {
