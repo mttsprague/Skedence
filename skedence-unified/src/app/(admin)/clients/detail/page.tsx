@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -295,23 +296,24 @@ function ClientDetailContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push('/clients')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {client.firstName} {client.lastName}
-            </h1>
-            <p className="text-gray-600">{client.email}</p>
+    <SchedulingSubmenu>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/clients')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {client.firstName} {client.lastName}
+              </h1>
+              <p className="text-gray-600">{client.email}</p>
+            </div>
           </div>
-        </div>
 
         {/* Tabs */}
         <div className="border-b border-gray-200 bg-white rounded-t-lg">
@@ -365,6 +367,7 @@ function ClientDetailContent() {
         </div>
       </div>
     </div>
+    </SchedulingSubmenu>
   );
 }
 
