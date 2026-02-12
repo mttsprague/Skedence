@@ -27,9 +27,6 @@ const submenuItems = [
   { name: 'Trainers', href: '/trainers', icon: UserCog },
   { name: 'Book Session', href: '/bookings', icon: Plus },
   { name: 'Classes', href: '/classes', icon: GraduationCap },
-  { name: 'Locations', href: '/locations', icon: MapPin },
-  { name: 'Passes', href: '/passes', icon: Package },
-  { name: 'Pricing', href: '/pricing', icon: DollarSign },
 ];
 
 interface SchedulingSubmenuProps {

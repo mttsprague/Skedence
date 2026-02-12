@@ -60,10 +60,7 @@ export function Sidebar() {
            pathname.startsWith('/trainers') ||
            pathname.startsWith('/bookings') ||
            pathname.startsWith('/classes') ||
-           pathname.startsWith('/passes') ||
-           pathname.startsWith('/pricing') ||
-           pathname.startsWith('/schedule') ||
-           pathname.startsWith('/locations');
+           pathname.startsWith('/schedule');
   };
 
   const isReportsActive = () => {
@@ -71,7 +68,11 @@ export function Sidebar() {
   };
 
   const isBusinessSettingsActive = () => {
-    return pathname.startsWith('/settings') || pathname === '/waiver';
+    return pathname.startsWith('/settings') || 
+           pathname === '/waiver' ||
+           pathname.startsWith('/locations') ||
+           pathname.startsWith('/passes') ||
+           pathname.startsWith('/pricing');
   };
 
   // Check if we should show a submenu instead of the main menu

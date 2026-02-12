@@ -9,7 +9,10 @@ import {
   Bell,
   FileText,
   ArrowLeft,
-  Megaphone
+  Megaphone,
+  MapPin,
+  Package,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +23,9 @@ const submenuItems = [
   { name: 'Intake Forms', href: '/settings/intake-forms', icon: FileText },
   { name: 'Stripe Settings', href: '/settings/stripe', icon: CreditCard },
   { name: 'Client Emails', href: '/settings/client-emails', icon: Bell },
+  { name: 'Locations', href: '/locations', icon: MapPin },
+  { name: 'Passes', href: '/passes', icon: Package },
+  { name: 'Pricing', href: '/pricing', icon: DollarSign },
 ];
 
 interface BusinessSettingsSubmenuProps {
