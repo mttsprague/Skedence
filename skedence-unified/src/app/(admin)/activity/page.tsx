@@ -236,16 +236,17 @@ export default function ActivityPage() {
 
     async function loadUpcomingClasses() {
       try {
-        const now = Timestamp.now();
+        const dayStart = Timestamp.fromDate(startOfDay(happeningDate));
+        const dayEnd = Timestamp.fromDate(endOfDay(happeningDate));
         
         // Fetch classes and all registrations in parallel
         const [classesSnap, registrationsSnap] = await Promise.all([
           getDocs(query(
             collection(db, 'classes'),
             where('orgId', '==', orgId),
-            where('startTime', '>=', now),
-            orderBy('startTime', 'asc'),
-            limit(3)
+            where('startTime', '>=', dayStart),
+            where('startTime', '<=', dayEnd),
+            orderBy('startTime', 'asc')
           )),
           getDocs(query(
             collection(db, 'classRegistrations'),
@@ -280,7 +281,7 @@ export default function ActivityPage() {
     }
 
     loadUpcomingClasses();
-  }, [orgId]);
+  }, [orgId, happeningDate]);
 
   // Load today's bookings
   useEffect(() => {
@@ -691,6 +692,71 @@ export default function ActivityPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ActivityIcon className="h-5 w-5" />
+            {isSearching ? 'Search Results' : format(selectedDate, 'MMMM d, yyyy')}
+            <span className="text-sm font-normal text-gray-500">
+              ({filteredActivities.length} {filteredActivities.length === 1 ? 'activity' : 'activities'})
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredActivities.length === 0 ? (
+            <div className="text-center py-12">
+              <ActivityIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">
+                {isSearching 
+                  ? 'No activities match your search' 
+                  : `No activity on ${format(selectedDate, 'MMMM d, yyyy')}`
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredActivities.map((activity, index) => (
+                <div
+                  key={activity.id}
+                  className={`flex gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors ${
+                    index !== filteredActivities.length - 1 ? 'border-b border-gray-100' : ''
+                  }`}
+                >
+                  <div className="flex-shrink-0 mt-1">
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-900">
+                            {activity.actorName}
+                          </span>
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadgeColor(activity.actorRole)}`}>
+                            {activity.actorRole}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-gray-700">
+                          {activity.description}
+                        </p>
+                        {activity.metadata?.startTime && (
+                          <p className="mt-1 text-sm text-gray-500">
+                            Session time: {new Date(activity.metadata.startTime).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 text-sm text-gray-500 whitespace-nowrap">
+                        {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
@@ -708,7 +774,53 @@ export default function ActivityPage() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {compareMode === 'custom' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Range 1</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Start Date</label>
+                    <Input 
+                      type="date" 
+                      value={format(customRange1Start, 'yyyy-MM-dd')}
+                      onChange={(e) => setCustomRange1Start(new Date(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">End Date</label>
+                    <Input 
+                      type="date" 
+                      value={format(customRange1End, 'yyyy-MM-dd')}
+                      onChange={(e) => setCustomRange1End(new Date(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Range 2</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Start Date</label>
+                    <Input 
+                      type="date" 
+                      value={format(customRange2Start, 'yyyy-MM-dd')}
+                      onChange={(e) => setCustomRange2Start(new Date(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">End Date</label>
+                    <Input 
+                      type="date" 
+                      value={format(customRange2End, 'yyyy-MM-dd')}
+                      onChange={(e) => setCustomRange2End(new Date(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center justify-between mb-2">
@@ -825,9 +937,9 @@ export default function ActivityPage() {
             )}
             
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Upcoming Classes (Next 3)</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Classes on {format(happeningDate, 'MMM d')}</h3>
                 {upcomingClasses.length === 0 ? (
-                  <p className="text-sm text-gray-500">No upcoming classes scheduled</p>
+                  <p className="text-sm text-gray-500">No classes scheduled for this day</p>
                 ) : (
                   <div className="space-y-2">
                     {upcomingClasses.map(cls => {
@@ -911,71 +1023,6 @@ export default function ActivityPage() {
             </CardContent>
           )}
         </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ActivityIcon className="h-5 w-5" />
-            {isSearching ? 'Search Results' : format(selectedDate, 'MMMM d, yyyy')}
-            <span className="text-sm font-normal text-gray-500">
-              ({filteredActivities.length} {filteredActivities.length === 1 ? 'activity' : 'activities'})
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredActivities.length === 0 ? (
-            <div className="text-center py-12">
-              <ActivityIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">
-                {isSearching 
-                  ? 'No activities match your search' 
-                  : `No activity on ${format(selectedDate, 'MMMM d, yyyy')}`
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredActivities.map((activity, index) => (
-                <div
-                  key={activity.id}
-                  className={`flex gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors ${
-                    index !== filteredActivities.length - 1 ? 'border-b border-gray-100' : ''
-                  }`}
-                >
-                  <div className="flex-shrink-0 mt-1">
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-gray-900">
-                            {activity.actorName}
-                          </span>
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadgeColor(activity.actorRole)}`}>
-                            {activity.actorRole}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-gray-700">
-                          {activity.description}
-                        </p>
-                        {activity.metadata?.startTime && (
-                          <p className="mt-1 text-sm text-gray-500">
-                            Session time: {new Date(activity.metadata.startTime).toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex-shrink-0 text-sm text-gray-500 whitespace-nowrap">
-                        {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
