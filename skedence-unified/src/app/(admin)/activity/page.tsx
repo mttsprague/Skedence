@@ -31,7 +31,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
+import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ActivityType } from '@/lib/activity-logger';
 
 interface ActivityLog {
@@ -94,6 +94,14 @@ export default function ActivityPage() {
   const [upcomingClasses, setUpcomingClasses] = useState<ClassSnapshot[]>([]);
   const [todayBookings, setTodayBookings] = useState<BookingSnapshot[]>([]);
   const [showHappeningToday, setShowHappeningToday] = useState(true);
+  const [happeningDate, setHappeningDate] = useState(new Date());
+  
+  // Compare time frames
+  const [compareMode, setCompareMode] = useState<'week' | 'month' | 'custom'>('week');
+  const [customRange1Start, setCustomRange1Start] = useState<Date>(startOfWeek(new Date()));
+  const [customRange1End, setCustomRange1End] = useState<Date>(endOfWeek(new Date()));
+  const [customRange2Start, setCustomRange2Start] = useState<Date>(startOfWeek(addWeeks(new Date(), -1)));
+  const [customRange2End, setCustomRange2End] = useState<Date>(endOfWeek(addWeeks(new Date(), -1)));
 
   // Memoized extraction of clients and trainers
   const { clients, trainers } = useMemo(() => {
@@ -122,36 +130,59 @@ export default function ActivityPage() {
   }, [activities]);
 
   // Memoized weekly stats calculation
-  const { thisWeekStats, lastWeekStats } = useMemo(() => {
+  const { range1Stats, range2Stats, range1Label, range2Label } = useMemo(() => {
     const now = new Date();
-    const thisWeekStart = startOfWeek(now);
-    const thisWeekEnd = endOfWeek(now);
-    const lastWeekStart = startOfWeek(addWeeks(now, -1));
-    const lastWeekEnd = endOfWeek(addWeeks(now, -1));
+    let r1Start: Date, r1End: Date, r2Start: Date, r2End: Date;
+    let label1: string, label2: string;
     
-    const thisWeek = activities.filter(log => 
-      log.timestamp >= thisWeekStart && log.timestamp <= thisWeekEnd
+    if (compareMode === 'week') {
+      r1Start = startOfWeek(now);
+      r1End = endOfWeek(now);
+      r2Start = startOfWeek(addWeeks(now, -1));
+      r2End = endOfWeek(addWeeks(now, -1));
+      label1 = 'This Week';
+      label2 = 'Last Week';
+    } else if (compareMode === 'month') {
+      r1Start = startOfMonth(now);
+      r1End = endOfMonth(now);
+      r2Start = startOfMonth(addMonths(now, -1));
+      r2End = endOfMonth(addMonths(now, -1));
+      label1 = 'This Month';
+      label2 = 'Last Month';
+    } else {
+      r1Start = customRange1Start;
+      r1End = customRange1End;
+      r2Start = customRange2Start;
+      r2End = customRange2End;
+      label1 = `${format(r1Start, 'MMM d')} - ${format(r1End, 'MMM d')}`;
+      label2 = `${format(r2Start, 'MMM d')} - ${format(r2End, 'MMM d')}`;
+    }
+    
+    const range1 = activities.filter(log => 
+      log.timestamp >= r1Start && log.timestamp <= r1End
     );
     
-    const lastWeek = activities.filter(log => 
-      log.timestamp >= lastWeekStart && log.timestamp <= lastWeekEnd
+    const range2 = activities.filter(log => 
+      log.timestamp >= r2Start && log.timestamp <= r2End
     );
     
     return {
-      thisWeekStats: {
-        bookings: thisWeek.filter(a => a.type === 'lesson_booked' || a.type === 'booking_created').length,
-        cancellations: thisWeek.filter(a => a.type === 'lesson_canceled' || a.type === 'booking_canceled').length,
+      range1Stats: {
+        bookings: range1.filter(a => a.type === 'lesson_booked' || a.type === 'booking_created').length,
+        cancellations: range1.filter(a => a.type === 'lesson_canceled' || a.type === 'booking_canceled').length,
         revenue: 0,
-        enrollments: thisWeek.filter(a => a.type === 'class_enrollment').length,
+        enrollments: range1.filter(a => a.type === 'class_enrollment').length,
       },
-      lastWeekStats: {
-        bookings: lastWeek.filter(a => a.type === 'lesson_booked' || a.type === 'booking_created').length,
-        cancellations: lastWeek.filter(a => a.type === 'lesson_canceled' || a.type === 'booking_canceled').length,
+      range2Stats: {
+        bookings: range2.filter(a => a.type === 'lesson_booked' || a.type === 'booking_created').length,
+        cancellations: range2.filter(a => a.type === 'lesson_canceled' || a.type === 'booking_canceled').length,
         revenue: 0,
-        enrollments: lastWeek.filter(a => a.type === 'class_enrollment').length,
-      }
+        enrollments: range2.filter(a => a.type === 'class_enrollment').length,
+      },
+      range1Label: label1,
+      range2Label: label2
     };
-  }, [activities]);
+  }, [activities, compareMode, customRange1Start, customRange1End, customRange2Start, customRange2End]);
 
   // Load activities and static data
   useEffect(() => {
@@ -257,8 +288,8 @@ export default function ActivityPage() {
     
     async function loadTodayBookings() {
       try {
-        const dayStart = Timestamp.fromDate(startOfDay(selectedDate));
-        const dayEnd = Timestamp.fromDate(endOfDay(selectedDate));
+        const dayStart = Timestamp.fromDate(startOfDay(happeningDate));
+        const dayEnd = Timestamp.fromDate(endOfDay(happeningDate));
         
         const bookingsQuery = query(
           collection(db, 'bookings'),
@@ -291,7 +322,7 @@ export default function ActivityPage() {
     }
 
     loadTodayBookings();
-  }, [orgId, selectedDate]);
+  }, [orgId, happeningDate]);
 
   // Memoized filtering logic
   const filteredActivities = useMemo(() => {
@@ -529,7 +560,7 @@ export default function ActivityPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleNextDay}
-                disabled={isToday || isSearching}
+                disabled={isSearching}
                 className="w-10 h-10 p-0"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -660,10 +691,22 @@ export default function ActivityPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            This Week vs Last Week
-          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Compare Time Periods
+            </CardTitle>
+            <Select value={compareMode} onValueChange={(value: 'week' | 'month' | 'custom') => setCompareMode(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Week Comparison</SelectItem>
+                <SelectItem value="month">Month Comparison</SelectItem>
+                <SelectItem value="custom">Custom Ranges</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -671,42 +714,42 @@ export default function ActivityPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600">Bookings</span>
                 <div className="flex items-center gap-1">
-                  {getTrendIcon(thisWeekStats.bookings, lastWeekStats.bookings)}
-                  <span className={`text-xs font-medium ${getTrendColor(thisWeekStats.bookings, lastWeekStats.bookings)}`}>
-                    {getPercentageChange(thisWeekStats.bookings, lastWeekStats.bookings)}
+                  {getTrendIcon(range1Stats.bookings, range2Stats.bookings)}
+                  <span className={`text-xs font-medium ${getTrendColor(range1Stats.bookings, range2Stats.bookings)}`}>
+                    {getPercentageChange(range1Stats.bookings, range2Stats.bookings)}
                   </span>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{thisWeekStats.bookings}</div>
-              <div className="text-xs text-gray-500 mt-1">vs {lastWeekStats.bookings} last week</div>
+              <div className="text-2xl font-bold text-gray-900">{range1Stats.bookings}</div>
+              <div className="text-xs text-gray-500 mt-1">{range1Label} vs {range2Stats.bookings} ({range2Label})</div>
             </div>
 
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600">Cancellations</span>
                 <div className="flex items-center gap-1">
-                  {getTrendIcon(lastWeekStats.cancellations, thisWeekStats.cancellations)}
-                  <span className={`text-xs font-medium ${getTrendColor(lastWeekStats.cancellations, thisWeekStats.cancellations)}`}>
-                    {getPercentageChange(lastWeekStats.cancellations, thisWeekStats.cancellations)}
+                  {getTrendIcon(range2Stats.cancellations, range1Stats.cancellations)}
+                  <span className={`text-xs font-medium ${getTrendColor(range2Stats.cancellations, range1Stats.cancellations)}`}>
+                    {getPercentageChange(range2Stats.cancellations, range1Stats.cancellations)}
                   </span>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{thisWeekStats.cancellations}</div>
-              <div className="text-xs text-gray-500 mt-1">vs {lastWeekStats.cancellations} last week</div>
+              <div className="text-2xl font-bold text-gray-900">{range1Stats.cancellations}</div>
+              <div className="text-xs text-gray-500 mt-1">{range1Label} vs {range2Stats.cancellations} ({range2Label})</div>
             </div>
 
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600">Class Enrollments</span>
                 <div className="flex items-center gap-1">
-                  {getTrendIcon(thisWeekStats.enrollments, lastWeekStats.enrollments)}
-                  <span className={`text-xs font-medium ${getTrendColor(thisWeekStats.enrollments, lastWeekStats.enrollments)}`}>
-                    {getPercentageChange(thisWeekStats.enrollments, lastWeekStats.enrollments)}
+                  {getTrendIcon(range1Stats.enrollments, range2Stats.enrollments)}
+                  <span className={`text-xs font-medium ${getTrendColor(range1Stats.enrollments, range2Stats.enrollments)}`}>
+                    {getPercentageChange(range1Stats.enrollments, range2Stats.enrollments)}
                   </span>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{thisWeekStats.enrollments}</div>
-              <div className="text-xs text-gray-500 mt-1">vs {lastWeekStats.enrollments} last week</div>
+              <div className="text-2xl font-bold text-gray-900">{range1Stats.enrollments}</div>
+              <div className="text-xs text-gray-500 mt-1">{range1Label} vs {range2Stats.enrollments} ({range2Label})</div>
             </div>
 
             <div className="p-4 bg-gray-50 rounded-lg">
@@ -724,27 +767,65 @@ export default function ActivityPage() {
         </CardContent>
       </Card>
 
-      {isToday && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Happening Today
-              </CardTitle>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              What's Happening
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowHappeningToday(!showHappeningToday)}
+            >
+              {showHappeningToday ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+        {showHappeningToday && (
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={() => setShowHappeningToday(!showHappeningToday)}
+                onClick={() => setHappeningDate(prev => subDays(prev, 1))}
+                className="w-10 h-10 p-0"
               >
-                {showHappeningToday ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="flex-1 text-center">
+                <div className="text-lg font-semibold text-gray-900">
+                  {format(happeningDate, 'MMMM d, yyyy')}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {format(happeningDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') 
+                    ? 'Today' 
+                    : format(happeningDate, 'EEEE')}
+                </div>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setHappeningDate(prev => addDays(prev, 1))}
+                className="w-10 h-10 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </CardHeader>
-          {showHappeningToday && (
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Upcoming Classes (Next 3)</h3>
+            
+            {format(happeningDate, 'yyyy-MM-dd') !== format(new Date(), 'yyyy-MM-dd') && (
+              <div className="text-center">
+                <Button variant="ghost" size="sm" onClick={() => setHappeningDate(new Date())}>
+                  Jump to Today
+                </Button>
+              </div>
+            )}
+            
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Upcoming Classes (Next 3)</h3>
                 {upcomingClasses.length === 0 ? (
                   <p className="text-sm text-gray-500">No upcoming classes scheduled</p>
                 ) : (
@@ -784,9 +865,9 @@ export default function ActivityPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Today's Private Lessons</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Private Lessons on {format(happeningDate, 'MMM d')}</h3>
                 {todayBookings.length === 0 ? (
-                  <p className="text-sm text-gray-500">No private lessons scheduled today</p>
+                  <p className="text-sm text-gray-500">No private lessons scheduled for this day</p>
                 ) : (
                   <div className="p-3 bg-blue-50 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
@@ -801,9 +882,9 @@ export default function ActivityPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Trainers & Their Clients Today</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Trainers & Their Clients on {format(happeningDate, 'MMM d')}</h3>
                 {Object.keys(trainerSchedules).length === 0 ? (
-                  <p className="text-sm text-gray-500">No trainers scheduled today</p>
+                  <p className="text-sm text-gray-500">No trainers scheduled for this day</p>
                 ) : (
                   <div className="space-y-3">
                     {Object.entries(trainerSchedules).map(([trainerId, schedule]) => (
@@ -830,7 +911,6 @@ export default function ActivityPage() {
             </CardContent>
           )}
         </Card>
-      )}
 
       <Card>
         <CardHeader>
