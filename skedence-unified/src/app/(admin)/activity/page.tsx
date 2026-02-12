@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ActivityType } from '@/lib/activity-logger';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ActivityLog {
   id: string;
@@ -182,6 +183,95 @@ export default function ActivityPage() {
       range1Label: label1,
       range2Label: label2
     };
+  }, [activities, compareMode, customRange1Start, customRange1End, customRange2Start, customRange2End]);
+
+  // Memoized chart data for line graph
+  const comparisonChartData = useMemo(() => {
+    const now = new Date();
+    let r1Start: Date, r1End: Date, r2Start: Date, r2End: Date;
+    
+    if (compareMode === 'week') {
+      r1Start = startOfWeek(now);
+      r1End = endOfWeek(now);
+      r2Start = startOfWeek(addWeeks(now, -1));
+      r2End = endOfWeek(addWeeks(now, -1));
+    } else if (compareMode === 'month') {
+      r1Start = startOfMonth(now);
+      r1End = endOfMonth(now);
+      r2Start = startOfMonth(addMonths(now, -1));
+      r2End = endOfMonth(addMonths(now, -1));
+    } else {
+      r1Start = customRange1Start;
+      r1End = customRange1End;
+      r2Start = customRange2Start;
+      r2End = customRange2End;
+    }
+
+    // Generate day-by-day data for both ranges
+    const getDaysInRange = (start: Date, end: Date) => {
+      const days = [];
+      let current = new Date(start);
+      while (current <= end) {
+        days.push(new Date(current));
+        current = addDays(current, 1);
+      }
+      return days;
+    };
+
+    const range1Days = getDaysInRange(r1Start, r1End);
+    const range2Days = getDaysInRange(r2Start, r2End);
+    const maxDays = Math.max(range1Days.length, range2Days.length);
+
+    const chartData = [];
+    for (let i = 0; i < maxDays; i++) {
+      const day1 = range1Days[i];
+      const day2 = range2Days[i];
+      
+      let range1Bookings = 0;
+      let range1Cancellations = 0;
+      let range2Bookings = 0;
+      let range2Cancellations = 0;
+
+      if (day1) {
+        const dayStart = startOfDay(day1);
+        const dayEnd = endOfDay(day1);
+        const dayActivities = activities.filter(a => 
+          a.timestamp >= dayStart && a.timestamp <= dayEnd
+        );
+        range1Bookings = dayActivities.filter(a => 
+          a.type === 'lesson_booked' || a.type === 'booking_created'
+        ).length;
+        range1Cancellations = dayActivities.filter(a => 
+          a.type === 'lesson_canceled' || a.type === 'booking_canceled'
+        ).length;
+      }
+
+      if (day2) {
+        const dayStart = startOfDay(day2);
+        const dayEnd = endOfDay(day2);
+        const dayActivities = activities.filter(a => 
+          a.timestamp >= dayStart && a.timestamp <= dayEnd
+        );
+        range2Bookings = dayActivities.filter(a => 
+          a.type === 'lesson_booked' || a.type === 'booking_created'
+        ).length;
+        range2Cancellations = dayActivities.filter(a => 
+          a.type === 'lesson_canceled' || a.type === 'booking_canceled'
+        ).length;
+      }
+
+      chartData.push({
+        day: `Day ${i + 1}`,
+        date1: day1 ? format(day1, 'MMM d') : '',
+        date2: day2 ? format(day2, 'MMM d') : '',
+        range1Bookings,
+        range2Bookings,
+        range1Cancellations,
+        range2Cancellations
+      });
+    }
+
+    return chartData;
   }, [activities, compareMode, customRange1Start, customRange1End, customRange2Start, customRange2End]);
 
   // Load activities and static data
@@ -875,6 +965,89 @@ export default function ActivityPage() {
               <div className="text-2xl font-bold text-gray-900">{activities.length}</div>
               <div className="text-xs text-gray-500 mt-1">all-time activities</div>
             </div>
+          </div>
+
+          {/* Line Chart */}
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Activity Trends Comparison</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={comparisonChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="day" 
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 border rounded shadow-lg">
+                          <p className="font-semibold mb-2">{data.day}</p>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-blue-600">
+                              {range1Label} ({data.date1}): {data.range1Bookings} bookings
+                            </p>
+                            <p className="text-purple-600">
+                              {range2Label} ({data.date2}): {data.range2Bookings} bookings
+                            </p>
+                            <p className="text-red-600">
+                              {range1Label}: {data.range1Cancellations} cancellations
+                            </p>
+                            <p className="text-orange-600">
+                              {range2Label}: {data.range2Cancellations} cancellations
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="line"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="range1Bookings" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  name={`${range1Label} Bookings`}
+                  dot={{ r: 3 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="range2Bookings" 
+                  stroke="#a855f7" 
+                  strokeWidth={2}
+                  name={`${range2Label} Bookings`}
+                  dot={{ r: 3 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="range1Cancellations" 
+                  stroke="#ef4444" 
+                  strokeWidth={2}
+                  name={`${range1Label} Cancellations`}
+                  dot={{ r: 3 }}
+                  strokeDasharray="5 5"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="range2Cancellations" 
+                  stroke="#f97316" 
+                  strokeWidth={2}
+                  name={`${range2Label} Cancellations`}
+                  dot={{ r: 3 }}
+                  strokeDasharray="5 5"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
