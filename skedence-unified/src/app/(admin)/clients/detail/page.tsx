@@ -784,11 +784,7 @@ function ReceiptsTab({ receipts }: { receipts: Transaction[] }) {
 
 export default function ClientDetailPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    }>
+    <Suspense fallback={null}>
       <ClientDetailContent />
     </Suspense>
   );

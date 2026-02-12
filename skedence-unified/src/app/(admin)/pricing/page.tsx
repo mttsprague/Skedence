@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
+import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -408,7 +408,7 @@ export default function PricingPage() {
 
   if (loading) {
     return (
-      <SchedulingSubmenu>
+      <BusinessSettingsSubmenu>
         <div className="p-6 lg:p-8">
           <div className="flex items-center justify-center h-64">
           <div className="text-center">
@@ -417,12 +417,12 @@ export default function PricingPage() {
           </div>
           </div>
         </div>
-      </SchedulingSubmenu>
+      </BusinessSettingsSubmenu>
     );
   }
 
   return (
-    <SchedulingSubmenu>
+    <BusinessSettingsSubmenu>
       <div className="p-6 lg:p-8">
         <div className="space-y-6">
         <div>
@@ -557,6 +557,6 @@ export default function PricingPage() {
         </div>
         </div>
       </div>
-    </SchedulingSubmenu>
+    </BusinessSettingsSubmenu>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
+import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
@@ -256,16 +256,16 @@ export default function LocationsPage() {
 
   if (loading) {
     return (
-      <SchedulingSubmenu>
+      <BusinessSettingsSubmenu>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3258A3]"></div>
         </div>
-      </SchedulingSubmenu>
+      </BusinessSettingsSubmenu>
     );
   }
 
   return (
-    <SchedulingSubmenu>
+    <BusinessSettingsSubmenu>
       <div className="space-y-6 p-6 lg:p-8">
         {/* Header with subscription info */}
         <div className="flex items-start justify-between">
@@ -507,6 +507,6 @@ export default function LocationsPage() {
           </div>
         )}
       </div>
-    </SchedulingSubmenu>
+    </BusinessSettingsSubmenu>
   );
 }
