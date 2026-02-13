@@ -1,6 +1,8 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
+import { checkRateLimit, RATE_LIMITS } from "./rateLimiter";
+import { validateInput, paymentSchemas } from "./validation";
 
 const db = admin.firestore();
 
@@ -28,19 +30,33 @@ export const createPaymentIntentDirect = functions.https.onCall(
       );
     }
 
-    const {orgId, packageType, amount, trainerId, userId} = request.data;
+    // Validate and sanitize input
+    const validatedData = validateInput<CreatePaymentIntentDirectData>(
+      paymentSchemas.createPaymentIntent,
+      request.data
+    );
 
-    if (!orgId || !packageType || !amount || !trainerId || !userId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Missing required fields"
-      );
-    }
+    const {orgId, packageType, amount, trainerId, userId} = validatedData;
 
     if (request.auth.uid !== userId) {
       throw new functions.https.HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
+      );
+    }
+
+    // Rate limiting: 10 payment attempts per minute per user
+    const rateLimitKey = `payment_${request.auth.uid}`;
+    const allowed = await checkRateLimit(
+      rateLimitKey,
+      RATE_LIMITS.PAYMENT.maxRequests,
+      RATE_LIMITS.PAYMENT.windowSeconds
+    );
+
+    if (!allowed) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        "Too many payment attempts. Please try again in a minute."
       );
     }
 
@@ -253,6 +269,21 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       throw new functions.https.HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
+      );
+    }
+
+    // Rate limiting: 10 payment attempts per minute per user
+    const rateLimitKey = `payment_${request.auth.uid}`;
+    const allowed = await checkRateLimit(
+      rateLimitKey,
+      RATE_LIMITS.PAYMENT.maxRequests,
+      RATE_LIMITS.PAYMENT.windowSeconds
+    );
+
+    if (!allowed) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        "Too many payment attempts. Please try again in a minute."
       );
     }
 

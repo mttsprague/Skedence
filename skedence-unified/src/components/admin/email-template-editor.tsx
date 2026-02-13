@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Eye, RotateCcw, Save, Copy } from 'lucide-react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface EmailTemplate {
   subject: string;
@@ -317,7 +318,12 @@ export function EmailTemplateEditor({ orgId, templateType, templateName, onClose
                     <h3 className="text-sm font-semibold text-foreground mb-3">Preview (with sample data):</h3>
                     <div 
                       className="bg-white p-6 rounded border border-gray-200"
-                      dangerouslySetInnerHTML={{ __html: getPreviewBody() }}
+                      dangerouslySetInnerHTML={{ 
+                        __html: DOMPurify.sanitize(getPreviewBody(), {
+                          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'h1', 'h2', 'h3', 'h4', 'div', 'span', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'td', 'th'],
+                          ALLOWED_ATTR: ['href', 'style', 'class', 'target', 'rel']
+                        })
+                      }}
                     />
                   </div>
                 )}

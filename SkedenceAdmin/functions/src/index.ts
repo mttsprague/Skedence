@@ -9,6 +9,7 @@ import {
 } from "./quotas";
 import {ActivityTypes} from "./utils/activityTypes";
 import {getUserDisplayName, getTrainerDisplayName} from "./utils/activityLogger";
+import { checkRateLimit as rateLimitCheck, RATE_LIMITS } from "./rateLimiter";
 
 // Initialize Firebase Admin SDK once when the function container starts
 admin.initializeApp();
@@ -716,6 +717,21 @@ export const cancelLesson = functions.https.onCall(
       throw new functions.https.HttpsError(
         "invalid-argument",
         "Missing bookingId"
+      );
+    }
+
+    // Rate limiting: 10 cancellations per minute per user
+    const rateLimitKey = `cancelLesson_${userId}`;
+    const allowed = await rateLimitCheck(
+      rateLimitKey,
+      RATE_LIMITS.CANCEL_LESSON.maxRequests,
+      RATE_LIMITS.CANCEL_LESSON.windowSeconds
+    );
+
+    if (!allowed) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        "Too many cancellation attempts. Please try again in a minute."
       );
     }
 
