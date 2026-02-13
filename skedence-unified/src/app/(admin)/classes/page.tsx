@@ -6,7 +6,7 @@ import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye } from 'lucide-react';
+import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { Location } from '@/types/location';
 import { logClassCreated, logClassUpdated, logClassDeleted } from '@/lib/activity-logger';
@@ -45,6 +45,9 @@ interface Participant {
   lastName: string;
   registeredAt: Timestamp;
   classPassPackageId?: string;
+  email?: string;
+  phoneNumber?: string;
+  athleteNames?: string[];
 }
 
 interface PackageOption {
@@ -494,7 +497,50 @@ export default function ClassesPage() {
         ...doc.data(),
       })) as Participant[];
       
-      setParticipants(participantsData.sort((a, b) => 
+      // Fetch full user details for each participant
+      const enrichedParticipants = await Promise.all(
+        participantsData.map(async (participant) => {
+          try {
+            // Try both user collection paths (new and legacy)
+            let userDoc = await getDocs(query(
+              collection(db, 'users'),
+              where('__name__', '==', participant.userId)
+            ));
+            
+            if (!userDoc.empty) {
+              const userData = userDoc.docs[0].data();
+              return {
+                ...participant,
+                email: userData.email || userData.emailAddress,
+                phoneNumber: userData.phoneNumber || userData.phone,
+              };
+            }
+            
+            // If not found in users, try to get from booking data
+            const bookingsQuery = query(
+              collection(db, 'bookings'),
+              where('userId', '==', participant.userId),
+              where('classId', '==', cls.id)
+            );
+            const bookingsSnapshot = await getDocs(bookingsQuery);
+            
+            if (!bookingsSnapshot.empty) {
+              const bookingData = bookingsSnapshot.docs[0].data();
+              return {
+                ...participant,
+                athleteNames: bookingData.athleteNames || [],
+              };
+            }
+            
+            return participant;
+          } catch (error) {
+            console.error('Error fetching user details:', error);
+            return participant;
+          }
+        })
+      );
+      
+      setParticipants(enrichedParticipants.sort((a, b) => 
         b.registeredAt.seconds - a.registeredAt.seconds
       ));
     } catch (error) {
@@ -503,6 +549,75 @@ export default function ClassesPage() {
     } finally {
       setLoadingParticipants(false);
     }
+  };
+
+  const handleExportParticipants = () => {
+    if (!viewingParticipants || participants.length === 0) return;
+
+    // Prepare CSV content
+    const headers = [
+      'Class Name',
+      'Date',
+      'Time',
+      'Trainer',
+      'Location',
+      'Participant Name',
+      'Email',
+      'Phone Number',
+      'Athlete Names',
+      'Registered Date',
+      'Package Used'
+    ];
+
+    const rows = participants.map(participant => {
+      const athleteNames = participant.athleteNames?.join(', ') || 'N/A';
+      const packageInfo = participant.classPassPackageId ? 'Class Pass' : 'Direct Registration';
+      
+      return [
+        viewingParticipants.title,
+        format(viewingParticipants.startTime.toDate(), 'MMM d, yyyy'),
+        `${format(viewingParticipants.startTime.toDate(), 'h:mm a')} - ${format(viewingParticipants.endTime.toDate(), 'h:mm a')}`,
+        viewingParticipants.trainerName || getTrainerName(viewingParticipants.trainerId),
+        viewingParticipants.location || 'N/A',
+        `${participant.firstName} ${participant.lastName}`,
+        participant.email || 'N/A',
+        participant.phoneNumber || 'N/A',
+        athleteNames,
+        format(participant.registeredAt.toDate(), 'MMM d, yyyy h:mm a'),
+        packageInfo
+      ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        // Escape commas and quotes in cell content
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(','))
+    ].join('\n');
+
+    // Create and download the CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const fileName = `${viewingParticipants.title.replace(/[^a-z0-9]/gi, '_')}_Participants_${format(viewingParticipants.startTime.toDate(), 'yyyy-MM-dd')}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Show success notification
+    setNotification({ type: 'success', message: `Exported ${participants.length} participants to CSV` });
+    setTimeout(() => setNotification(null), 5000);
   };
 
   const resetForm = () => {
@@ -1132,23 +1247,36 @@ export default function ClassesPage() {
       {viewingParticipants && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-foreground">Class Participants</h2>
-                <p className="text-sm text-foreground/80 mt-1">{viewingParticipants.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {format(viewingParticipants.startTime.toDate(), 'EEE, MMM d, yyyy • h:mm a')}
-                </p>
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold text-foreground">Class Participants</h2>
+                  <p className="text-sm text-foreground/80 mt-1">{viewingParticipants.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {format(viewingParticipants.startTime.toDate(), 'EEE, MMM d, yyyy • h:mm a')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setViewingParticipants(null);
+                    setParticipants([]);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  setViewingParticipants(null);
-                  setParticipants([]);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              
+              {/* Export Button */}
+              {participants.length > 0 && (
+                <button
+                  onClick={handleExportParticipants}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors w-full justify-center"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Participants to CSV
+                </button>
+              )}
             </div>
 
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
@@ -1167,23 +1295,40 @@ export default function ClassesPage() {
                   {participants.map((participant, index) => (
                     <div
                       key={participant.id}
-                      className="flex items-center justify-between p-4 bg-background rounded-lg hover:bg-gray-100 transition-colors"
+                      className="p-4 bg-background rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
-                          {participant.firstName?.charAt(0)}{participant.lastName?.charAt(0)}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold flex-shrink-0">
+                            {participant.firstName?.charAt(0)}{participant.lastName?.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground">
+                              {participant.firstName} {participant.lastName}
+                            </p>
+                            {participant.email && (
+                              <p className="text-sm text-muted-foreground">
+                                📧 {participant.email}
+                              </p>
+                            )}
+                            {participant.phoneNumber && (
+                              <p className="text-sm text-muted-foreground">
+                                📱 {participant.phoneNumber}
+                              </p>
+                            )}
+                            {participant.athleteNames && participant.athleteNames.length > 0 && (
+                              <p className="text-sm text-muted-foreground">
+                                👥 Athletes: {participant.athleteNames.join(', ')}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Registered {format(participant.registeredAt.toDate(), 'MMM d, yyyy • h:mm a')}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {participant.firstName} {participant.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Registered {format(participant.registeredAt.toDate(), 'MMM d, yyyy • h:mm a')}
-                          </p>
+                        <div className="text-sm text-muted-foreground flex-shrink-0 ml-2">
+                          #{index + 1}
                         </div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        #{index + 1}
                       </div>
                     </div>
                   ))}
