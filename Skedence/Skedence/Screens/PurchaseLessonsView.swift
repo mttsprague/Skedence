@@ -26,6 +26,24 @@ struct PurchaseLessonsView: View {
 
     // Selected package option (now dynamic)
     @State private var selectedPackageIndex: Int = 0
+    
+    // Group packages by category for better organization
+    private func groupedPackages() -> [(category: PackageCategory, packages: [PackageOption])] {
+        let packages = pricingService.allPackageOptions
+        
+        // Group by category
+        let grouped = Dictionary(grouping: packages) { $0.packageCategory }
+        
+        // Sort categories: 1 athlete, 2 athlete, 3 athlete, 4 athlete, then class
+        let categoryOrder: [PackageCategory] = [.oneAthlete, .twoAthlete, .threeAthlete, .fourAthlete, .classPass]
+        
+        return categoryOrder.compactMap { category in
+            guard let categoryPackages = grouped[category], !categoryPackages.isEmpty else { return nil }
+            // Sort packages within category by lessonCount
+            let sorted = categoryPackages.sorted { $0.lessonCount < $1.lessonCount }
+            return (category, sorted)
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -69,22 +87,23 @@ struct PurchaseLessonsView: View {
                 .padding(.horizontal)
                 .padding(.top, 4)
 
-                // Package options (dynamically loaded)
+                // Package options (dynamically loaded and grouped by category)
                 if pricingService.isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding()
                 } else {
-                    let packages = pricingService.allPackageOptions
-                    if packages.isEmpty {
+                    let groupedPackageList = groupedPackages()
+                    if groupedPackageList.isEmpty {
                         Text("No packages available. Admin needs to set up pricing.")
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding()
                     } else {
-                        VStack(spacing: 14) {
-                            ForEach(packages.indices, id: \.self) { index in
-                                packageCard(package: packages[index], isSelected: selectedPackageIndex == index, index: index)
+                        VStack(spacing: 20) {
+                            ForEach(groupedPackageList.indices, id: \.self) { groupIndex in
+                                let group = groupedPackageList[groupIndex]
+                                packageGroupCard(category: group.category, packages: group.packages)
                             }
                         }
                         .padding(.horizontal)
@@ -216,7 +235,151 @@ struct PurchaseLessonsView: View {
         }
     }
 
-    // MARK: - Package Card (Dynamic)
+    // MARK: - Package Group Card (Groups packages by category)
+    
+    private func packageGroupCard(category: PackageCategory, packages: [PackageOption]) -> some View {
+        let gradientColor = category == .classPass ? AppTheme.secondary : AppTheme.primary
+        let icon = category == .classPass ? "person.3.fill" : "figure.run"
+        
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
+            // Category Header
+            HStack(spacing: Spacing.sm) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [gradientColor, gradientColor.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                
+                Text(category.displayName)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(AppTheme.textPrimary)
+                
+                Spacer()
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.top, Spacing.xs)
+            
+            // Package Options
+            VStack(spacing: Spacing.xs) {
+                ForEach(packages) { package in
+                    let allPackages = pricingService.allPackageOptions
+                    let globalIndex = allPackages.firstIndex(where: { $0.id == package.id }) ?? 0
+                    let isSelected = selectedPackageIndex == globalIndex
+                    
+                    packageOptionRow(package: package, isSelected: isSelected, gradientColor: gradientColor) {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedPackageIndex = globalIndex
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.bottom, Spacing.sm)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: CornerRadius.md, style: .continuous)
+                .fill(Color.platformBackground)
+                .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
+        )
+    }
+    
+    // MARK: - Package Option Row (Individual package within a group)
+    
+    private func packageOptionRow(package: PackageOption, isSelected: Bool, gradientColor: Color, onTap: @escaping () -> Void) -> some View {
+        Button(action: onTap) {
+            HStack(spacing: Spacing.md) {
+                // Lesson count badge
+                ZStack {
+                    Circle()
+                        .fill(gradientColor.opacity(0.1))
+                        .frame(width: 44, height: 44)
+                    
+                    VStack(spacing: 0) {
+                        Text("\(package.lessonCount)")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(gradientColor)
+                        Text(package.lessonCount == 1 ? "pass" : "passes")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundStyle(gradientColor.opacity(0.7))
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    if !package.title.isEmpty && package.title != package.packageCategory.displayName {
+                        Text(package.title)
+                            .font(.bodyMedium)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+                    
+                    if !package.description.isEmpty {
+                        Text(package.description)
+                            .font(.labelMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .lineLimit(2)
+                    }
+                    
+                    // Price and per-pass price
+                    HStack(spacing: Spacing.xs) {
+                        Text(package.formattedPrice)
+                            .font(.labelLarge)
+                            .fontWeight(.bold)
+                            .foregroundStyle(AppTheme.success)
+                        
+                        if package.lessonCount > 1 {
+                            let perPassPrice = Double(package.priceInCents) / Double(package.lessonCount) / 100.0
+                            Text("(\(String(format: "$%.2f", perPassPrice)) per pass)")
+                                .font(.labelSmall)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? gradientColor : Color.secondary.opacity(0.3), lineWidth: 2)
+                        .frame(width: 24, height: 24)
+                    if isSelected {
+                        Circle()
+                            .fill(gradientColor)
+                            .frame(width: 18, height: 18)
+                            .overlay(
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                            )
+                    }
+                }
+            }
+            .padding(.vertical, Spacing.sm)
+            .padding(.horizontal, Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.sm, style: .continuous)
+                    .fill(isSelected ? gradientColor.opacity(0.05) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.sm, style: .continuous)
+                    .stroke(isSelected ? gradientColor.opacity(0.3) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    // MARK: - Package Card (Dynamic - Legacy, kept for backward compatibility)
 
     private func packageCard(package: PackageOption, isSelected: Bool, index: Int) -> some View {
         let gradientColor = package.packageCategory == .classPass ? AppTheme.secondary : AppTheme.primary
