@@ -264,11 +264,12 @@ export default function BookingsPage() {
 
   return (
     <SchedulingSubmenu>
-      <div className="space-y-4 sm:space-y-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Create Booking</h1>
-          <p className="text-sm sm:text-base text-foreground/80 mt-1 sm:mt-2">Book sessions for clients</p>
-        </div>
+      <div className="p-6 lg:p-8">
+        <div className="space-y-4 sm:space-y-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Create Booking</h1>
+            <p className="text-sm sm:text-base text-foreground/80 mt-1 sm:mt-2">Book sessions for clients</p>
+          </div>
 
         {loading ? (
           <div className="text-center py-12">
@@ -492,6 +493,7 @@ export default function BookingsPage() {
             </Card>
           </div>
         )}
+        </div>
       </div>
     </SchedulingSubmenu>
   );
