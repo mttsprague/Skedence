@@ -19,6 +19,12 @@ struct ClassesTabView: View {
     @Binding var classToEdit: GroupClass?
     @Binding var isCreatingClass: Bool
     
+    // Filter to only show upcoming classes in management view
+    private var upcomingClasses: [GroupClass] {
+        let now = Date()
+        return classesService.classes.filter { $0.startTime >= now }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             // Header
@@ -29,7 +35,7 @@ struct ClassesTabView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(AppTheme.textPrimary)
                     
-                    Text("\(classesService.classes.count) active classes")
+                    Text("\(upcomingClasses.count) upcoming classes")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -61,14 +67,14 @@ struct ClassesTabView: View {
             if classesService.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if classesService.classes.isEmpty {
+            } else if upcomingClasses.isEmpty {
                 VStack(spacing: Spacing.lg) {
                     Image(systemName: "calendar.badge.plus")
                         .font(.system(size: 60))
                         .foregroundStyle(AppTheme.textTertiary)
                     
                     VStack(spacing: Spacing.xs) {
-                        Text("No Classes Yet")
+                        Text("No Upcoming Classes")
                             .font(.headingMedium)
                             .foregroundStyle(AppTheme.textPrimary)
                         
@@ -98,7 +104,7 @@ struct ClassesTabView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: Spacing.md) {
-                        ForEach(classesService.classes) { classItem in
+                        ForEach(upcomingClasses) { classItem in
                             AdminClassCard(
                                 classItem: classItem,
                                 onTap: {
