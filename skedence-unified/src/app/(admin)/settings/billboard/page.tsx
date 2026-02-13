@@ -86,11 +86,11 @@ export default function BillboardPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Megaphone className="h-8 w-8 text-[#3258A3]" />
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              <Megaphone className="h-8 w-8 text-primary" />
               Billboard
             </h1>
-            <p className="text-gray-600 mt-2">Display announcements on the client app home screen</p>
+            <p className="text-foreground/80 mt-2">Display announcements on the client app home screen</p>
           </div>
         </div>
 
@@ -104,7 +104,7 @@ export default function BillboardPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
           <Card>
@@ -122,18 +122,18 @@ export default function BillboardPage() {
                     type="checkbox"
                     checked={settings.enabled}
                     onChange={(e) => updateSetting({ enabled: e.target.checked })}
-                    className="w-5 h-5 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                    className="w-5 h-5 text-primary border-input rounded focus:ring-ring"
                   />
-                  <span className="text-sm font-medium text-gray-700">Display Billboard to Clients</span>
+                  <span className="text-sm font-medium text-foreground">Display Billboard to Clients</span>
                 </label>
-                <p className="text-sm text-gray-500 mt-2 ml-8">
+                <p className="text-sm text-muted-foreground mt-2 ml-8">
                   When enabled, your message will appear prominently on the home screen
                 </p>
               </div>
 
               {/* Message Input */}
               <div>
-                <label htmlFor="billboard-message" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="billboard-message" className="block text-sm font-medium text-foreground mb-2">
                   Billboard Message
                 </label>
                 <textarea
@@ -143,13 +143,13 @@ export default function BillboardPage() {
                   placeholder="Enter your announcement here... (e.g., 'Holiday Hours: Closed Dec 24-26. Happy Holidays!')"
                   rows={6}
                   maxLength={500}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
                 />
                 <div className="flex items-center justify-between mt-2">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Keep it concise and actionable for best engagement
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     {settings.message.length} / 500
                   </p>
                 </div>
@@ -158,21 +158,21 @@ export default function BillboardPage() {
               {/* Preview */}
               {settings.enabled && settings.message && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Preview
                   </label>
-                  <div className="bg-gradient-to-r from-[#3258A3]/10 to-[#3258A3]/5 border-l-4 border-[#3258A3] rounded-lg p-4">
+                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-l-4 border-primary rounded-lg p-4">
                     <div className="flex gap-3">
-                      <Megaphone className="h-5 w-5 text-[#3258A3] flex-shrink-0 mt-0.5" />
+                      <Megaphone className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-sm mb-1">Announcement</h3>
-                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                        <h3 className="font-semibold text-foreground text-sm mb-1">Announcement</h3>
+                        <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
                           {settings.message}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-muted-foreground mt-2">
                     This is how your message will appear to clients
                   </p>
                 </div>
@@ -185,8 +185,8 @@ export default function BillboardPage() {
                   disabled={saving || !hasChanges}
                   className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-colors ${
                     hasChanges && !saving
-                      ? 'bg-[#3258A3] text-white hover:bg-[#2a4a8a]'
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      ? 'bg-primary text-white hover:bg-primary/90'
+                      : 'bg-gray-200 text-muted-foreground cursor-not-allowed'
                   }`}
                 >
                   {saving ? (
@@ -222,7 +222,7 @@ export default function BillboardPage() {
                 )}
 
                 {hasChanges && saveStatus === 'idle' && (
-                  <span className="text-sm text-gray-500">You have unsaved changes</span>
+                  <span className="text-sm text-muted-foreground">You have unsaved changes</span>
                 )}
               </div>
             </CardContent>

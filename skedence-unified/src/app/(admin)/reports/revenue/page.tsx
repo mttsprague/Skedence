@@ -551,7 +551,7 @@ export default function RevenuePage() {
     return (
       <div className="p-6 lg:p-8">
         <div className="text-center py-12">
-          <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     );
@@ -561,14 +561,14 @@ export default function RevenuePage() {
     <div className="p-6 lg:p-8">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             {dateRange === 'all' 
               ? 'Revenue Report - All Time (Past)' 
               : `Revenue Report - ${format(parseISO(`${dateRange}-01`), 'MMMM yyyy')}`
             }
           </h1>
-          <p className="text-gray-600 mt-2">
-            Total Revenue: <span className="font-bold text-[#3258A3] text-xl">${totalRevenue.toFixed(2)}</span>
+          <p className="text-foreground/80 mt-2">
+            Total Revenue: <span className="font-bold text-primary text-xl">${totalRevenue.toFixed(2)}</span>
           </p>
         </div>
 
@@ -576,7 +576,7 @@ export default function RevenuePage() {
         <Card>
           <CardContent className="pt-6">
             <div className="mb-4 flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-foreground">
                 Chart Filter:
               </label>
               <div className="flex gap-2">
@@ -584,8 +584,8 @@ export default function RevenuePage() {
                   onClick={() => setChartFilter('all')}
                   className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
                     chartFilter === 'all'
-                      ? 'bg-[#3258A3] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
                   }`}
                 >
                   All
@@ -594,8 +594,8 @@ export default function RevenuePage() {
                   onClick={() => setChartFilter('paid')}
                   className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
                     chartFilter === 'paid'
-                      ? 'bg-[#3258A3] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
                   }`}
                 >
                   Paid
@@ -604,8 +604,8 @@ export default function RevenuePage() {
                   onClick={() => setChartFilter('adminAdded')}
                   className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
                     chartFilter === 'adminAdded'
-                      ? 'bg-[#3258A3] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
                   }`}
                 >
                   Admin Added
@@ -614,8 +614,8 @@ export default function RevenuePage() {
                   onClick={() => setChartFilter('none')}
                   className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
                     chartFilter === 'none'
-                      ? 'bg-[#3258A3] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
                   }`}
                 >
                   None
@@ -686,13 +686,13 @@ export default function RevenuePage() {
           <CardContent className="pt-6">
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Date range:
                 </label>
                 <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                 >
                   {monthOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -713,7 +713,7 @@ export default function RevenuePage() {
             <div className="mt-4 text-right">
               <button
                 onClick={exportToSpreadsheet}
-                className="text-[#3258A3] hover:underline text-sm font-medium flex items-center gap-2 ml-auto"
+                className="text-primary hover:underline text-sm font-medium flex items-center gap-2 ml-auto"
               >
                 <Download className="h-4 w-4" />
                 Export to spreadsheet
@@ -731,7 +731,7 @@ export default function RevenuePage() {
                   <tr className="border-b border-gray-200">
                     <th 
                       onClick={() => handleSort('packageType')}
-                      className="text-left py-3 px-4 font-semibold text-gray-900 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
                     >
                       <div className="flex items-center gap-2">
                         Package Type
@@ -740,7 +740,7 @@ export default function RevenuePage() {
                     </th>
                     <th 
                       onClick={() => handleSort('count')}
-                      className="text-right py-3 px-4 font-semibold text-gray-900 cursor-pointer hover:bg-gray-50"
+                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
                     >
                       <div className="flex items-center justify-end gap-2">
                         Count
@@ -749,7 +749,7 @@ export default function RevenuePage() {
                     </th>
                     <th 
                       onClick={() => handleSort('paidCount')}
-                      className="text-right py-3 px-4 font-semibold text-gray-900 cursor-pointer hover:bg-gray-50"
+                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
                     >
                       <div className="flex items-center justify-end gap-2">
                         Paid
@@ -758,7 +758,7 @@ export default function RevenuePage() {
                     </th>
                     <th 
                       onClick={() => handleSort('adminAddedCount')}
-                      className="text-right py-3 px-4 font-semibold text-gray-900 cursor-pointer hover:bg-gray-50"
+                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
                     >
                       <div className="flex items-center justify-end gap-2">
                         Admin Added
@@ -767,7 +767,7 @@ export default function RevenuePage() {
                     </th>
                     <th 
                       onClick={() => handleSort('totalRevenue')}
-                      className="text-right py-3 px-4 font-semibold text-gray-900 cursor-pointer hover:bg-gray-50"
+                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
                     >
                       <div className="flex items-center justify-end gap-2">
                         Total Revenue
@@ -778,20 +778,20 @@ export default function RevenuePage() {
                 </thead>
                 <tbody>
                   {getSortedTableData().map((row, index) => (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-gray-900">{row.packageType}</td>
-                      <td className="py-3 px-4 text-right text-gray-900">{row.count}</td>
-                      <td className="py-3 px-4 text-right text-gray-900">{row.paidCount}</td>
-                      <td className="py-3 px-4 text-right text-gray-900">{row.adminAddedCount}</td>
-                      <td className="py-3 px-4 text-right text-gray-900">${row.totalRevenue.toFixed(2)}</td>
+                    <tr key={index} className="border-b border-gray-100 hover:bg-background">
+                      <td className="py-3 px-4 text-foreground">{row.packageType}</td>
+                      <td className="py-3 px-4 text-right text-foreground">{row.count}</td>
+                      <td className="py-3 px-4 text-right text-foreground">{row.paidCount}</td>
+                      <td className="py-3 px-4 text-right text-foreground">{row.adminAddedCount}</td>
+                      <td className="py-3 px-4 text-right text-foreground">${row.totalRevenue.toFixed(2)}</td>
                     </tr>
                   ))}
-                  <tr className="border-t-2 border-gray-300 font-semibold bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900">Total</td>
-                    <td className="py-3 px-4 text-right text-gray-900">{totalCount}</td>
-                    <td className="py-3 px-4 text-right text-gray-900">{totalPaidCount}</td>
-                    <td className="py-3 px-4 text-right text-gray-900">{totalAdminAddedCount}</td>
-                    <td className="py-3 px-4 text-right text-gray-900">${totalRevenue.toFixed(2)}</td>
+                  <tr className="border-t-2 border-input font-semibold bg-background">
+                    <td className="py-3 px-4 text-foreground">Total</td>
+                    <td className="py-3 px-4 text-right text-foreground">{totalCount}</td>
+                    <td className="py-3 px-4 text-right text-foreground">{totalPaidCount}</td>
+                    <td className="py-3 px-4 text-right text-foreground">{totalAdminAddedCount}</td>
+                    <td className="py-3 px-4 text-right text-foreground">${totalRevenue.toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -800,7 +800,7 @@ export default function RevenuePage() {
             <div className="mt-4 text-center">
               <button 
                 onClick={() => setShowDetailedList(!showDetailedList)}
-                className="text-sm text-gray-600 hover:text-gray-900 font-medium inline-flex items-center gap-2"
+                className="text-sm text-foreground/80 hover:text-foreground font-medium inline-flex items-center gap-2"
               >
                 View Past Appointments
                 {showDetailedList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -816,11 +816,11 @@ export default function RevenuePage() {
               {/* Filter and Export */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <label className="text-sm font-medium text-gray-700">Filter by:</label>
+                  <label className="text-sm font-medium text-foreground">Filter by:</label>
                   <select
                     value={detailPaymentFilter}
                     onChange={(e) => setDetailPaymentFilter(e.target.value as 'all' | 'pass' | 'direct')}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                   >
                     <option value="all">All Payments</option>
                     <option value="pass">Paid via Pass</option>
@@ -830,7 +830,7 @@ export default function RevenuePage() {
 
                 <button
                   onClick={exportDetailedAppointments}
-                  className="px-4 py-2 bg-[#3258A3] text-white rounded-md hover:bg-[#2a4a8a] transition-colors font-medium inline-flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors font-medium inline-flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
                   Export CSV
@@ -841,41 +841,41 @@ export default function RevenuePage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Date & Time</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Client</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Trainer</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Type</th>
-                      <th className="text-center py-3 px-4 font-semibold text-gray-900">Status</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-900">Cost</th>
-                      <th className="text-center py-3 px-4 font-semibold text-gray-900">Paid Via Pass</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-900">Package</th>
+                    <tr className="border-b border-gray-200 bg-background">
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Date & Time</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Client</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Trainer</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Type</th>
+                      <th className="text-center py-3 px-4 font-semibold text-foreground">Status</th>
+                      <th className="text-right py-3 px-4 font-semibold text-foreground">Cost</th>
+                      <th className="text-center py-3 px-4 font-semibold text-foreground">Paid Via Pass</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Package</th>
                     </tr>
                   </thead>
                   <tbody>
                     {getFilteredDetailedAppointments().length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-8 text-gray-500">
+                        <td colSpan={8} className="text-center py-8 text-muted-foreground">
                           No appointments found matching the selected filter.
                         </td>
                       </tr>
                     ) : (
                       getFilteredDetailedAppointments().map(apt => (
-                        <tr key={apt.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <tr key={apt.id} className="border-b border-gray-100 hover:bg-background">
                           <td className="py-3 px-4">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-foreground">
                               {format(apt.date, 'MMM d, yyyy')}
                             </div>
-                            <div className="text-xs text-gray-600">
+                            <div className="text-xs text-foreground/80">
                               {format(apt.date, 'h:mm a')}
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <div className="text-sm font-medium text-gray-900">{apt.clientName}</div>
-                            <div className="text-xs text-gray-600">{apt.clientEmail}</div>
+                            <div className="text-sm font-medium text-foreground">{apt.clientName}</div>
+                            <div className="text-xs text-foreground/80">{apt.clientEmail}</div>
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-900">{apt.trainerName}</td>
-                          <td className="py-3 px-4 text-sm text-gray-900">{apt.type}</td>
+                          <td className="py-3 px-4 text-sm text-foreground">{apt.trainerName}</td>
+                          <td className="py-3 px-4 text-sm text-foreground">{apt.type}</td>
                           <td className="py-3 px-4 text-center">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               apt.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
@@ -885,7 +885,7 @@ export default function RevenuePage() {
                               {apt.status}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right text-sm font-medium text-gray-900">
+                          <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
                             ${apt.cost.toFixed(2)}
                           </td>
                           <td className="py-3 px-4 text-center">
@@ -895,7 +895,7 @@ export default function RevenuePage() {
                               {apt.paidViaPass ? 'Yes' : 'No'}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-900">
+                          <td className="py-3 px-4 text-sm text-foreground">
                             {apt.packageType || '-'}
                           </td>
                         </tr>
@@ -907,7 +907,7 @@ export default function RevenuePage() {
 
               {getFilteredDetailedAppointments().length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-foreground/80">
                     Showing {getFilteredDetailedAppointments().length} of {appointments.length} appointments
                   </div>
                 </div>

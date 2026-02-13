@@ -189,7 +189,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
         <div className="text-center mb-8">
           <a href="/" className="text-3xl font-bold text-blue-600">Skedence</a>
@@ -198,7 +198,7 @@ export default function RegisterPage() {
             {step === 2 && "Tell Us About Your Business"}
             {step === 3 && "You're All Set!"}
           </h2>
-          <p className="text-gray-600 mt-2">
+          <p className="text-foreground/80 mt-2">
             {step === 1 && "Start your 14-day free trial"}
             {step === 2 && "Just a few more details"}
             {step === 3 && "Welcome to Skedence"}
@@ -208,8 +208,8 @@ export default function RegisterPage() {
         {/* Progress indicator */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-xs text-gray-500">Step {step} of 3</span>
-            <span className="text-xs text-gray-500">{Math.round((step / 3) * 100)}%</span>
+            <span className="text-xs text-muted-foreground">Step {step} of 3</span>
+            <span className="text-xs text-muted-foreground">{Math.round((step / 3) * 100)}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
@@ -223,7 +223,7 @@ export default function RegisterPage() {
         {step === 1 && (
           <form onSubmit={handleStep1} className="space-y-4">
             <div>
-              <label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="businessName" className="block text-sm font-medium text-foreground mb-1">
                 Business Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -232,14 +232,14 @@ export default function RegisterPage() {
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Elite Training Studio"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="firstName" className="block text-sm font-medium text-foreground mb-1">
                   First Name
                 </label>
                 <input
@@ -248,12 +248,12 @@ export default function RegisterPage() {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="John"
                 />
               </div>
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="lastName" className="block text-sm font-medium text-foreground mb-1">
                   Last Name
                 </label>
                 <input
@@ -262,14 +262,14 @@ export default function RegisterPage() {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Doe"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
                 Email
               </label>
               <input
@@ -278,13 +278,13 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
                 Password
               </label>
               <input
@@ -294,13 +294,13 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Min 6 characters"
               />
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-1">
                 Confirm Password
               </label>
               <input
@@ -310,21 +310,21 @@ export default function RegisterPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Re-enter password"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="timezone" className="block text-sm font-medium text-foreground mb-1">
                   Timezone
                 </label>
                 <select
                   id="timezone"
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="America/New_York">Eastern (ET)</option>
                   <option value="America/Chicago">Central (CT)</option>
@@ -333,14 +333,14 @@ export default function RegisterPage() {
                 </select>
               </div>
               <div>
-                <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="currency" className="block text-sm font-medium text-foreground mb-1">
                   Currency
                 </label>
                 <select
                   id="currency"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="USD">USD ($)</option>
                   <option value="CAD">CAD ($)</option>
@@ -367,12 +367,12 @@ export default function RegisterPage() {
           <form onSubmit={handleStep2} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
             <div className="space-y-4">
               <div className="border-b pb-3">
-                <h3 className="font-semibold text-gray-900 mb-1">Contact Information</h3>
-                <p className="text-xs text-gray-500">Help clients reach you</p>
+                <h3 className="font-semibold text-foreground mb-1">Contact Information</h3>
+                <p className="text-xs text-muted-foreground">Help clients reach you</p>
               </div>
 
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-1">
                   Business Phone <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -381,13 +381,13 @@ export default function RegisterPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="(555) 123-4567"
                 />
               </div>
 
               <div>
-                <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="contactEmail" className="block text-sm font-medium text-foreground mb-1">
                   Contact Email <span className="text-gray-400 text-xs">(optional)</span>
                 </label>
                 <input
@@ -395,13 +395,13 @@ export default function RegisterPage() {
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="contact@yourbusiness.com"
                 />
               </div>
 
               <div>
-                <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="website" className="block text-sm font-medium text-foreground mb-1">
                   Website <span className="text-gray-400 text-xs">(optional)</span>
                 </label>
                 <input
@@ -409,18 +409,18 @@ export default function RegisterPage() {
                   type="url"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="https://yourbusiness.com"
                 />
               </div>
 
               <div className="border-b pb-3 mt-6">
-                <h3 className="font-semibold text-gray-900 mb-1">Business Address</h3>
-                <p className="text-xs text-gray-500">Optional - shown to clients when booking</p>
+                <h3 className="font-semibold text-foreground mb-1">Business Address</h3>
+                <p className="text-xs text-muted-foreground">Optional - shown to clients when booking</p>
               </div>
 
               <div>
-                <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="addressLine1" className="block text-sm font-medium text-foreground mb-1">
                   Address Line 1
                 </label>
                 <input
@@ -428,13 +428,13 @@ export default function RegisterPage() {
                   type="text"
                   value={addressLine1}
                   onChange={(e) => setAddressLine1(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="123 Main Street"
                 />
               </div>
 
               <div>
-                <label htmlFor="addressLine2" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="addressLine2" className="block text-sm font-medium text-foreground mb-1">
                   Address Line 2 <span className="text-gray-400 text-xs">(optional)</span>
                 </label>
                 <input
@@ -442,13 +442,13 @@ export default function RegisterPage() {
                   type="text"
                   value={addressLine2}
                   onChange={(e) => setAddressLine2(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Suite 100"
                 />
               </div>
 
               <div>
-                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="city" className="block text-sm font-medium text-foreground mb-1">
                   City
                 </label>
                 <input
@@ -456,14 +456,14 @@ export default function RegisterPage() {
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="New York"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="state" className="block text-sm font-medium text-foreground mb-1">
                     State
                   </label>
                   <input
@@ -471,12 +471,12 @@ export default function RegisterPage() {
                     type="text"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="NY"
                   />
                 </div>
                 <div>
-                  <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="zipCode" className="block text-sm font-medium text-foreground mb-1">
                     ZIP Code
                   </label>
                   <input
@@ -484,7 +484,7 @@ export default function RegisterPage() {
                     type="text"
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="10001"
                   />
                 </div>
@@ -525,14 +525,14 @@ export default function RegisterPage() {
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
                     Download the Skedence Admin App
                   </h3>
-                  <p className="text-gray-600 text-sm mb-4">
+                  <p className="text-foreground/80 text-sm mb-4">
                     Manage your business on the go with our mobile app. View your schedule, check client details, and get real-time notifications—all from your phone.
                   </p>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-700">Available on:</p>
+                    <p className="text-sm font-medium text-foreground">Available on:</p>
                     <div className="flex gap-3">
                       <a 
                         href="https://apps.apple.com" 
@@ -551,7 +551,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div className="text-center text-sm text-gray-600">
+            <div className="text-center text-sm text-foreground/80">
               <p>You can download the app later from your account settings</p>
             </div>
 
@@ -563,7 +563,7 @@ export default function RegisterPage() {
 
         {/* Footer link to login */}
         {step === 1 && (
-          <div className="mt-6 text-center text-sm text-gray-600">
+          <div className="mt-6 text-center text-sm text-foreground/80">
             Already have an account?{" "}
             <a href="/login" className="text-blue-600 hover:text-blue-700 font-medium hover:underline">
               Sign in

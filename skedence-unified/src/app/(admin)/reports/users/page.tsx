@@ -260,11 +260,11 @@ export default function UsersPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">User Sign-ups</h1>
-          <p className="text-gray-600 mt-1">Track new client registrations</p>
+          <p className="text-foreground/80 mt-1">Track new client registrations</p>
         </div>
         <button
           onClick={exportToCSV}
-          className="flex items-center gap-2 px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#2a4a8a] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
         >
           <Download className="h-4 w-4" />
           Export CSV
@@ -276,13 +276,13 @@ export default function UsersPage() {
         <CardContent className="pt-6">
           <div className="flex gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Date Range
               </label>
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                className="px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 {monthOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -299,7 +299,7 @@ export default function UsersPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-600">Total Sign-ups</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground/80">Total Sign-ups</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{users.length}</div>
@@ -308,7 +308,7 @@ export default function UsersPage() {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-600">Total Athletes</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground/80">Total Athletes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
@@ -319,7 +319,7 @@ export default function UsersPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-600">Avg Athletes per User</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground/80">Avg Athletes per User</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
@@ -348,14 +348,14 @@ export default function UsersPage() {
                 <Line 
                   type="monotone" 
                   dataKey="signups" 
-                  stroke="#3258A3" 
+                  stroke="hsl(var(--primary))" 
                   strokeWidth={2}
                   name="New Sign-ups"
                 />
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground">
               No sign-up data available
             </div>
           )}
@@ -375,7 +375,7 @@ export default function UsersPage() {
                   <th className="text-left py-3 px-4">
                     <button
                       onClick={() => handleSort('name')}
-                      className="flex items-center gap-2 font-semibold hover:text-[#3258A3]"
+                      className="flex items-center gap-2 font-semibold hover:text-primary"
                     >
                       Name
                       <ArrowUpDown className="h-4 w-4" />
@@ -384,7 +384,7 @@ export default function UsersPage() {
                   <th className="text-left py-3 px-4">
                     <button
                       onClick={() => handleSort('email')}
-                      className="flex items-center gap-2 font-semibold hover:text-[#3258A3]"
+                      className="flex items-center gap-2 font-semibold hover:text-primary"
                     >
                       Email
                       <ArrowUpDown className="h-4 w-4" />
@@ -394,7 +394,7 @@ export default function UsersPage() {
                   <th className="text-left py-3 px-4">
                     <button
                       onClick={() => handleSort('athletes')}
-                      className="flex items-center gap-2 font-semibold hover:text-[#3258A3]"
+                      className="flex items-center gap-2 font-semibold hover:text-primary"
                     >
                       Athletes
                       <ArrowUpDown className="h-4 w-4" />
@@ -403,7 +403,7 @@ export default function UsersPage() {
                   <th className="text-left py-3 px-4">
                     <button
                       onClick={() => handleSort('createdAt')}
-                      className="flex items-center gap-2 font-semibold hover:text-[#3258A3]"
+                      className="flex items-center gap-2 font-semibold hover:text-primary"
                     >
                       Sign Up Date
                       <ArrowUpDown className="h-4 w-4" />
@@ -413,12 +413,12 @@ export default function UsersPage() {
               </thead>
               <tbody>
                 {sortedUsers.map((user) => (
-                  <tr key={user.id} className="border-b hover:bg-gray-50">
+                  <tr key={user.id} className="border-b hover:bg-background">
                     <td className="py-3 px-4">
                       {user.firstName} {user.lastName}
                     </td>
-                    <td className="py-3 px-4 text-gray-600">{user.email}</td>
-                    <td className="py-3 px-4 text-gray-600">{user.phoneNumber || '-'}</td>
+                    <td className="py-3 px-4 text-foreground/80">{user.email}</td>
+                    <td className="py-3 px-4 text-foreground/80">{user.phoneNumber || '-'}</td>
                     <td className="py-3 px-4">
                       {user.athletes && user.athletes.length > 0 ? (
                         <div className="text-sm">
@@ -432,7 +432,7 @@ export default function UsersPage() {
                         <span className="text-gray-400">No athletes</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-gray-600">
+                    <td className="py-3 px-4 text-foreground/80">
                       {format(user.createdAt, 'MMM d, yyyy')}
                     </td>
                   </tr>

@@ -166,18 +166,18 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
   const days = currentMonth ? getDaysInMonth(currentMonth) : [];
 
   if (!isMounted || !currentMonth) {
-    return <div className="flex h-screen bg-gray-50 items-center justify-center"><div className="text-gray-500">Loading...</div></div>;
+    return <div className="flex h-screen bg-background items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>;
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       {/* Left Sidebar */}
-      <div className="w-64 bg-[#3258A3] text-white border-r border-white/10 flex flex-col overflow-y-auto">
+      <div className="w-80 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col overflow-y-auto scrollbar-premium shadow-premium-lg">
         {/* Back to Activity Feed */}
-        <div className="p-4 border-b border-white/10">
+        <div className="p-6 border-b border-sidebar-border">
           <Link
             href="/activity"
-            className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
+            className="flex items-center gap-2.5 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-all duration-200 font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Activity Feed</span>
@@ -185,34 +185,34 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
         </div>
         
         {/* Mini Calendar */}
-        <div className="p-4 border-b border-white/10">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white">
+        <div className="p-6 border-b border-sidebar-border">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-sidebar-foreground tracking-tight">
               {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
             </h3>
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               <button
                 onClick={() => navigateMonth('prev')}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
+                className="p-1.5 hover:bg-sidebar-accent/50 rounded-lg transition-all duration-200 active:scale-95"
                 aria-label="Previous month"
               >
-                <ChevronLeft className="h-4 w-4 text-white/70" />
+                <ChevronLeft className="h-4 w-4 text-sidebar-foreground/60" />
               </button>
               <button
                 onClick={() => navigateMonth('next')}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
+                className="p-1.5 hover:bg-sidebar-accent/50 rounded-lg transition-all duration-200 active:scale-95"
                 aria-label="Next month"
               >
-                <ChevronRight className="h-4 w-4 text-white/70" />
+                <ChevronRight className="h-4 w-4 text-sidebar-foreground/60" />
               </button>
             </div>
           </div>
 
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-1.5">
             {/* Day headers */}
             {dayAbbrevs.map((day, index) => (
-              <div key={`day-header-${index}`} className="text-xs text-center text-white/50 font-medium pb-1">
+              <div key={`day-header-${index}`} className="text-xs text-center text-sidebar-foreground/40 font-semibold pb-1.5 tracking-wider">
                 {day}
               </div>
             ))}
@@ -233,17 +233,17 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
                   key={index}
                   onClick={() => handleDayClick(date)}
                   className={cn(
-                    'relative aspect-square text-xs flex items-center justify-center rounded transition-colors',
-                    'hover:bg-white/10',
-                    today && 'bg-white text-[#3258A3] font-bold',
-                    !today && selected && 'bg-white/30 text-white hover:bg-white/40 font-semibold',
-                    !today && !selected && 'text-white/80'
+                    'relative aspect-square text-xs flex items-center justify-center rounded-lg transition-all duration-200',
+                    'hover:bg-sidebar-accent/50',
+                    today && 'bg-sidebar-foreground text-sidebar font-bold shadow-premium',
+                    !today && selected && 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent font-semibold',
+                    !today && !selected && 'text-sidebar-foreground/70 hover:text-sidebar-foreground'
                   )}
                 >
                   {date.getDate()}
-                  {/* Booking indicator - white circle */}
+                  {/* Booking indicator - elegant dot */}
                   {hasBooking && !today && (
-                    <div className="absolute bottom-0.5 w-1 h-1 bg-white rounded-full" />
+                    <div className="absolute bottom-1 w-1.5 h-1.5 bg-sidebar-foreground/60 rounded-full" />
                   )}
                 </button>
               );
@@ -252,8 +252,8 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 p-3">
-          <div className="space-y-1">
+        <nav className="flex-1 p-4">
+          <div className="space-y-1.5">
             {submenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -263,10 +263,10 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium',
+                    'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm font-medium',
                     isActive
-                      ? 'bg-white/20 text-white shadow-lg'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      ? 'bg-sidebar-accent text-sidebar-foreground shadow-premium'
+                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground active:scale-[0.98]'
                   )}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />

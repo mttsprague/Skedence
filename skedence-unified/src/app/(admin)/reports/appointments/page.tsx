@@ -547,7 +547,7 @@ export default function AppointmentsPage() {
     return (
       <div className="p-6 lg:p-8">
         <div className="text-center py-12">
-          <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     );
@@ -557,7 +557,7 @@ export default function AppointmentsPage() {
     <div className="p-6 lg:p-8">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             {dateRange === 'all' 
               ? 'Report for All Time (Past)' 
               : `Report for ${format(parseISO(`${dateRange}-01`), 'MMMM yyyy')}`
@@ -619,13 +619,13 @@ export default function AppointmentsPage() {
           <CardContent className="pt-6">
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Date range:
                 </label>
                 <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                 >
                   {monthOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -636,13 +636,13 @@ export default function AppointmentsPage() {
               </div>
 
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Calendar:
                 </label>
                 <select
                   value={trainerFilter}
                   onChange={(e) => setTrainerFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                 >
                   <option value="all">All</option>
                   {trainers.map(trainer => (
@@ -654,13 +654,13 @@ export default function AppointmentsPage() {
               </div>
 
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Show:
                 </label>
                 <select
                   value={showFilter}
                   onChange={(e) => setShowFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                 >
                   <option value="all">All scheduled appointments</option>
                   <option value="scheduled">Scheduled only</option>
@@ -680,7 +680,7 @@ export default function AppointmentsPage() {
             <div className="mt-4 text-right">
               <button
                 onClick={exportToSpreadsheet}
-                className="text-sm text-[#3258A3] hover:text-[#2a4a8a] font-medium inline-flex items-center gap-2"
+                className="text-sm text-primary hover:text-primary/90 font-medium inline-flex items-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 Want to Export to a spreadsheet?
@@ -697,7 +697,7 @@ export default function AppointmentsPage() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th 
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-4 font-medium text-foreground cursor-pointer hover:bg-background"
                       onClick={() => handleSort('type')}
                     >
                       <div className="flex items-center gap-2">
@@ -706,7 +706,7 @@ export default function AppointmentsPage() {
                       </div>
                     </th>
                     <th 
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-4 font-medium text-foreground cursor-pointer hover:bg-background"
                       onClick={() => handleSort('cost')}
                     >
                       <div className="flex items-center gap-2">
@@ -715,7 +715,7 @@ export default function AppointmentsPage() {
                       </div>
                     </th>
                     <th 
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-4 font-medium text-foreground cursor-pointer hover:bg-background"
                       onClick={() => handleSort('quantity')}
                     >
                       <div className="flex items-center gap-2">
@@ -724,7 +724,7 @@ export default function AppointmentsPage() {
                       </div>
                     </th>
                     <th 
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-4 font-medium text-foreground cursor-pointer hover:bg-background"
                       onClick={() => handleSort('total')}
                     >
                       <div className="flex items-center gap-2">
@@ -733,7 +733,7 @@ export default function AppointmentsPage() {
                       </div>
                     </th>
                     <th 
-                      className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-4 font-medium text-foreground cursor-pointer hover:bg-background"
                       onClick={() => handleSort('totalHours')}
                     >
                       <div className="flex items-center gap-2">
@@ -745,7 +745,7 @@ export default function AppointmentsPage() {
                 </thead>
                 <tbody>
                   {getSortedTableData().map((row, index) => (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                    <tr key={index} className="border-b border-gray-100 hover:bg-background">
                       <td className="py-3 px-4">{row.type}</td>
                       <td className="py-3 px-4">${row.cost.toFixed(2)}</td>
                       <td className="py-3 px-4">{row.quantity}</td>
@@ -753,7 +753,7 @@ export default function AppointmentsPage() {
                       <td className="py-3 px-4">{row.totalHours.toFixed(3)}</td>
                     </tr>
                   ))}
-                  <tr className="border-t-2 border-gray-300 font-semibold bg-gray-50">
+                  <tr className="border-t-2 border-input font-semibold bg-background">
                     <td className="py-3 px-4">Total:</td>
                     <td className="py-3 px-4"></td>
                     <td className="py-3 px-4">{totalQuantity}</td>
@@ -767,7 +767,7 @@ export default function AppointmentsPage() {
             <div className="mt-4 text-center">
               <button 
                 onClick={() => setShowDetailedList(!showDetailedList)}
-                className="text-sm text-gray-600 hover:text-gray-900 font-medium inline-flex items-center gap-2"
+                className="text-sm text-foreground/80 hover:text-foreground font-medium inline-flex items-center gap-2"
               >
                 View Appointments
                 {showDetailedList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -786,13 +786,13 @@ export default function AppointmentsPage() {
               {/* Filters for detailed view */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Client
                   </label>
                   <select
                     value={detailClientFilter}
                     onChange={(e) => setDetailClientFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                   >
                     <option value="all">All Clients</option>
                     {clients.map(client => (
@@ -804,13 +804,13 @@ export default function AppointmentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Trainer
                   </label>
                   <select
                     value={detailTrainerFilter}
                     onChange={(e) => setDetailTrainerFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                   >
                     <option value="all">All Trainers</option>
                     {trainers.map(trainer => (
@@ -822,13 +822,13 @@ export default function AppointmentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Month
                   </label>
                   <select
                     value={detailMonthFilter}
                     onChange={(e) => setDetailMonthFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                   >
                     <option value="all">All Months</option>
                     {monthOptions.map(option => (
@@ -840,13 +840,13 @@ export default function AppointmentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Status
                   </label>
                   <select
                     value={detailStatusFilter}
                     onChange={(e) => setDetailStatusFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                   >
                     <option value="all">All Statuses</option>
                     <option value="scheduled">Scheduled</option>
@@ -856,13 +856,13 @@ export default function AppointmentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Type
                   </label>
                   <select
                     value={detailTypeFilter}
                     onChange={(e) => setDetailTypeFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
                   >
                     <option value="all">All Types</option>
                     {appointmentTypes.map(type => (
@@ -876,7 +876,7 @@ export default function AppointmentsPage() {
                 <div className="flex items-end">
                   <button
                     onClick={exportDetailedAppointments}
-                    className="w-full px-4 py-2 bg-[#3258A3] text-white rounded-md hover:bg-[#2a4a8a] transition-colors font-medium inline-flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors font-medium inline-flex items-center justify-center gap-2"
                   >
                     <Download className="h-4 w-4" />
                     Export CSV
@@ -887,7 +887,7 @@ export default function AppointmentsPage() {
               {/* Appointments List */}
               <div className="space-y-2 max-h-[600px] overflow-y-auto">
                 {getFilteredDetailedAppointments().length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-muted-foreground">
                     No appointments found matching the selected filters.
                   </div>
                 ) : (
@@ -898,33 +898,33 @@ export default function AppointmentsPage() {
                     return (
                       <div
                         key={apt.id}
-                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                        className="border border-gray-200 rounded-lg p-4 hover:bg-background transition-colors"
                       >
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Date & Time</div>
+                            <div className="text-xs text-muted-foreground mb-1">Date & Time</div>
                             <div className="font-medium text-sm">
                               {format(apt.startTime, 'MMM d, yyyy')}
                             </div>
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-foreground/80">
                               {format(apt.startTime, 'h:mm a')} - {format(apt.endTime, 'h:mm a')}
                             </div>
                           </div>
 
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Client</div>
+                            <div className="text-xs text-muted-foreground mb-1">Client</div>
                             <div className="font-medium text-sm">{apt.clientName || 'Unknown'}</div>
-                            <div className="text-xs text-gray-600">{apt.clientEmail}</div>
+                            <div className="text-xs text-foreground/80">{apt.clientEmail}</div>
                           </div>
 
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Trainer</div>
+                            <div className="text-xs text-muted-foreground mb-1">Trainer</div>
                             <div className="font-medium text-sm">{trainerName}</div>
-                            <div className="text-xs text-gray-600">{apt.type}</div>
+                            <div className="text-xs text-foreground/80">{apt.type}</div>
                           </div>
 
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Details</div>
+                            <div className="text-xs text-muted-foreground mb-1">Details</div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={`px-2 py-1 rounded text-xs font-medium ${
                                 apt.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
@@ -934,7 +934,7 @@ export default function AppointmentsPage() {
                                 {apt.status}
                               </span>
                               <span className="text-sm font-medium">${apt.cost.toFixed(2)}</span>
-                              <span className="text-xs text-gray-600">
+                              <span className="text-xs text-foreground/80">
                                 {apt.duration.toFixed(1)}h
                               </span>
                             </div>
@@ -948,7 +948,7 @@ export default function AppointmentsPage() {
 
               {getFilteredDetailedAppointments().length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-foreground/80">
                     Showing {getFilteredDetailedAppointments().length} of {appointments.length} appointments
                   </div>
                 </div>

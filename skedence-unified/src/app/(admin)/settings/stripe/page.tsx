@@ -107,7 +107,7 @@ export default function StripeSettingsPage() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <p className="text-gray-600">Only organization owners can manage Stripe settings.</p>
+            <p className="text-foreground/80">Only organization owners can manage Stripe settings.</p>
           </div>
         </div>
       </BusinessSettingsSubmenu>
@@ -119,8 +119,8 @@ export default function StripeSettingsPage() {
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Stripe Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your Stripe API keys to accept payments</p>
+          <h1 className="text-3xl font-bold text-foreground">Stripe Settings</h1>
+          <p className="text-foreground/80 mt-1">Manage your Stripe API keys to accept payments</p>
         </div>
 
         {/* Status Card */}
@@ -149,33 +149,33 @@ export default function StripeSettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ol className="space-y-3 text-sm text-gray-700">
+            <ol className="space-y-3 text-sm text-foreground">
               <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3258A3] text-white flex items-center justify-center text-xs font-semibold">1</span>
-                <span>Open <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer" className="text-[#3258A3] hover:underline inline-flex items-center gap-1">dashboard.stripe.com <ExternalLink className="h-3 w-3" /></a> in a new tab</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">1</span>
+                <span>Open <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">dashboard.stripe.com <ExternalLink className="h-3 w-3" /></a> in a new tab</span>
               </li>
               <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3258A3] text-white flex items-center justify-center text-xs font-semibold">2</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">2</span>
                 <span>Sign in to your Stripe account</span>
               </li>
               <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3258A3] text-white flex items-center justify-center text-xs font-semibold">3</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">3</span>
                 <span>Toggle OFF "Test mode" in the top right corner</span>
               </li>
               <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3258A3] text-white flex items-center justify-center text-xs font-semibold">4</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">4</span>
                 <span>Click "Developers" in the left sidebar</span>
               </li>
               <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3258A3] text-white flex items-center justify-center text-xs font-semibold">5</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">5</span>
                 <span>Click "API keys" from the menu</span>
               </li>
               <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3258A3] text-white flex items-center justify-center text-xs font-semibold">6</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">6</span>
                 <span>Copy your "Publishable key" (starts with pk_live_...)</span>
               </li>
               <li className="flex gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3258A3] text-white flex items-center justify-center text-xs font-semibold">7</span>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">7</span>
                 <span>Reveal and copy your "Secret key" (starts with sk_live_...)</span>
               </li>
             </ol>
@@ -226,10 +226,10 @@ export default function StripeSettingsPage() {
                 value={publishableKey}
                 onChange={(e) => setPublishableKey(e.target.value)}
                 placeholder="pk_live_..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent font-mono text-sm"
+                className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent font-mono text-sm"
                 disabled={isSaving || isLoading}
               />
-              <p className="text-xs text-gray-500">Starts with pk_live_</p>
+              <p className="text-xs text-muted-foreground">Starts with pk_live_</p>
             </div>
 
             <div className="space-y-2">
@@ -240,10 +240,10 @@ export default function StripeSettingsPage() {
                 value={secretKey}
                 onChange={(e) => setSecretKey(e.target.value)}
                 placeholder={hasExistingKeys ? "sk_****...(configured)" : "sk_live_..."}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent font-mono text-sm"
+                className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent font-mono text-sm"
                 disabled={isSaving || isLoading}
               />
-              <p className="text-xs text-gray-500">Starts with sk_live_ (kept secure, never shown)</p>
+              <p className="text-xs text-muted-foreground">Starts with sk_live_ (kept secure, never shown)</p>
             </div>
 
             <Button
@@ -257,9 +257,9 @@ export default function StripeSettingsPage() {
         </Card>
 
         {/* Security Note */}
-        <Card className="border-gray-200 bg-gray-50">
+        <Card className="border-gray-200 bg-background">
           <CardContent className="pt-6">
-            <div className="text-sm text-gray-700 space-y-2">
+            <div className="text-sm text-foreground space-y-2">
               <p className="font-semibold">🔒 Security</p>
               <p>
                 Your secret key is encrypted and stored securely in Firebase. It's only used server-side 

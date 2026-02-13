@@ -362,8 +362,8 @@ export default function PassesPage() {
         <div className="p-6 lg:p-8">
           <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading passes...</p>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-foreground/80">Loading passes...</p>
           </div>
           </div>
         </div>
@@ -376,8 +376,8 @@ export default function PassesPage() {
       <div className="p-6 lg:p-8">
         <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Manage Passes</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-foreground">Manage Passes</h1>
+          <p className="text-foreground/80 mt-1">
             {action === 'add' ? 'Add lesson passes to client accounts' : 'Remove lesson passes from client accounts'}
           </p>
         </div>
@@ -392,14 +392,14 @@ export default function PassesPage() {
           <CardContent className="pt-6 space-y-6">
             {/* Client Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Select Client</label>
+              <label className="text-sm font-medium text-foreground">Select Client</label>
               <select
                 value={selectedClient?.id || ''}
                 onChange={(e) => {
                   const client = clients.find(c => c.id === e.target.value);
                   setSelectedClient(client || null);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
               >
                 <option value="">Choose a client</option>
                 {clients.map(client => (
@@ -414,14 +414,14 @@ export default function PassesPage() {
 
             {/* Pass Type Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Pass Type</label>
+              <label className="text-sm font-medium text-foreground">Pass Type</label>
               <select
                 value={selectedPackage?.id || ''}
                 onChange={(e) => {
                   const pkg = packages.find(p => p.id === e.target.value);
                   setSelectedPackage(pkg || null);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                 disabled={packages.length === 0}
               >
                 <option value="">Select a pass type</option>
@@ -440,14 +440,14 @@ export default function PassesPage() {
 
             {/* Action Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Action</label>
+              <label className="text-sm font-medium text-foreground">Action</label>
               <div className="flex gap-2">
                 <button
                   onClick={() => setAction('add')}
                   className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
                     action === 'add'
-                      ? 'bg-[#3258A3] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
                   }`}
                 >
                   Add Passes
@@ -456,8 +456,8 @@ export default function PassesPage() {
                   onClick={() => setAction('remove')}
                   className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
                     action === 'remove'
-                      ? 'bg-[#3258A3] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
                   }`}
                 >
                   Remove Passes
@@ -469,7 +469,7 @@ export default function PassesPage() {
 
             {/* Quantity */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Number of Passes</label>
+              <label className="text-sm font-medium text-foreground">Number of Passes</label>
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -479,8 +479,8 @@ export default function PassesPage() {
                   <Minus className="h-4 w-4" />
                 </button>
                 <div className="flex-1 text-center">
-                  <span className="text-2xl font-bold text-[#3258A3]">{quantity}</span>
-                  <span className="text-gray-600 ml-2">pass{quantity === 1 ? '' : 'es'}</span>
+                  <span className="text-2xl font-bold text-primary">{quantity}</span>
+                  <span className="text-foreground/80 ml-2">pass{quantity === 1 ? '' : 'es'}</span>
                 </div>
                 <button
                   onClick={() => setQuantity(Math.min(100, quantity + 1))}
@@ -496,7 +496,7 @@ export default function PassesPage() {
             <Button
               onClick={handleSubmit}
               disabled={!selectedClient || !selectedPackage || submitting}
-              className="w-full bg-[#3258A3] hover:bg-[#2a4a8a] text-white py-6 text-lg"
+              className="w-full bg-primary hover:bg-primary/90 text-white py-6 text-lg"
             >
               {submitting ? (
                 <>
@@ -525,21 +525,21 @@ export default function PassesPage() {
             <CardContent>
               <div className="space-y-3">
                 {clientPackages.map(pkg => (
-                  <div key={pkg.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div key={pkg.id} className="flex items-center justify-between p-4 bg-background rounded-lg">
                     <div>
-                      <h4 className="font-medium text-gray-900">{pkg.packageName || pkg.packageType}</h4>
-                      <p className="text-sm text-gray-600">
+                      <h4 className="font-medium text-foreground">{pkg.packageName || pkg.packageType}</h4>
+                      <p className="text-sm text-foreground/80">
                         {pkg.remainingLessons || 0} of {pkg.totalLessons} remaining
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         Expires: {pkg.expirationDate?.toDate?.()?.toLocaleDateString() || 'N/A'}
                       </p>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-[#3258A3]">
+                      <div className="text-2xl font-bold text-primary">
                         {pkg.remainingLessons || 0}
                       </div>
-                      <div className="text-xs text-gray-500">passes left</div>
+                      <div className="text-xs text-muted-foreground">passes left</div>
                     </div>
                   </div>
                 ))}

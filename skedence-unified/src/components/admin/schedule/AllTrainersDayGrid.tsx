@@ -158,7 +158,7 @@ export function AllTrainersDayGrid({
   const isToday = format(new Date(), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-background">
       {/* Header with controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-white border-b gap-3">
         <div className="flex items-center gap-4">
@@ -199,10 +199,10 @@ export function AllTrainersDayGrid({
             key={trainer.id}
             className="flex-1 min-w-[100px] text-center py-3 px-2 border-l"
           >
-            <div className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
+            <div className="text-xs sm:text-sm font-semibold text-foreground truncate">
               {trainer.firstName}
             </div>
-            <div className="text-[10px] sm:text-xs text-gray-600 truncate">
+            <div className="text-[10px] sm:text-xs text-foreground/80 truncate">
               {trainer.lastName}
             </div>
           </div>
@@ -217,7 +217,7 @@ export function AllTrainersDayGrid({
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="h-14 flex items-center justify-center text-[10px] sm:text-xs text-gray-600 border-b"
+                className="h-14 flex items-center justify-center text-[10px] sm:text-xs text-foreground/80 border-b"
               >
                 {formatHour(hour)}
               </div>
@@ -239,7 +239,7 @@ export function AllTrainersDayGrid({
                     <div
                       key={hour}
                       className={`h-14 border-b relative ${
-                        !hasEvents ? 'cursor-pointer hover:bg-gray-50' : ''
+                        !hasEvents ? 'cursor-pointer hover:bg-background' : ''
                       }`}
                       onClick={() => !hasEvents && onAddAvailability(trainer.id, selectedDate, hour)}
                       ref={isToday && hour === getHours(new Date()) ? currentTimeRef : null}
@@ -255,14 +255,14 @@ export function AllTrainersDayGrid({
                           className={`absolute inset-x-1 rounded cursor-pointer transition-colors ${
                             slot.status === 'open'
                               ? 'bg-gray-200 hover:bg-gray-300'
-                              : 'bg-gray-400 hover:bg-gray-500'
+                              : 'bg-gray-400 hover:bg-background0'
                           }`}
                           style={{
                             top: '2px',
                             bottom: '2px',
                           }}
                         >
-                          <div className="text-[9px] sm:text-[10px] text-gray-700 font-medium text-center py-1 truncate px-1">
+                          <div className="text-[9px] sm:text-[10px] text-foreground font-medium text-center py-1 truncate px-1">
                             {slot.status === 'open' ? 'Open' : 'Unavailable'}
                           </div>
                         </div>

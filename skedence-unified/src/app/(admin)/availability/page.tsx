@@ -187,13 +187,13 @@ export default function AvailabilityPage() {
     <>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Availability Management</h1>
-          <p className="text-gray-600 mt-2">Set trainer availability and time slots</p>
+          <h1 className="text-3xl font-bold text-foreground">Availability Management</h1>
+          <p className="text-foreground/80 mt-2">Set trainer availability and time slots</p>
         </div>
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -201,7 +201,7 @@ export default function AvailabilityPage() {
             <Card className="lg:col-span-1">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-[#3258A3]" />
+                  <User className="h-5 w-5 text-primary" />
                   Select Trainer
                 </CardTitle>
               </CardHeader>
@@ -209,7 +209,7 @@ export default function AvailabilityPage() {
                 <select
                   value={selectedTrainer}
                   onChange={(e) => setSelectedTrainer(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                 >
                   {trainers.map(trainer => (
                     <option key={trainer.id} value={trainer.id}>
@@ -219,59 +219,59 @@ export default function AvailabilityPage() {
                 </select>
 
                 {selectedTrainerData && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-900">
+                  <div className="mt-4 p-4 bg-background rounded-lg">
+                    <p className="text-sm font-medium text-foreground">
                       {selectedTrainerData.firstName} {selectedTrainerData.lastName}
                     </p>
                     {selectedTrainerData.email && (
-                      <p className="text-sm text-gray-600 mt-1">{selectedTrainerData.email}</p>
+                      <p className="text-sm text-foreground/80 mt-1">{selectedTrainerData.email}</p>
                     )}
                   </div>
                 )}
 
                 {/* Add New Slot Form */}
                 <div className="mt-6 space-y-4">
-                  <h3 className="font-semibold text-gray-900">Add Availability</h3>
+                  <h3 className="font-semibold text-foreground">Add Availability</h3>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Start Date</label>
                     <input
                       type="date"
                       value={newSlot.startDate}
                       onChange={(e) => setNewSlot({ ...newSlot, startDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
+                      <label className="block text-sm font-medium text-foreground mb-1">Start</label>
                       <input
                         type="time"
                         value={newSlot.startTime}
                         onChange={(e) => setNewSlot({ ...newSlot, startTime: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
+                      <label className="block text-sm font-medium text-foreground mb-1">End</label>
                       <input
                         type="time"
                         value={newSlot.endTime}
                         onChange={(e) => setNewSlot({ ...newSlot, endTime: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Location</label>
                     <input
                       type="text"
                       value={newSlot.location}
                       onChange={(e) => setNewSlot({ ...newSlot, location: e.target.value })}
                       placeholder="Optional"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
@@ -282,29 +282,29 @@ export default function AvailabilityPage() {
                         type="checkbox"
                         checked={newSlot.recurring}
                         onChange={(e) => setNewSlot({ ...newSlot, recurring: e.target.checked })}
-                        className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                        className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
                       />
-                      <span className="text-sm font-medium text-gray-700">Recurring Schedule</span>
+                      <span className="text-sm font-medium text-foreground">Recurring Schedule</span>
                     </label>
 
                     {newSlot.recurring && (
                       <>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                          <label className="block text-sm font-medium text-foreground mb-1">End Date</label>
                           <input
                             type="date"
                             value={newSlot.endDate}
                             onChange={(e) => setNewSlot({ ...newSlot, endDate: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                            className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Repeat Pattern</label>
+                          <label className="block text-sm font-medium text-foreground mb-1">Repeat Pattern</label>
                           <select
                             value={newSlot.recurringType}
                             onChange={(e) => setNewSlot({ ...newSlot, recurringType: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                            className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                           >
                             <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
@@ -313,7 +313,7 @@ export default function AvailabilityPage() {
 
                         {newSlot.recurringType === 'weekly' && (
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
+                            <label className="block text-sm font-medium text-foreground mb-2">Days of Week</label>
                             <div className="flex flex-wrap gap-2">
                               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
                                 <label key={day} className="flex items-center gap-1 cursor-pointer">
@@ -327,9 +327,9 @@ export default function AvailabilityPage() {
                                         setNewSlot({ ...newSlot, daysOfWeek: newSlot.daysOfWeek.filter(d => d !== index) });
                                       }
                                     }}
-                                    className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                                    className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
                                   />
-                                  <span className="text-sm text-gray-700">{day}</span>
+                                  <span className="text-sm text-foreground">{day}</span>
                                 </label>
                               ))}
                             </div>
@@ -342,7 +342,7 @@ export default function AvailabilityPage() {
                   <button
                     onClick={handleAddSlot}
                     disabled={adding}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] disabled:opacity-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
                   >
                     {adding ? (
                       <>
@@ -364,7 +364,7 @@ export default function AvailabilityPage() {
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-[#3258A3]" />
+                  <Calendar className="h-5 w-5 text-primary" />
                   Availability Slots
                 </CardTitle>
               </CardHeader>
@@ -372,7 +372,7 @@ export default function AvailabilityPage() {
                 {slots.length === 0 ? (
                   <div className="text-center py-12">
                     <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No availability slots set</p>
+                    <p className="text-muted-foreground">No availability slots set</p>
                     <p className="text-sm text-gray-400 mt-1">Add slots using the form on the left</p>
                   </div>
                 ) : (
@@ -384,24 +384,24 @@ export default function AvailabilityPage() {
                           slot.status === 'booked'
                             ? 'bg-red-50 border-red-200'
                             : slot.status === 'unavailable'
-                            ? 'bg-gray-50 border-gray-200'
-                            : 'bg-white border-gray-200 hover:border-[#3258A3]'
+                            ? 'bg-background border-gray-200'
+                            : 'bg-white border-gray-200 hover:border-primary'
                         } transition-colors`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                            <div className="flex items-center gap-2 text-sm text-foreground/80 mb-1">
                               <Calendar className="h-4 w-4" />
                               <span>{format(slot.startTime.toDate(), 'EEE, MMM d, yyyy')}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-900 font-medium">
+                            <div className="flex items-center gap-2 text-sm text-foreground font-medium">
                               <Clock className="h-4 w-4" />
                               <span>
                                 {format(slot.startTime.toDate(), 'h:mm a')} - {format(slot.endTime.toDate(), 'h:mm a')}
                               </span>
                             </div>
                             {slot.location && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                              <div className="flex items-center gap-2 text-sm text-foreground/80 mt-1">
                                 <MapPin className="h-4 w-4" />
                                 <span>{slot.location}</span>
                               </div>
@@ -412,7 +412,7 @@ export default function AvailabilityPage() {
                               </span>
                             )}
                             {slot.status === 'unavailable' && (
-                              <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded">
+                              <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-foreground text-xs font-medium rounded">
                                 Unavailable
                               </span>
                             )}

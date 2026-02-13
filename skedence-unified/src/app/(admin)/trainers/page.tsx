@@ -287,12 +287,12 @@ export default function TrainersPage() {
         <div className="space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Trainers</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage trainers and view their schedules</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Trainers</h1>
+            <p className="text-sm sm:text-base text-foreground/80 mt-1 sm:mt-2">Manage trainers and view their schedules</p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#274785] transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-[#274785] transition-colors font-medium"
           >
             <Plus className="h-4 w-4" />
             Add Trainer
@@ -307,7 +307,7 @@ export default function TrainersPage() {
             placeholder="Search trainers by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent touch-manipulation text-base"
+            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation text-base"
           />
         </div>
 
@@ -317,8 +317,8 @@ export default function TrainersPage() {
             onClick={() => setActiveTab('active')}
             className={`px-4 py-2 font-medium transition-colors relative ${
               activeTab === 'active'
-                ? 'text-[#3258A3] border-b-2 border-[#3258A3]'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Active ({trainers.filter(t => t.isActive).length})
@@ -327,8 +327,8 @@ export default function TrainersPage() {
             onClick={() => setActiveTab('inactive')}
             className={`px-4 py-2 font-medium transition-colors relative ${
               activeTab === 'inactive'
-                ? 'text-[#3258A3] border-b-2 border-[#3258A3]'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Inactive ({trainers.filter(t => !t.isActive).length})
@@ -337,11 +337,11 @@ export default function TrainersPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : filteredTrainers.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg border">
-            <p className="text-gray-500">
+            <p className="text-muted-foreground">
               {searchQuery 
                 ? `No ${activeTab} trainers found matching your search.` 
                 : `No ${activeTab} trainers yet.`}
@@ -361,17 +361,17 @@ export default function TrainersPage() {
                       {trainer.firstName?.[0]}{trainer.lastName?.[0]}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">
+                      <h3 className="text-lg font-semibold text-foreground truncate">
                         {trainer.firstName} {trainer.lastName}
                       </h3>
                       {(trainer.email || trainer.emailAddress) && (
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
+                        <div className="flex items-center text-sm text-foreground/80 mt-1">
                           <Mail className="h-4 w-4 mr-1.5 flex-shrink-0" />
                           <span className="truncate">{trainer.email || trainer.emailAddress}</span>
                         </div>
                       )}
                       {trainer.phone && (
-                        <div className="flex items-center text-sm text-gray-600 mt-1">
+                        <div className="flex items-center text-sm text-foreground/80 mt-1">
                           <Phone className="h-4 w-4 mr-1.5 flex-shrink-0" />
                           <span>{trainer.phone}</span>
                         </div>
@@ -386,7 +386,7 @@ export default function TrainersPage() {
                           ) : (
                             <>
                               <XCircle className="h-4 w-4 mr-1.5 text-gray-400" />
-                              <span className="text-gray-500">Inactive</span>
+                              <span className="text-muted-foreground">Inactive</span>
                             </>
                           )}
                         </div>
@@ -403,7 +403,7 @@ export default function TrainersPage() {
                           <button
                             onClick={() => handleReactivateTrainer(trainer.id)}
                             disabled={reactivatingId === trainer.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-[#3258A3] text-white rounded-lg hover:bg-[#274785] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-[#274785] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
                             {reactivatingId === trainer.id ? 'Reactivating...' : 'Reactivate'}
@@ -420,21 +420,21 @@ export default function TrainersPage() {
 
         {/* Stats Summary */}
         <div className="bg-white rounded-lg border p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Summary</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-4">Summary</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Total Trainers</p>
+              <p className="text-sm text-foreground/80">Total Trainers</p>
               <p className="text-2xl font-bold text-teal-600 mt-1">{trainers.length}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Active</p>
+              <p className="text-sm text-foreground/80">Active</p>
               <p className="text-2xl font-bold text-green-600 mt-1">
                 {trainers.filter(t => t.isActive).length}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Inactive</p>
-              <p className="text-2xl font-bold text-gray-500 mt-1">
+              <p className="text-sm text-foreground/80">Inactive</p>
+              <p className="text-2xl font-bold text-muted-foreground mt-1">
                 {trainers.filter(t => !t.isActive).length}
               </p>
             </div>
@@ -448,7 +448,7 @@ export default function TrainersPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">Add New Trainer</h2>
+              <h2 className="text-xl font-bold text-foreground">Add New Trainer</h2>
               <button
                 onClick={() => {
                   setShowAddModal(false);
@@ -457,43 +457,43 @@ export default function TrainersPage() {
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <X className="h-5 w-5 text-gray-500" />
+                <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   First Name
                 </label>
                 <input
                   type="text"
                   value={newTrainer.firstName}
                   onChange={(e) => setNewTrainer({ ...newTrainer, firstName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   placeholder="John"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Last Name
                 </label>
                 <input
                   type="text"
                   value={newTrainer.lastName}
                   onChange={(e) => setNewTrainer({ ...newTrainer, lastName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   placeholder="Doe"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Email
                 </label>
                 <input
                   type="email"
                   value={newTrainer.email}
                   onChange={(e) => setNewTrainer({ ...newTrainer, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   placeholder="john@example.com"
                 />
               </div>
@@ -502,18 +502,18 @@ export default function TrainersPage() {
                   {addError}
                 </div>
               )}
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted-foreground">
                 The trainer will receive an email with instructions to set up their password and access the app.
               </div>
             </div>
-            <div className="flex gap-3 p-6 border-t bg-gray-50">
+            <div className="flex gap-3 p-6 border-t bg-background">
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   setNewTrainer({ firstName: '', lastName: '', email: '' });
                   setAddError(null);
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                className="flex-1 px-4 py-2 border border-input rounded-lg hover:bg-gray-100 transition-colors font-medium"
                 disabled={isAdding}
               >
                 Cancel
@@ -521,7 +521,7 @@ export default function TrainersPage() {
               <button
                 onClick={handleAddTrainer}
                 disabled={isAdding || !newTrainer.firstName || !newTrainer.lastName || !newTrainer.email}
-                className="flex-1 px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#274785] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-[#274785] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAdding ? 'Adding...' : 'Add Trainer'}
               </button>

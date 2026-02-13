@@ -83,14 +83,14 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Header with Hamburger */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-16 px-4 bg-[#3258A3] text-white border-b border-white/10">
-        <h1 className="text-xl font-bold">Skedence</h1>
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-16 px-6 bg-primary text-primary-foreground border-b border-border/10">
+        <h1 className="text-xl font-semibold tracking-tight">Skedence</h1>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          className="p-2 rounded-lg hover:bg-white/10 transition-all duration-200"
           aria-label="Toggle menu"
         >
-          {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
@@ -105,30 +105,30 @@ export function Sidebar() {
       {/* Sidebar - Desktop (always visible) & Mobile (slide in) */}
       <div
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-40 flex flex-col h-full w-80 bg-[#3258A3] text-white transition-transform duration-300 ease-in-out",
+          "fixed lg:static inset-y-0 left-0 z-40 flex flex-col h-full w-80 bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-in-out shadow-premium-lg",
           "lg:translate-x-0",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Logo - Desktop only */}
-        <div className="hidden lg:flex items-center justify-center h-16 border-b border-white/10">
-          <h1 className="text-2xl font-bold">Skedence</h1>
+        <div className="hidden lg:flex items-center justify-center h-16 border-b border-sidebar-border">
+          <h1 className="text-2xl font-semibold tracking-tight">Skedence</h1>
         </div>
 
         {/* User Info */}
         {userData && (
-          <div className="p-4 border-b border-white/10 mt-16 lg:mt-0">
+          <div className="px-6 py-4 border-b border-sidebar-border mt-16 lg:mt-0">
             <p className="text-sm font-medium truncate">{userData.firstName} {userData.lastName}</p>
-            <p className="text-xs text-white/60 truncate">{userData.email}</p>
+            <p className="text-xs text-sidebar-foreground/60 truncate mt-0.5">{userData.email}</p>
             {userData.role && (
-              <p className="text-xs text-white/40 uppercase mt-1">{userData.role}</p>
+              <p className="text-xs text-sidebar-foreground/40 uppercase mt-2 tracking-wider">{userData.role}</p>
             )}
           </div>
         )}
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4">
-          <ul className="space-y-2">
+        <nav className="flex-1 overflow-y-auto p-4 scrollbar-premium">
+          <ul className="space-y-1.5">
             {navigation.map((item) => {
               const Icon = item.icon;
               let isActive = false;
@@ -149,27 +149,26 @@ export function Sidebar() {
                     href={item.href}
                     onClick={closeMobileMenu}
                     className={cn(
-                      'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors touch-manipulation group relative',
-                      'min-h-[56px]',
+                      'flex items-center gap-3 px-4 py-3.5 rounded-lg transition-all duration-200 touch-manipulation group relative',
                       isActive
-                        ? 'bg-white/20 text-white shadow-lg'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white active:bg-white/15'
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-premium'
+                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground active:scale-[0.98]'
                     )}
                   >
-                    <Icon className="h-6 w-6 flex-shrink-0" />
+                    <Icon className="h-5 w-5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">{item.name}</div>
+                      <div className="font-medium text-sm">{item.name}</div>
                       <div className={cn(
-                        'text-xs mt-0.5 line-clamp-1',
-                        isActive ? 'text-white/80' : 'text-white/50'
+                        'text-xs mt-0.5 line-clamp-1 leading-relaxed',
+                        isActive ? 'text-sidebar-accent-foreground/70' : 'text-sidebar-foreground/50'
                       )}>
                         {item.description}
                       </div>
                     </div>
                     {item.hasSubmenu && (
                       <ChevronRight className={cn(
-                        'h-5 w-5 flex-shrink-0 transition-transform',
-                        isActive ? 'text-white' : 'text-white/40'
+                        'h-4 w-4 flex-shrink-0 transition-transform',
+                        isActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-foreground/40'
                       )} />
                     )}
                   </Link>
@@ -180,13 +179,13 @@ export function Sidebar() {
         </nav>
 
         {/* Sign Out */}
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-sidebar-border">
           <button
             onClick={() => {
               signOut();
               closeMobileMenu();
             }}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-white/70 hover:bg-white/10 hover:text-white active:bg-white/15 transition-colors touch-manipulation min-h-[56px]"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground active:scale-[0.98] transition-all duration-200 touch-manipulation"
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
             <span className="font-medium">Sign Out</span>

@@ -106,7 +106,7 @@ export function CalendarView({ onDaySelect, selectedDate }: CalendarViewProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold text-gray-900">
+          <h2 className="text-xl font-bold text-foreground">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
           <div className="flex items-center gap-2">
@@ -115,14 +115,14 @@ export function CalendarView({ onDaySelect, selectedDate }: CalendarViewProps) {
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
               aria-label="Previous"
             >
-              <ChevronLeft className="h-5 w-5 text-gray-600" />
+              <ChevronLeft className="h-5 w-5 text-foreground/80" />
             </button>
             <button
               onClick={() => view === 'month' ? navigateMonth('next') : navigateWeek('next')}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
               aria-label="Next"
             >
-              <ChevronRight className="h-5 w-5 text-gray-600" />
+              <ChevronRight className="h-5 w-5 text-foreground/80" />
             </button>
           </div>
         </div>
@@ -134,8 +134,8 @@ export function CalendarView({ onDaySelect, selectedDate }: CalendarViewProps) {
             className={cn(
               'px-3 py-1.5 rounded text-sm font-medium transition-colors touch-manipulation',
               view === 'month'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-foreground/80 hover:text-foreground'
             )}
           >
             Month
@@ -145,8 +145,8 @@ export function CalendarView({ onDaySelect, selectedDate }: CalendarViewProps) {
             className={cn(
               'px-3 py-1.5 rounded text-sm font-medium transition-colors touch-manipulation',
               view === 'week'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-foreground/80 hover:text-foreground'
             )}
           >
             Week
@@ -160,7 +160,7 @@ export function CalendarView({ onDaySelect, selectedDate }: CalendarViewProps) {
         {dayNames.map(day => (
           <div
             key={day}
-            className="text-center text-xs font-semibold text-gray-500 uppercase py-2"
+            className="text-center text-xs font-semibold text-muted-foreground uppercase py-2"
           >
             {day}
           </div>
@@ -177,8 +177,8 @@ export function CalendarView({ onDaySelect, selectedDate }: CalendarViewProps) {
               !date && 'invisible',
               date && 'hover:bg-gray-100 active:bg-gray-200',
               isToday(date) && 'bg-blue-50 text-blue-600 font-bold',
-              isSelected(date) && 'bg-[#3258A3] text-white hover:bg-[#274785]',
-              !isToday(date) && !isSelected(date) && date && 'text-gray-900'
+              isSelected(date) && 'bg-primary text-white hover:bg-[#274785]',
+              !isToday(date) && !isSelected(date) && date && 'text-foreground'
             )}
           >
             {date?.getDate()}
@@ -190,11 +190,11 @@ export function CalendarView({ onDaySelect, selectedDate }: CalendarViewProps) {
       <div className="flex items-center gap-4 mt-6 pt-4 border-t border-gray-200">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-blue-50 border border-blue-200"></div>
-          <span className="text-sm text-gray-600">Today</span>
+          <span className="text-sm text-foreground/80">Today</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-[#3258A3]"></div>
-          <span className="text-sm text-gray-600">Selected</span>
+          <div className="w-4 h-4 rounded bg-primary"></div>
+          <span className="text-sm text-foreground/80">Selected</span>
         </div>
       </div>
     </div>

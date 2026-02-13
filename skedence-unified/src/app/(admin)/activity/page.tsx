@@ -570,7 +570,7 @@ export default function ActivityPage() {
       case 'lesson_completed':
         return <CheckCircle2 className="h-5 w-5 text-green-600" />;
       default:
-        return <ActivityIcon className="h-5 w-5 text-gray-600" />;
+        return <ActivityIcon className="h-5 w-5 text-foreground/80" />;
     }
   }, []);
 
@@ -594,13 +594,13 @@ export default function ActivityPage() {
   const getTrendIcon = useCallback((current: number, previous: number) => {
     if (current > previous) return <TrendingUp className="h-4 w-4 text-green-600" />;
     if (current < previous) return <TrendingDown className="h-4 w-4 text-red-600" />;
-    return <Minus className="h-4 w-4 text-gray-600" />;
+    return <Minus className="h-4 w-4 text-foreground/80" />;
   }, []);
 
   const getTrendColor = useCallback((current: number, previous: number) => {
     if (current > previous) return 'text-green-600';
     if (current < previous) return 'text-red-600';
-    return 'text-gray-600';
+    return 'text-foreground/80';
   }, []);
 
   const getPercentageChange = useCallback((current: number, previous: number) => {
@@ -613,8 +613,8 @@ export default function ActivityPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3258A3] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading activity feed...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-foreground/80">Loading activity feed...</p>
         </div>
       </div>
     );
@@ -623,8 +623,8 @@ export default function ActivityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Activity Feed</h1>
-        <p className="mt-2 text-gray-600">
+        <h1 className="text-3xl font-bold text-foreground">Activity Feed</h1>
+        <p className="mt-2 text-foreground/80">
           View all recent actions and events in your organization
         </p>
       </div>
@@ -644,10 +644,10 @@ export default function ActivityPage() {
               </Button>
               
               <div className="flex-1 text-center">
-                <div className="text-lg font-semibold text-gray-900">
+                <div className="text-lg font-semibold text-foreground">
                   {format(selectedDate, 'MMMM d, yyyy')}
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   {isToday ? 'Today' : format(selectedDate, 'EEEE')}
                 </div>
               </div>
@@ -687,14 +687,14 @@ export default function ActivityPage() {
               {searchQuery && (
                 <button
                   onClick={clearSearch}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-foreground/80"
                 >
                   <XIcon className="h-4 w-4" />
                 </button>
               )}
             </div>
             {isSearching && (
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-foreground/80">
                 Found {filteredActivities.length} result{filteredActivities.length !== 1 ? 's' : ''}
               </p>
             )}
@@ -719,7 +719,7 @@ export default function ActivityPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Activity Type</label>
               <Select value={selectedActivityType} onValueChange={setSelectedActivityType}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Activities" />
@@ -737,7 +737,7 @@ export default function ActivityPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Client</label>
               <Select value={selectedClient} onValueChange={setSelectedClient}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Clients" />
@@ -752,7 +752,7 @@ export default function ActivityPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Trainer</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Trainer</label>
               <Select value={selectedTrainer} onValueChange={setSelectedTrainer}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Trainers" />
@@ -767,7 +767,7 @@ export default function ActivityPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Role</label>
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Roles" />
@@ -790,7 +790,7 @@ export default function ActivityPage() {
           <CardTitle className="flex items-center gap-2">
             <ActivityIcon className="h-5 w-5" />
             {isSearching ? 'Search Results' : format(selectedDate, 'MMMM d, yyyy')}
-            <span className="text-sm font-normal text-gray-500">
+            <span className="text-sm font-normal text-muted-foreground">
               ({filteredActivities.length} {filteredActivities.length === 1 ? 'activity' : 'activities'})
             </span>
           </CardTitle>
@@ -799,7 +799,7 @@ export default function ActivityPage() {
           {filteredActivities.length === 0 ? (
             <div className="text-center py-12">
               <ActivityIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">
+              <p className="text-foreground/80">
                 {isSearching 
                   ? 'No activities match your search' 
                   : `No activity on ${format(selectedDate, 'MMMM d, yyyy')}`
@@ -811,7 +811,7 @@ export default function ActivityPage() {
               {filteredActivities.map((activity, index) => (
                 <div
                   key={activity.id}
-                  className={`flex gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors ${
+                  className={`flex gap-4 p-4 rounded-lg hover:bg-background transition-colors ${
                     index !== filteredActivities.length - 1 ? 'border-b border-gray-100' : ''
                   }`}
                 >
@@ -822,23 +822,23 @@ export default function ActivityPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-gray-900">
+                          <span className="font-semibold text-foreground">
                             {activity.actorName}
                           </span>
                           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadgeColor(activity.actorRole)}`}>
                             {activity.actorRole}
                           </span>
                         </div>
-                        <p className="mt-1 text-gray-700">
+                        <p className="mt-1 text-foreground">
                           {activity.description}
                         </p>
                         {activity.metadata?.startTime && (
-                          <p className="mt-1 text-sm text-gray-500">
+                          <p className="mt-1 text-sm text-muted-foreground">
                             Session time: {new Date(activity.metadata.startTime).toLocaleString()}
                           </p>
                         )}
                       </div>
-                      <div className="flex-shrink-0 text-sm text-gray-500 whitespace-nowrap">
+                      <div className="flex-shrink-0 text-sm text-muted-foreground whitespace-nowrap">
                         {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
                       </div>
                     </div>
@@ -871,12 +871,12 @@ export default function ActivityPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {compareMode === 'custom' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-background rounded-lg">
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">Range 1</label>
+                <label className="block text-sm font-semibold text-foreground">Range 1</label>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Start Date</label>
+                    <label className="block text-xs text-foreground/80 mb-1">Start Date</label>
                     <Input 
                       type="date" 
                       value={format(customRange1Start, 'yyyy-MM-dd')}
@@ -884,7 +884,7 @@ export default function ActivityPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">End Date</label>
+                    <label className="block text-xs text-foreground/80 mb-1">End Date</label>
                     <Input 
                       type="date" 
                       value={format(customRange1End, 'yyyy-MM-dd')}
@@ -894,10 +894,10 @@ export default function ActivityPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">Range 2</label>
+                <label className="block text-sm font-semibold text-foreground">Range 2</label>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Start Date</label>
+                    <label className="block text-xs text-foreground/80 mb-1">Start Date</label>
                     <Input 
                       type="date" 
                       value={format(customRange2Start, 'yyyy-MM-dd')}
@@ -905,7 +905,7 @@ export default function ActivityPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">End Date</label>
+                    <label className="block text-xs text-foreground/80 mb-1">End Date</label>
                     <Input 
                       type="date" 
                       value={format(customRange2End, 'yyyy-MM-dd')}
@@ -917,9 +917,9 @@ export default function ActivityPage() {
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-background rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Bookings</span>
+                <span className="text-sm text-foreground/80">Bookings</span>
                 <div className="flex items-center gap-1">
                   {getTrendIcon(range1Stats.bookings, range2Stats.bookings)}
                   <span className={`text-xs font-medium ${getTrendColor(range1Stats.bookings, range2Stats.bookings)}`}>
@@ -927,13 +927,13 @@ export default function ActivityPage() {
                   </span>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{range1Stats.bookings}</div>
-              <div className="text-xs text-gray-500 mt-1">{range1Label} vs {range2Stats.bookings} ({range2Label})</div>
+              <div className="text-2xl font-bold text-foreground">{range1Stats.bookings}</div>
+              <div className="text-xs text-muted-foreground mt-1">{range1Label} vs {range2Stats.bookings} ({range2Label})</div>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-background rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Cancellations</span>
+                <span className="text-sm text-foreground/80">Cancellations</span>
                 <div className="flex items-center gap-1">
                   {getTrendIcon(range2Stats.cancellations, range1Stats.cancellations)}
                   <span className={`text-xs font-medium ${getTrendColor(range2Stats.cancellations, range1Stats.cancellations)}`}>
@@ -941,13 +941,13 @@ export default function ActivityPage() {
                   </span>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{range1Stats.cancellations}</div>
-              <div className="text-xs text-gray-500 mt-1">{range1Label} vs {range2Stats.cancellations} ({range2Label})</div>
+              <div className="text-2xl font-bold text-foreground">{range1Stats.cancellations}</div>
+              <div className="text-xs text-muted-foreground mt-1">{range1Label} vs {range2Stats.cancellations} ({range2Label})</div>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-background rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Class Enrollments</span>
+                <span className="text-sm text-foreground/80">Class Enrollments</span>
                 <div className="flex items-center gap-1">
                   {getTrendIcon(range1Stats.enrollments, range2Stats.enrollments)}
                   <span className={`text-xs font-medium ${getTrendColor(range1Stats.enrollments, range2Stats.enrollments)}`}>
@@ -955,26 +955,26 @@ export default function ActivityPage() {
                   </span>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{range1Stats.enrollments}</div>
-              <div className="text-xs text-gray-500 mt-1">{range1Label} vs {range2Stats.enrollments} ({range2Label})</div>
+              <div className="text-2xl font-bold text-foreground">{range1Stats.enrollments}</div>
+              <div className="text-xs text-muted-foreground mt-1">{range1Label} vs {range2Stats.enrollments} ({range2Label})</div>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-background rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Total Activity</span>
+                <span className="text-sm text-foreground/80">Total Activity</span>
                 <div className="flex items-center gap-1">
                   {getTrendIcon(activities.length, Math.max(1, activities.length - 10))}
-                  <span className="text-xs font-medium text-gray-600">--</span>
+                  <span className="text-xs font-medium text-foreground/80">--</span>
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{activities.length}</div>
-              <div className="text-xs text-gray-500 mt-1">all-time activities</div>
+              <div className="text-2xl font-bold text-foreground">{activities.length}</div>
+              <div className="text-xs text-muted-foreground mt-1">all-time activities</div>
             </div>
           </div>
 
           {/* Line Chart */}
           <div className="mt-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Activity Trends Comparison</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-4">Activity Trends Comparison</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={comparisonChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1075,7 +1075,7 @@ export default function ActivityPage() {
         </CardHeader>
         {showHappeningToday && (
           <CardContent className="space-y-6">
-            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+            <div className="flex items-center justify-between bg-background p-3 rounded-lg">
               <Button
                 variant="outline"
                 size="sm"
@@ -1086,10 +1086,10 @@ export default function ActivityPage() {
               </Button>
               
               <div className="flex-1 text-center">
-                <div className="text-lg font-semibold text-gray-900">
+                <div className="text-lg font-semibold text-foreground">
                   {format(happeningDate, 'MMMM d, yyyy')}
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   {format(happeningDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') 
                     ? 'Today' 
                     : format(happeningDate, 'EEEE')}
@@ -1115,19 +1115,19 @@ export default function ActivityPage() {
             )}
             
             <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Classes on {format(happeningDate, 'MMM d')}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Classes on {format(happeningDate, 'MMM d')}</h3>
                 {upcomingClasses.length === 0 ? (
-                  <p className="text-sm text-gray-500">No classes scheduled for this day</p>
+                  <p className="text-sm text-muted-foreground">No classes scheduled for this day</p>
                 ) : (
                   <div className="space-y-2">
                     {upcomingClasses.map(cls => {
                       const percentage = (cls.enrolled / cls.capacity) * 100;
                       return (
-                        <div key={cls.id} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                        <div key={cls.id} className="p-3 bg-background rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="font-medium text-gray-900">{cls.title}</div>
-                              <div className="text-sm text-gray-600 flex items-center gap-3 mt-1">
+                              <div className="font-medium text-foreground">{cls.title}</div>
+                              <div className="text-sm text-foreground/80 flex items-center gap-3 mt-1">
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {format(cls.startTime, 'h:mm a')}
@@ -1139,10 +1139,10 @@ export default function ActivityPage() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-lg font-bold text-gray-900">
+                              <div className="text-lg font-bold text-foreground">
                                 {cls.enrolled}/{cls.capacity}
                               </div>
-                              <div className={`text-sm font-medium ${percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-gray-600'}`}>
+                              <div className={`text-sm font-medium ${percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-foreground/80'}`}>
                                 ({percentage.toFixed(0)}%)
                               </div>
                             </div>
@@ -1155,16 +1155,16 @@ export default function ActivityPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Private Lessons on {format(happeningDate, 'MMM d')}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Private Lessons on {format(happeningDate, 'MMM d')}</h3>
                 {todayBookings.length === 0 ? (
-                  <p className="text-sm text-gray-500">No private lessons scheduled for this day</p>
+                  <p className="text-sm text-muted-foreground">No private lessons scheduled for this day</p>
                 ) : (
                   <div className="p-3 bg-blue-50 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">Total Lessons</span>
-                      <span className="text-2xl font-bold text-gray-900">{todayBookings.length}</span>
+                      <span className="text-sm text-foreground/80">Total Lessons</span>
+                      <span className="text-2xl font-bold text-foreground">{todayBookings.length}</span>
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {todayBookings.length === 1 ? '1 lesson' : `${todayBookings.length} lessons`} scheduled
                     </div>
                   </div>
@@ -1172,22 +1172,22 @@ export default function ActivityPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Trainers & Their Clients on {format(happeningDate, 'MMM d')}</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Trainers & Their Clients on {format(happeningDate, 'MMM d')}</h3>
                 {Object.keys(trainerSchedules).length === 0 ? (
-                  <p className="text-sm text-gray-500">No trainers scheduled for this day</p>
+                  <p className="text-sm text-muted-foreground">No trainers scheduled for this day</p>
                 ) : (
                   <div className="space-y-3">
                     {Object.entries(trainerSchedules).map(([trainerId, schedule]) => (
                       <div key={trainerId} className="p-3 bg-teal-50 rounded-lg">
-                        <div className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                        <div className="font-medium text-foreground mb-2 flex items-center gap-2">
                           <UserPlus className="h-4 w-4 text-teal-600" />
                           {schedule.trainerName}
                         </div>
                         <div className="space-y-1 ml-6">
                           {schedule.clients.map((client, idx) => (
-                            <div key={idx} className="text-sm text-gray-600 flex items-center justify-between">
+                            <div key={idx} className="text-sm text-foreground/80 flex items-center justify-between">
                               <span>{client.clientName}</span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-muted-foreground">
                                 {format(client.startTime, 'h:mm a')}
                               </span>
                             </div>

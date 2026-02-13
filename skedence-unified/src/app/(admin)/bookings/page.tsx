@@ -266,13 +266,13 @@ export default function BookingsPage() {
     <SchedulingSubmenu>
       <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Create Booking</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Book sessions for clients</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Create Booking</h1>
+          <p className="text-sm sm:text-base text-foreground/80 mt-1 sm:mt-2">Book sessions for clients</p>
         </div>
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -280,21 +280,21 @@ export default function BookingsPage() {
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                  <Plus className="h-5 w-5 text-[#3258A3]" />
+                  <Plus className="h-5 w-5 text-primary" />
                   New Booking
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 sm:space-y-6">
                 {/* Client Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     <User className="h-4 w-4 inline mr-1" />
                     Client
                   </label>
                   <select
                     value={selectedClient}
                     onChange={(e) => setSelectedClient(e.target.value)}
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation text-base"
                   >
                     {clients.map(client => (
                       <option key={client.id} value={client.id}>
@@ -306,7 +306,7 @@ export default function BookingsPage() {
 
                 {/* Pass Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     <DollarSign className="h-4 w-4 inline mr-1" />
                     Lesson Pass
                   </label>
@@ -318,7 +318,7 @@ export default function BookingsPage() {
                     <select
                       value={selectedPackage}
                       onChange={(e) => setSelectedPackage(e.target.value)}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation text-base"
                     >
                       {packages.map(pkg => (
                         <option key={pkg.id} value={pkg.id}>
@@ -331,14 +331,14 @@ export default function BookingsPage() {
 
                 {/* Trainer Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     <User className="h-4 w-4 inline mr-1" />
                     Trainer
                   </label>
                   <select
                     value={selectedTrainer}
                     onChange={(e) => setSelectedTrainer(e.target.value)}
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation text-base"
                   >
                     {trainers.map(trainer => (
                       <option key={trainer.id} value={trainer.id}>
@@ -350,7 +350,7 @@ export default function BookingsPage() {
 
                 {/* Date Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     <Calendar className="h-4 w-4 inline mr-1" />
                     Date
                   </label>
@@ -358,13 +358,13 @@ export default function BookingsPage() {
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] touch-manipulation text-base"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation text-base"
                   />
                 </div>
 
                 {/* Time Slot Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     <Clock className="h-4 w-4 inline mr-1" />
                     Available Time Slots
                   </label>
@@ -380,15 +380,15 @@ export default function BookingsPage() {
                           onClick={() => setSelectedSlot(slot.id)}
                           className={`p-3 rounded-lg border-2 text-left transition-all ${
                             selectedSlot === slot.id
-                              ? 'border-[#3258A3] bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                              ? 'border-primary bg-blue-50'
+                              : 'border-gray-200 hover:border-input'
                           }`}
                         >
                           <div className="font-medium text-sm">
                             {format(slot.startTime.toDate(), 'h:mm a')} - {format(slot.endTime.toDate(), 'h:mm a')}
                           </div>
                           {slot.location && (
-                            <div className="text-xs text-gray-600 mt-1">
+                            <div className="text-xs text-foreground/80 mt-1">
                               <MapPin className="h-3 w-3 inline mr-1" />
                               {slot.location}
                             </div>
@@ -403,7 +403,7 @@ export default function BookingsPage() {
                 <button
                   onClick={handleCreateBooking}
                   disabled={creating || packages.length === 0 || slots.length === 0}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {creating ? (
                     <>
@@ -434,23 +434,23 @@ export default function BookingsPage() {
               <CardContent className="space-y-4">
                 {selectedClientData && (
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Client</p>
-                    <p className="text-base font-semibold text-gray-900">
+                    <p className="text-sm font-medium text-muted-foreground">Client</p>
+                    <p className="text-base font-semibold text-foreground">
                       {selectedClientData.firstName} {selectedClientData.lastName}
                     </p>
                     {selectedClientData.email && (
-                      <p className="text-sm text-gray-600">{selectedClientData.email}</p>
+                      <p className="text-sm text-foreground/80">{selectedClientData.email}</p>
                     )}
                   </div>
                 )}
 
                 {selectedPackageData && (
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Pass</p>
-                    <p className="text-base font-semibold text-gray-900">
+                    <p className="text-sm font-medium text-muted-foreground">Pass</p>
+                    <p className="text-base font-semibold text-foreground">
                       {selectedPackageData.packageName}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-foreground/80">
                       {selectedPackageData.remainingLessons} of {selectedPackageData.totalLessons} lessons remaining
                     </p>
                   </div>
@@ -458,8 +458,8 @@ export default function BookingsPage() {
 
                 {selectedTrainerData && (
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Trainer</p>
-                    <p className="text-base font-semibold text-gray-900">
+                    <p className="text-sm font-medium text-muted-foreground">Trainer</p>
+                    <p className="text-base font-semibold text-foreground">
                       {selectedTrainerData.firstName} {selectedTrainerData.lastName}
                     </p>
                   </div>
@@ -467,8 +467,8 @@ export default function BookingsPage() {
 
                 {selectedDate && (
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Date</p>
-                    <p className="text-base font-semibold text-gray-900">
+                    <p className="text-sm font-medium text-muted-foreground">Date</p>
+                    <p className="text-base font-semibold text-foreground">
                       {format(new Date(selectedDate), 'EEEE, MMMM d, yyyy')}
                     </p>
                   </div>
@@ -476,12 +476,12 @@ export default function BookingsPage() {
 
                 {selectedSlotData && (
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Time</p>
-                    <p className="text-base font-semibold text-gray-900">
+                    <p className="text-sm font-medium text-muted-foreground">Time</p>
+                    <p className="text-base font-semibold text-foreground">
                       {format(selectedSlotData.startTime.toDate(), 'h:mm a')} - {format(selectedSlotData.endTime.toDate(), 'h:mm a')}
                     </p>
                     {selectedSlotData.location && (
-                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                      <p className="text-sm text-foreground/80 flex items-center gap-1 mt-1">
                         <MapPin className="h-3 w-3" />
                         {selectedSlotData.location}
                       </p>

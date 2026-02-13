@@ -497,7 +497,7 @@ export default function SchedulePage() {
     return (
       <>
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-600">Loading schedule...</div>
+          <div className="text-foreground/80">Loading schedule...</div>
         </div>
       </>
     );
@@ -510,8 +510,8 @@ export default function SchedulePage() {
       <div className="flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)]">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-white border-b">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Schedule</h1>
-            <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">Manage availability, bookings, and classes</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Schedule</h1>
+            <p className="text-xs sm:text-sm text-foreground/80 mt-0.5 sm:mt-1">Manage availability, bookings, and classes</p>
           </div>
 
           {isAdmin && trainers.length > 1 && (
@@ -629,7 +629,7 @@ export default function SchedulePage() {
                     id="recurring"
                     checked={isRecurring}
                     onChange={(e) => setIsRecurring(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded border-input"
                   />
                   <Label htmlFor="recurring" className="font-normal cursor-pointer">
                     Repeat weekly
@@ -708,7 +708,7 @@ export default function SchedulePage() {
                 </div>
                 <div className="flex-1">
                   <div className="text-xl font-semibold">{selectedBooking.clientName}</div>
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-sm text-foreground/80 mt-1">
                     {new Date(selectedBooking.startTime).toLocaleString()}
                   </div>
                 </div>
@@ -716,15 +716,15 @@ export default function SchedulePage() {
               
               {/* Contact Information */}
               <div className="space-y-2">
-                <h3 className="font-semibold text-gray-900">Contact Information</h3>
+                <h3 className="font-semibold text-foreground">Contact Information</h3>
                 {selectedBooking.clientEmail && (
                   <div className="text-sm">
-                    <span className="text-gray-600">Email:</span> {selectedBooking.clientEmail}
+                    <span className="text-foreground/80">Email:</span> {selectedBooking.clientEmail}
                   </div>
                 )}
                 {selectedBooking.clientPhone && (
                   <div className="text-sm">
-                    <span className="text-gray-600">Phone:</span> {selectedBooking.clientPhone}
+                    <span className="text-foreground/80">Phone:</span> {selectedBooking.clientPhone}
                   </div>
                 )}
               </div>
@@ -761,7 +761,7 @@ export default function SchedulePage() {
               {/* Participants - Booked Athletes */}
               {((selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0) || selectedBooking.athleteName || selectedBooking.secondAthleteName) && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">Participants</h3>
+                  <h3 className="font-semibold text-foreground">Participants</h3>
                   <div className="space-y-3">
                     {/* Use new athleteNames array if available */}
                     {selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0 ? (
@@ -772,20 +772,20 @@ export default function SchedulePage() {
                         );
                         return (
                           <div key={idx} className="bg-blue-50 p-3 rounded-lg space-y-1">
-                            <div className="font-medium text-gray-900">{name}</div>
+                            <div className="font-medium text-foreground">{name}</div>
                             {matchedAthlete && (
                               <>
                                 {matchedAthlete.birthday && (
-                                  <div className="text-sm text-gray-600">DOB: {matchedAthlete.birthday}</div>
+                                  <div className="text-sm text-foreground/80">DOB: {matchedAthlete.birthday}</div>
                                 )}
                                 {matchedAthlete.schoolClubTeam && (
-                                  <div className="text-sm text-gray-600">Team: {matchedAthlete.schoolClubTeam}</div>
+                                  <div className="text-sm text-foreground/80">Team: {matchedAthlete.schoolClubTeam}</div>
                                 )}
                                 {matchedAthlete.experienceLevel && (
-                                  <div className="text-sm text-gray-600">Experience: {matchedAthlete.experienceLevel}</div>
+                                  <div className="text-sm text-foreground/80">Experience: {matchedAthlete.experienceLevel}</div>
                                 )}
                                 {matchedAthlete.position && (
-                                  <div className="text-sm text-gray-600">Position: {matchedAthlete.position}</div>
+                                  <div className="text-sm text-foreground/80">Position: {matchedAthlete.position}</div>
                                 )}
                               </>
                             )}
@@ -797,12 +797,12 @@ export default function SchedulePage() {
                       <>
                         {selectedBooking.athleteName && (
                           <div className="bg-blue-50 p-3 rounded-lg">
-                            <div className="font-medium text-gray-900">{selectedBooking.athleteName}</div>
+                            <div className="font-medium text-foreground">{selectedBooking.athleteName}</div>
                           </div>
                         )}
                         {selectedBooking.secondAthleteName && (
                           <div className="bg-blue-50 p-3 rounded-lg">
-                            <div className="font-medium text-gray-900">{selectedBooking.secondAthleteName}</div>
+                            <div className="font-medium text-foreground">{selectedBooking.secondAthleteName}</div>
                           </div>
                         )}
                       </>
@@ -814,24 +814,24 @@ export default function SchedulePage() {
               {/* Athletes on File */}
               {selectedBooking.athletes && selectedBooking.athletes.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">All Athletes on File</h3>
+                  <h3 className="font-semibold text-foreground">All Athletes on File</h3>
                   <div className="space-y-3">
                     {selectedBooking.athletes.map((athlete, idx) => (
-                      <div key={idx} className="bg-gray-50 p-3 rounded-lg space-y-1">
-                        <div className="font-medium text-gray-900">
+                      <div key={idx} className="bg-background p-3 rounded-lg space-y-1">
+                        <div className="font-medium text-foreground">
                           {athlete.firstName} {athlete.lastName}
                         </div>
                         {athlete.birthday && (
-                          <div className="text-sm text-gray-600">DOB: {athlete.birthday}</div>
+                          <div className="text-sm text-foreground/80">DOB: {athlete.birthday}</div>
                         )}
                         {athlete.schoolClubTeam && (
-                          <div className="text-sm text-gray-600">Team: {athlete.schoolClubTeam}</div>
+                          <div className="text-sm text-foreground/80">Team: {athlete.schoolClubTeam}</div>
                         )}
                         {athlete.experienceLevel && (
-                          <div className="text-sm text-gray-600">Experience: {athlete.experienceLevel}</div>
+                          <div className="text-sm text-foreground/80">Experience: {athlete.experienceLevel}</div>
                         )}
                         {athlete.position && (
-                          <div className="text-sm text-gray-600">Position: {athlete.position}</div>
+                          <div className="text-sm text-foreground/80">Position: {athlete.position}</div>
                         )}
                       </div>
                     ))}
@@ -842,11 +842,11 @@ export default function SchedulePage() {
               {/* Emergency Contact */}
               {requiredFields.has('emergencyContactName') && selectedBooking.emergencyContactName && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">Emergency Contact</h3>
+                  <h3 className="font-semibold text-foreground">Emergency Contact</h3>
                   <div className="text-sm">
-                    <div className="text-gray-900">{selectedBooking.emergencyContactName}</div>
+                    <div className="text-foreground">{selectedBooking.emergencyContactName}</div>
                     {selectedBooking.emergencyContactNumber && (
-                      <div className="text-gray-600">{selectedBooking.emergencyContactNumber}</div>
+                      <div className="text-foreground/80">{selectedBooking.emergencyContactNumber}</div>
                     )}
                   </div>
                 </div>
@@ -855,16 +855,16 @@ export default function SchedulePage() {
               {/* Referral */}
               {requiredFields.has('referredBy') && selectedBooking.referredBy && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">Referred By</h3>
-                  <div className="text-sm text-gray-900">{selectedBooking.referredBy}</div>
+                  <h3 className="font-semibold text-foreground">Referred By</h3>
+                  <div className="text-sm text-foreground">{selectedBooking.referredBy}</div>
                 </div>
               )}
               
               {/* Session Notes - Show whenever present */}
               {selectedBooking.lessonNotes && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">Session Notes</h3>
-                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                  <h3 className="font-semibold text-foreground">Session Notes</h3>
+                  <div className="text-sm text-foreground/80 bg-blue-50 p-3 rounded-lg">
                     {selectedBooking.lessonNotes}
                   </div>
                 </div>
@@ -904,7 +904,7 @@ export default function SchedulePage() {
 
               {/* Cancelling State */}
               {cancellingBooking && (
-                <div className="pt-4 border-t text-center text-gray-600">
+                <div className="pt-4 border-t text-center text-foreground/80">
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
                     Cancelling session...
@@ -925,13 +925,13 @@ export default function SchedulePage() {
           {selectedClass && (
             <div className="space-y-4 py-4">
               <div>
-                <div className="text-sm text-gray-600">Participants</div>
+                <div className="text-sm text-foreground/80">Participants</div>
                 <div className="text-2xl font-bold">
                   {selectedClass.currentParticipants} / {selectedClass.maxParticipants}
                 </div>
               </div>
               <div>
-                <div className="text-sm text-gray-600">Time</div>
+                <div className="text-sm text-foreground/80">Time</div>
                 <div>{new Date(selectedClass.startTime).toLocaleString()}</div>
               </div>
             </div>

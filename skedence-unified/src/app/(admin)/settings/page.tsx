@@ -85,11 +85,11 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-            <p className="text-gray-600 mt-2">Configure your organization preferences</p>
+            <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+            <p className="text-foreground/80 mt-2">Configure your organization preferences</p>
           </div>
           {lastSaved && (
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-muted-foreground">
               Last saved: {lastSaved.toLocaleTimeString()}
             </div>
           )}
@@ -97,7 +97,7 @@ export default function SettingsPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -105,13 +105,13 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-[#3258A3]" />
+                  <Calendar className="h-5 w-5 text-primary" />
                   Booking Settings
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Minimum Booking Notice (hours)
                   </label>
                   <input
@@ -119,15 +119,15 @@ export default function SettingsPage() {
                     min="0"
                     value={settings.minBookingHours}
                     onChange={(e) => updateSetting({ minBookingHours: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   />
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Clients must book at least this many hours in advance (0 = allow immediate booking)
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Minimum Cancellation Notice (hours)
                   </label>
                   <input
@@ -135,9 +135,9 @@ export default function SettingsPage() {
                     min="0"
                     value={settings.minCancellationHours}
                     onChange={(e) => updateSetting({ minCancellationHours: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   />
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Clients must cancel at least this many hours before the session
                   </p>
                 </div>
@@ -148,11 +148,11 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.allowSameDayBooking}
                       onChange={(e) => updateSetting({ allowSameDayBooking: e.target.checked })}
-                      className="w-5 h-5 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                      className="w-5 h-5 text-primary border-input rounded focus:ring-ring"
                     />
-                    <span className="text-sm font-medium text-gray-700">Allow Same-Day Booking</span>
+                    <span className="text-sm font-medium text-foreground">Allow Same-Day Booking</span>
                   </label>
-                  <p className="text-sm text-gray-500 mt-1 ml-8">
+                  <p className="text-sm text-muted-foreground mt-1 ml-8">
                     Override minimum booking notice for urgent bookings
                   </p>
                 </div>
@@ -163,19 +163,19 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-[#3258A3]" />
+                  <Clock className="h-5 w-5 text-primary" />
                   Session Settings
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Default Session Length (minutes)
                   </label>
                   <select
                     value={settings.defaultSessionLength}
                     onChange={(e) => updateSetting({ defaultSessionLength: parseInt(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   >
                     <option value={30}>30 minutes</option>
                     <option value={45}>45 minutes</option>
@@ -183,7 +183,7 @@ export default function SettingsPage() {
                     <option value={90}>90 minutes</option>
                     <option value={120}>120 minutes</option>
                   </select>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Default duration for new training sessions
                   </p>
                 </div>
@@ -194,11 +194,11 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={settings.requireWaiver}
                       onChange={(e) => updateSetting({ requireWaiver: e.target.checked })}
-                      className="w-5 h-5 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                      className="w-5 h-5 text-primary border-input rounded focus:ring-ring"
                     />
-                    <span className="text-sm font-medium text-gray-700">Require Waiver Agreement</span>
+                    <span className="text-sm font-medium text-foreground">Require Waiver Agreement</span>
                   </label>
-                  <p className="text-sm text-gray-500 mt-1 ml-8">
+                  <p className="text-sm text-muted-foreground mt-1 ml-8">
                     Clients must agree to waiver before first booking
                   </p>
                 </div>
@@ -209,13 +209,13 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-[#3258A3]" />
+                  <MapPin className="h-5 w-5 text-primary" />
                   Location Settings
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Max Bookings Per Location (for an individual hour)
                   </label>
                   <input
@@ -224,9 +224,9 @@ export default function SettingsPage() {
                     max="50"
                     value={settings.maxBookingsPerLocation}
                     onChange={(e) => updateSetting({ maxBookingsPerLocation: parseInt(e.target.value) || 1 })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   />
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Maximum simultaneous bookings at the same location
                   </p>
                 </div>

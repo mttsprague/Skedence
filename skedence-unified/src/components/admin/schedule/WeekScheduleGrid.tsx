@@ -136,7 +136,7 @@ export function WeekScheduleGrid({
   const currentHour = getHours(now);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-background">
       {/* Header with controls */}
       <div className="flex items-center justify-between p-4 bg-white border-b">
         <div className="flex items-center gap-4">
@@ -181,7 +181,7 @@ export function WeekScheduleGrid({
               isToday(day) ? 'bg-blue-50' : ''
             }`}
           >
-            <div className="text-[10px] sm:text-xs text-gray-600">
+            <div className="text-[10px] sm:text-xs text-foreground/80">
               <span className="hidden sm:inline">{format(day, 'EEE')}</span>
               <span className="sm:hidden">{format(day, 'EEEEE')}</span>
             </div>
@@ -198,13 +198,13 @@ export function WeekScheduleGrid({
       <div ref={scrollRef} className="flex-1 overflow-auto relative">
         <div className="flex min-w-full">
           {/* Time column */}
-          <div className="w-12 sm:w-16 flex-shrink-0 bg-gray-50 sticky left-0 z-10">
+          <div className="w-12 sm:w-16 flex-shrink-0 bg-background sticky left-0 z-10">
             {hours.map((hour) => (
               <div
                 key={hour}
                 id={hour === currentHour ? 'current-hour' : undefined}
                 ref={hour === currentHour ? currentTimeRef : null}
-                className="h-14 sm:h-16 flex items-start justify-center pt-1 text-[10px] sm:text-xs text-gray-500"
+                className="h-14 sm:h-16 flex items-start justify-center pt-1 text-[10px] sm:text-xs text-muted-foreground"
               >
                 {formatHour(hour)}
               </div>
@@ -253,7 +253,7 @@ export function WeekScheduleGrid({
                             className={`absolute inset-0.5 rounded text-xs flex items-center justify-center cursor-pointer ${
                               slot.status === 'open'
                                 ? 'bg-green-100 text-green-800 border border-green-300'
-                                : 'bg-gray-100 text-gray-600 border border-gray-300'
+                                : 'bg-gray-100 text-foreground/80 border border-input'
                             }`}
                             onClick={(e) => {
                               e.stopPropagation();

@@ -199,7 +199,7 @@ export default function ClientDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -219,7 +219,7 @@ export default function ClientDetailPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -230,10 +230,10 @@ export default function ClientDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-foreground">
               {client.firstName} {client.lastName}
             </h1>
-            <p className="text-gray-600">{client.email}</p>
+            <p className="text-foreground/80">{client.email}</p>
           </div>
         </div>
 
@@ -248,8 +248,8 @@ export default function ClientDetailPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                     activeTab === tab.id
-                      ? 'bg-[#3258A3] text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-primary text-white'
+                      : 'text-foreground/80 hover:bg-gray-100'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -258,7 +258,7 @@ export default function ClientDetailPage() {
                     <span className={`ml-1 px-2 py-0.5 text-xs rounded-full ${
                       activeTab === tab.id
                         ? 'bg-white/20 text-white'
-                        : 'bg-gray-200 text-gray-700'
+                        : 'bg-gray-200 text-foreground'
                     }`}>
                       {tab.count}
                     </span>
@@ -311,26 +311,26 @@ function OverviewTab({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#3258A3]">{upcomingCount}</div>
-            <div className="text-sm text-gray-600">Upcoming Sessions</div>
+            <div className="text-2xl font-bold text-primary">{upcomingCount}</div>
+            <div className="text-sm text-foreground/80">Upcoming Sessions</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{activePassesCount}</div>
-            <div className="text-sm text-gray-600">Active Passes</div>
+            <div className="text-sm text-foreground/80">Active Passes</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-purple-600">{completedSessions}</div>
-            <div className="text-sm text-gray-600">Completed Sessions</div>
+            <div className="text-sm text-foreground/80">Completed Sessions</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-900">{totalSessions}</div>
-            <div className="text-sm text-gray-600">Total Sessions Purchased</div>
+            <div className="text-2xl font-bold text-foreground">{totalSessions}</div>
+            <div className="text-sm text-foreground/80">Total Sessions Purchased</div>
           </CardContent>
         </Card>
       </div>
@@ -342,19 +342,19 @@ function OverviewTab({
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Name</p>
+              <p className="text-sm text-foreground/80">Name</p>
               <p className="font-medium">{client.firstName} {client.lastName}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Email</p>
+              <p className="text-sm text-foreground/80">Email</p>
               <p className="font-medium">{client.email}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Phone</p>
+              <p className="text-sm text-foreground/80">Phone</p>
               <p className="font-medium">{client.phone || 'Not provided'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Member Since</p>
+              <p className="text-sm text-foreground/80">Member Since</p>
               <p className="font-medium">
                 {client.createdAt?.toDate?.().toLocaleDateString() || 'N/A'}
               </p>
@@ -369,7 +369,7 @@ function OverviewTab({
 function UpcomingTab({ bookings }: { bookings: Booking[] }) {
   if (bookings.length === 0) {
     return (
-      <div className="p-12 text-center text-gray-500">
+      <div className="p-12 text-center text-muted-foreground">
         <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
         <p>No upcoming sessions scheduled</p>
       </div>
@@ -384,14 +384,14 @@ function UpcomingTab({ bookings }: { bookings: Booking[] }) {
             <CardContent className="pt-6">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-foreground">
                     {booking.startTime.toDate().toLocaleDateString('en-US', { 
                       weekday: 'long', 
                       month: 'long', 
                       day: 'numeric' 
                     })}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-foreground/80">
                     {booking.startTime.toDate().toLocaleTimeString('en-US', { 
                       hour: 'numeric', 
                       minute: '2-digit' 
@@ -400,9 +400,9 @@ function UpcomingTab({ bookings }: { bookings: Booking[] }) {
                       minute: '2-digit' 
                     })}
                   </p>
-                  <p className="text-sm text-gray-600">with {booking.trainerName}</p>
+                  <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
                   {booking.athleteNames && booking.athleteNames.length > 0 && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Athletes: {booking.athleteNames.join(', ')}
                     </p>
                   )}
@@ -410,7 +410,7 @@ function UpcomingTab({ bookings }: { bookings: Booking[] }) {
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                   booking.status === 'booked' ? 'bg-green-100 text-green-700' :
                   booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                  'bg-gray-100 text-gray-700'
+                  'bg-gray-100 text-foreground'
                 }`}>
                   {booking.status}
                 </span>
@@ -426,7 +426,7 @@ function UpcomingTab({ bookings }: { bookings: Booking[] }) {
 function HistoryTab({ bookings }: { bookings: Booking[] }) {
   if (bookings.length === 0) {
     return (
-      <div className="p-12 text-center text-gray-500">
+      <div className="p-12 text-center text-muted-foreground">
         <History className="h-12 w-12 mx-auto mb-3 text-gray-400" />
         <p>No past sessions</p>
       </div>
@@ -441,14 +441,14 @@ function HistoryTab({ bookings }: { bookings: Booking[] }) {
             <CardContent className="pt-6">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-foreground">
                     {booking.startTime.toDate().toLocaleDateString('en-US', { 
                       month: 'long', 
                       day: 'numeric',
                       year: 'numeric'
                     })}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-foreground/80">
                     {booking.startTime.toDate().toLocaleTimeString('en-US', { 
                       hour: 'numeric', 
                       minute: '2-digit' 
@@ -457,9 +457,9 @@ function HistoryTab({ bookings }: { bookings: Booking[] }) {
                       minute: '2-digit' 
                     })}
                   </p>
-                  <p className="text-sm text-gray-600">with {booking.trainerName}</p>
+                  <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
                   {booking.athleteNames && booking.athleteNames.length > 0 && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Athletes: {booking.athleteNames.join(', ')}
                     </p>
                   )}
@@ -467,7 +467,7 @@ function HistoryTab({ bookings }: { bookings: Booking[] }) {
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                   booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
                   booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                  'bg-gray-100 text-gray-700'
+                  'bg-gray-100 text-foreground'
                 }`}>
                   {booking.status}
                 </span>
@@ -483,7 +483,7 @@ function HistoryTab({ bookings }: { bookings: Booking[] }) {
 function PassesTab({ packages }: { packages: LessonPackage[] }) {
   if (packages.length === 0) {
     return (
-      <div className="p-12 text-center text-gray-500">
+      <div className="p-12 text-center text-muted-foreground">
         <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
         <p>No passes purchased</p>
       </div>
@@ -497,26 +497,26 @@ function PassesTab({ packages }: { packages: LessonPackage[] }) {
     <div className="p-6 space-y-6">
       {activePackages.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3 text-gray-900">Active Passes</h3>
+          <h3 className="text-lg font-semibold mb-3 text-foreground">Active Passes</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {activePackages.map((pkg) => (
               <Card key={pkg.id}>
                 <CardContent className="pt-6">
                   <div className="space-y-2">
                     <div className="flex items-start justify-between">
-                      <h4 className="font-semibold text-gray-900">{pkg.packageName || pkg.packageType}</h4>
+                      <h4 className="font-semibold text-foreground">{pkg.packageName || pkg.packageType}</h4>
                       <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                         Active
                       </span>
                     </div>
                     <div className="space-y-1 text-sm">
-                      <p className="text-gray-600">
-                        <span className="font-medium text-[#3258A3]">{pkg.remainingLessons}</span> of {pkg.totalLessons} sessions remaining
+                      <p className="text-foreground/80">
+                        <span className="font-medium text-primary">{pkg.remainingLessons}</span> of {pkg.totalLessons} sessions remaining
                       </p>
-                      <p className="text-gray-600">
+                      <p className="text-foreground/80">
                         Expires: {pkg.expirationDate.toDate().toLocaleDateString()}
                       </p>
-                      <p className="text-gray-500 text-xs">
+                      <p className="text-muted-foreground text-xs">
                         Purchased: {pkg.purchaseDate.toDate().toLocaleDateString()}
                       </p>
                     </div>
@@ -530,19 +530,19 @@ function PassesTab({ packages }: { packages: LessonPackage[] }) {
 
       {expiredPackages.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3 text-gray-900">Used/Expired Passes</h3>
+          <h3 className="text-lg font-semibold mb-3 text-foreground">Used/Expired Passes</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {expiredPackages.map((pkg) => (
               <Card key={pkg.id} className="opacity-60">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
                     <div className="flex items-start justify-between">
-                      <h4 className="font-semibold text-gray-900">{pkg.packageName || pkg.packageType}</h4>
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                      <h4 className="font-semibold text-foreground">{pkg.packageName || pkg.packageType}</h4>
+                      <span className="px-2 py-1 bg-gray-100 text-foreground/80 text-xs font-medium rounded-full">
                         Used
                       </span>
                     </div>
-                    <div className="space-y-1 text-sm text-gray-600">
+                    <div className="space-y-1 text-sm text-foreground/80">
                       <p>{pkg.lessonsUsed} of {pkg.totalLessons} sessions used</p>
                       <p className="text-xs">
                         Purchased: {pkg.purchaseDate.toDate().toLocaleDateString()}
@@ -562,7 +562,7 @@ function PassesTab({ packages }: { packages: LessonPackage[] }) {
 function DocumentsTab({ documents }: { documents: Document[] }) {
   if (documents.length === 0) {
     return (
-      <div className="p-12 text-center text-gray-500">
+      <div className="p-12 text-center text-muted-foreground">
         <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
         <p>No documents uploaded</p>
       </div>
@@ -579,9 +579,9 @@ function DocumentsTab({ documents }: { documents: Document[] }) {
                 <div className="flex items-start gap-3">
                   <FileText className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{doc.name}</p>
-                    <p className="text-xs text-gray-500">{doc.type}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="font-medium text-foreground truncate">{doc.name}</p>
+                    <p className="text-xs text-muted-foreground">{doc.type}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {doc.uploadedAt.toDate().toLocaleDateString()}
                     </p>
                   </div>
@@ -590,7 +590,7 @@ function DocumentsTab({ documents }: { documents: Document[] }) {
                   href={doc.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block w-full text-center px-3 py-1.5 text-sm bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] transition-colors"
+                  className="block w-full text-center px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   View
                 </a>
@@ -606,7 +606,7 @@ function DocumentsTab({ documents }: { documents: Document[] }) {
 function PaymentsTab({ methods }: { methods: PaymentMethod[] }) {
   if (methods.length === 0) {
     return (
-      <div className="p-12 text-center text-gray-500">
+      <div className="p-12 text-center text-muted-foreground">
         <CreditCard className="h-12 w-12 mx-auto mb-3 text-gray-400" />
         <p>No payment methods on file</p>
       </div>
@@ -623,10 +623,10 @@ function PaymentsTab({ methods }: { methods: PaymentMethod[] }) {
                 <div className="flex items-center gap-4">
                   <CreditCard className="h-6 w-6 text-gray-400" />
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-foreground">
                       {method.brand.charAt(0).toUpperCase() + method.brand.slice(1)} •••• {method.last4}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-foreground/80">
                       Expires {method.expiryMonth}/{method.expiryYear}
                     </p>
                   </div>
@@ -648,7 +648,7 @@ function PaymentsTab({ methods }: { methods: PaymentMethod[] }) {
 function WaiversTab({ waivers }: { waivers: Waiver[] }) {
   if (waivers.length === 0) {
     return (
-      <div className="p-12 text-center text-gray-500">
+      <div className="p-12 text-center text-muted-foreground">
         <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-400" />
         <p>No waivers signed</p>
       </div>
@@ -663,12 +663,12 @@ function WaiversTab({ waivers }: { waivers: Waiver[] }) {
             <CardContent className="pt-6">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold text-gray-900">{waiver.athleteName}</p>
+                  <p className="font-semibold text-foreground">{waiver.athleteName}</p>
                   <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                     Signed
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-foreground/80">
                   Signed on {waiver.signedAt.toDate().toLocaleDateString('en-US', {
                     month: 'long',
                     day: 'numeric',
@@ -678,7 +678,7 @@ function WaiversTab({ waivers }: { waivers: Waiver[] }) {
                   })}
                 </p>
                 {waiver.ipAddress && (
-                  <p className="text-xs text-gray-500">IP: {waiver.ipAddress}</p>
+                  <p className="text-xs text-muted-foreground">IP: {waiver.ipAddress}</p>
                 )}
               </div>
             </CardContent>

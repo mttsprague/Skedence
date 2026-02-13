@@ -481,8 +481,8 @@ export default function ImportExportPage() {
     <div className="p-6 lg:p-8">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Import / Export</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Import / Export</h1>
+          <p className="text-foreground/80 mt-2">
             Export your data to CSV format for backup, analysis, or migration purposes.
           </p>
         </div>
@@ -509,7 +509,7 @@ export default function ImportExportPage() {
                     </div>
                     <div className="flex-1">
                       <CardTitle className="text-lg">{option.title}</CardTitle>
-                      <p className="text-sm text-gray-600 mt-1">{option.description}</p>
+                      <p className="text-sm text-foreground/80 mt-1">{option.description}</p>
                     </div>
                   </div>
                 </CardHeader>
@@ -517,7 +517,7 @@ export default function ImportExportPage() {
                   <button
                     onClick={option.action}
                     disabled={loading || !orgId}
-                    className="w-full px-4 py-2 bg-[#3258A3] text-white rounded-md hover:bg-[#2a4a8a] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium inline-flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium inline-flex items-center justify-center gap-2"
                   >
                     <Download className="h-4 w-4" />
                     {loading ? 'Exporting...' : `Export ${option.title}`}
@@ -529,13 +529,13 @@ export default function ImportExportPage() {
         </div>
 
         {/* Info Card */}
-        <Card className="bg-gray-50 border-gray-200">
+        <Card className="bg-background border-gray-200">
           <CardContent className="pt-6">
             <div className="flex gap-3">
-              <FileSpreadsheet className="h-5 w-5 text-gray-600 flex-shrink-0 mt-0.5" />
+              <FileSpreadsheet className="h-5 w-5 text-foreground/80 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">About CSV Exports</h3>
-                <ul className="text-sm text-gray-600 space-y-1">
+                <h3 className="font-semibold text-foreground mb-2">About CSV Exports</h3>
+                <ul className="text-sm text-foreground/80 space-y-1">
                   <li>• All exports are in CSV (Comma-Separated Values) format</li>
                   <li>• Files can be opened in Excel, Google Sheets, or any spreadsheet application</li>
                   <li>• Exports include all historical data from your organization</li>

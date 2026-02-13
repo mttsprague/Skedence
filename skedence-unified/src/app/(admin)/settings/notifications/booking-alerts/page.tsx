@@ -89,13 +89,13 @@ export default function BookingAlertsPage() {
       <div className="max-w-4xl">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Booking Alerts</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold text-foreground">Booking Alerts</h1>
+            <p className="text-foreground/80 mt-2">
               Receive email notifications when appointments or classes are booked
             </p>
           </div>
           {saving && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Saving...</span>
             </div>
@@ -107,10 +107,10 @@ export default function BookingAlertsPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
                   Send appointment notifications
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-foreground/80">
                   Account owner receives email notifications when an appointment is scheduled, cancelled, 
                   or rescheduled, and when a package or subscription is ordered.
                 </p>
@@ -135,10 +135,10 @@ export default function BookingAlertsPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
                   Send summary emails
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-foreground/80">
                   You will receive a summary of upcoming appointments
                 </p>
               </div>
@@ -170,8 +170,8 @@ export default function BookingAlertsPage() {
                       className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      <div className="font-medium text-gray-900">Weekly</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="font-medium text-foreground">Weekly</div>
+                      <div className="text-sm text-foreground/80">
                         Summary of upcoming week sent every Monday morning
                       </div>
                     </div>
@@ -186,8 +186,8 @@ export default function BookingAlertsPage() {
                       className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      <div className="font-medium text-gray-900">Daily</div>
-                      <div className="text-sm text-gray-600">
+                      <div className="font-medium text-foreground">Daily</div>
+                      <div className="text-sm text-foreground/80">
                         Appointment summaries sent each day
                       </div>
                     </div>
@@ -197,16 +197,16 @@ export default function BookingAlertsPage() {
                 {/* Time Selection for Daily */}
                 {settings.summaryFrequency === 'daily' && (
                   <div className="mt-4 pl-7">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-foreground mb-2">
                       Send at
                     </label>
                     <input
                       type="time"
                       value={settings.summaryTime}
                       onChange={(e) => updateSetting('summaryTime', e.target.value)}
-                      className="block w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      className="block w-full max-w-xs px-3 py-2 border border-input rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     />
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       Time zone: {settings.timezone}
                     </p>
                   </div>

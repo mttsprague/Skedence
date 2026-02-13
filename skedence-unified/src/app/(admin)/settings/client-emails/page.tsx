@@ -118,22 +118,22 @@ export default function ClientEmailsPage() {
     <NotificationsSubmenu>
       <div className="max-w-4xl">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Client Emails</h1>
+          <h1 className="text-3xl font-bold text-foreground">Client Emails</h1>
           {saving && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Saving...</span>
             </div>
           )}
         </div>
 
-        <p className="text-gray-600 mb-8">
+        <p className="text-foreground/80 mb-8">
           Control which email notifications are sent to your clients and customize the email templates
         </p>
 
         {/* Confirmations Section */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Confirmations</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-4">Confirmations</h2>
           <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
             <EmailToggleRow
               title="Booking Confirmation"
@@ -161,7 +161,7 @@ export default function ClientEmailsPage() {
 
         {/* Other Client Emails Section */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Other Client Emails</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-4">Other Client Emails</h2>
           <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
             <EmailToggleRowWithTiming
               title="Reminders"
@@ -233,10 +233,10 @@ interface EmailToggleRowProps {
 
 function EmailToggleRow({ title, description, enabled, onChange, onEditTemplate }: EmailToggleRowProps) {
   return (
-    <div className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+    <div className="p-4 flex items-center justify-between hover:bg-background transition-colors">
       <div className="flex-1">
-        <h3 className="text-sm font-medium text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-500 mt-1">{description}</p>
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        <p className="text-sm text-muted-foreground mt-1">{description}</p>
       </div>
       
       <div className="flex items-center gap-3">
@@ -249,7 +249,7 @@ function EmailToggleRow({ title, description, enabled, onChange, onEditTemplate 
         </button>
         
         <span className={`text-xs font-medium px-2 py-1 rounded ${
-          enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+          enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-foreground/80'
         }`}>
           {enabled ? 'On' : 'Off'}
         </span>
@@ -295,11 +295,11 @@ function EmailToggleRowWithTiming({
   onEditTemplate
 }: EmailToggleRowWithTimingProps) {
   return (
-    <div className="p-4 hover:bg-gray-50 transition-colors">
+    <div className="p-4 hover:bg-background transition-colors">
       <div className="flex items-center justify-between mb-3">
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-gray-900">{title}</h3>
-          <p className="text-sm text-gray-500 mt-1">{description}</p>
+          <h3 className="text-sm font-medium text-foreground">{title}</h3>
+          <p className="text-sm text-muted-foreground mt-1">{description}</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -312,7 +312,7 @@ function EmailToggleRowWithTiming({
           </button>
           
           <span className={`text-xs font-medium px-2 py-1 rounded ${
-            enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+            enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-foreground/80'
           }`}>
             {enabled ? 'On' : 'Off'}
           </span>
@@ -334,11 +334,11 @@ function EmailToggleRowWithTiming({
       
       {enabled && (
         <div className="flex items-center gap-2 pl-0">
-          <span className="text-sm text-gray-600">{timingLabel}:</span>
+          <span className="text-sm text-foreground/80">{timingLabel}:</span>
           <select
             value={timing}
             onChange={(e) => onTimingChange(Number(e.target.value))}
-            className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            className="text-sm border border-input rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
           >
             {timingOptions.map(option => (
               <option key={option.value} value={option.value}>

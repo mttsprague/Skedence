@@ -257,14 +257,14 @@ export function EmailTemplateEditor({ orgId, templateType, templateName, onClose
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{templateName}</h2>
-            <p className="text-sm text-gray-500 mt-1">Customize this email template for your clients</p>
+            <h2 className="text-2xl font-bold text-foreground">{templateName}</h2>
+            <p className="text-sm text-muted-foreground mt-1">Customize this email template for your clients</p>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
 
@@ -275,28 +275,28 @@ export function EmailTemplateEditor({ orgId, templateType, templateName, onClose
             <div className="lg:col-span-2 space-y-4">
               {/* Subject Line */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Subject Line
                 </label>
                 <input
                   type="text"
                   value={template.subject}
                   onChange={(e) => setTemplate({ ...template, subject: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Email subject line"
                 />
               </div>
 
               {/* Email Body */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Email Body (HTML)
                 </label>
                 <textarea
                   id="email-body"
                   value={template.body}
                   onChange={(e) => setTemplate({ ...template, body: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                  className="w-full px-4 py-3 border border-input rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                   rows={20}
                   placeholder="Email body content with HTML"
                 />
@@ -313,8 +313,8 @@ export function EmailTemplateEditor({ orgId, templateType, templateName, onClose
                 </button>
 
                 {showPreview && (
-                  <div className="mt-4 border border-gray-200 rounded-lg p-6 bg-gray-50">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Preview (with sample data):</h3>
+                  <div className="mt-4 border border-gray-200 rounded-lg p-6 bg-background">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Preview (with sample data):</h3>
                     <div 
                       className="bg-white p-6 rounded border border-gray-200"
                       dangerouslySetInnerHTML={{ __html: getPreviewBody() }}
@@ -327,8 +327,8 @@ export function EmailTemplateEditor({ orgId, templateType, templateName, onClose
             {/* Variables Legend */}
             <div>
               <div className="sticky top-0">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Available Variables</h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <h3 className="text-lg font-semibold text-foreground mb-3">Available Variables</h3>
+                <p className="text-sm text-foreground/80 mb-4">
                   Click a variable to insert it at your cursor position
                 </p>
 
@@ -350,7 +350,7 @@ export function EmailTemplateEditor({ orgId, templateType, templateName, onClose
                           <code className="text-sm font-mono text-blue-600 break-all">
                             {`{{${variable}}}`}
                           </code>
-                          <p className="text-xs text-gray-600 mt-1">
+                          <p className="text-xs text-foreground/80 mt-1">
                             {VARIABLE_DESCRIPTIONS[variable] || 'Dynamic value'}
                           </p>
                         </div>
@@ -365,10 +365,10 @@ export function EmailTemplateEditor({ orgId, templateType, templateName, onClose
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-background">
           <button
             onClick={resetToDefault}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground hover:bg-gray-200 rounded-lg transition-colors"
           >
             <RotateCcw className="h-4 w-4" />
             Reset to Default
@@ -377,7 +377,7 @@ export function EmailTemplateEditor({ orgId, templateType, templateName, onClose
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-foreground hover:bg-gray-200 rounded-lg transition-colors"
             >
               Cancel
             </button>

@@ -259,7 +259,7 @@ export default function PricingPage() {
     return (
       <>
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-gray-600">
+          <span className="text-sm font-semibold text-foreground/80">
             {pkg.title || `Package ${packageIndex + 1}`}
             {!isActive && <span className="ml-2 text-xs bg-gray-400 text-white px-2 py-0.5 rounded">INACTIVE</span>}
           </span>
@@ -303,35 +303,35 @@ export default function PricingPage() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-600">Title</label>
+          <label className="text-xs font-medium text-foreground/80">Title</label>
           <input
             type="text"
             value={pkg.title}
             onChange={(e) => updatePackage(tierIndex, packageIndex, 'title', e.target.value)}
             placeholder="e.g., 1 Athlete Private Lesson"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
             disabled={!isActive}
           />
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-600">Description</label>
+          <label className="text-xs font-medium text-foreground/80">Description</label>
           <textarea
             value={pkg.description}
             onChange={(e) => updatePackage(tierIndex, packageIndex, 'description', e.target.value)}
             placeholder="Package description (optional)"
             rows={2}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
             disabled={!isActive}
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-700">Package Category *</label>
+          <label className="text-xs font-semibold text-foreground">Package Category *</label>
           <select
             value={pkg.packageCategory}
             onChange={(e) => updatePackage(tierIndex, packageIndex, 'packageCategory', e.target.value as PackageOption['packageCategory'])}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
             disabled={!isActive}
           >
             <option value="oneAthlete">1 Athlete - Private Lesson</option>
@@ -344,19 +344,19 @@ export default function PricingPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600">Passes</label>
+            <label className="text-xs font-medium text-foreground/80">Passes</label>
             <input
               type="number"
               value={pkg.lessonCount}
               onChange={(e) => updatePackage(tierIndex, packageIndex, 'lessonCount', parseInt(e.target.value) || 1)}
               min="1"
-              className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+              className="w-full px-3 py-2 text-center border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
               disabled={!isActive}
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600">Price ($)</label>
+            <label className="text-xs font-medium text-foreground/80">Price ($)</label>
             <input
               type="text"
               inputMode="decimal"
@@ -376,29 +376,29 @@ export default function PricingPage() {
               }}
               onFocus={(e) => e.target.select()}
               placeholder="0.00"
-              className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+              className="w-full px-3 py-2 text-center border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
               disabled={!isActive}
             />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-600">Expiration (Days)</label>
+          <label className="text-xs font-medium text-foreground/80">Expiration (Days)</label>
           <input
             type="number"
             value={pkg.expirationDays}
             onChange={(e) => updatePackage(tierIndex, packageIndex, 'expirationDays', parseInt(e.target.value) || 365)}
             min="1"
-            className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+            className="w-full px-3 py-2 text-center border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
             placeholder="365"
             disabled={!isActive}
           />
-          <p className="text-xs text-gray-500 mt-1">Pass expires this many days after purchase</p>
+          <p className="text-xs text-muted-foreground mt-1">Pass expires this many days after purchase</p>
         </div>
         
         {/* Show auto-generated type for reference */}
         {pkg.title && (
-          <div className="text-xs text-gray-500 italic">
+          <div className="text-xs text-muted-foreground italic">
             Auto-generated type: <span className="font-mono">{pkg.packageType}</span>
           </div>
         )}
@@ -412,8 +412,8 @@ export default function PricingPage() {
         <div className="p-6 lg:p-8">
           <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading pricing...</p>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-foreground/80">Loading pricing...</p>
           </div>
           </div>
         </div>
@@ -426,15 +426,15 @@ export default function PricingPage() {
       <div className="p-6 lg:p-8">
         <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Pricing Structure</h1>
-          <p className="text-gray-600 mt-1">Set up pricing tiers and package options</p>
+          <h1 className="text-3xl font-bold text-foreground">Pricing Structure</h1>
+          <p className="text-foreground/80 mt-1">Set up pricing tiers and package options</p>
           {tiers.length > 0 && (
             <div className="flex gap-4 mt-2">
               <p className="text-sm text-green-600 flex items-center gap-2">
                 <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
                 Active: {tiers.flatMap(t => t.packages.filter(p => p.active)).length} package(s)
               </p>
-              <p className="text-sm text-gray-500 flex items-center gap-2">
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <span className="flex h-2 w-2 rounded-full bg-gray-400"></span>
                 Inactive: {tiers.flatMap(t => t.packages.filter(p => !p.active)).length} package(s)
               </p>
@@ -459,14 +459,14 @@ export default function PricingPage() {
             
             return (
               <Card key={tier.id} className="border-2">
-                <CardHeader className="bg-gray-50">
+                <CardHeader className="bg-background">
                   <div className="flex items-center gap-4">
                     <input
                       type="text"
                       value={tier.tierName}
                       onChange={(e) => updateTierName(tierIndex, e.target.value)}
                       placeholder="Tier Name (e.g., Master, Elite, Pro)"
-                      className="flex-1 px-4 py-2 text-lg font-semibold border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                      className="flex-1 px-4 py-2 text-lg font-semibold border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                     />
                     {tiers.length > 1 && (
                       <Button
@@ -484,10 +484,10 @@ export default function PricingPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold text-green-700">ACTIVE PRICING</h3>
-                      <span className="text-xs text-gray-500">({activePackages.length})</span>
+                      <span className="text-xs text-muted-foreground">({activePackages.length})</span>
                     </div>
                     {activePackages.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic">No active packages</p>
+                      <p className="text-sm text-muted-foreground italic">No active packages</p>
                     ) : (
                       activePackages.map((pkg) => {
                         const packageIndex = tier.packages.indexOf(pkg);
@@ -504,13 +504,13 @@ export default function PricingPage() {
                   {inactivePackages.length > 0 && (
                     <div className="space-y-4 pt-4 border-t-2 border-gray-200">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-gray-600">INACTIVE PRICING</h3>
-                        <span className="text-xs text-gray-500">({inactivePackages.length})</span>
+                        <h3 className="text-sm font-bold text-foreground/80">INACTIVE PRICING</h3>
+                        <span className="text-xs text-muted-foreground">({inactivePackages.length})</span>
                       </div>
                       {inactivePackages.map((pkg) => {
                         const packageIndex = tier.packages.indexOf(pkg);
                         return (
-                          <div key={pkg.id} className="p-4 bg-gray-100 border border-gray-300 rounded-lg space-y-3 opacity-75">
+                          <div key={pkg.id} className="p-4 bg-gray-100 border border-input rounded-lg space-y-3 opacity-75">
                             {renderPackageFields(tierIndex, packageIndex, pkg, false)}
                           </div>
                         );
@@ -543,7 +543,7 @@ export default function PricingPage() {
           <Button
             onClick={savePricingStructure}
             disabled={saving || tiers.length === 0}
-            className="w-full bg-[#3258A3] hover:bg-[#2a4a8a] text-white py-6 text-lg"
+            className="w-full bg-primary hover:bg-primary/90 text-white py-6 text-lg"
           >
             {saving ? (
               <>

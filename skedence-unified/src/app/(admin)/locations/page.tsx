@@ -258,7 +258,7 @@ export default function LocationsPage() {
     return (
       <BusinessSettingsSubmenu>
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3258A3]"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </BusinessSettingsSubmenu>
     );
@@ -270,15 +270,15 @@ export default function LocationsPage() {
         {/* Header with subscription info */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Locations</h1>
-            <p className="text-gray-600 mt-1">Manage your business locations</p>
+            <h1 className="text-3xl font-bold text-foreground">Locations</h1>
+            <p className="text-foreground/80 mt-1">Manage your business locations</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-              <Crown className="w-4 h-4 text-[#3258A3]" />
+              <Crown className="w-4 h-4 text-primary" />
               <div className="text-sm">
-                <div className="font-semibold text-gray-900">{TIER_DISPLAY_NAMES[subscriptionTier]}</div>
-                <div className="text-gray-600">
+                <div className="font-semibold text-foreground">{TIER_DISPLAY_NAMES[subscriptionTier]}</div>
+                <div className="text-foreground/80">
                   {locations.length} / {locationLimit === null ? '∞' : locationLimit} locations
                 </div>
               </div>
@@ -314,12 +314,12 @@ export default function LocationsPage() {
           <Card className="border-dashed border-2">
             <CardContent className="pt-12 pb-12 text-center">
               <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No locations yet</h3>
-              <p className="text-gray-600 mb-6">Add your first location to get started</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">No locations yet</h3>
+              <p className="text-foreground/80 mb-6">Add your first location to get started</p>
               {canAddLocation && (
                 <Button
                   onClick={() => setShowForm(true)}
-                  className="bg-[#3258A3] hover:bg-[#264680]"
+                  className="bg-primary hover:bg-[#264680]"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Location
@@ -333,7 +333,7 @@ export default function LocationsPage() {
             {canAddLocation && (
               <Button
                 onClick={() => setShowForm(true)}
-                className="bg-[#3258A3] hover:bg-[#264680] w-full sm:w-auto"
+                className="bg-primary hover:bg-[#264680] w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Location
@@ -347,7 +347,7 @@ export default function LocationsPage() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-5 h-5 text-[#3258A3]" />
+                        <MapPin className="w-5 h-5 text-primary" />
                         <CardTitle className="text-lg">{location.name}</CardTitle>
                       </div>
                       <div className="flex gap-1">
@@ -355,7 +355,7 @@ export default function LocationsPage() {
                           onClick={() => handleEdit(location)}
                           className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                         >
-                          <Edit2 className="w-4 h-4 text-gray-600" />
+                          <Edit2 className="w-4 h-4 text-foreground/80" />
                         </button>
                         <button
                           onClick={() => handleDelete(location.id)}
@@ -367,7 +367,7 @@ export default function LocationsPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-1 text-sm text-gray-600">
+                    <div className="space-y-1 text-sm text-foreground/80">
                       <p>{location.addressLine1}</p>
                       {location.addressLine2 && <p>{location.addressLine2}</p>}
                       <p>{location.city}, {location.state} {location.zipCode}</p>
@@ -399,7 +399,7 @@ export default function LocationsPage() {
               <CardContent className="pt-6">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-foreground mb-1">
                       Location Name *
                     </label>
                     <input
@@ -408,12 +408,12 @@ export default function LocationsPage() {
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
                       required
                       placeholder="Main Studio, North Campus, etc."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-foreground mb-1">
                       Address Line 1 *
                     </label>
                     <input
@@ -422,12 +422,12 @@ export default function LocationsPage() {
                       onChange={(e) => setForm({ ...form, addressLine1: e.target.value })}
                       required
                       placeholder="123 Main Street"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-foreground mb-1">
                       Address Line 2
                     </label>
                     <input
@@ -435,13 +435,13 @@ export default function LocationsPage() {
                       value={form.addressLine2}
                       onChange={(e) => setForm({ ...form, addressLine2: e.target.value })}
                       placeholder="Suite, Unit, Building (optional)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         City *
                       </label>
                       <input
@@ -449,12 +449,12 @@ export default function LocationsPage() {
                         value={form.city}
                         onChange={(e) => setForm({ ...form, city: e.target.value })}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         State *
                       </label>
                       <input
@@ -464,13 +464,13 @@ export default function LocationsPage() {
                         required
                         maxLength={2}
                         placeholder="CA"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-foreground mb-1">
                       ZIP Code *
                     </label>
                     <input
@@ -480,7 +480,7 @@ export default function LocationsPage() {
                       required
                       maxLength={10}
                       placeholder="12345"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                      className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
@@ -496,7 +496,7 @@ export default function LocationsPage() {
                     <Button
                       type="submit"
                       disabled={saving}
-                      className="flex-1 bg-[#3258A3] hover:bg-[#264680]"
+                      className="flex-1 bg-primary hover:bg-[#264680]"
                     >
                       {saving ? 'Saving...' : editingLocation ? 'Update Location' : 'Add Location'}
                     </Button>

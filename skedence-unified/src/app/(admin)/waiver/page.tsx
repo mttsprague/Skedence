@@ -67,7 +67,7 @@ export default function WaiverPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -76,11 +76,11 @@ export default function WaiverPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Waiver Settings</h1>
-          <p className="text-gray-600 mt-2">Configure liability waiver requirements for your clients</p>
+          <h1 className="text-3xl font-bold text-foreground">Waiver Settings</h1>
+          <p className="text-foreground/80 mt-2">Configure liability waiver requirements for your clients</p>
         </div>
         {lastSaved && (
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             Last saved: {lastSaved.toLocaleTimeString()}
           </div>
         )}
@@ -89,7 +89,7 @@ export default function WaiverPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#3258A3]" />
+              <FileText className="h-5 w-5 text-primary" />
               Waiver Configuration
             </CardTitle>
           </CardHeader>
@@ -101,18 +101,18 @@ export default function WaiverPage() {
                   type="checkbox"
                   checked={settings.requireWaiver}
                   onChange={(e) => updateSetting({ requireWaiver: e.target.checked })}
-                  className="w-5 h-5 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                  className="w-5 h-5 text-primary border-input rounded focus:ring-ring"
                 />
-                <span className="text-sm font-medium text-gray-700">Require Waiver Agreement</span>
+                <span className="text-sm font-medium text-foreground">Require Waiver Agreement</span>
               </label>
-              <p className="text-sm text-gray-500 mt-1 ml-8">
+              <p className="text-sm text-muted-foreground mt-1 ml-8">
                 Clients must agree to the waiver after their first booking
               </p>
             </div>
 
             {/* Waiver Text Area */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Waiver Text
               </label>
               <textarea
@@ -120,9 +120,9 @@ export default function WaiverPage() {
                 onChange={(e) => updateSetting({ waiverText: e.target.value })}
                 placeholder="Enter your liability waiver text here. This will be shown to clients after they book their first session if the waiver requirement is enabled."
                 rows={20}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent font-mono text-sm"
+                className="w-full px-4 py-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent font-mono text-sm"
               />
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-muted-foreground mt-2">
                 {settings.waiverText.length} characters
               </p>
             </div>
@@ -143,8 +143,8 @@ export default function WaiverPage() {
 
             {/* Sample Waiver Text */}
             {!settings.waiverText && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Sample Waiver Text:</p>
+              <div className="bg-background border border-gray-200 rounded-lg p-4">
+                <p className="text-sm font-medium text-foreground mb-2">Sample Waiver Text:</p>
                 <button
                   onClick={() => updateSetting({
                     waiverText: `RELEASE OF LIABILITY AND WAIVER
@@ -163,7 +163,7 @@ MINOR PARTICIPANTS: If the participant is under eighteen (18) years of age, I re
 
 By checking "I Agree," I acknowledge that I have read and understand this Release of Liability and Waiver Agreement, and that I am voluntarily giving up certain legal rights, including the right to sue for claims arising from ordinary negligence.`
                   })}
-                  className="text-sm text-[#3258A3] hover:text-[#2A4A8C] font-medium"
+                  className="text-sm text-primary hover:text-[#2A4A8C] font-medium"
                 >
                   Use Sample Text
                 </button>

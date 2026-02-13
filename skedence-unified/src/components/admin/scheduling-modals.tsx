@@ -195,63 +195,63 @@ export function BookLessonModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Book Lesson</h2>
+          <h2 className="text-xl font-bold text-foreground">Book Lesson</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
 
         <div className="p-6 space-y-4">
           <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+            <div className="flex items-center gap-2 text-sm text-foreground/80 mb-1">
               <User className="h-4 w-4" />
               Trainer
             </div>
-            <div className="font-semibold text-gray-900">{trainerName}</div>
+            <div className="font-semibold text-foreground">{trainerName}</div>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+          <div className="bg-background p-4 rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-foreground/80 mb-2">
               <Calendar className="h-4 w-4" />
               Schedule
             </div>
-            <div className="font-medium text-gray-900 mb-2">
+            <div className="font-medium text-foreground mb-2">
               {format(slotDate, 'EEEE, MMMM d, yyyy')}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Start Time</label>
+                <label className="block text-sm text-foreground/80 mb-1">Start Time</label>
                 <input
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">End Time</label>
+                <label className="block text-sm text-foreground/80 mb-1">End Time</label>
                 <input
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                 />
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Client</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Select Client</label>
             {loadingClients ? (
-              <div className="flex items-center gap-2 text-gray-600 py-2">
-                <div className="w-4 h-4 border-2 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
+              <div className="flex items-center gap-2 text-foreground/80 py-2">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                 Loading clients...
               </div>
             ) : (
               <select
                 value={selectedClientId}
                 onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
               >
                 <option value="">Choose a client...</option>
                 {clients.map(client => (
@@ -265,19 +265,19 @@ export function BookLessonModal({
 
           {selectedClientId && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Pass</label>
+              <label className="block text-sm font-medium text-foreground mb-2">Select Pass</label>
               {loadingPackages ? (
-                <div className="flex items-center gap-2 text-gray-600 py-2">
-                  <div className="w-4 h-4 border-2 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
+                <div className="flex items-center gap-2 text-foreground/80 py-2">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                   Loading packages...
                 </div>
               ) : packages.length === 0 ? (
-                <div className="text-sm text-gray-600 py-2">No available passes for this client</div>
+                <div className="text-sm text-foreground/80 py-2">No available passes for this client</div>
               ) : (
                 <select
                   value={selectedPackageId}
                   onChange={(e) => setSelectedPackageId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                 >
                   <option value="">Choose a pass...</option>
                   {packages.map(pkg => (
@@ -299,7 +299,7 @@ export function BookLessonModal({
           <div className="flex gap-3 pt-4">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 border border-input text-foreground rounded-lg hover:bg-background transition-colors"
             >
               Cancel
             </button>
@@ -309,8 +309,8 @@ export function BookLessonModal({
               className={cn(
                 "flex-1 px-4 py-2 rounded-lg transition-colors font-medium",
                 loading || !selectedClientId || !selectedPackageId
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-[#3258A3] text-white hover:bg-[#274785]"
+                  ? "bg-gray-300 text-muted-foreground cursor-not-allowed"
+                  : "bg-primary text-white hover:bg-[#274785]"
               )}
             >
               {loading ? (
@@ -479,55 +479,55 @@ export function CreateAvailabilityModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Create Availability</h2>
+          <h2 className="text-xl font-bold text-foreground">Create Availability</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
 
         <div className="p-6 space-y-4">
           {trainerName && (
             <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+              <div className="flex items-center gap-2 text-sm text-foreground/80 mb-1">
                 <User className="h-4 w-4" />
                 Trainer
               </div>
-              <div className="font-semibold text-gray-900">{trainerName}</div>
+              <div className="font-semibold text-foreground">{trainerName}</div>
             </div>
           )}
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+          <div className="bg-background p-4 rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-foreground/80 mb-2">
               <Calendar className="h-4 w-4" />
               Schedule
             </div>
-            <div className="font-medium text-gray-900 mb-2">
+            <div className="font-medium text-foreground mb-2">
               {format(slotDate, 'EEEE, MMMM d, yyyy')}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Start Time</label>
+                <label className="block text-sm text-foreground/80 mb-1">Start Time</label>
                 <input
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">End Time</label>
+                <label className="block text-sm text-foreground/80 mb-1">End Time</label>
                 <input
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                 />
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Status</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setStatus('open')}
@@ -535,11 +535,11 @@ export function CreateAvailabilityModal({
                   "p-3 border-2 rounded-lg transition-colors",
                   status === 'open'
                     ? "border-green-500 bg-green-50 text-green-900"
-                    : "border-gray-300 hover:border-gray-400"
+                    : "border-input hover:border-gray-400"
                 )}
               >
                 <div className="font-medium">Available</div>
-                <div className="text-xs text-gray-600 mt-1">Open for booking</div>
+                <div className="text-xs text-foreground/80 mt-1">Open for booking</div>
               </button>
               <button
                 onClick={() => setStatus('unavailable')}
@@ -547,11 +547,11 @@ export function CreateAvailabilityModal({
                   "p-3 border-2 rounded-lg transition-colors",
                   status === 'unavailable'
                     ? "border-red-500 bg-red-50 text-red-900"
-                    : "border-gray-300 hover:border-gray-400"
+                    : "border-input hover:border-gray-400"
                 )}
               >
                 <div className="font-medium">Unavailable</div>
-                <div className="text-xs text-gray-600 mt-1">Blocked time</div>
+                <div className="text-xs text-foreground/80 mt-1">Blocked time</div>
               </button>
             </div>
           </div>
@@ -562,14 +562,14 @@ export function CreateAvailabilityModal({
                 type="checkbox"
                 checked={isRecurring}
                 onChange={(e) => setIsRecurring(e.target.checked)}
-                className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
               />
-              <span className="text-sm font-medium text-gray-700">Recurring</span>
+              <span className="text-sm font-medium text-foreground">Recurring</span>
             </label>
             {isRecurring && (
               <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Days of Week</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">Days of Week</label>
                   <div className="flex flex-wrap gap-2">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
                       <button
@@ -585,8 +585,8 @@ export function CreateAvailabilityModal({
                         className={cn(
                           "px-4 py-2 text-sm font-medium rounded-lg border-2 transition-colors",
                           selectedWeekdays.includes(index)
-                            ? "border-[#3258A3] bg-[#3258A3] text-white"
-                            : "border-gray-300 text-gray-700 hover:border-gray-400"
+                            ? "border-primary bg-primary text-white"
+                            : "border-input text-foreground hover:border-gray-400"
                         )}
                       >
                         {day}
@@ -597,27 +597,27 @@ export function CreateAvailabilityModal({
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Start Date</label>
+                    <label className="block text-sm text-foreground/80 mb-1">Start Date</label>
                     <input
                       type="date"
                       value={recurringStartDate}
                       onChange={(e) => setRecurringStartDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">End Date</label>
+                    <label className="block text-sm text-foreground/80 mb-1">End Date</label>
                     <input
                       type="date"
                       value={recurringEndDate}
                       onChange={(e) => setRecurringEndDate(e.target.value)}
                       min={recurringStartDate}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                      className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                     />
                   </div>
                 </div>
                 
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Create {status === 'open' ? 'available' : 'unavailable'} slots on {selectedWeekdays.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ') || 'selected days'} from {recurringStartDate ? format(new Date(recurringStartDate), 'MMM d') : 'start date'} to {recurringEndDate ? format(new Date(recurringEndDate), 'MMM d, yyyy') : 'end date'}
                 </p>
               </div>
@@ -625,23 +625,23 @@ export function CreateAvailabilityModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Location <span className="text-red-500">*</span>
             </label>
             {loadingLocations ? (
-              <div className="flex items-center gap-2 text-gray-600 py-2">
-                <div className="w-4 h-4 border-2 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
+              <div className="flex items-center gap-2 text-foreground/80 py-2">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                 Loading locations...
               </div>
             ) : locations.length === 0 ? (
-              <div className="text-sm text-gray-600 py-2">
+              <div className="text-sm text-foreground/80 py-2">
                 No locations found. Please add locations in Business Settings.
               </div>
             ) : (
               <select
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent"
+                className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
               >
                 <option value="">Select location...</option>
                 {locations.map(loc => (
@@ -665,7 +665,7 @@ export function CreateAvailabilityModal({
           <div className="flex gap-3 pt-4">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 border border-input text-foreground rounded-lg hover:bg-background transition-colors"
             >
               Cancel
             </button>
@@ -675,8 +675,8 @@ export function CreateAvailabilityModal({
               className={cn(
                 "flex-1 px-4 py-2 rounded-lg transition-colors font-medium",
                 (loading || !location.trim() || (isRecurring && selectedWeekdays.length === 0))
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-[#3258A3] text-white hover:bg-[#274785]"
+                  ? "bg-gray-300 text-muted-foreground cursor-not-allowed"
+                  : "bg-primary text-white hover:bg-[#274785]"
               )}
             >
               {loading ? (

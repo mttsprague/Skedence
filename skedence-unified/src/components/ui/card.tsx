@@ -19,11 +19,11 @@ export function CardHeader({ children, className }: CardProps) {
 }
 
 export function CardTitle({ children, className }: CardProps) {
-  return <h3 className={cn('text-lg font-semibold text-gray-900', className)}>{children}</h3>;
+  return <h3 className={cn('text-lg font-semibold text-foreground', className)}>{children}</h3>;
 }
 
 export function CardDescription({ children, className }: CardProps) {
-  return <p className={cn('text-sm text-gray-600 mt-1', className)}>{children}</p>;
+  return <p className={cn('text-sm text-foreground/80 mt-1', className)}>{children}</p>;
 }
 
 export function CardContent({ children, className }: CardProps) {

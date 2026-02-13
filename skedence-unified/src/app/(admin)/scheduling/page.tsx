@@ -670,7 +670,7 @@ export default function SchedulingPage() {
 
   // Don't render until dates are initialized client-side
   if (!isMounted || !weekStart || !selectedDate) {
-    return <div className="h-full flex items-center justify-center"><div className="text-gray-500">Loading...</div></div>;
+    return <div className="h-full flex items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>;
   }
 
   return (
@@ -687,16 +687,16 @@ export default function SchedulingPage() {
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title={viewMode === 'individual' ? "Previous Week" : "Previous Day"}
                 >
-                  <ChevronLeft className="h-5 w-5 text-gray-600" />
+                  <ChevronLeft className="h-5 w-5 text-foreground/80" />
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
+                  <h1 className="text-2xl font-bold text-foreground">
                     {viewMode === 'individual' 
                       ? `Week of ${format(weekStart, 'MMMM d, yyyy')}`
                       : format(allTrainersDate!, 'EEEE, MMMM d, yyyy')
                     }
                   </h1>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-foreground/80 mt-1">
                     {viewMode === 'individual' 
                       ? `${scheduleItems.length} appointments`
                       : `${Array.from(allTrainersSchedule.values()).reduce((sum, items) => sum + items.length, 0)} appointments`
@@ -708,11 +708,11 @@ export default function SchedulingPage() {
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title={viewMode === 'individual' ? "Next Week" : "Next Day"}
                 >
-                  <ChevronRight className="h-5 w-5 text-gray-600" />
+                  <ChevronRight className="h-5 w-5 text-foreground/80" />
                 </button>
                 <button
                   onClick={viewMode === 'individual' ? goToToday : goToTodayAllTrainers}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-3 py-1.5 text-sm border border-input rounded-lg hover:bg-background transition-colors"
                 >
                   Today
                 </button>
@@ -731,7 +731,7 @@ export default function SchedulingPage() {
                       setSelectedTrainer(value);
                     }
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-sm"
+                  className="px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
                 >
                   {trainers.map(trainer => (
                     <option key={trainer.id} value={`${trainer.firstName} ${trainer.lastName}`}>
@@ -743,7 +743,7 @@ export default function SchedulingPage() {
 
                 <Link
                   href="/bookings"
-                  className="flex items-center gap-2 px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#274785] transition-colors text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-[#274785] transition-colors text-sm font-medium"
                 >
                   <Plus className="h-4 w-4" />
                   Add New
@@ -756,14 +756,14 @@ export default function SchedulingPage() {
           <div className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center h-full">
-                <div className="w-12 h-12 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : viewMode === 'individual' ? (
               /* Week View (Individual Trainer) */
               <div className="min-w-[900px]">
                 {/* Week Days Header */}
-                <div className="grid grid-cols-8 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
-                  <div className="p-3 text-xs font-medium text-gray-500">Time</div>
+                <div className="grid grid-cols-8 border-b border-gray-200 bg-background sticky top-0 z-10">
+                  <div className="p-3 text-xs font-medium text-muted-foreground">Time</div>
                   {weekDays.map(day => (
                     <div
                       key={day.toISOString()}
@@ -772,12 +772,12 @@ export default function SchedulingPage() {
                         today && isSameDay(day, today) && 'bg-blue-50'
                       )}
                     >
-                      <div className="text-xs font-medium text-gray-500">
+                      <div className="text-xs font-medium text-muted-foreground">
                         {format(day, 'EEE')}
                       </div>
                       <div className={cn(
                         'text-2xl font-bold mt-1',
-                        today && isSameDay(day, today) ? 'text-blue-600' : 'text-gray-900'
+                        today && isSameDay(day, today) ? 'text-blue-600' : 'text-foreground'
                       )}>
                         {format(day, 'd')}
                       </div>
@@ -808,7 +808,7 @@ export default function SchedulingPage() {
                     
                     return (
                       <div key={hour} className="grid grid-cols-8 border-b border-gray-200">
-                        <div className="p-3 text-xs text-gray-500 font-medium border-r border-gray-200">
+                        <div className="p-3 text-xs text-muted-foreground font-medium border-r border-gray-200">
                           {hourLabel}
                         </div>
                         {weekDays.map(day => {
@@ -819,7 +819,7 @@ export default function SchedulingPage() {
                           return (
                             <div
                               key={`${day.toISOString()}-${hour}`}
-                              className="h-[70px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
+                              className="h-[70px] p-1 border-l border-gray-200 hover:bg-background relative cursor-pointer overflow-y-auto"
                               onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
                             >
                               {dayItems.map(item => {
@@ -847,10 +847,10 @@ export default function SchedulingPage() {
                                     <div className="font-semibold truncate">
                                       {format(item.startTime, 'h:mm a')}
                                     </div>
-                                    <div className="truncate text-gray-700">
+                                    <div className="truncate text-foreground">
                                       {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
                                     </div>
-                                    <div className="text-gray-500 truncate">
+                                    <div className="text-muted-foreground truncate">
                                       {item.trainerName}
                                     </div>
                                     {item.location && (
@@ -874,17 +874,17 @@ export default function SchedulingPage() {
               <div className="overflow-x-auto">
                 <div style={{ minWidth: `${200 + trainers.length * 240}px` }}>
                   {/* Trainers Header */}
-                  <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
-                    <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-500 border-r border-gray-200">Time</div>
+                  <div className="flex border-b border-gray-200 bg-background sticky top-0 z-10">
+                    <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-muted-foreground border-r border-gray-200">Time</div>
                     {trainers.map(trainer => (
                       <div
                         key={trainer.id}
                         className="w-[240px] flex-shrink-0 p-3 text-center border-l border-gray-200"
                       >
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-foreground">
                           {trainer.firstName} {trainer.lastName}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-muted-foreground mt-1">
                           {allTrainersSchedule.get(trainer.id)?.length || 0} appointments
                         </div>
                       </div>
@@ -916,7 +916,7 @@ export default function SchedulingPage() {
                       
                       return (
                         <div key={hour} className="flex border-b border-gray-200">
-                          <div className="w-[200px] flex-shrink-0 p-3 text-xs text-gray-500 font-medium border-r border-gray-200">
+                          <div className="w-[200px] flex-shrink-0 p-3 text-xs text-muted-foreground font-medium border-r border-gray-200">
                             {hourLabel}
                           </div>
                           {trainers.map(trainer => {
@@ -927,7 +927,7 @@ export default function SchedulingPage() {
                             return (
                               <div
                                 key={`${trainer.id}-${hour}`}
-                                className="w-[240px] flex-shrink-0 h-[70px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
+                                className="w-[240px] flex-shrink-0 h-[70px] p-1 border-l border-gray-200 hover:bg-background relative cursor-pointer overflow-y-auto"
                                 onClick={() => trainerItems.length === 0 && handleEmptySlotClick(allTrainersDate!, hour)}
                               >
                                 {trainerItems.map(item => {
@@ -955,7 +955,7 @@ export default function SchedulingPage() {
                                       <div className="font-semibold truncate">
                                         {format(item.startTime, 'h:mm a')}
                                       </div>
-                                      <div className="truncate text-gray-700">
+                                      <div className="truncate text-foreground">
                                         {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
                                       </div>
                                       {item.location && (
@@ -984,14 +984,14 @@ export default function SchedulingPage() {
           <div className="fixed right-0 top-0 bottom-0 w-[600px] bg-white border-l border-gray-200 shadow-2xl overflow-y-auto z-50 animate-slide-in-right">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-foreground">
                 {selectedItem.type === 'class' ? 'Class Details' : 'Session Details'}
               </h2>
               <button
                 onClick={() => setSelectedItem(null)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <X className="h-5 w-5 text-gray-500" />
+                <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
 
@@ -1005,11 +1005,11 @@ export default function SchedulingPage() {
                       {selectedItem.clientName?.split(' ').map(n => n[0]).join('') || '?'}
                     </div>
                     <div className="flex-1">
-                      <div className="text-xl font-semibold text-gray-900">{selectedItem.clientName}</div>
-                      <div className="text-sm text-gray-600 mt-1">
+                      <div className="text-xl font-semibold text-foreground">{selectedItem.clientName}</div>
+                      <div className="text-sm text-foreground/80 mt-1">
                         {format(selectedItem.startTime, 'EEEE, MMMM d, yyyy')}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-foreground/80">
                         {format(selectedItem.startTime, 'h:mm a')} - {format(selectedItem.endTime, 'h:mm a')}
                       </div>
                     </div>
@@ -1017,20 +1017,20 @@ export default function SchedulingPage() {
 
                   {/* Trainer Info */}
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       Trainer
                     </h3>
-                    <div className="text-sm text-gray-700">{selectedItem.trainerName}</div>
+                    <div className="text-sm text-foreground">{selectedItem.trainerName}</div>
                   </div>
 
                   {/* Contact Information */}
                   {(selectedItem.clientEmail || selectedItem.clientPhone) && (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-900">Contact Information</h3>
+                      <h3 className="font-semibold text-foreground">Contact Information</h3>
                       {selectedItem.clientEmail && (
                         <div className="text-sm">
-                          <span className="text-gray-600">Email:</span>{' '}
+                          <span className="text-foreground/80">Email:</span>{' '}
                           <a href={`mailto:${selectedItem.clientEmail}`} className="text-blue-600 hover:underline">
                             {selectedItem.clientEmail}
                           </a>
@@ -1038,7 +1038,7 @@ export default function SchedulingPage() {
                       )}
                       {selectedItem.clientPhone && (
                         <div className="text-sm">
-                          <span className="text-gray-600">Phone:</span>{' '}
+                          <span className="text-foreground/80">Phone:</span>{' '}
                           <a href={`tel:${selectedItem.clientPhone}`} className="text-blue-600 hover:underline">
                             {selectedItem.clientPhone}
                           </a>
@@ -1050,7 +1050,7 @@ export default function SchedulingPage() {
                   {/* Athlete Names from Booking */}
                   {(selectedItem.athleteNames && selectedItem.athleteNames.length > 0) || selectedItem.athleteName || selectedItem.secondAthleteName ? (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-900">Participants</h3>
+                      <h3 className="font-semibold text-foreground">Participants</h3>
                       <div className="space-y-2">
                         {/* Use new athleteNames array if available */}
                         {selectedItem.athleteNames && selectedItem.athleteNames.length > 0 ? (
@@ -1061,20 +1061,20 @@ export default function SchedulingPage() {
                             );
                             return (
                               <div key={idx} className="bg-blue-50 p-3 rounded-lg space-y-1">
-                                <div className="font-medium text-gray-900">{name}</div>
+                                <div className="font-medium text-foreground">{name}</div>
                                 {matchedAthlete && (
                                   <>
                                     {matchedAthlete.birthday && (
-                                      <div className="text-sm text-gray-600">DOB: {matchedAthlete.birthday}</div>
+                                      <div className="text-sm text-foreground/80">DOB: {matchedAthlete.birthday}</div>
                                     )}
                                     {matchedAthlete.schoolClubTeam && (
-                                      <div className="text-sm text-gray-600">Team: {matchedAthlete.schoolClubTeam}</div>
+                                      <div className="text-sm text-foreground/80">Team: {matchedAthlete.schoolClubTeam}</div>
                                     )}
                                     {matchedAthlete.experienceLevel && (
-                                      <div className="text-sm text-gray-600">Experience: {matchedAthlete.experienceLevel}</div>
+                                      <div className="text-sm text-foreground/80">Experience: {matchedAthlete.experienceLevel}</div>
                                     )}
                                     {matchedAthlete.position && (
-                                      <div className="text-sm text-gray-600">Position: {matchedAthlete.position}</div>
+                                      <div className="text-sm text-foreground/80">Position: {matchedAthlete.position}</div>
                                     )}
                                   </>
                                 )}
@@ -1086,12 +1086,12 @@ export default function SchedulingPage() {
                           <>
                             {selectedItem.athleteName && (
                               <div className="bg-blue-50 p-3 rounded-lg">
-                                <div className="font-medium text-gray-900">{selectedItem.athleteName}</div>
+                                <div className="font-medium text-foreground">{selectedItem.athleteName}</div>
                               </div>
                             )}
                             {selectedItem.secondAthleteName && (
                               <div className="bg-blue-50 p-3 rounded-lg">
-                                <div className="font-medium text-gray-900">{selectedItem.secondAthleteName}</div>
+                                <div className="font-medium text-foreground">{selectedItem.secondAthleteName}</div>
                               </div>
                             )}
                           </>
@@ -1103,30 +1103,30 @@ export default function SchedulingPage() {
                   {/* Athletes from Profile */}
                   {selectedItem.athletes && selectedItem.athletes.length > 0 && (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-900">Athletes on File</h3>
+                      <h3 className="font-semibold text-foreground">Athletes on File</h3>
                       <div className="space-y-3">
                         {selectedItem.athletes.map((athlete, idx) => (
-                          <div key={idx} className="bg-gray-50 p-4 rounded-lg space-y-2">
-                            <div className="font-medium text-gray-900">
+                          <div key={idx} className="bg-background p-4 rounded-lg space-y-2">
+                            <div className="font-medium text-foreground">
                               {athlete.firstName} {athlete.lastName}
                             </div>
                             {athlete.birthday && (
-                              <div className="text-sm text-gray-600">
+                              <div className="text-sm text-foreground/80">
                                 <span className="font-medium">DOB:</span> {athlete.birthday}
                               </div>
                             )}
                             {athlete.schoolClubTeam && (
-                              <div className="text-sm text-gray-600">
+                              <div className="text-sm text-foreground/80">
                                 <span className="font-medium">Team:</span> {athlete.schoolClubTeam}
                               </div>
                             )}
                             {athlete.experienceLevel && (
-                              <div className="text-sm text-gray-600">
+                              <div className="text-sm text-foreground/80">
                                 <span className="font-medium">Experience:</span> {athlete.experienceLevel}
                               </div>
                             )}
                             {athlete.position && (
-                              <div className="text-sm text-gray-600">
+                              <div className="text-sm text-foreground/80">
                                 <span className="font-medium">Position:</span> {athlete.position}
                               </div>
                             )}
@@ -1139,11 +1139,11 @@ export default function SchedulingPage() {
                   {/* Emergency Contact */}
                   {selectedItem.emergencyContactName && (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-900">Emergency Contact</h3>
+                      <h3 className="font-semibold text-foreground">Emergency Contact</h3>
                       <div className="bg-red-50 p-4 rounded-lg space-y-1">
-                        <div className="font-medium text-gray-900">{selectedItem.emergencyContactName}</div>
+                        <div className="font-medium text-foreground">{selectedItem.emergencyContactName}</div>
                         {selectedItem.emergencyContactNumber && (
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-foreground/80">
                             <a href={`tel:${selectedItem.emergencyContactNumber}`} className="text-blue-600 hover:underline">
                               {selectedItem.emergencyContactNumber}
                             </a>
@@ -1156,16 +1156,16 @@ export default function SchedulingPage() {
                   {/* Referral */}
                   {selectedItem.referredBy && (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-900">Referred By</h3>
-                      <div className="text-sm text-gray-700">{selectedItem.referredBy}</div>
+                      <h3 className="font-semibold text-foreground">Referred By</h3>
+                      <div className="text-sm text-foreground">{selectedItem.referredBy}</div>
                     </div>
                   )}
 
                   {/* Lesson Notes from Booking */}
                   {selectedItem.lessonNotes && (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-900">Lesson Notes</h3>
-                      <div className="text-sm text-gray-700 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                      <h3 className="font-semibold text-foreground">Lesson Notes</h3>
+                      <div className="text-sm text-foreground bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                         {selectedItem.lessonNotes}
                       </div>
                     </div>
@@ -1174,8 +1174,8 @@ export default function SchedulingPage() {
                   {/* Notes for Coach */}
                   {selectedItem.notesForCoach && (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-gray-900">Notes for Coach</h3>
-                      <div className="text-sm text-gray-700 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <h3 className="font-semibold text-foreground">Notes for Coach</h3>
+                      <div className="text-sm text-foreground bg-blue-50 p-4 rounded-lg border border-blue-200">
                         {selectedItem.notesForCoach}
                       </div>
                     </div>
@@ -1184,24 +1184,24 @@ export default function SchedulingPage() {
                   {/* Cancel Session Actions */}
                   {!showCancelConfirm && !cancellingBooking && (
                     <div className="pt-6 border-t space-y-3">
-                      <h3 className="font-semibold text-gray-900">Cancel Session</h3>
-                      <p className="text-sm text-gray-600 mb-4">
+                      <h3 className="font-semibold text-foreground">Cancel Session</h3>
+                      <p className="text-sm text-foreground/80 mb-4">
                         Choose whether to refund the client's pass or not.
                       </p>
                       <div className="grid grid-cols-2 gap-3">
                         <button
                           onClick={() => setShowCancelConfirm('early')}
-                          className="px-4 py-3 bg-white border-2 border-gray-300 hover:border-orange-500 hover:bg-orange-50 text-gray-900 rounded-lg transition-colors font-medium"
+                          className="px-4 py-3 bg-white border-2 border-input hover:border-orange-500 hover:bg-orange-50 text-foreground rounded-lg transition-colors font-medium"
                         >
                           <div className="text-sm font-semibold">Early Cancel</div>
-                          <div className="text-xs text-gray-600 mt-1">Refund pass to client</div>
+                          <div className="text-xs text-foreground/80 mt-1">Refund pass to client</div>
                         </button>
                         <button
                           onClick={() => setShowCancelConfirm('late')}
-                          className="px-4 py-3 bg-white border-2 border-gray-300 hover:border-red-500 hover:bg-red-50 text-gray-900 rounded-lg transition-colors font-medium"
+                          className="px-4 py-3 bg-white border-2 border-input hover:border-red-500 hover:bg-red-50 text-foreground rounded-lg transition-colors font-medium"
                         >
                           <div className="text-sm font-semibold">Late Cancel</div>
-                          <div className="text-xs text-gray-600 mt-1">No pass refund</div>
+                          <div className="text-xs text-foreground/80 mt-1">No pass refund</div>
                         </button>
                       </div>
                     </div>
@@ -1229,7 +1229,7 @@ export default function SchedulingPage() {
                         </button>
                         <button
                           onClick={() => setShowCancelConfirm(null)}
-                          className="flex-1 px-4 py-2.5 bg-white border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-lg transition-colors"
+                          className="flex-1 px-4 py-2.5 bg-white border-2 border-input hover:bg-background text-foreground font-medium rounded-lg transition-colors"
                         >
                           Go Back
                         </button>
@@ -1239,7 +1239,7 @@ export default function SchedulingPage() {
 
                   {/* Cancelling in progress */}
                   {cancellingBooking && (
-                    <div className="pt-6 border-t text-center text-gray-600 py-4">
+                    <div className="pt-6 border-t text-center text-foreground/80 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                         <span className="font-medium">Cancelling session...</span>
@@ -1252,37 +1252,37 @@ export default function SchedulingPage() {
                   {/* Class Details */}
                   <div className="space-y-4">
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Class Name</h3>
-                      <div className="text-lg text-gray-900">{selectedItem.className}</div>
+                      <h3 className="font-semibold text-foreground mb-2">Class Name</h3>
+                      <div className="text-lg text-foreground">{selectedItem.className}</div>
                     </div>
 
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Schedule</h3>
-                      <div className="text-sm text-gray-700">
+                      <h3 className="font-semibold text-foreground mb-2">Schedule</h3>
+                      <div className="text-sm text-foreground">
                         {format(selectedItem.startTime, 'EEEE, MMMM d, yyyy')}
                       </div>
-                      <div className="text-sm text-gray-700">
+                      <div className="text-sm text-foreground">
                         {format(selectedItem.startTime, 'h:mm a')} - {format(selectedItem.endTime, 'h:mm a')}
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Trainer</h3>
-                      <div className="text-sm text-gray-700">{selectedItem.trainerName}</div>
+                      <h3 className="font-semibold text-foreground mb-2">Trainer</h3>
+                      <div className="text-sm text-foreground">{selectedItem.trainerName}</div>
                     </div>
 
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Participants ({selectedItem.studentsCount || 0})</h3>
+                      <h3 className="font-semibold text-foreground mb-2">Participants ({selectedItem.studentsCount || 0})</h3>
                       {selectedItem.participants && selectedItem.participants.length > 0 ? (
                         <div className="space-y-2">
                           {selectedItem.participants.map((participant, idx) => (
-                            <div key={idx} className="bg-gray-50 p-3 rounded-lg">
-                              <div className="font-medium text-gray-900">{participant}</div>
+                            <div key={idx} className="bg-background p-3 rounded-lg">
+                              <div className="font-medium text-foreground">{participant}</div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-500">No participants registered</div>
+                        <div className="text-sm text-muted-foreground">No participants registered</div>
                       )}
                     </div>
                   </div>

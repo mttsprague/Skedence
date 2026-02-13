@@ -36,14 +36,14 @@ export function BusinessSettingsSubmenu({ children }: BusinessSettingsSubmenuPro
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       {/* Left Sidebar */}
-      <div className="w-64 bg-[#3258A3] text-white border-r border-white/10 flex flex-col overflow-y-auto">
+      <div className="w-80 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col overflow-y-auto scrollbar-premium shadow-premium-lg">
         {/* Back to Activity Feed */}
-        <div className="p-4 border-b border-white/10">
+        <div className="p-6 border-b border-sidebar-border">
           <Link
             href="/activity"
-            className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
+            className="flex items-center gap-2.5 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-all duration-200 font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Activity Feed</span>
@@ -51,8 +51,8 @@ export function BusinessSettingsSubmenu({ children }: BusinessSettingsSubmenuPro
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 p-3">
-          <div className="space-y-1">
+        <nav className="flex-1 p-4">
+          <div className="space-y-1.5">
             {submenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -62,10 +62,10 @@ export function BusinessSettingsSubmenu({ children }: BusinessSettingsSubmenuPro
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium',
+                    'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm font-medium',
                     isActive
-                      ? 'bg-white/20 text-white shadow-lg'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      ? 'bg-sidebar-accent text-sidebar-foreground shadow-premium'
+                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground active:scale-[0.98]'
                   )}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
@@ -78,8 +78,8 @@ export function BusinessSettingsSubmenu({ children }: BusinessSettingsSubmenuPro
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6 lg:p-8">
+      <div className="flex-1 overflow-y-auto scrollbar-premium">
+        <div className="p-8 lg:p-10">
           {children}
         </div>
       </div>

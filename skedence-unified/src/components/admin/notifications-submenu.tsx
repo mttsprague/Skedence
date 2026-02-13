@@ -24,9 +24,9 @@ export function NotificationsSubmenu({ children }: NotificationsSubmenuProps) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       {/* Left Sidebar */}
-      <div className="w-64 bg-[#3258A3] text-white border-r border-white/10 flex flex-col overflow-y-auto">
+      <div className="w-64 bg-primary text-white border-r border-white/10 flex flex-col overflow-y-auto">
         {/* Back to Business Settings */}
         <div className="p-4 border-b border-white/10">
           <Link

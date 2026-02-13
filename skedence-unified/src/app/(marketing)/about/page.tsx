@@ -15,7 +15,7 @@ export default function AboutPage() {
       <main className="container mx-auto px-4 py-16 max-w-4xl">
         <h1 className="text-4xl font-bold mb-6">About Skedence</h1>
         <div className="prose prose-lg">
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-xl text-foreground/80 mb-8">
             Skedence is designed to help personal trainers focus on what they do best: training clients and building relationships.
           </p>
           

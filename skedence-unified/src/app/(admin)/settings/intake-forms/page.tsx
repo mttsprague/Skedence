@@ -148,7 +148,7 @@ export default function IntakeFormsPage() {
     return (
       <BusinessSettingsSubmenu>
         <div className="flex items-center justify-center h-64">
-          <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       </BusinessSettingsSubmenu>
     );
@@ -158,8 +158,8 @@ export default function IntakeFormsPage() {
     <BusinessSettingsSubmenu>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Intake Forms</h1>
-          <p className="text-gray-600 mt-2">Configure what information to collect when clients book sessions</p>
+          <h1 className="text-3xl font-bold text-foreground">Intake Forms</h1>
+          <p className="text-foreground/80 mt-2">Configure what information to collect when clients book sessions</p>
         </div>
 
         {lastSaved && (
@@ -186,7 +186,7 @@ export default function IntakeFormsPage() {
 
         {/* Private Lessons Section */}
         <Card>
-          <CardHeader className="bg-gradient-to-r from-[#3258A3] to-[#2A4A8C] text-white">
+          <CardHeader className="bg-gradient-to-r from-primary to-primary/90 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-xl">Private Lesson Intake Form</CardTitle>
@@ -207,7 +207,7 @@ export default function IntakeFormsPage() {
                     setActiveTab('private');
                     addField();
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-[#3258A3] rounded-lg hover:bg-blue-50 transition-colors font-medium text-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-primary rounded-lg hover:bg-blue-50 transition-colors font-medium text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   Add Field
@@ -217,7 +217,7 @@ export default function IntakeFormsPage() {
           </CardHeader>
           <CardContent className="p-6">
             {privateFields.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-muted-foreground">
                 No fields configured. Click "Add Field" to create your first intake form field.
               </div>
             ) : (
@@ -283,7 +283,7 @@ export default function IntakeFormsPage() {
           </CardHeader>
           <CardContent className="p-6">
             {classFields.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-muted-foreground">
                 No fields configured. Click "Add Field" to create your first intake form field.
               </div>
             ) : (
@@ -343,14 +343,14 @@ function FieldEditor({
   canMoveDown: boolean;
 }) {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors bg-white">
+    <div className="border border-gray-200 rounded-lg p-4 hover:border-input transition-colors bg-white">
       <div className="flex items-start gap-4">
         {/* Move buttons */}
         <div className="flex flex-col gap-1 pt-1">
           <button
             onClick={() => onMove('up')}
             disabled={!canMoveUp}
-            className={`p-1 rounded ${canMoveUp ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'}`}
+            className={`p-1 rounded ${canMoveUp ? 'text-foreground/80 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'}`}
             title="Move up"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -360,7 +360,7 @@ function FieldEditor({
           <button
             onClick={() => onMove('down')}
             disabled={!canMoveDown}
-            className={`p-1 rounded ${canMoveDown ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'}`}
+            className={`p-1 rounded ${canMoveDown ? 'text-foreground/80 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'}`}
             title="Move down"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -374,26 +374,26 @@ function FieldEditor({
             <div className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Field Label
                   </label>
                   <input
                     type="text"
                     value={field.label}
                     onChange={(e) => onUpdate({ label: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
                     placeholder="e.g., Athlete Full Name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Field Type
                   </label>
                   <select
                     value={field.fieldType}
                     onChange={(e) => onUpdate({ fieldType: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
                   >
                     <option value="text">Text</option>
                     <option value="email">Email</option>
@@ -408,13 +408,13 @@ function FieldEditor({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Section
                   </label>
                   <select
                     value={field.section}
                     onChange={(e) => onUpdate({ section: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
                   >
                     <option value="athlete">Athlete Info</option>
                     <option value="parent">Parent/Guardian</option>
@@ -424,7 +424,7 @@ function FieldEditor({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Placeholder (Optional)
                   </label>
                   <input
@@ -432,14 +432,14 @@ function FieldEditor({
                     value={field.placeholder || ''}
                     onChange={(e) => onUpdate({ placeholder: e.target.value })}
                     placeholder="Enter placeholder text..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
                   />
                 </div>
               </div>
 
               {field.fieldType === 'select' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-1">
                     Options (comma-separated)
                   </label>
                   <input
@@ -447,7 +447,7 @@ function FieldEditor({
                     value={field.options?.join(', ') || ''}
                     onChange={(e) => onUpdate({ options: e.target.value.split(',').map(o => o.trim()).filter(o => o) })}
                     placeholder="e.g., Beginner, Intermediate, Advanced"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#3258A3] focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
                   />
                 </div>
               )}
@@ -458,9 +458,9 @@ function FieldEditor({
                   id={`required-${field.id}`}
                   checked={field.required}
                   onChange={(e) => onUpdate({ required: e.target.checked })}
-                  className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                  className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
                 />
-                <label htmlFor={`required-${field.id}`} className="text-sm font-medium text-gray-700">
+                <label htmlFor={`required-${field.id}`} className="text-sm font-medium text-foreground">
                   Required field - clients must fill this before booking
                 </label>
               </div>
@@ -468,8 +468,8 @@ function FieldEditor({
           ) : (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-900">{field.label}</span>
-                <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                <span className="text-sm font-medium text-foreground">{field.label}</span>
+                <span className="text-xs px-2 py-1 bg-gray-100 text-foreground/80 rounded">
                   {field.fieldType}
                 </span>
                 <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">
@@ -489,7 +489,7 @@ function FieldEditor({
         <div className="flex items-center gap-2">
           <button
             onClick={onEdit}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+            className="p-2 text-foreground/80 hover:bg-gray-100 rounded transition-colors"
             title={isEditing ? "Collapse" : "Edit field"}
           >
             {isEditing ? (

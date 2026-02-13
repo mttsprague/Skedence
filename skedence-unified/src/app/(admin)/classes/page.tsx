@@ -543,12 +543,12 @@ export default function ClassesPage() {
         <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Class Management</h1>
-            <p className="text-gray-600 mt-2">Create and manage group classes</p>
+            <h1 className="text-3xl font-bold text-foreground">Class Management</h1>
+            <p className="text-foreground/80 mt-2">Create and manage group classes</p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
           >
             {showForm ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
             {showForm ? 'Cancel' : 'New Class'}
@@ -557,7 +557,7 @@ export default function ClassesPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
           <>
@@ -602,7 +602,7 @@ export default function ClassesPage() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Class Title *
                       </label>
                       <input
@@ -610,12 +610,12 @@ export default function ClassesPage() {
                         value={form.title}
                         onChange={(e) => setForm({ ...form, title: e.target.value })}
                         placeholder="e.g., Morning Yoga"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Description
                       </label>
                       <textarea
@@ -623,18 +623,18 @@ export default function ClassesPage() {
                         onChange={(e) => setForm({ ...form, description: e.target.value })}
                         placeholder="Optional class description"
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Trainer *
                       </label>
                       <select
                         value={form.trainerId}
                         onChange={(e) => setForm({ ...form, trainerId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       >
                         {trainers.map(trainer => (
                           <option key={trainer.id} value={trainer.id}>
@@ -645,7 +645,7 @@ export default function ClassesPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Max Capacity *
                       </label>
                       <input
@@ -653,49 +653,49 @@ export default function ClassesPage() {
                         min="1"
                         value={form.maxCapacity}
                         onChange={(e) => setForm({ ...form, maxCapacity: parseInt(e.target.value) || 1 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Date *
                       </label>
                       <input
                         type="date"
                         value={form.date}
                         onChange={(e) => setForm({ ...form, date: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           Start Time *
                         </label>
                         <input
                           type="time"
                           value={form.startTime}
                           onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           End Time *
                         </label>
                         <input
                           type="time"
                           value={form.endTime}
                           onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Location *
                       </label>
                       {locations.length === 0 ? (
@@ -706,7 +706,7 @@ export default function ClassesPage() {
                         <select
                           value={form.locationId}
                           onChange={(e) => setForm({ ...form, locationId: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                           required
                         >
                           <option value="">Select a location</option>
@@ -720,10 +720,10 @@ export default function ClassesPage() {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-foreground mb-2">
                         Eligible Class Passes *
                       </label>
-                      <p className="text-xs text-gray-500 mb-2">
+                      <p className="text-xs text-muted-foreground mb-2">
                         Select which class pass types can be used to register for this class
                       </p>
                       {packages.length === 0 ? (
@@ -733,7 +733,7 @@ export default function ClassesPage() {
                       ) : (
                         <div className="space-y-2">
                           {packages.map(pkg => (
-                            <label key={pkg.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <label key={pkg.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-background cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={selectedPackageIds.includes(pkg.id)}
@@ -744,9 +744,9 @@ export default function ClassesPage() {
                                     setSelectedPackageIds(selectedPackageIds.filter(id => id !== pkg.id));
                                   }
                                 }}
-                                className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                                className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
                               />
-                              <span className="text-sm font-medium text-gray-700">{pkg.title}</span>
+                              <span className="text-sm font-medium text-foreground">{pkg.title}</span>
                             </label>
                           ))}
                         </div>
@@ -780,15 +780,15 @@ export default function ClassesPage() {
                           type="checkbox"
                           checked={form.isRecurring}
                           onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
-                          className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                          className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
                         />
-                        <span className="text-sm font-medium text-gray-700">Recurring</span>
+                        <span className="text-sm font-medium text-foreground">Recurring</span>
                       </label>
                       {form.isRecurring && (
                         <select
                           value={form.recurringPattern}
                           onChange={(e) => setForm({ ...form, recurringPattern: e.target.value })}
-                          className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                          className="px-3 py-1 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                         >
                           <option value="daily">Daily</option>
                           <option value="weekly">Weekly</option>
@@ -802,7 +802,7 @@ export default function ClassesPage() {
                     <button
                       onClick={handleSubmit}
                       disabled={saving}
-                      className="flex items-center gap-2 px-6 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
                     >
                       {saving ? (
                         <>
@@ -818,7 +818,7 @@ export default function ClassesPage() {
                     </button>
                     <button
                       onClick={resetForm}
-                      className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="px-6 py-2 border border-input text-foreground rounded-lg hover:bg-background transition-colors"
                     >
                       Cancel
                     </button>
@@ -834,8 +834,8 @@ export default function ClassesPage() {
                   onClick={() => setActiveTab('upcoming')}
                   className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
                     activeTab === 'upcoming'
-                      ? 'border-[#3258A3] text-[#3258A3]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   Upcoming Classes ({upcomingClasses.length})
@@ -844,8 +844,8 @@ export default function ClassesPage() {
                   onClick={() => setActiveTab('completed')}
                   className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
                     activeTab === 'completed'
-                      ? 'border-[#3258A3] text-[#3258A3]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   Completed Classes ({completedClasses.length})
@@ -859,7 +859,7 @@ export default function ClassesPage() {
                 <Card>
                   <CardContent className="text-center py-12">
                     <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">
+                    <p className="text-muted-foreground">
                       {activeTab === 'upcoming' ? 'No upcoming classes scheduled' : 'No completed classes'}
                     </p>
                     <p className="text-sm text-gray-400 mt-1">
@@ -875,10 +875,10 @@ export default function ClassesPage() {
                         /* Inline Edit Form */
                         <div className="space-y-4">
                           <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">Edit Class</h3>
+                            <h3 className="text-lg font-semibold text-foreground">Edit Class</h3>
                             <button
                               onClick={resetForm}
-                              className="text-gray-400 hover:text-gray-600"
+                              className="text-gray-400 hover:text-foreground/80"
                             >
                               <X className="h-5 w-5" />
                             </button>
@@ -886,21 +886,21 @@ export default function ClassesPage() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Class Title *</label>
+                              <label className="block text-sm font-medium text-foreground mb-1">Class Title *</label>
                               <input
                                 type="text"
                                 value={form.title}
                                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                               />
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Trainer *</label>
+                              <label className="block text-sm font-medium text-foreground mb-1">Trainer *</label>
                               <select
                                 value={form.trainerId}
                                 onChange={(e) => setForm({ ...form, trainerId: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                               >
                                 <option value="">Select trainer</option>
                                 {trainers.map(trainer => (
@@ -912,42 +912,42 @@ export default function ClassesPage() {
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                              <label className="block text-sm font-medium text-foreground mb-1">Date *</label>
                               <input
                                 type="date"
                                 value={form.date}
                                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                               />
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+                                <label className="block text-sm font-medium text-foreground mb-1">Start Time *</label>
                                 <input
                                   type="time"
                                   value={form.startTime}
                                   onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
+                                <label className="block text-sm font-medium text-foreground mb-1">End Time *</label>
                                 <input
                                   type="time"
                                   value={form.endTime}
                                   onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                  className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                                 />
                               </div>
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+                              <label className="block text-sm font-medium text-foreground mb-1">Location *</label>
                               <select
                                 value={form.locationId}
                                 onChange={(e) => setForm({ ...form, locationId: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                               >
                                 <option value="">Select a location</option>
                                 {locations.map(location => (
@@ -957,31 +957,31 @@ export default function ClassesPage() {
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Max Capacity *</label>
+                              <label className="block text-sm font-medium text-foreground mb-1">Max Capacity *</label>
                               <input
                                 type="number"
                                 min="1"
                                 value={form.maxCapacity}
                                 onChange={(e) => setForm({ ...form, maxCapacity: parseInt(e.target.value) || 1 })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                               />
                             </div>
 
                             <div className="md:col-span-2">
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                              <label className="block text-sm font-medium text-foreground mb-1">Description</label>
                               <textarea
                                 value={form.description}
                                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                                 rows={2}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3]"
+                                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                               />
                             </div>
 
                             <div className="md:col-span-2">
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                              <label className="block text-sm font-medium text-foreground mb-2">
                                 Eligible Class Passes *
                               </label>
-                              <p className="text-xs text-gray-500 mb-2">
+                              <p className="text-xs text-muted-foreground mb-2">
                                 Select which class pass types can be used to register for this class
                               </p>
                               {packages.length === 0 ? (
@@ -991,7 +991,7 @@ export default function ClassesPage() {
                               ) : (
                                 <div className="space-y-2">
                                   {packages.map(pkg => (
-                                    <label key={pkg.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <label key={pkg.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-background cursor-pointer">
                                       <input
                                         type="checkbox"
                                         checked={selectedPackageIds.includes(pkg.id)}
@@ -1002,9 +1002,9 @@ export default function ClassesPage() {
                                             setSelectedPackageIds(selectedPackageIds.filter(id => id !== pkg.id));
                                           }
                                         }}
-                                        className="w-4 h-4 text-[#3258A3] border-gray-300 rounded focus:ring-[#3258A3]"
+                                        className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
                                       />
-                                      <span className="text-sm font-medium text-gray-700">{pkg.title}</span>
+                                      <span className="text-sm font-medium text-foreground">{pkg.title}</span>
                                     </label>
                                   ))}
                                 </div>
@@ -1036,14 +1036,14 @@ export default function ClassesPage() {
                           <div className="flex justify-end gap-3 pt-4 border-t">
                             <button
                               onClick={resetForm}
-                              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                              className="px-4 py-2 border border-input text-foreground rounded-lg hover:bg-background transition-colors"
                             >
                               Cancel
                             </button>
                             <button
                               onClick={handleSubmit}
                               disabled={saving}
-                              className="px-4 py-2 bg-[#3258A3] text-white rounded-lg hover:bg-[#2A4A8C] transition-colors disabled:opacity-50"
+                              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
                             >
                               {saving ? 'Saving...' : 'Save Changes'}
                             </button>
@@ -1055,31 +1055,31 @@ export default function ClassesPage() {
                         <div className="flex-1">
                           <div className="flex items-start gap-3">
                             <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-gray-900">{cls.title}</h3>
+                              <h3 className="text-lg font-semibold text-foreground">{cls.title}</h3>
                               {cls.description && (
-                                <p className="text-sm text-gray-600 mt-1">{cls.description}</p>
+                                <p className="text-sm text-foreground/80 mt-1">{cls.description}</p>
                               )}
                               
                               <div className="flex flex-wrap gap-4 mt-3">
-                                <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <div className="flex items-center gap-1 text-sm text-foreground/80">
                                   <User className="h-4 w-4" />
                                   {cls.trainerName || getTrainerName(cls.trainerId)}
                                 </div>
-                                <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <div className="flex items-center gap-1 text-sm text-foreground/80">
                                   <Calendar className="h-4 w-4" />
                                   {format(cls.startTime.toDate(), 'EEE, MMM d, yyyy')}
                                 </div>
-                                <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <div className="flex items-center gap-1 text-sm text-foreground/80">
                                   <Clock className="h-4 w-4" />
                                   {format(cls.startTime.toDate(), 'h:mm a')} - {format(cls.endTime.toDate(), 'h:mm a')}
                                 </div>
                                 {cls.location && (
-                                  <div className="flex items-center gap-1 text-sm text-gray-600">
+                                  <div className="flex items-center gap-1 text-sm text-foreground/80">
                                     <MapPin className="h-4 w-4" />
                                     {cls.location}
                                   </div>
                                 )}
-                                <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <div className="flex items-center gap-1 text-sm text-foreground/80">
                                   <Users className="h-4 w-4" />
                                   {cls.currentParticipants} / {cls.maxParticipants}
                                 </div>
@@ -1104,7 +1104,7 @@ export default function ClassesPage() {
                           </button>
                           <button
                             onClick={() => handleEdit(cls)}
-                            className="p-2 text-gray-400 hover:text-[#3258A3] hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
                           >
                             <Edit2 className="h-5 w-5" />
                           </button>
@@ -1132,9 +1132,9 @@ export default function ClassesPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Class Participants</h2>
-                <p className="text-sm text-gray-600 mt-1">{viewingParticipants.title}</p>
-                <p className="text-sm text-gray-500">
+                <h2 className="text-xl font-semibold text-foreground">Class Participants</h2>
+                <p className="text-sm text-foreground/80 mt-1">{viewingParticipants.title}</p>
+                <p className="text-sm text-muted-foreground">
                   {format(viewingParticipants.startTime.toDate(), 'EEE, MMM d, yyyy • h:mm a')}
                 </p>
               </div>
@@ -1152,35 +1152,35 @@ export default function ClassesPage() {
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
               {loadingParticipants ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3258A3] mx-auto"></div>
-                  <p className="text-gray-500 mt-2">Loading participants...</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <p className="text-muted-foreground mt-2">Loading participants...</p>
                 </div>
               ) : participants.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No participants registered yet</p>
+                  <p className="text-muted-foreground">No participants registered yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {participants.map((participant, index) => (
                     <div
                       key={participant.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="flex items-center justify-between p-4 bg-background rounded-lg hover:bg-gray-100 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-[#3258A3] text-white flex items-center justify-center font-semibold">
+                        <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
                           {participant.firstName?.charAt(0)}{participant.lastName?.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-foreground">
                             {participant.firstName} {participant.lastName}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-muted-foreground">
                             Registered {format(participant.registeredAt.toDate(), 'MMM d, yyyy • h:mm a')}
                           </p>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-muted-foreground">
                         #{index + 1}
                       </div>
                     </div>
@@ -1190,8 +1190,8 @@ export default function ClassesPage() {
               
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Total Participants:</span>
-                  <span className="text-lg font-bold text-[#3258A3]">
+                  <span className="text-sm font-medium text-foreground">Total Participants:</span>
+                  <span className="text-lg font-bold text-primary">
                     {participants.length} / {viewingParticipants.maxParticipants}
                   </span>
                 </div>

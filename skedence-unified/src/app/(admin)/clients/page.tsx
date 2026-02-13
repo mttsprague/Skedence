@@ -432,7 +432,7 @@ export default function ClientsPage() {
       <SchedulingSubmenu>
         <div className="p-6 lg:p-8">
           <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-[#3258A3] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         </div>
       </SchedulingSubmenu>
@@ -444,8 +444,8 @@ export default function ClientsPage() {
       <div className="p-6 lg:p-8">
         <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Clients</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Clients</h1>
+          <p className="text-sm sm:text-base text-foreground/80 mt-1 sm:mt-2">
             {filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}
             {filteredClients.length !== clients.length && ` (filtered from ${clients.length})`}
           </p>
@@ -459,7 +459,7 @@ export default function ClientsPage() {
             placeholder="Search clients by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3258A3] focus:border-transparent touch-manipulation text-base"
+            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation text-base"
           />
         </div>
 
@@ -468,7 +468,7 @@ export default function ClientsPage() {
           <Card>
             <CardContent className="p-12 text-center">
               <UserIcon className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-              <p className="text-gray-600">
+              <p className="text-foreground/80">
                 {searchQuery ? `No clients found matching "${searchQuery}"` : 'No clients yet'}
               </p>
             </CardContent>
@@ -485,7 +485,7 @@ export default function ClientsPage() {
                   <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     {/* Avatar */}
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#3258A3] to-[#4A6BC5] flex items-center justify-center flex-shrink-0">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-semibold text-lg">
                         {(client.firstName?.[0] || '') + (client.lastName?.[0] || '')}
                       </span>
@@ -493,15 +493,15 @@ export default function ClientsPage() {
 
                     {/* Client Info */}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">
+                      <h3 className="font-semibold text-foreground truncate">
                         {client.firstName} {client.lastName}
                       </h3>
-                      <p className="text-sm text-gray-600 truncate">{client.email || client.emailAddress}</p>
+                      <p className="text-sm text-foreground/80 truncate">{client.email || client.emailAddress}</p>
                       {client.phone && (
-                        <p className="text-sm text-gray-500 truncate">{client.phone}</p>
+                        <p className="text-sm text-muted-foreground truncate">{client.phone}</p>
                       )}
                       {(client.athletes && client.athletes.length > 0) && (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {client.athletes.length} {client.athletes.length === 1 ? 'athlete' : 'athletes'}
                         </p>
                       )}
