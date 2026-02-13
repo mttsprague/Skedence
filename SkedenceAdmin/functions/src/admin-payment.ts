@@ -142,6 +142,8 @@ export const adminProcessPayment = functions.https.onCall(
         currency: "usd",
         customer: customerId,
         description: `Skedence: ${customerName} - ${description}`,
+        statement_descriptor_suffix: "Skedence", // Appears on bank statements (22 chars max)
+        receipt_email: userData.email || userData.emailAddress || undefined, // Send receipt
         automatic_payment_methods: {
           enabled: true,
         },
@@ -311,6 +313,8 @@ export const adminChargeWithSavedCard = functions.https.onCall(
         confirm: true,
         return_url: "https://skedence.app/payment-complete",
         description: `Skedence: ${customerName} - ${description}`,
+        statement_descriptor_suffix: "Skedence", // Appears on bank statements (22 chars max)
+        receipt_email: userData.email || userData.emailAddress || undefined, // Send receipt
         metadata: {
           orgId: orgId,
           userId: userId,
