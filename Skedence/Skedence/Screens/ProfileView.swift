@@ -724,16 +724,18 @@ private struct SignedInProfileScreen: View {
     }
     
     private func mapPackageTypeToCategory(_ packageType: String) -> String {
-        switch packageType {
-        case "1_athlete", "private":
+        // Use pattern matching to handle variations like "5_pack_for_one_athlete_", "one_athlete_lesson", etc.
+        let lowercased = packageType.lowercased()
+        
+        if lowercased.contains("one_athlete") || lowercased == "1_athlete" || lowercased == "private" {
             return "oneAthlete"
-        case "2_athlete":
+        } else if lowercased.contains("two_athlete") || lowercased == "2_athlete" {
             return "twoAthlete"
-        case "3_athlete":
+        } else if lowercased.contains("three_athlete") || lowercased == "3_athlete" {
             return "threeAthlete"
-        case "4_athlete":
+        } else if lowercased.contains("four_athlete") || lowercased == "4_athlete" {
             return "fourAthlete"
-        default:
+        } else {
             // For classes or other types, use the package type itself
             return packageType
         }
