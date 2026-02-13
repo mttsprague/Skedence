@@ -187,15 +187,15 @@ export default function ActivityPage() {
     return {
       range1Stats: {
         bookings: range1.filter(a => a.type === 'lesson_booked' || a.type === 'booking_created').length,
-        cancellations: range1.filter(a => a.type === 'lesson_canceled' || a.type === 'booking_canceled').length,
+        cancellations: range1.filter(a => a.type === 'lesson_canceled' || a.type === 'lesson_cancelled' || a.type === 'booking_canceled').length,
         revenue: 0,
-        enrollments: range1.filter(a => a.type === 'class_enrollment').length,
+        enrollments: range1.filter(a => a.type === 'class_enrollment' || a.type === 'class_registered').length,
       },
       range2Stats: {
         bookings: range2.filter(a => a.type === 'lesson_booked' || a.type === 'booking_created').length,
-        cancellations: range2.filter(a => a.type === 'lesson_canceled' || a.type === 'booking_canceled').length,
+        cancellations: range2.filter(a => a.type === 'lesson_canceled' || a.type === 'lesson_cancelled' || a.type === 'booking_canceled').length,
         revenue: 0,
-        enrollments: range2.filter(a => a.type === 'class_enrollment').length,
+        enrollments: range2.filter(a => a.type === 'class_enrollment' || a.type === 'class_registered').length,
       },
       range1Label: label1,
       range2Label: label2
@@ -259,7 +259,7 @@ export default function ActivityPage() {
           a.type === 'lesson_booked' || a.type === 'booking_created'
         ).length;
         range1Cancellations = dayActivities.filter(a => 
-          a.type === 'lesson_canceled' || a.type === 'booking_canceled'
+          a.type === 'lesson_canceled' || a.type === 'lesson_cancelled' || a.type === 'booking_canceled'
         ).length;
       }
 
@@ -273,7 +273,7 @@ export default function ActivityPage() {
           a.type === 'lesson_booked' || a.type === 'booking_created'
         ).length;
         range2Cancellations = dayActivities.filter(a => 
-          a.type === 'lesson_canceled' || a.type === 'booking_canceled'
+          a.type === 'lesson_canceled' || a.type === 'lesson_cancelled' || a.type === 'booking_canceled'
         ).length;
       }
 
@@ -476,13 +476,31 @@ export default function ActivityPage() {
     // Activity type filter
     if (selectedActivityType !== 'all') {
       filtered = filtered.filter(activity => {
-        // Handle both new and legacy cancellation types
+        // Handle both new and legacy cancellation types (American and British spelling)
         if (selectedActivityType === 'lesson_canceled') {
-          return activity.type === 'lesson_canceled' || activity.type === 'booking_canceled';
+          return activity.type === 'lesson_canceled' || 
+                 activity.type === 'lesson_cancelled' || 
+                 activity.type === 'booking_canceled';
         }
         // Handle both new and legacy booking types
         if (selectedActivityType === 'lesson_booked') {
           return activity.type === 'lesson_booked' || activity.type === 'booking_created';
+        }
+        // Handle class enrollment - includes both naming conventions
+        if (selectedActivityType === 'class_enrollment') {
+          return activity.type === 'class_enrollment' || activity.type === 'class_registered';
+        }
+        // Handle pass purchases
+        if (selectedActivityType === 'pass_purchased') {
+          return activity.type === 'pass_purchased' || activity.type === 'package_created';
+        }
+        // Handle client registration
+        if (selectedActivityType === 'client_registered') {
+          return activity.type === 'client_registered' || activity.type === 'client_created';
+        }
+        // Handle trainer creation
+        if (selectedActivityType === 'trainer_created') {
+          return activity.type === 'trainer_created' || activity.type === 'trainer_invited';
         }
         return activity.type === selectedActivityType;
       });

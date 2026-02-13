@@ -5,13 +5,17 @@ export type ActivityType =
   | 'trainer_created'
   | 'trainer_activated'
   | 'trainer_deactivated'
+  | 'trainer_invited' // Alternative naming compatibility
   | 'client_registered'
+  | 'client_created' // Alternative naming compatibility
   | 'client_profile_updated'
   | 'lesson_booked'
   | 'lesson_canceled'
+  | 'lesson_cancelled' // British spelling compatibility
   | 'lesson_completed'
   | 'lesson_rescheduled'
   | 'pass_purchased'
+  | 'package_created' // Alternative naming compatibility
   | 'pass_activated'
   | 'pass_expired'
   | 'availability_opened'
@@ -19,7 +23,9 @@ export type ActivityType =
   | 'availability_updated'
   | 'class_created'
   | 'class_canceled'
+  | 'class_cancelled' // British spelling compatibility
   | 'class_enrollment'
+  | 'class_registered' // Alternative naming compatibility
   | 'location_created'
   | 'location_updated'
   | 'location_deleted'
