@@ -7,13 +7,13 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-white">
-      <nav className="container mx-auto px-4 py-6 border-b">
-        <a href="/" className="text-2xl font-bold text-blue-600">Skedence</a>
+    <div className="min-h-screen bg-background">
+      <nav className="container mx-auto px-4 py-6 border-b border-border">
+        <a href="/" className="text-2xl font-bold text-primary tracking-tight">Skedence</a>
       </nav>
       
       <main className="container mx-auto px-4 py-16 max-w-4xl">
-        <h1 className="text-4xl font-bold mb-6">Terms of Service</h1>
+        <h1 className="text-4xl font-bold mb-6 text-foreground tracking-tight">Terms of Service</h1>
         <p className="text-sm text-muted-foreground mb-8">Last updated: February 4, 2026</p>
         
         <div className="prose prose-lg max-w-none">
@@ -22,7 +22,7 @@ export default function TermsPage() {
             Please read them carefully.
           </p>
 
-          <h2 className="text-2xl font-semibold mt-8 mb-4">Using Our Services</h2>
+          <h2 className="text-2xl font-semibold mt-8 mb-4 text-foreground tracking-tight">Using Our Services</h2>
           <p>
             You must follow any policies made available to you within the Services. 
             You may use our Services only as permitted by law.
@@ -55,10 +55,10 @@ export default function TermsPage() {
             We do not guarantee that our services will always be available or error-free.
           </p>
 
-          <h2 className="text-2xl font-semibold mt-8 mb-4">Contact</h2>
+          <h2 className="text-2xl font-semibold mt-8 mb-4 text-foreground tracking-tight">Contact</h2>
           <p>
             Questions about the Terms of Service? Contact us at{" "}
-            <a href="mailto:legal@skedence.com" className="text-blue-600 hover:underline">
+            <a href="mailto:legal@skedence.com" className="text-primary hover:text-primary/80 transition-colors font-medium">
               legal@skedence.com
             </a>
           </p>

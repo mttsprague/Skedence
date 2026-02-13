@@ -7,19 +7,19 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-white">
-      <nav className="container mx-auto px-4 py-6 border-b">
-        <a href="/" className="text-2xl font-bold text-blue-600">Skedence</a>
+    <div className="min-h-screen bg-background">
+      <nav className="container mx-auto px-4 py-6 border-b border-border">
+        <a href="/" className="text-2xl font-bold text-primary tracking-tight">Skedence</a>
       </nav>
       
       <main className="container mx-auto px-4 py-16 max-w-4xl">
-        <h1 className="text-4xl font-bold mb-6">About Skedence</h1>
+        <h1 className="text-4xl font-bold mb-6 text-foreground tracking-tight">About Skedence</h1>
         <div className="prose prose-lg">
           <p className="text-xl text-foreground/80 mb-8">
             Skedence is designed to help personal trainers focus on what they do best: training clients and building relationships.
           </p>
           
-          <h2 className="text-2xl font-semibold mt-8 mb-4">Our Mission</h2>
+          <h2 className="text-2xl font-semibold mt-8 mb-4 text-foreground tracking-tight">Our Mission</h2>
           <p>
             We believe that personal trainers should spend their time training, not managing spreadsheets and chasing payments. 
             Skedence automates the business side of personal training so you can focus on your clients.
@@ -34,10 +34,10 @@ export default function AboutPage() {
             <li>Business analytics and insights</li>
           </ul>
 
-          <h2 className="text-2xl font-semibold mt-8 mb-4">Get Started</h2>
+          <h2 className="text-2xl font-semibold mt-8 mb-4 text-foreground tracking-tight">Get Started</h2>
           <p>
             Ready to streamline your personal training business? 
-            <a href="/login" className="text-blue-600 hover:underline ml-1">Sign up today</a> and try Skedence free for 14 days.
+            <a href="/login" className="text-primary hover:text-primary/80 transition-colors font-medium ml-1">Sign up today</a> and try Skedence free for 14 days.
           </p>
         </div>
       </main>

@@ -7,20 +7,20 @@ export const metadata: Metadata = {
 
 export default function SupportPage() {
   return (
-    <div className="min-h-screen bg-white">
-      <nav className="container mx-auto px-4 py-6 border-b">
-        <a href="/" className="text-2xl font-bold text-blue-600">Skedence</a>
+    <div className="min-h-screen bg-background">
+      <nav className="container mx-auto px-4 py-6 border-b border-border">
+        <a href="/" className="text-2xl font-bold text-primary tracking-tight">Skedence</a>
       </nav>
       
       <main className="container mx-auto px-4 py-16 max-w-4xl">
-        <h1 className="text-4xl font-bold mb-6">Support Center</h1>
+        <h1 className="text-4xl font-bold mb-6 text-foreground tracking-tight">Support Center</h1>
         
         <section className="mb-12">
-          <h2 className="text-2xl font-semibold mb-4">Frequently Asked Questions</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-foreground tracking-tight">Frequently Asked Questions</h2>
           
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-2">How do I get started?</h3>
+              <h3 className="text-lg font-semibold mb-2 text-foreground">How do I get started?</h3>
               <p className="text-foreground/80">
                 Sign up for a free account, complete your profile, and start adding clients. 
                 You can begin scheduling sessions right away.
@@ -51,13 +51,13 @@ export default function SupportPage() {
         </section>
 
         <section>
-          <h2 className="text-2xl font-semibold mb-4">Contact Us</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-foreground tracking-tight">Contact Us</h2>
           <p className="text-foreground/80 mb-4">
             Can&apos;t find what you&apos;re looking for? Send us a message and we&apos;ll get back to you within 24 hours.
           </p>
           <a 
             href="mailto:support@skedence.com" 
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            className="btn-premium inline-block"
           >
             Email Support
           </a>
