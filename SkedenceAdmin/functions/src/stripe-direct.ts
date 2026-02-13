@@ -132,12 +132,13 @@ export const createPaymentIntentDirect = functions.https.onCall(
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: userData?.email || userData?.emailAddress || undefined,
-          name: `Skedence: ${customerName} (${userId.slice(-4)})`,
-          description: `Customer ID: ${userId}`,
+          name: customerName, // Just the customer name, not prefixed
+          description: `Skedence Client - User ID: ${userId}`,
           metadata: {
             userId: userId,
             orgId: orgId,
             source: "Skedence",
+            client_name: customerName,
           },
         });
 
@@ -347,8 +348,8 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
           "Customer";
         const customer = await stripe.customers.create({
           email: userData?.email || userData?.emailAddress || undefined,
-          name: `Skedence: ${customerName} (${userId.slice(-4)})`,
-          description: `Customer ID: ${userId}`,
+          name: customerName, // Just the customer name, not prefixed
+          description: `Skedence Client - User ID: ${userId}`,
           metadata: {
             userId: userId,
             orgId: orgId,
@@ -380,8 +381,8 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
               "Customer";
             const customer = await stripe.customers.create({
               email: userData?.email || userData?.emailAddress || undefined,
-              name: `Skedence: ${customerName} (${userId.slice(-4)})`,
-              description: `Customer ID: ${userId}`,
+              name: customerName, // Just the customer name, not prefixed
+              description: `Skedence Client - User ID: ${userId}`,
               metadata: {
                 userId: userId,
                 orgId: orgId,
