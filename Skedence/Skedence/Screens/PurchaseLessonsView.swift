@@ -692,15 +692,11 @@ struct PurchaseLessonsView: View {
             await packagesService.loadMyPackages()
             
             print("✅ Purchase complete! Showing success alert")
-            // Success - show alert and dismiss
+            // Success - show alert
             alert = .init(
                 title: "Purchase Successful! 🎉",
-                message: "Your \(selectedPackage.title) has been added to your account. You can now book sessions!"
+                message: "Your \(selectedPackage.title) has been added to your account. Check the Passes tab to see it!"
             )
-            
-            // Navigate back to passes page after short delay
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            dismiss()
         } catch {
             print("❌ Payment failed: \(error.localizedDescription)")
             alert = .init(title: "Payment Failed", message: error.localizedDescription)
