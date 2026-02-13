@@ -222,20 +222,15 @@ struct PurchaseLessonsView: View {
                 message: "Are you sure you want to purchase \(package.title) for \(priceText)?",
                 confirmButtonText: "Confirm Purchase",
                 onConfirm: {
-                    print("🛒 Confirm button tapped")
                     confirmationPackage = nil
                     Task {
                         await confirmPurchase()
                     }
                 },
                 onCancel: {
-                    print("🛒 Cancel button tapped")
                     confirmationPackage = nil
                 }
             )
-            .onAppear {
-                print("✅ Sheet presenting with package: \(package.title)")
-            }
         }
     }
 
@@ -555,7 +550,6 @@ struct PurchaseLessonsView: View {
 
     @MainActor
     private func purchaseSelectedOption() async {
-        print("🛒 purchaseSelectedOption called")
         guard Auth.auth().currentUser?.uid != nil else {
             alert = .init(title: "Error", message: "You must be signed in to purchase.")
             return
@@ -568,46 +562,31 @@ struct PurchaseLessonsView: View {
         
         // Get selected package
         let packages = pricingService.allPackageOptions
-        print("🛒 Available packages count: \(packages.count), selectedIndex: \(selectedPackageIndex)")
         guard packages.indices.contains(selectedPackageIndex) else {
             alert = .init(title: "Error", message: "Please select a package.")
             return
         }
         let selectedPackage = packages[selectedPackageIndex]
-        print("🛒 Selected package: \(selectedPackage.title)")
 
         // Store orgId and show confirmation by setting package
         pendingPurchaseOrgId = orgId
         pendingPurchasePackage = selectedPackage
         confirmationPackage = selectedPackage
-        
-        print("✅ confirmationPackage set to: \(confirmationPackage?.title ?? "nil")")
-        print("✅ pendingPurchasePackage set to: \(pendingPurchasePackage?.title ?? "nil")")
-        print("🛒 useCardOnFile: \(useCardOnFile), selectedPaymentMethodId: \(selectedPaymentMethodId ?? "none")")
     }
     
     private func confirmPurchase() async {
-        print("💳 confirmPurchase started")
         guard let orgId = pendingPurchaseOrgId,
               let selectedPackage = pendingPurchasePackage else {
-            print("❌ Missing orgId or package")
-            print("   orgId: \(pendingPurchaseOrgId ?? "nil")")
-            print("   package: \(pendingPurchasePackage?.title ?? "nil")")
             return
         }
         
-        print("💳 Processing purchase for: \(selectedPackage.title)")
-        print("💳 useCardOnFile: \(useCardOnFile), paymentMethodId: \(selectedPaymentMethodId ?? "none")")
-
         // If user wants to use card on file and has selected one
         if useCardOnFile {
             guard let paymentMethodId = selectedPaymentMethodId else {
-                print("❌ No payment method selected")
                 alert = .init(title: "Error", message: "Please select a card to use.")
                 return
             }
             
-            print("💳 Calling processPurchaseWithSavedCard...")
             isPurchasing = true
             await processPurchaseWithSavedCard(
                 paymentMethodId: paymentMethodId,
@@ -660,12 +639,10 @@ struct PurchaseLessonsView: View {
     }
     
     private func processPurchaseWithSavedCard(paymentMethodId: String, orgId: String, selectedPackage: PackageOption) async {
-        print("💳 processPurchaseWithSavedCard started")
         isPurchasing = true
         defer { isPurchasing = false }
         
         do {
-            print("💳 Creating payment intent...")
             // Create and confirm payment intent with saved card
             // Use placeholder trainerId since passes aren't tied to specific trainers
             let result = try await stripeService.createAndConfirmPaymentWithSavedCard(
@@ -676,8 +653,6 @@ struct PurchaseLessonsView: View {
                 paymentMethodId: paymentMethodId
             )
             
-            print("✅ Payment successful! Intent ID: \(result.paymentIntentId)")
-            
             // Track purchase
             AnalyticsService.shared.logPackagePurchased(
                 packageId: result.paymentIntentId,
@@ -687,18 +662,15 @@ struct PurchaseLessonsView: View {
             
             // Activity logging handled by cloud functions
             
-            print("💳 Reloading packages...")
             // Reload packages
             await packagesService.loadMyPackages()
             
-            print("✅ Purchase complete! Showing success alert")
             // Success - show alert
             alert = .init(
                 title: "Purchase Successful! 🎉",
                 message: "Your \(selectedPackage.title) has been added to your account. Check the Passes tab to see it!"
             )
         } catch {
-            print("❌ Payment failed: \(error.localizedDescription)")
             alert = .init(title: "Payment Failed", message: error.localizedDescription)
             CrashlyticsService.shared.logPaymentError(error, amount: Double(selectedPackage.priceInCents) / 100.0, method: "stripe_saved_card")
         }

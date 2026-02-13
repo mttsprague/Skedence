@@ -24,11 +24,6 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             throw RepositoryError.unauthorized
         }
         
-        print("📦 PackagesRepository.fetchAll called")
-        print("   userId: \(userId)")
-        print("   orgId: \(orgId)")
-        print("   path: users/\(userId)/lessonPackages")
-        
         let snapshot = try await db.collection("users")
             .document(userId)
             .collection("lessonPackages")
@@ -36,16 +31,10 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             .order(by: "purchaseDate", descending: true)
             .getDocuments()
         
-        print("📦 Found \(snapshot.documents.count) package documents")
-        snapshot.documents.forEach { doc in
-            print("   - Package \(doc.documentID): \(doc.data()["packageType"] as? String ?? "unknown"), \(doc.data()["packageName"] as? String ?? "no name")")
-        }
-        
         let packages = snapshot.documents.compactMap { doc in
             decodePackage(id: doc.documentID, data: doc.data())
         }
         
-        print("📦 Decoded \(packages.count) valid packages")
         return packages
     }
     
