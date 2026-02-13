@@ -41,6 +41,26 @@ const FIXED_CATEGORIES = [
   { id: 'fourAthlete', name: 'Four Athletes' },
 ];
 
+// Map packageType to category for backward compatibility with packages that don't have packageCategory
+function mapPackageTypeToCategory(packageType: string): string {
+  const lowercased = packageType.toLowerCase();
+  
+  if (lowercased.includes('one_athlete') || lowercased === '1_athlete' || lowercased === 'private') {
+    return 'oneAthlete';
+  } else if (lowercased.includes('two_athlete') || lowercased === '2_athlete') {
+    return 'twoAthlete';
+  } else if (lowercased.includes('three_athlete') || lowercased === '3_athlete') {
+    return 'threeAthlete';
+  } else if (lowercased.includes('four_athlete') || lowercased === '4_athlete') {
+    return 'fourAthlete';
+  } else if (lowercased.includes('class') || lowercased.includes('weekend')) {
+    return 'class';
+  } else {
+    // Default to packageType as-is for unknown types
+    return packageType;
+  }
+}
+
 function getCategoryDisplayName(category: string): string {
   switch (category) {
     case 'oneAthlete':
@@ -117,12 +137,15 @@ export default function PassesPage() {
               const isExpired = expirationDate < now;
               const remainingLessons = (data.totalLessons || 0) - (data.lessonsUsed || 0);
 
+              // Use packageCategory if available, otherwise map from packageType
+              const packageCategory = data.packageCategory || mapPackageTypeToCategory(data.packageType || '');
+              
               allPasses.push({
                 id: pkgDoc.id,
                 clientId: userId,
                 clientName,
                 packageType: data.packageType || '',
-                packageCategory: data.packageCategory || 'pass',
+                packageCategory,
                 packageName: data.packageName || data.packageType || 'Pass',
                 totalLessons: data.totalLessons || 0,
                 lessonsUsed: data.lessonsUsed || 0,

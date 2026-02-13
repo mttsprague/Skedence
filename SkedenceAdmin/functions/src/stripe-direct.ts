@@ -460,7 +460,7 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         // Get full package details from pricing structure
         let expirationDays = 365;
         let packageName = packageDisplayName;
-        let packageCategory = "pass"; // Default to "pass" (private lessons)
+        let packageCategory = "oneAthlete"; // Default to "oneAthlete" (1 athlete private lessons)
         
         if (orgData?.pricingStructure?.tiers) {
           for (const tier of orgData.pricingStructure.tiers) {
@@ -468,8 +468,8 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
             if (pkg) {
               expirationDays = pkg.expirationDays || 365;
               packageName = pkg.title || packageDisplayName;
-              // Map packageCategory enum to simple "pass" or "class" string
-              packageCategory = pkg.packageCategory === "class" || pkg.packageCategory === "classPass" ? "class" : "pass";
+              // Use packageCategory directly from pricing structure (oneAthlete, twoAthlete, threeAthlete, fourAthlete, class)
+              packageCategory = pkg.packageCategory || "oneAthlete";
               console.log(`📦 Package details: ${packageName}, category: ${packageCategory}, ${totalLessons} lessons, expires in ${expirationDays} days`);
               break;
             }
@@ -712,15 +712,15 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
 
       // Get package details from pricing structure
       let packageName = packageType.replace("_", " ");
-      let packageCategory = "pass"; // Default to "pass" (private lessons)
+      let packageCategory = "oneAthlete"; // Default to "oneAthlete" (1 athlete private lessons)
       
       if (orgData?.pricingStructure?.tiers) {
         for (const tier of orgData.pricingStructure.tiers) {
           const pkg = tier.packages.find((p: any) => p.packageType === packageType);
           if (pkg) {
             packageName = pkg.title || packageName;
-            // Map packageCategory enum to simple "pass" or "class" string
-            packageCategory = pkg.packageCategory === "class" || pkg.packageCategory === "classPass" ? "class" : "pass";
+            // Use packageCategory directly from pricing structure (oneAthlete, twoAthlete, threeAthlete, fourAthlete, class)
+            packageCategory = pkg.packageCategory || "oneAthlete";
             console.log(`📦 Package details: ${packageName}, category: ${packageCategory}, ${totalLessons} lessons`);
             break;
           }
