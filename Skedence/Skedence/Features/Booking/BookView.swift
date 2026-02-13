@@ -99,6 +99,14 @@ struct BookView: View {
         return sorted
     }
     
+    // Get available classes (excluding past classes)
+    private var availableClasses: [GroupClass] {
+        let now = Date()
+        return classesService.classes.filter { classItem in
+            classItem.startTime >= now
+        }
+    }
+    
     // Get all athletes from user profile (both new and legacy format)
     private var allAthletes: [String] {
         var athletes: [String] = []
@@ -1137,7 +1145,7 @@ struct BookView: View {
             if classesService.isLoading {
                 HStack { Spacer(); ProgressView().tint(AppTheme.primary); Spacer() }
                     .padding(Spacing.xl)
-            } else if classesService.classes.isEmpty {
+            } else if availableClasses.isEmpty {
                 EmptyStateView(
                     icon: "calendar",
                     title: "No Classes Available",
@@ -1147,7 +1155,7 @@ struct BookView: View {
                 .padding(.top, Spacing.xl)
             } else {
                 VStack(spacing: Spacing.sm) {
-                    ForEach(classesService.classes) { classItem in
+                    ForEach(availableClasses) { classItem in
                         ClassCard(
                             classItem: classItem,
                             onTap: { selectedClass = classItem },
