@@ -2,8 +2,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY ||
-  functions.config().stripe?.secret_key || "";
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder";
 const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2025-02-24.acacia",
 });
@@ -31,8 +30,7 @@ export const stripeConnectWebhook = functions.https.onRequest(
       return;
     }
 
-    const webhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET ||
-      functions.config().stripe?.connect_webhook_secret;
+    const webhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
       console.error("❌ No webhook secret configured");

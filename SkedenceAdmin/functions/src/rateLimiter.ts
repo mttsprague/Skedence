@@ -7,7 +7,10 @@
 
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+// Use lazy initialization - don't access db at module load time
+function getDb() {
+  return admin.firestore();
+}
 
 /**
  * Check if a request should be allowed based on rate limiting rules
@@ -22,6 +25,7 @@ export async function checkRateLimit(
   maxRequests: number,
   windowSeconds: number
 ): Promise<boolean> {
+  const db = getDb();
   const rateLimitRef = db.collection('rateLimits').doc(key);
   const now = Date.now();
   const windowStart = now - (windowSeconds * 1000);
@@ -87,6 +91,7 @@ export async function getRemainingRequests(
   maxRequests: number,
   windowSeconds: number
 ): Promise<number> {
+  const db = getDb();
   const rateLimitRef = db.collection('rateLimits').doc(key);
   const now = Date.now();
   const windowStart = now - (windowSeconds * 1000);
@@ -120,6 +125,7 @@ export async function getRemainingRequests(
  * @param key - Rate limit key to reset
  */
 export async function resetRateLimit(key: string): Promise<void> {
+  const db = getDb();
   const rateLimitRef = db.collection('rateLimits').doc(key);
   await rateLimitRef.delete();
 }

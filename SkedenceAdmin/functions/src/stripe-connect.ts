@@ -2,14 +2,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
-// IMPORTANT: Use LIVE mode secret key for production
-// Test keys start with: sk_test_...
-// Live keys start with: sk_live_...
-// Set this in Firebase Functions config:
-//   firebase functions:config:set stripe.secret_key="sk_live_YOUR_KEY"
-// Or set STRIPE_SECRET_KEY environment variable
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY ||
-  functions.config().stripe?.secret_key || "";
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder";
 const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2025-02-24.acacia",
 });
