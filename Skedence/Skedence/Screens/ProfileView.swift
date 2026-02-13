@@ -667,40 +667,35 @@ private struct SignedInProfileScreen: View {
         }
         
         if !classPurchases.isEmpty {
-            let groupedByCategory = Dictionary(grouping: classPurchases) { pkg in
-                mapPackageTypeToCategory(pkg.packageType)
-            }
+            // Group ALL class purchases into a single "Class Passes" category
+            let purchases = classPurchases.map { pkg in
+                PurchaseDetail(
+                    id: pkg.id ?? UUID().uuidString,
+                    packageName: pkg.packageName ?? "Unknown Package",
+                    totalLessons: pkg.totalLessons,
+                    remainingLessons: max(0, pkg.lessonsRemaining),
+                    purchaseDate: pkg.purchaseDate,
+                    expirationDate: pkg.expirationDate,
+                    isExpired: pkg.expirationDate < Date()
+                )
+            }.sorted { $0.purchaseDate > $1.purchaseDate }
             
-            for (categoryId, packages) in groupedByCategory {
-                let purchases = packages.map { pkg in
-                    PurchaseDetail(
-                        id: pkg.id ?? UUID().uuidString,
-                        packageName: pkg.packageName ?? "Unknown Package",
-                        totalLessons: pkg.totalLessons,
-                        remainingLessons: max(0, pkg.lessonsRemaining),
-                        purchaseDate: pkg.purchaseDate,
-                        expirationDate: pkg.expirationDate,
-                        isExpired: pkg.expirationDate < Date()
-                    )
-                }.sorted { $0.purchaseDate > $1.purchaseDate }
-                
-                let activePurchases = purchases.filter { !$0.isExpired }
-                let totalRemaining = activePurchases.reduce(0) { $0 + $1.remainingLessons }
-                let nextExp = activePurchases.compactMap { $0.expirationDate }.min()
-                
-                // Only show class category if there are active passes remaining
-                if totalRemaining > 0 {
-                    categories.append(PassCategory(
-                        id: categoryId,
-                        displayName: getCategoryDisplayName(categoryId),
-                        isFixed: false,
-                        totalRemaining: totalRemaining,
-                        nextExpiration: nextExp,
-                        purchases: purchases,
-                        icon: "calendar.badge.clock",
-                        category: .classPass
-                    ))
-                }
+            let activePurchases = purchases.filter { !$0.isExpired }
+            let totalRemaining = activePurchases.reduce(0) { $0 + $1.remainingLessons }
+            let nextExp = activePurchases.compactMap { $0.expirationDate }.min()
+            
+            // Only show class category if there are active passes remaining
+            if totalRemaining > 0 {
+                categories.append(PassCategory(
+                    id: "classPass",
+                    displayName: "Class Passes",
+                    isFixed: false,
+                    totalRemaining: totalRemaining,
+                    nextExpiration: nextExp,
+                    purchases: purchases,
+                    icon: "calendar.badge.clock",
+                    category: .classPass
+                ))
             }
         }
         
