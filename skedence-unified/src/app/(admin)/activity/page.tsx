@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { collection, query, where, getDocs, limit, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { 
@@ -65,9 +66,19 @@ interface BookingSnapshot {
   trainerId: string;
   trainerName: string;
   clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
   startTime: Date;
   endTime: Date;
   location: string;
+  lessonNotes?: string;
+  athleteName?: string;
+  secondAthleteName?: string;
+  athleteNames?: string[];
+  athletes?: any[];
+  emergencyContactName?: string;
+  emergencyContactNumber?: string;
+  referredBy?: string;
 }
 
 interface WeeklyStats {
@@ -96,6 +107,8 @@ export default function ActivityPage() {
   const [todayBookings, setTodayBookings] = useState<BookingSnapshot[]>([]);
   const [showHappeningToday, setShowHappeningToday] = useState(true);
   const [happeningDate, setHappeningDate] = useState(new Date());
+  const [selectedBooking, setSelectedBooking] = useState<BookingSnapshot | null>(null);
+  const [selectedClass, setSelectedClass] = useState<ClassSnapshot | null>(null);
   
   // Compare time frames
   const [compareMode, setCompareMode] = useState<'week' | 'month' | 'custom'>('week');
@@ -405,9 +418,19 @@ export default function ActivityPage() {
               trainerId: data.trainerId || '',
               trainerName: data.trainerName || 'Unknown Trainer',
               clientName: data.clientName || 'Unknown Client',
+              clientEmail: data.clientEmail,
+              clientPhone: data.clientPhone,
               startTime: data.startTime?.toDate() || new Date(),
               endTime: data.endTime?.toDate() || new Date(),
               location: data.location || 'TBD',
+              lessonNotes: data.lessonNotes,
+              athleteName: data.athleteName,
+              secondAthleteName: data.secondAthleteName,
+              athleteNames: data.athleteNames,
+              athletes: data.athletes,
+              emergencyContactName: data.emergencyContactName,
+              emergencyContactNumber: data.emergencyContactNumber,
+              referredBy: data.referredBy,
             };
           });
         
@@ -628,6 +651,185 @@ export default function ActivityPage() {
           View all recent actions and events in your organization
         </p>
       </div>
+
+      {/* What's Happening Section - Moved to Top */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              What's Happening
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowHappeningToday(!showHappeningToday)}
+            >
+              {showHappeningToday ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+        {showHappeningToday && (
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between bg-background p-3 rounded-lg">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setHappeningDate(prev => subDays(prev, 1))}
+                className="w-10 h-10 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="flex-1 text-center">
+                <div className="text-lg font-semibold text-foreground">
+                  {format(happeningDate, 'MMMM d, yyyy')}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {format(happeningDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') 
+                    ? 'Today' 
+                    : format(happeningDate, 'EEEE')}
+                </div>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setHappeningDate(prev => addDays(prev, 1))}
+                className="w-10 h-10 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {format(happeningDate, 'yyyy-MM-dd') !== format(new Date(), 'yyyy-MM-dd') && (
+              <div className="text-center">
+                <Button variant="ghost" size="sm" onClick={() => setHappeningDate(new Date())}>
+                  Jump to Today
+                </Button>
+              </div>
+            )}
+            
+            <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Classes on {format(happeningDate, 'MMM d')}</h3>
+                {upcomingClasses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No classes scheduled for this day</p>
+                ) : (
+                  <div className="space-y-2">
+                    {upcomingClasses.map(cls => {
+                      const percentage = (cls.enrolled / cls.capacity) * 100;
+                      return (
+                        <div 
+                          key={cls.id} 
+                          onClick={() => setSelectedClass(cls)}
+                          className="p-3 bg-background rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-foreground">{cls.title}</div>
+                              <div className="text-sm text-foreground/80 flex items-center gap-3 mt-1">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {format(cls.startTime, 'h:mm a')}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {cls.location}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold text-foreground">
+                                {cls.enrolled}/{cls.capacity}
+                              </div>
+                              <div className={`text-sm font-medium ${percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-foreground/80'}`}>
+                                ({percentage.toFixed(0)}%)
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Private Lessons on {format(happeningDate, 'MMM d')}</h3>
+                {todayBookings.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No private lessons scheduled for this day</p>
+                ) : (
+                  <div className="space-y-2">
+                    {todayBookings.map(booking => (
+                      <div 
+                        key={booking.id}
+                        onClick={() => setSelectedBooking(booking)}
+                        className="p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-foreground">{booking.clientName}</div>
+                            <div className="text-sm text-foreground/80 flex items-center gap-3 mt-1">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {format(booking.startTime, 'h:mm a')}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {booking.location}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-sm text-foreground/80">
+                            {booking.trainerName}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Trainers & Their Clients on {format(happeningDate, 'MMM d')}</h3>
+                {Object.keys(trainerSchedules).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No trainers scheduled for this day</p>
+                ) : (
+                  <div className="space-y-3">
+                    {Object.entries(trainerSchedules).map(([trainerId, schedule]) => (
+                      <div key={trainerId} className="p-3 bg-teal-50 rounded-lg">
+                        <div className="font-medium text-foreground mb-2 flex items-center gap-2">
+                          <UserPlus className="h-4 w-4 text-teal-600" />
+                          {schedule.trainerName}
+                        </div>
+                        <div className="space-y-1 ml-6">
+                          {schedule.clients.map((client, idx) => (
+                            <div 
+                              key={idx} 
+                              onClick={() => {
+                                const booking = todayBookings.find(b => 
+                                  b.clientName === client.clientName && 
+                                  format(b.startTime, 'h:mm a') === format(client.startTime, 'h:mm a')
+                                );
+                                if (booking) setSelectedBooking(booking);
+                              }}
+                              className="text-sm text-foreground/80 flex items-center justify-between hover:bg-teal-100 p-1 rounded cursor-pointer transition-colors"
+                            >
+                              <span>{client.clientName}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(client.startTime, 'h:mm a')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          )}
+        </Card>
 
       <div className="flex flex-col sm:flex-row gap-4">
         <Card className="flex-1">
@@ -1057,150 +1259,201 @@ export default function ActivityPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              What's Happening
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHappeningToday(!showHappeningToday)}
-            >
-              {showHappeningToday ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </div>
-        </CardHeader>
-        {showHappeningToday && (
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between bg-background p-3 rounded-lg">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setHappeningDate(prev => subDays(prev, 1))}
-                className="w-10 h-10 p-0"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              
-              <div className="flex-1 text-center">
-                <div className="text-lg font-semibold text-foreground">
-                  {format(happeningDate, 'MMMM d, yyyy')}
+      {/* Booking Detail Dialog */}
+      <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+          </DialogHeader>
+          {selectedBooking && (
+            <div className="space-y-5 py-4">
+              {/* Client Header */}
+              <div className="flex items-center gap-3 pb-4 border-b">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-xl">
+                  {selectedBooking.clientName?.split(' ').map(n => n[0]).join('')}
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {format(happeningDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') 
-                    ? 'Today' 
-                    : format(happeningDate, 'EEEE')}
+                <div className="flex-1">
+                  <div className="text-xl font-semibold">{selectedBooking.clientName}</div>
+                  <div className="text-sm text-foreground/80 mt-1">
+                    {format(selectedBooking.startTime, 'EEEE, MMMM d, yyyy')}
+                  </div>
+                  <div className="text-sm text-foreground/80">
+                    {format(selectedBooking.startTime, 'h:mm a')} - {format(selectedBooking.endTime, 'h:mm a')}
+                  </div>
                 </div>
               </div>
               
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setHappeningDate(prev => addDays(prev, 1))}
-                className="w-10 h-10 p-0"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {format(happeningDate, 'yyyy-MM-dd') !== format(new Date(), 'yyyy-MM-dd') && (
-              <div className="text-center">
-                <Button variant="ghost" size="sm" onClick={() => setHappeningDate(new Date())}>
-                  Jump to Today
-                </Button>
-              </div>
-            )}
-            
-            <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Classes on {format(happeningDate, 'MMM d')}</h3>
-                {upcomingClasses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No classes scheduled for this day</p>
-                ) : (
-                  <div className="space-y-2">
-                    {upcomingClasses.map(cls => {
-                      const percentage = (cls.enrolled / cls.capacity) * 100;
-                      return (
-                        <div key={cls.id} className="p-3 bg-background rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium text-foreground">{cls.title}</div>
-                              <div className="text-sm text-foreground/80 flex items-center gap-3 mt-1">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {format(cls.startTime, 'h:mm a')}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  {cls.location}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-foreground">
-                                {cls.enrolled}/{cls.capacity}
-                              </div>
-                              <div className={`text-sm font-medium ${percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-foreground/80'}`}>
-                                ({percentage.toFixed(0)}%)
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              {/* Trainer & Location */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-foreground">Session Details</h3>
+                <div className="text-sm">
+                  <span className="text-foreground/80">Trainer:</span> {selectedBooking.trainerName}
+                </div>
+                <div className="text-sm">
+                  <span className="text-foreground/80">Location:</span> {selectedBooking.location}
+                </div>
               </div>
 
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Private Lessons on {format(happeningDate, 'MMM d')}</h3>
-                {todayBookings.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No private lessons scheduled for this day</p>
-                ) : (
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-foreground/80">Total Lessons</span>
-                      <span className="text-2xl font-bold text-foreground">{todayBookings.length}</span>
+              {/* Contact Information */}
+              {(selectedBooking.clientEmail || selectedBooking.clientPhone) && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">Contact Information</h3>
+                  {selectedBooking.clientEmail && (
+                    <div className="text-sm">
+                      <span className="text-foreground/80">Email:</span> {selectedBooking.clientEmail}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {todayBookings.length === 1 ? '1 lesson' : `${todayBookings.length} lessons`} scheduled
+                  )}
+                  {selectedBooking.clientPhone && (
+                    <div className="text-sm">
+                      <span className="text-foreground/80">Phone:</span> {selectedBooking.clientPhone}
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Trainers & Their Clients on {format(happeningDate, 'MMM d')}</h3>
-                {Object.keys(trainerSchedules).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No trainers scheduled for this day</p>
-                ) : (
+                  )}
+                </div>
+              )}
+              
+              {/* Participants - Booked Athletes */}
+              {((selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0) || selectedBooking.athleteName || selectedBooking.secondAthleteName) && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">Participants</h3>
                   <div className="space-y-3">
-                    {Object.entries(trainerSchedules).map(([trainerId, schedule]) => (
-                      <div key={trainerId} className="p-3 bg-teal-50 rounded-lg">
-                        <div className="font-medium text-foreground mb-2 flex items-center gap-2">
-                          <UserPlus className="h-4 w-4 text-teal-600" />
-                          {schedule.trainerName}
+                    {selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0 ? (
+                      selectedBooking.athleteNames.map((name, idx) => {
+                        const matchedAthlete = selectedBooking.athletes?.find(athlete => 
+                          `${athlete.firstName} ${athlete.lastName}` === name
+                        );
+                        return (
+                          <div key={idx} className="bg-blue-50 p-3 rounded-lg space-y-1">
+                            <div className="font-medium text-foreground">{name}</div>
+                            {matchedAthlete && (
+                              <>
+                                {matchedAthlete.birthday && (
+                                  <div className="text-sm text-foreground/80">DOB: {matchedAthlete.birthday}</div>
+                                )}
+                                {matchedAthlete.schoolClubTeam && (
+                                  <div className="text-sm text-foreground/80">Team: {matchedAthlete.schoolClubTeam}</div>
+                                )}
+                                {matchedAthlete.experienceLevel && (
+                                  <div className="text-sm text-foreground/80">Experience: {matchedAthlete.experienceLevel}</div>
+                                )}
+                                {matchedAthlete.position && (
+                                  <div className="text-sm text-foreground/80">Position: {matchedAthlete.position}</div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <>
+                        {selectedBooking.athleteName && (
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <div className="font-medium text-foreground">{selectedBooking.athleteName}</div>
+                          </div>
+                        )}
+                        {selectedBooking.secondAthleteName && (
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <div className="font-medium text-foreground">{selectedBooking.secondAthleteName}</div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* All Athletes on File */}
+              {selectedBooking.athletes && selectedBooking.athletes.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">All Athletes on File</h3>
+                  <div className="space-y-3">
+                    {selectedBooking.athletes.map((athlete, idx) => (
+                      <div key={idx} className="bg-background p-3 rounded-lg space-y-1">
+                        <div className="font-medium text-foreground">
+                          {athlete.firstName} {athlete.lastName}
                         </div>
-                        <div className="space-y-1 ml-6">
-                          {schedule.clients.map((client, idx) => (
-                            <div key={idx} className="text-sm text-foreground/80 flex items-center justify-between">
-                              <span>{client.clientName}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {format(client.startTime, 'h:mm a')}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                        {athlete.birthday && (
+                          <div className="text-sm text-foreground/80">DOB: {athlete.birthday}</div>
+                        )}
+                        {athlete.schoolClubTeam && (
+                          <div className="text-sm text-foreground/80">Team: {athlete.schoolClubTeam}</div>
+                        )}
+                        {athlete.experienceLevel && (
+                          <div className="text-sm text-foreground/80">Experience: {athlete.experienceLevel}</div>
+                        )}
+                        {athlete.position && (
+                          <div className="text-sm text-foreground/80">Position: {athlete.position}</div>
+                        )}
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </CardContent>
+                </div>
+              )}
+              
+              {/* Emergency Contact */}
+              {selectedBooking.emergencyContactName && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">Emergency Contact</h3>
+                  <div className="text-sm">
+                    <div className="text-foreground">{selectedBooking.emergencyContactName}</div>
+                    {selectedBooking.emergencyContactNumber && (
+                      <div className="text-foreground/80">{selectedBooking.emergencyContactNumber}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Referral */}
+              {selectedBooking.referredBy && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">Referred By</h3>
+                  <div className="text-sm text-foreground">{selectedBooking.referredBy}</div>
+                </div>
+              )}
+              
+              {/* Session Notes */}
+              {selectedBooking.lessonNotes && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">Session Notes</h3>
+                  <div className="text-sm text-foreground/80 bg-blue-50 p-3 rounded-lg">
+                    {selectedBooking.lessonNotes}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
-        </Card>
+        </DialogContent>
+      </Dialog>
+
+      {/* Class Detail Dialog */}
+      <Dialog open={!!selectedClass} onOpenChange={() => setSelectedClass(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedClass?.title}</DialogTitle>
+          </DialogHeader>
+          {selectedClass && (
+            <div className="space-y-4 py-4">
+              <div>
+                <div className="text-sm text-foreground/80">Date & Time</div>
+                <div className="font-medium">{format(selectedClass.startTime, 'EEEE, MMMM d, yyyy')}</div>
+                <div>{format(selectedClass.startTime, 'h:mm a')} - {format(selectedClass.endTime, 'h:mm a')}</div>
+              </div>
+              <div>
+                <div className="text-sm text-foreground/80">Location</div>
+                <div className="font-medium">{selectedClass.location}</div>
+              </div>
+              <div>
+                <div className="text-sm text-foreground/80">Enrollment</div>
+                <div className="text-2xl font-bold">
+                  {selectedClass.enrolled} / {selectedClass.capacity}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {((selectedClass.enrolled / selectedClass.capacity) * 100).toFixed(0)}% full
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
