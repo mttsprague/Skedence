@@ -45,9 +45,9 @@ interface Participant {
   lastName: string;
   registeredAt: Timestamp;
   classPassPackageId?: string;
+  athleteName?: string;
   email?: string;
   phoneNumber?: string;
-  athleteNames?: string[];
 }
 
 interface PackageOption {
@@ -497,12 +497,13 @@ export default function ClassesPage() {
         ...doc.data(),
       })) as Participant[];
       
-      // Fetch full user details for each participant
+      // Fetch full user details for each participant (phone and email)
       const enrichedParticipants = await Promise.all(
         participantsData.map(async (participant) => {
           try {
-            // Try both user collection paths (new and legacy)
-            let userDoc = await getDocs(query(
+            // Fetch user details from users collection
+            const userDocRef = doc(db, 'users', participant.userId);
+            const userDoc = await getDocs(query(
               collection(db, 'users'),
               where('__name__', '==', participant.userId)
             ));
@@ -513,22 +514,6 @@ export default function ClassesPage() {
                 ...participant,
                 email: userData.email || userData.emailAddress,
                 phoneNumber: userData.phoneNumber || userData.phone,
-              };
-            }
-            
-            // If not found in users, try to get from booking data
-            const bookingsQuery = query(
-              collection(db, 'bookings'),
-              where('userId', '==', participant.userId),
-              where('classId', '==', cls.id)
-            );
-            const bookingsSnapshot = await getDocs(bookingsQuery);
-            
-            if (!bookingsSnapshot.empty) {
-              const bookingData = bookingsSnapshot.docs[0].data();
-              return {
-                ...participant,
-                athleteNames: bookingData.athleteNames || [],
               };
             }
             
@@ -564,13 +549,13 @@ export default function ClassesPage() {
       'Participant Name',
       'Email',
       'Phone Number',
-      'Athlete Names',
+      'Athlete Name',
       'Registered Date',
       'Package Used'
     ];
 
     const rows = participants.map(participant => {
-      const athleteNames = participant.athleteNames?.join(', ') || 'N/A';
+      const athleteName = participant.athleteName || `${participant.firstName} ${participant.lastName}`;
       const packageInfo = participant.classPassPackageId ? 'Class Pass' : 'Direct Registration';
       
       return [
@@ -582,7 +567,7 @@ export default function ClassesPage() {
         `${participant.firstName} ${participant.lastName}`,
         participant.email || 'N/A',
         participant.phoneNumber || 'N/A',
-        athleteNames,
+        athleteName,
         format(participant.registeredAt.toDate(), 'MMM d, yyyy h:mm a'),
         packageInfo
       ];
@@ -1316,9 +1301,9 @@ export default function ClassesPage() {
                                 📱 {participant.phoneNumber}
                               </p>
                             )}
-                            {participant.athleteNames && participant.athleteNames.length > 0 && (
-                              <p className="text-sm text-muted-foreground">
-                                👥 Athletes: {participant.athleteNames.join(', ')}
+                            {participant.athleteName && (
+                              <p className="text-sm text-blue-600 font-medium">
+                                🏃 Athlete: {participant.athleteName}
                               </p>
                             )}
                             <p className="text-xs text-muted-foreground mt-1">
