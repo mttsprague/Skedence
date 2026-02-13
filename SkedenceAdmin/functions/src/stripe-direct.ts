@@ -454,16 +454,23 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       });
 
       if (paymentIntent.status === "succeeded") {
-        // Get lesson count from package definition
+        // Get lesson count and package details from package definition
         const totalLessons = validPackages[packageType].lessons;
 
-        // Get expiration days from pricing structure (default 365 if not found)
+        // Get full package details from pricing structure
         let expirationDays = 365;
+        let packageName = packageDisplayName;
+        let packageCategory = "pass"; // Default to "pass" (private lessons)
+        
         if (orgData?.pricingStructure?.tiers) {
           for (const tier of orgData.pricingStructure.tiers) {
             const pkg = tier.packages.find((p: any) => p.packageType === packageType);
-            if (pkg && pkg.expirationDays) {
-              expirationDays = pkg.expirationDays;
+            if (pkg) {
+              expirationDays = pkg.expirationDays || 365;
+              packageName = pkg.title || packageDisplayName;
+              // Map packageCategory enum to simple "pass" or "class" string
+              packageCategory = pkg.packageCategory === "class" || pkg.packageCategory === "classPass" ? "class" : "pass";
+              console.log(`📦 Package details: ${packageName}, category: ${packageCategory}, ${totalLessons} lessons, expires in ${expirationDays} days`);
               break;
             }
           }
@@ -479,14 +486,14 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
           .collection("lessonPackages")
           .add({
             packageType: packageType,
-            trainerId: trainerId,
-            remainingLessons: totalLessons,
+            packageName: packageName,
+            packageCategory: packageCategory,
             totalLessons: totalLessons,
+            lessonsUsed: 0,
+            orgId: orgId,
             purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
             expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
-            paymentIntentId: paymentIntent.id,
-            amountPaid: amount,
-            status: "active",
+            transactionId: paymentIntent.id,
           });
 
         console.log(
@@ -703,6 +710,23 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
         }
       }
 
+      // Get package details from pricing structure
+      let packageName = packageType.replace("_", " ");
+      let packageCategory = "pass"; // Default to "pass" (private lessons)
+      
+      if (orgData?.pricingStructure?.tiers) {
+        for (const tier of orgData.pricingStructure.tiers) {
+          const pkg = tier.packages.find((p: any) => p.packageType === packageType);
+          if (pkg) {
+            packageName = pkg.title || packageName;
+            // Map packageCategory enum to simple "pass" or "class" string
+            packageCategory = pkg.packageCategory === "class" || pkg.packageCategory === "classPass" ? "class" : "pass";
+            console.log(`📦 Package details: ${packageName}, category: ${packageCategory}, ${totalLessons} lessons`);
+            break;
+          }
+        }
+      }
+
       // Create the lesson package
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + expirationDays);
@@ -714,15 +738,14 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
         .collection("lessonPackages")
         .add({
           packageType: packageType,
-          trainerId: trainerId,
+          packageName: packageName,
+          packageCategory: packageCategory,
           totalLessons: totalLessons,
           lessonsUsed: 0,
           orgId: orgId,
           purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
           expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
           transactionId: paymentIntent.id,
-          amountPaid: paymentIntent.amount,
-          status: "active",
         });
 
       console.log(
