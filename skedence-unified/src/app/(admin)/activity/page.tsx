@@ -68,6 +68,8 @@ interface BookingSnapshot {
   clientName: string;
   clientEmail?: string;
   clientPhone?: string;
+  clientUID?: string;
+  clientId?: string;
   startTime: Date;
   endTime: Date;
   location: string;
@@ -109,6 +111,8 @@ export default function ActivityPage() {
   const [happeningDate, setHappeningDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<BookingSnapshot | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassSnapshot | null>(null);
+  const [cancellingBooking, setCancellingBooking] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
   
   // Compare time frames
   const [compareMode, setCompareMode] = useState<'week' | 'month' | 'custom'>('week');
@@ -420,6 +424,8 @@ export default function ActivityPage() {
               clientName: data.clientName || 'Unknown Client',
               clientEmail: data.clientEmail,
               clientPhone: data.clientPhone,
+              clientUID: data.clientUID,
+              clientId: data.clientId,
               startTime: data.startTime?.toDate() || new Date(),
               endTime: data.endTime?.toDate() || new Date(),
               location: data.location || 'TBD',
@@ -563,6 +569,77 @@ export default function ActivityPage() {
     setSearchQuery('');
     setIsSearching(false);
   }, []);
+
+  const handleCancelBooking = async (refundPass: boolean) => {
+    if (!selectedBooking || !orgId) return;
+
+    setCancellingBooking(true);
+    setShowCancelConfirm(null);
+
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      const adminCancelLesson = httpsCallable(functions, 'adminCancelLesson');
+      
+      await adminCancelLesson({
+        bookingId: selectedBooking.id,
+        orgId: orgId,
+        clientId: selectedBooking.clientUID || selectedBooking.clientId,
+        refundPass: refundPass
+      });
+
+      // Close dialog and show success
+      setSelectedBooking(null);
+      alert(refundPass 
+        ? 'Session cancelled successfully! The client\'s pass has been refunded.' 
+        : 'Session cancelled successfully. The client\'s pass was not refunded.');
+      
+      // Reload the bookings to reflect the cancellation
+      const dayStart = Timestamp.fromDate(startOfDay(happeningDate));
+      const dayEnd = Timestamp.fromDate(endOfDay(happeningDate));
+      
+      const bookingsQuery = query(
+        collection(db, 'bookings'),
+        where('orgId', '==', orgId),
+        where('startTime', '>=', dayStart),
+        where('startTime', '<=', dayEnd),
+        orderBy('startTime', 'asc')
+      );
+      
+      const bookingsSnap = await getDocs(bookingsQuery);
+      const bookings: BookingSnapshot[] = bookingsSnap.docs
+        .filter(doc => doc.data().status === 'confirmed')
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            trainerId: data.trainerId || '',
+            trainerName: data.trainerName || 'Unknown Trainer',
+            clientName: data.clientName || 'Unknown Client',
+            clientEmail: data.clientEmail,
+            clientPhone: data.clientPhone,
+            clientUID: data.clientUID,
+            clientId: data.clientId,
+            startTime: data.startTime?.toDate() || new Date(),
+            endTime: data.endTime?.toDate() || new Date(),
+            location: data.location || 'TBD',
+            lessonNotes: data.lessonNotes,
+            athleteName: data.athleteName,
+            secondAthleteName: data.secondAthleteName,
+            athleteNames: data.athleteNames,
+            athletes: data.athletes,
+            emergencyContactName: data.emergencyContactName,
+            emergencyContactNumber: data.emergencyContactNumber,
+            referredBy: data.referredBy,
+          };
+        });
+      setTodayBookings(bookings);
+    } catch (error: any) {
+      alert(error.message || 'Failed to cancel session');
+    } finally {
+      setCancellingBooking(false);
+    }
+  };
 
   // Memoized helper functions
   const getActivityIcon = useCallback((type: ActivityType) => {
@@ -1311,6 +1388,33 @@ export default function ActivityPage() {
                 </div>
               )}
               
+              {/* Cancel Session Buttons */}
+              {!showCancelConfirm && !cancellingBooking && (
+                <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 border border-red-200 rounded-lg">
+                  <h3 className="font-semibold text-red-700 mb-3">Cancel This Session</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={() => setShowCancelConfirm('early')}
+                      variant="outline"
+                      className="border-orange-500 text-orange-700 hover:bg-orange-50"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Early Cancel
+                      <div className="text-xs text-muted-foreground ml-2">(Refund)</div>
+                    </Button>
+                    <Button
+                      onClick={() => setShowCancelConfirm('late')}
+                      variant="outline"
+                      className="border-red-500 text-red-700 hover:bg-red-50"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Late Cancel
+                      <div className="text-xs text-muted-foreground ml-2">(No Refund)</div>
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               {/* Participants - Booked Athletes */}
               {((selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0) || selectedBooking.athleteName || selectedBooking.secondAthleteName) && (
                 <div className="space-y-2">
@@ -1416,6 +1520,48 @@ export default function ActivityPage() {
                   <h3 className="font-semibold text-foreground">Session Notes</h3>
                   <div className="text-sm text-foreground/80 bg-blue-50 p-3 rounded-lg">
                     {selectedBooking.lessonNotes}
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmation Step */}
+              {showCancelConfirm && !cancellingBooking && (
+                <div className="pt-4 border-t space-y-3">
+                  <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                    <p className="text-sm font-semibold text-yellow-900 mb-1">
+                      Confirm {showCancelConfirm === 'early' ? 'Early' : 'Late'} Cancel
+                    </p>
+                    <p className="text-sm text-yellow-800">
+                      {showCancelConfirm === 'early' 
+                        ? 'The client\'s pass will be refunded and returned to their account.' 
+                        : 'The client\'s pass will NOT be refunded. This cannot be undone.'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleCancelBooking(showCancelConfirm === 'early')}
+                      variant="destructive"
+                      className="flex-1"
+                    >
+                      Confirm Cancellation
+                    </Button>
+                    <Button
+                      onClick={() => setShowCancelConfirm(null)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Go Back
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Cancelling State */}
+              {cancellingBooking && (
+                <div className="pt-4 border-t text-center text-foreground/80">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                    Cancelling session...
                   </div>
                 </div>
               )}
