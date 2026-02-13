@@ -659,11 +659,11 @@ private struct SignedInProfileScreen: View {
         // Dynamic class categories - only show if purchased and active
         let allPurchases = packagesService.packages
         let classPurchases = allPurchases.filter { pkg in
+            // Only include packages that can book classes
+            let canBookClass = pkg.canBookClasses
             // Only include active packages (not expired and has remaining lessons)
             let isActive = pkg.expirationDate >= Date() && pkg.lessonsRemaining > 0
-            let category = mapPackageTypeToCategory(pkg.packageType)
-            let isNotAthleteCategory = !["oneAthlete", "twoAthlete", "threeAthlete", "fourAthlete"].contains(category)
-            return isActive && isNotAthleteCategory
+            return canBookClass && isActive
         }
         
         if !classPurchases.isEmpty {
