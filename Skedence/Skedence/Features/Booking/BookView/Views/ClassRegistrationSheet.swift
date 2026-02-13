@@ -60,12 +60,11 @@ struct ClassRegistrationSheet: View {
             let canBook = pkg.canBookClasses
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
-            let hasClassCategory = pkg.packageCategory == "classPass" || pkg.packageCategory == "class"
             
             // Check if package is in eligible list (if list is empty, allow all class passes for backward compatibility)
             let isEligible = eligibleIds.isEmpty || eligibleIds.contains(pkg.packageType)
             
-            return canBook && hasRemaining && notExpired && hasClassCategory && isEligible
+            return canBook && hasRemaining && notExpired && isEligible
         }
         
         // Group by package type, keeping the one with earliest expiration
@@ -85,8 +84,7 @@ struct ClassRegistrationSheet: View {
             pkg.packageType == packageType &&
             pkg.canBookClasses &&
             pkg.lessonsRemaining > 0 &&
-            pkg.expirationDate >= now &&
-            (pkg.packageCategory == "classPass" || pkg.packageCategory == "class")
+            pkg.expirationDate >= now
         }.reduce(0) { $0 + $1.lessonsRemaining }
     }
     

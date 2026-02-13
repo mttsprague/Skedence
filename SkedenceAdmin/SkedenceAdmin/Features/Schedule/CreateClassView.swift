@@ -32,7 +32,7 @@ struct CreateClassView: View {
     @State private var isRecurring = false
     @State private var recurringEndDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
     @State private var selectedDays: Set<Int> = [] // 1=Sunday, 2=Monday, etc.
-    @State private var selectedPackageIds: Set<String> = [] // Selected class pass package IDs
+    @State private var selectedPackageIds: Set<String> = [] // Selected class pass package types (not UUIDs)
     
     // Computed property for active class pass packages
     private var activeClassPasses: [PackageOption] {
@@ -131,15 +131,15 @@ struct CreateClassView: View {
                         } else {
                             ForEach(activeClassPasses) { pkg in
                                 Button {
-                                    if selectedPackageIds.contains(pkg.id) {
-                                        selectedPackageIds.remove(pkg.id)
+                                    if selectedPackageIds.contains(pkg.packageType) {
+                                        selectedPackageIds.remove(pkg.packageType)
                                     } else {
-                                        selectedPackageIds.insert(pkg.id)
+                                        selectedPackageIds.insert(pkg.packageType)
                                     }
                                 } label: {
-                                    HStack {
-                                        Image(systemName: selectedPackageIds.contains(pkg.id) ? "checkmark.square.fill" : "square")
-                                            .foregroundStyle(selectedPackageIds.contains(pkg.id) ? AppTheme.primary : AppTheme.textSecondary)
+                                    HStack(spacing: Spacing.sm) {
+                                        Image(systemName: selectedPackageIds.contains(pkg.packageType) ? "checkmark.square.fill" : "square")
+                                            .foregroundStyle(selectedPackageIds.contains(pkg.packageType) ? AppTheme.primary : AppTheme.textSecondary)
                                         Text(pkg.title)
                                             .font(.bodyMedium)
                                             .foregroundStyle(AppTheme.textPrimary)
@@ -157,13 +157,13 @@ struct CreateClassView: View {
                                         .foregroundStyle(AppTheme.primary)
                                     
                                     FlowLayout(spacing: Spacing.xs) {
-                                        ForEach(Array(selectedPackageIds), id: \.self) { pkgId in
-                                            if let pkg = activeClassPasses.first(where: { $0.id == pkgId }) {
-                                                HStack(spacing: 4) {
+                                        ForEach(Array(selectedPackageIds), id: \.self) { pkgType in
+                                            if let pkg = activeClassPasses.first(where: { $0.packageType == pkgType }) {
+                                                HStack(spacing: Spacing.xs) {
                                                     Text(pkg.title)
-                                                        .font(.caption2)
+                                                        .font(.bodySmall)
                                                     Button {
-                                                        selectedPackageIds.remove(pkgId)
+                                                        selectedPackageIds.remove(pkgType)
                                                     } label: {
                                                         Image(systemName: "xmark.circle.fill")
                                                             .font(.caption2)

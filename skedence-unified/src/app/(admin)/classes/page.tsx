@@ -50,6 +50,7 @@ interface Participant {
 interface PackageOption {
   id: string;
   title: string;
+  packageType: string; // The type identifier used in user packages
   packageCategory: string;
   active: boolean;
 }
@@ -103,6 +104,7 @@ export default function ClassesPage() {
                   allPackages.push({
                     id: pkg.id,
                     title: pkg.title,
+                    packageType: pkg.packageType, // Add packageType
                     packageCategory: pkg.packageCategory,
                     active: pkg.active !== false,
                   });
@@ -736,12 +738,12 @@ export default function ClassesPage() {
                             <label key={pkg.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-background cursor-pointer">
                               <input
                                 type="checkbox"
-                                checked={selectedPackageIds.includes(pkg.id)}
+                                checked={selectedPackageIds.includes(pkg.packageType)}
                                 onChange={(e) => {
                                   if (e.target.checked) {
-                                    setSelectedPackageIds([...selectedPackageIds, pkg.id]);
+                                    setSelectedPackageIds([...selectedPackageIds, pkg.packageType]);
                                   } else {
-                                    setSelectedPackageIds(selectedPackageIds.filter(id => id !== pkg.id));
+                                    setSelectedPackageIds(selectedPackageIds.filter(id => id !== pkg.packageType));
                                   }
                                 }}
                                 className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
@@ -756,7 +758,7 @@ export default function ClassesPage() {
                           <p className="text-xs font-medium text-blue-800 mb-2">Selected Class Passes ({selectedPackageIds.length}):</p>
                           <div className="flex flex-wrap gap-2">
                             {selectedPackageIds.map(id => {
-                              const pkg = packages.find(p => p.id === id);
+                              const pkg = packages.find(p => p.packageType === id);
                               return pkg ? (
                                 <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                                   {pkg.title}
@@ -994,12 +996,12 @@ export default function ClassesPage() {
                                     <label key={pkg.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-background cursor-pointer">
                                       <input
                                         type="checkbox"
-                                        checked={selectedPackageIds.includes(pkg.id)}
+                                        checked={selectedPackageIds.includes(pkg.packageType)}
                                         onChange={(e) => {
                                           if (e.target.checked) {
-                                            setSelectedPackageIds([...selectedPackageIds, pkg.id]);
+                                            setSelectedPackageIds([...selectedPackageIds, pkg.packageType]);
                                           } else {
-                                            setSelectedPackageIds(selectedPackageIds.filter(id => id !== pkg.id));
+                                            setSelectedPackageIds(selectedPackageIds.filter(id => id !== pkg.packageType));
                                           }
                                         }}
                                         className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
@@ -1014,7 +1016,7 @@ export default function ClassesPage() {
                                   <p className="text-xs font-medium text-blue-800 mb-2">Selected Class Passes ({selectedPackageIds.length}):</p>
                                   <div className="flex flex-wrap gap-2">
                                     {selectedPackageIds.map(id => {
-                                      const pkg = packages.find(p => p.id === id);
+                                      const pkg = packages.find(p => p.packageType === id);
                                       return pkg ? (
                                         <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                                           {pkg.title}

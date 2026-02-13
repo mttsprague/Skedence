@@ -9,7 +9,6 @@ import SwiftUI
 import Foundation
 import Combine
 import FirebaseFirestore
-import FirebaseAuth
 
 enum ScheduleMode: Equatable {
     case myWeek
@@ -447,7 +446,7 @@ final class ScheduleViewModel: ObservableObject {
             )
             
             // Log activity
-            if let user = Auth.auth().currentUser, let slotsAdded = result.slotsAdded, slotsAdded > 0 {
+            if let slotsAdded = result.slotsAdded, slotsAdded > 0 {
                 // Activity logging can be added to cloud functions if needed
             }
             

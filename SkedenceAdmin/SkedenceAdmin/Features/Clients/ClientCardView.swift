@@ -285,10 +285,6 @@ struct ClientCardView: View {
         cancelError = nil
         
         do {
-            // Fetch booking details before cancelling
-            let bookingDoc = try await Firestore.firestore().collection("bookings").document(bookingId).getDocument()
-            let bookingData = bookingDoc.data()
-            
             try await FunctionsService.shared.adminCancelLesson(
                 bookingId: bookingId,
                 orgId: orgId,

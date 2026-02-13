@@ -16,6 +16,9 @@ struct EditClassView: View {
     @ObservedObject var trainersService: TrainersService
     let onUpdated: () -> Void
     
+    // Convenience accessor
+    private var pricingService: PricingStructureService { dependencies.pricing }
+    
     @State private var title = ""
     @State private var description = ""
     @State private var startDate = Date()
@@ -25,6 +28,13 @@ struct EditClassView: View {
     @State private var selectedTrainer: Trainer?
     @State private var isUpdating = false
     @State private var errorMessage: String?
+    @State private var selectedPackageIds: Set<String> = [] // Selected class pass package types (not UUIDs)
+    
+    // Computed property for active class pass packages
+    private var activeClassPasses: [PackageOption] {
+        guard let pricing = pricingService.pricingStructure else { return [] }
+        return pricing.allPackages.filter { $0.packageCategory == .classPass && $0.active }
+    }
     
     var body: some View {
         NavigationView {
@@ -62,6 +72,85 @@ struct EditClassView: View {
                         .foregroundStyle(AppTheme.textSecondary)
                 }
                 
+                Section {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Eligible Class Passes *")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        Text("Select which class pass types can be used to register for this class")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        if activeClassPasses.isEmpty {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text("No active class passes found. Create class passes in Pricing first.")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                            .padding(Spacing.sm)
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(CornerRadius.sm)
+                        } else {
+                            ForEach(activeClassPasses) { pkg in
+                                Button {
+                                    if selectedPackageIds.contains(pkg.packageType) {
+                                        selectedPackageIds.remove(pkg.packageType)
+                                    } else {
+                                        selectedPackageIds.insert(pkg.packageType)
+                                    }
+                                } label: {
+                                    HStack(spacing: Spacing.sm) {
+                                        Image(systemName: selectedPackageIds.contains(pkg.packageType) ? "checkmark.square.fill" : "square")
+                                            .foregroundStyle(selectedPackageIds.contains(pkg.packageType) ? AppTheme.primary : AppTheme.textSecondary)
+                                        Text(pkg.title)
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            
+                            if !selectedPackageIds.isEmpty {
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                    Text("Selected: \(selectedPackageIds.count) pass type(s)")
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(AppTheme.primary)
+                                    
+                                    FlowLayout(spacing: Spacing.xs) {
+                                        ForEach(Array(selectedPackageIds), id: \.self) { pkgType in
+                                            if let pkg = activeClassPasses.first(where: { $0.packageType == pkgType }) {
+                                                HStack(spacing: Spacing.xs) {
+                                                    Text(pkg.title)
+                                                        .font(.bodySmall)
+                                                    Button {
+                                                        selectedPackageIds.remove(pkgType)
+                                                    } label: {
+                                                        Image(systemName: "xmark.circle.fill")
+                                                            .font(.caption2)
+                                                    }
+                                                }
+                                                .padding(.horizontal, Spacing.xs)
+                                                .padding(.vertical, 4)
+                                                .background(AppTheme.primary.opacity(0.1))
+                                                .foregroundStyle(AppTheme.primary)
+                                                .cornerRadius(CornerRadius.sm)
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(Spacing.sm)
+                                .background(AppTheme.primary.opacity(0.05))
+                                .cornerRadius(CornerRadius.sm)
+                            }
+                        }
+                    }
+                }
+                
                 if let errorMessage = errorMessage {
                     Section {
                         Text(errorMessage)
@@ -93,6 +182,24 @@ struct EditClassView: View {
             endDate = classItem.endTime
             maxParticipants = classItem.maxParticipants
             location = classItem.location
+            
+            // Convert old UUID-based eligiblePackageIds to packageType strings
+            let loadedIds = Set(classItem.eligiblePackageIds)
+            var convertedIds = Set<String>()
+            
+            for id in loadedIds {
+                // Check if it's already a packageType (not a UUID)
+                if activeClassPasses.contains(where: { $0.packageType == id }) {
+                    convertedIds.insert(id)
+                } else {
+                    // Try to find matching package by UUID and convert to packageType
+                    if let pkg = activeClassPasses.first(where: { $0.id == id }) {
+                        convertedIds.insert(pkg.packageType)
+                    }
+                }
+            }
+            
+            selectedPackageIds = convertedIds
             
             // Load trainers if not already loaded
             Task {
@@ -156,7 +263,8 @@ struct EditClassView: View {
                 location: location,
                 trainerId: trainerId,
                 trainerName: trainerName,
-                priceInCents: 0
+                priceInCents: 0,
+                eligiblePackageIds: Array(selectedPackageIds)
             )
             onUpdated()
             dismiss()

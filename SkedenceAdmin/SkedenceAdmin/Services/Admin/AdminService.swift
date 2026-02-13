@@ -281,7 +281,8 @@ final class AdminService: ObservableObject {
         location: String,
         trainerId: String,
         trainerName: String,
-        priceInCents: Int
+        priceInCents: Int,
+        eligiblePackageIds: [String] = []
     ) async throws {
         guard isAdmin else {
             throw AdminServiceError.notAuthorized
@@ -313,7 +314,8 @@ final class AdminService: ObservableObject {
             "location": location,
             "trainerId": trainerId,
             "trainerName": trainerName,
-            "priceInCents": priceInCents
+            "priceInCents": priceInCents,
+            "eligiblePackageIds": eligiblePackageIds
         ])
         
         // Remove old bookings from the assigned trainer's schedule only
