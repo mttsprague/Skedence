@@ -323,62 +323,128 @@ export default function PassesPage() {
                             <p className="text-sm">No passes in this category</p>
                           </div>
                         ) : (
-                          <div className="divide-y">
-                            {group.passes.map(pass => (
-                              <div
-                                key={pass.id}
-                                className={`py-4 ${pass.isExpired ? 'opacity-60' : ''}`}
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <User className="h-4 w-4 text-gray-400" />
-                                      <span className="font-semibold text-gray-900">
-                                        {pass.clientName}
-                                      </span>
-                                      {pass.isExpired && (
-                                        <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
-                                          Expired
+                          <>
+                            {/* Active Passes (with remaining lessons) */}
+                            <div className="divide-y">
+                              {group.passes.filter(p => p.remainingLessons > 0).map(pass => (
+                                <div
+                                  key={pass.id}
+                                  className={`py-4 ${pass.isExpired ? 'opacity-60' : ''}`}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <User className="h-4 w-4 text-gray-400" />
+                                        <span className="font-semibold text-gray-900">
+                                          {pass.clientName}
                                         </span>
-                                      )}
-                                    </div>
-                                    
-                                    <div className="ml-6 space-y-1 text-sm">
-                                      <div className="flex items-center gap-2 text-gray-700">
-                                        <Package className="h-3.5 w-3.5 text-gray-400" />
-                                        <span className="font-medium">{pass.packageName}</span>
-                                        <span className="text-gray-500">
-                                          · {pass.remainingLessons} of {pass.totalLessons} remaining
-                                        </span>
+                                        {pass.isExpired && (
+                                          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                            Expired
+                                          </span>
+                                        )}
                                       </div>
                                       
-                                      <div className="flex items-center gap-4 text-gray-600">
-                                        <div className="flex items-center gap-1.5">
-                                          <Clock className="h-3.5 w-3.5 text-gray-400" />
-                                          <span>Purchased {format(pass.purchaseDate, 'MMM d, yyyy')}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                          <Calendar className={`h-3.5 w-3.5 ${pass.isExpired ? 'text-red-400' : 'text-gray-400'}`} />
-                                          <span className={pass.isExpired ? 'text-red-600 font-medium' : ''}>
-                                            Expires {format(pass.expirationDate, 'MMM d, yyyy')}
+                                      <div className="ml-6 space-y-1 text-sm">
+                                        <div className="flex items-center gap-2 text-gray-700">
+                                          <Package className="h-3.5 w-3.5 text-gray-400" />
+                                          <span className="font-medium">{pass.packageName}</span>
+                                          <span className="text-gray-500">
+                                            · {pass.remainingLessons} of {pass.totalLessons} remaining
                                           </span>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-4 text-gray-600">
+                                          <div className="flex items-center gap-1.5">
+                                            <Clock className="h-3.5 w-3.5 text-gray-400" />
+                                            <span>Purchased {format(pass.purchaseDate, 'MMM d, yyyy')}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1.5">
+                                            <Calendar className={`h-3.5 w-3.5 ${pass.isExpired ? 'text-red-400' : 'text-gray-400'}`} />
+                                            <span className={pass.isExpired ? 'text-red-600 font-medium' : ''}>
+                                              Expires {format(pass.expirationDate, 'MMM d, yyyy')}
+                                            </span>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>
 
-                                  <div className="text-right ml-4">
-                                    <div className={`text-2xl font-bold ${pass.isExpired ? 'text-gray-400' : 'text-primary'}`}>
-                                      {pass.remainingLessons}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      of {pass.totalLessons}
+                                    <div className="text-right ml-4">
+                                      <div className={`text-2xl font-bold ${pass.isExpired ? 'text-gray-400' : 'text-primary'}`}>
+                                        {pass.remainingLessons}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        of {pass.totalLessons}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
+                              ))}
+                            </div>
+
+                            {/* Used Passes Section (0 remaining) */}
+                            {group.passes.filter(p => p.remainingLessons === 0).length > 0 && (
+                              <div className="mt-6 pt-6 border-t">
+                                <h4 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wide">
+                                  Used Passes
+                                </h4>
+                                <div className="divide-y">
+                                  {group.passes.filter(p => p.remainingLessons === 0).map(pass => (
+                                    <div
+                                      key={pass.id}
+                                      className="py-4 opacity-60"
+                                    >
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <User className="h-4 w-4 text-gray-400" />
+                                            <span className="font-semibold text-gray-700">
+                                              {pass.clientName}
+                                            </span>
+                                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded">
+                                              Used
+                                            </span>
+                                          </div>
+                                          
+                                          <div className="ml-6 space-y-1 text-sm">
+                                            <div className="flex items-center gap-2 text-gray-600">
+                                              <Package className="h-3.5 w-3.5 text-gray-400" />
+                                              <span className="font-medium">{pass.packageName}</span>
+                                              <span className="text-gray-500">
+                                                · {pass.totalLessons} of {pass.totalLessons} used
+                                              </span>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-4 text-gray-500">
+                                              <div className="flex items-center gap-1.5">
+                                                <Clock className="h-3.5 w-3.5 text-gray-400" />
+                                                <span>Purchased {format(pass.purchaseDate, 'MMM d, yyyy')}</span>
+                                              </div>
+                                              <div className="flex items-center gap-1.5">
+                                                <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                                                <span>
+                                                  Expired {format(pass.expirationDate, 'MMM d, yyyy')}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="text-right ml-4">
+                                          <div className="text-2xl font-bold text-gray-400">
+                                            0
+                                          </div>
+                                          <div className="text-xs text-gray-500">
+                                            of {pass.totalLessons}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            ))}
-                          </div>
+                            )}
+                          </>
                         )}
                       </CardContent>
                     )}

@@ -719,6 +719,7 @@ private struct SignedInProfileScreen: View {
                     isExpired: pkg.expirationDate < Date()
                 )
             }
+            .filter { $0.remainingLessons > 0 } // Hide fully used packages (0/0)
             .sorted { $0.purchaseDate > $1.purchaseDate }
     }
     
