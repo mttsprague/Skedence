@@ -475,7 +475,17 @@ export default function ActivityPage() {
     
     // Activity type filter
     if (selectedActivityType !== 'all') {
-      filtered = filtered.filter(activity => activity.type === selectedActivityType);
+      filtered = filtered.filter(activity => {
+        // Handle both new and legacy cancellation types
+        if (selectedActivityType === 'lesson_canceled') {
+          return activity.type === 'lesson_canceled' || activity.type === 'booking_canceled';
+        }
+        // Handle both new and legacy booking types
+        if (selectedActivityType === 'lesson_booked') {
+          return activity.type === 'lesson_booked' || activity.type === 'booking_created';
+        }
+        return activity.type === selectedActivityType;
+      });
     }
     
     // Client filter
@@ -1113,7 +1123,9 @@ export default function ActivityPage() {
                         </p>
                         {activity.metadata?.startTime && (
                           <p className="mt-1 text-sm text-muted-foreground">
-                            Session time: {new Date(activity.metadata.startTime).toLocaleString()}
+                            Session time: {typeof activity.metadata.startTime.toDate === 'function' 
+                              ? activity.metadata.startTime.toDate().toLocaleString() 
+                              : new Date(activity.metadata.startTime).toLocaleString()}
                           </p>
                         )}
                       </div>
