@@ -35,16 +35,11 @@ final class CancellationService: ObservableObject {
         error = nil
         defer { isProcessing = false }
         
-        guard let user = Auth.auth().currentUser else {
+        guard Auth.auth().currentUser?.uid != nil else {
             let authError = CancellationError.notAuthenticated
             self.error = authError
             throw authError
         }
-        let uid = user.uid
-        
-        // Get booking details before canceling for activity log
-        let bookingDoc = try await db.collection("bookings").document(bookingId).getDocument()
-        let bookingData = bookingDoc.data()
         
         do {
             _ = try await repository.cancelLesson(bookingId: bookingId)

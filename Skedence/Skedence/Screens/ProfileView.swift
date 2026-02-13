@@ -685,16 +685,19 @@ private struct SignedInProfileScreen: View {
                 let totalRemaining = activePurchases.reduce(0) { $0 + $1.remainingLessons }
                 let nextExp = activePurchases.compactMap { $0.expirationDate }.min()
                 
-                categories.append(PassCategory(
-                    id: categoryId,
-                    displayName: getCategoryDisplayName(categoryId),
-                    isFixed: false,
-                    totalRemaining: totalRemaining,
-                    nextExpiration: nextExp,
-                    purchases: purchases,
-                    icon: "calendar.badge.clock",
-                    category: .classPass
-                ))
+                // Only show class category if there are active passes remaining
+                if totalRemaining > 0 {
+                    categories.append(PassCategory(
+                        id: categoryId,
+                        displayName: getCategoryDisplayName(categoryId),
+                        isFixed: false,
+                        totalRemaining: totalRemaining,
+                        nextExpiration: nextExp,
+                        purchases: purchases,
+                        icon: "calendar.badge.clock",
+                        category: .classPass
+                    ))
+                }
             }
         }
         
