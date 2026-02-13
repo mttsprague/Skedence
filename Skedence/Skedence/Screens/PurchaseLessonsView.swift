@@ -10,6 +10,7 @@ struct PurchaseLessonsView: View {
     @StateObject private var stripeService = StripeService()
     @StateObject private var customerService = StripeCustomerService()
     @StateObject private var pricingService = PricingStructureService()
+    @Environment(\.dismiss) private var dismiss
 
     @State private var isPurchasing = false
     @State private var alert: AlertItem?
@@ -18,6 +19,7 @@ struct PurchaseLessonsView: View {
     @State private var useCardOnFile = false
     @State private var selectedPaymentMethodId: String?
     @State private var pendingPurchaseOrgId: String?
+    @State private var pendingPurchasePackage: PackageOption? // Stored data for purchase
     @State private var confirmationPackage: PackageOption? // Sheet presents when this is non-nil
 
     // Default expiration policy
@@ -576,17 +578,21 @@ struct PurchaseLessonsView: View {
 
         // Store orgId and show confirmation by setting package
         pendingPurchaseOrgId = orgId
+        pendingPurchasePackage = selectedPackage
         confirmationPackage = selectedPackage
         
         print("✅ confirmationPackage set to: \(confirmationPackage?.title ?? "nil")")
+        print("✅ pendingPurchasePackage set to: \(pendingPurchasePackage?.title ?? "nil")")
         print("🛒 useCardOnFile: \(useCardOnFile), selectedPaymentMethodId: \(selectedPaymentMethodId ?? "none")")
     }
     
     private func confirmPurchase() async {
         print("💳 confirmPurchase started")
         guard let orgId = pendingPurchaseOrgId,
-              let selectedPackage = confirmationPackage else {
+              let selectedPackage = pendingPurchasePackage else {
             print("❌ Missing orgId or package")
+            print("   orgId: \(pendingPurchaseOrgId ?? "nil")")
+            print("   package: \(pendingPurchasePackage?.title ?? "nil")")
             return
         }
         
