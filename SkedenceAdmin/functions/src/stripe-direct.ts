@@ -199,7 +199,7 @@ export const createPaymentIntentDirect = functions.https.onCall(
         currency: "usd",
         customer: customerId,
         description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
-        statement_descriptor: "Skedence", // Appears on bank statements and receipts
+        statement_descriptor_suffix: "Skedence", // Appears on bank statements (22 chars max)
         receipt_email: userData?.email || userData?.emailAddress || undefined, // Send receipt
         setup_future_usage: "off_session", // Save payment method for future use
         automatic_payment_methods: {
@@ -473,7 +473,7 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
         confirm: true,
         return_url: "https://skedence.app/payment-complete",
         description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
-        statement_descriptor: "Skedence", // Appears on bank statements and receipts
+        statement_descriptor_suffix: "Skedence", // Appears on bank statements (22 chars max)
         receipt_email: userData?.email || userData?.emailAddress || undefined, // Send receipt
         metadata: {
           source: "Skedence",
