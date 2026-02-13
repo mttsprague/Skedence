@@ -684,7 +684,7 @@ export default function SchedulingPage() {
               <div className="flex items-center gap-4">
                 <button
                   onClick={viewMode === 'individual' ? goToPreviousWeek : goToPreviousAllTrainersDay}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-background rounded-lg transition-colors"
                   title={viewMode === 'individual' ? "Previous Week" : "Previous Day"}
                 >
                   <ChevronLeft className="h-5 w-5 text-foreground/80" />
@@ -705,7 +705,7 @@ export default function SchedulingPage() {
                 </div>
                 <button
                   onClick={viewMode === 'individual' ? goToNextWeek : goToNextAllTrainersDay}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-background rounded-lg transition-colors"
                   title={viewMode === 'individual' ? "Next Week" : "Next Day"}
                 >
                   <ChevronRight className="h-5 w-5 text-foreground/80" />
@@ -762,8 +762,8 @@ export default function SchedulingPage() {
               /* Week View (Individual Trainer) */
               <div className="min-w-[900px]">
                 {/* Week Days Header */}
-                <div className="grid grid-cols-8 border-b border-gray-200 bg-background sticky top-0 z-10">
-                  <div className="p-3 text-xs font-medium text-muted-foreground">Time</div>
+                <div className="grid grid-cols-8 border-b border-gray-200 bg-white sticky top-0 z-10">
+                  <div className="p-3 text-xs font-medium text-gray-600">Time</div>
                   {weekDays.map(day => (
                     <div
                       key={day.toISOString()}
@@ -772,12 +772,12 @@ export default function SchedulingPage() {
                         today && isSameDay(day, today) && 'bg-blue-50'
                       )}
                     >
-                      <div className="text-xs font-medium text-muted-foreground">
+                      <div className="text-xs font-medium text-gray-600">
                         {format(day, 'EEE')}
                       </div>
                       <div className={cn(
                         'text-2xl font-bold mt-1',
-                        today && isSameDay(day, today) ? 'text-blue-600' : 'text-foreground'
+                        today && isSameDay(day, today) ? 'text-blue-600' : 'text-gray-900'
                       )}>
                         {format(day, 'd')}
                       </div>
@@ -808,7 +808,7 @@ export default function SchedulingPage() {
                     
                     return (
                       <div key={hour} className="grid grid-cols-8 border-b border-gray-200">
-                        <div className="p-3 text-xs text-muted-foreground font-medium border-r border-gray-200">
+                        <div className="p-3 text-xs text-gray-600 font-medium border-r border-gray-200">
                           {hourLabel}
                         </div>
                         {weekDays.map(day => {
@@ -819,7 +819,7 @@ export default function SchedulingPage() {
                           return (
                             <div
                               key={`${day.toISOString()}-${hour}`}
-                              className="h-[70px] p-1 border-l border-gray-200 hover:bg-background relative cursor-pointer overflow-y-auto"
+                              className="h-[70px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
                               onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
                             >
                               {dayItems.map(item => {
@@ -847,10 +847,10 @@ export default function SchedulingPage() {
                                     <div className="font-semibold truncate">
                                       {format(item.startTime, 'h:mm a')}
                                     </div>
-                                    <div className="truncate text-foreground">
+                                    <div className="truncate text-gray-900">
                                       {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
                                     </div>
-                                    <div className="text-muted-foreground truncate">
+                                    <div className="text-gray-600 truncate">
                                       {item.trainerName}
                                     </div>
                                     {item.location && (
@@ -874,17 +874,17 @@ export default function SchedulingPage() {
               <div className="overflow-x-auto">
                 <div style={{ minWidth: `${200 + trainers.length * 240}px` }}>
                   {/* Trainers Header */}
-                  <div className="flex border-b border-gray-200 bg-background sticky top-0 z-10">
-                    <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-muted-foreground border-r border-gray-200">Time</div>
+                  <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
+                    <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-600 border-r border-gray-200">Time</div>
                     {trainers.map(trainer => (
                       <div
                         key={trainer.id}
                         className="w-[240px] flex-shrink-0 p-3 text-center border-l border-gray-200"
                       >
-                        <div className="font-medium text-foreground">
+                        <div className="font-medium text-gray-900">
                           {trainer.firstName} {trainer.lastName}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1">
+                        <div className="text-xs text-gray-600 mt-1">
                           {allTrainersSchedule.get(trainer.id)?.length || 0} appointments
                         </div>
                       </div>
@@ -916,7 +916,7 @@ export default function SchedulingPage() {
                       
                       return (
                         <div key={hour} className="flex border-b border-gray-200">
-                          <div className="w-[200px] flex-shrink-0 p-3 text-xs text-muted-foreground font-medium border-r border-gray-200">
+                          <div className="w-[200px] flex-shrink-0 p-3 text-xs text-gray-600 font-medium border-r border-gray-200">
                             {hourLabel}
                           </div>
                           {trainers.map(trainer => {
@@ -927,7 +927,7 @@ export default function SchedulingPage() {
                             return (
                               <div
                                 key={`${trainer.id}-${hour}`}
-                                className="w-[240px] flex-shrink-0 h-[70px] p-1 border-l border-gray-200 hover:bg-background relative cursor-pointer overflow-y-auto"
+                                className="w-[240px] flex-shrink-0 h-[70px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
                                 onClick={() => trainerItems.length === 0 && handleEmptySlotClick(allTrainersDate!, hour)}
                               >
                                 {trainerItems.map(item => {
@@ -981,15 +981,15 @@ export default function SchedulingPage() {
 
         {/* Right Side Detail Panel */}
         {selectedItem && (
-          <div className="fixed right-0 top-0 bottom-0 w-[600px] bg-white border-l border-gray-200 shadow-2xl overflow-y-auto z-50 animate-slide-in-right">
+          <div className="fixed right-0 top-0 bottom-0 w-[600px] bg-card border-l border-border shadow-2xl overflow-y-auto z-50 animate-slide-in-right">
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-foreground">
                 {selectedItem.type === 'class' ? 'Class Details' : 'Session Details'}
               </h2>
               <button
                 onClick={() => setSelectedItem(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-background rounded-lg transition-colors"
               >
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
@@ -1191,14 +1191,14 @@ export default function SchedulingPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <button
                           onClick={() => setShowCancelConfirm('early')}
-                          className="px-4 py-3 bg-white border-2 border-input hover:border-orange-500 hover:bg-orange-50 text-foreground rounded-lg transition-colors font-medium"
+                          className="px-4 py-3 bg-card border-2 border-input hover:border-orange-500 hover:bg-orange-500/10 text-foreground rounded-lg transition-colors font-medium"
                         >
                           <div className="text-sm font-semibold">Early Cancel</div>
                           <div className="text-xs text-foreground/80 mt-1">Refund pass to client</div>
                         </button>
                         <button
                           onClick={() => setShowCancelConfirm('late')}
-                          className="px-4 py-3 bg-white border-2 border-input hover:border-red-500 hover:bg-red-50 text-foreground rounded-lg transition-colors font-medium"
+                          className="px-4 py-3 bg-card border-2 border-input hover:border-red-500 hover:bg-red-500/10 text-foreground rounded-lg transition-colors font-medium"
                         >
                           <div className="text-sm font-semibold">Late Cancel</div>
                           <div className="text-xs text-foreground/80 mt-1">No pass refund</div>
@@ -1229,7 +1229,7 @@ export default function SchedulingPage() {
                         </button>
                         <button
                           onClick={() => setShowCancelConfirm(null)}
-                          className="flex-1 px-4 py-2.5 bg-white border-2 border-input hover:bg-background text-foreground font-medium rounded-lg transition-colors"
+                          className="flex-1 px-4 py-2.5 bg-card border-2 border-input hover:bg-background text-foreground font-medium rounded-lg transition-colors"
                         >
                           Go Back
                         </button>

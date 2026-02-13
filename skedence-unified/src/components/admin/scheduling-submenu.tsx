@@ -166,11 +166,11 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
   const days = currentMonth ? getDaysInMonth(currentMonth) : [];
 
   if (!isMounted || !currentMonth) {
-    return <div className="flex h-screen bg-background items-center justify-center"><div className="text-muted-foreground">Loading...</div></div>;
+    return <div className="flex h-screen bg-gray-50 items-center justify-center"><div className="text-gray-600">Loading...</div></div>;
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-gray-50">
       {/* Left Sidebar */}
       <div className="w-80 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col overflow-y-auto scrollbar-premium shadow-premium-lg">
         {/* Back to Activity Feed */}

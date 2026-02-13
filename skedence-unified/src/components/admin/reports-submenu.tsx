@@ -27,14 +27,14 @@ export function ReportsSubmenu({ children }: ReportsSubmenuProps) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-gray-50">
       {/* Left Sidebar */}
-      <div className="w-64 bg-primary text-white border-r border-white/10 flex flex-col overflow-y-auto">
+      <div className="w-80 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col overflow-y-auto scrollbar-premium shadow-premium-lg">
         {/* Back to Activity Feed */}
-        <div className="p-4 border-b border-white/10">
+        <div className="p-6 border-b border-sidebar-border">
           <Link
             href="/activity"
-            className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
+            className="flex items-center gap-2.5 text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-all duration-200 font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Activity Feed</span>
@@ -55,8 +55,8 @@ export function ReportsSubmenu({ children }: ReportsSubmenuProps) {
                   className={cn(
                     'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium',
                     isActive
-                      ? 'bg-white/20 text-white shadow-lg'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      ? 'bg-sidebar-accent text-sidebar-foreground shadow-lg'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                   )}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />

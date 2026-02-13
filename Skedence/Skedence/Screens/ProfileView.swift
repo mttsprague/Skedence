@@ -98,6 +98,7 @@ private struct SignedInProfileScreen: View {
 
     @State private var tab: Tab = .passes
     @State private var selectedBooking: Booking?
+    @State private var expandedCategories: Set<String> = []
     enum Tab: String { case passes = "PASSES", schedule = "SCHEDULE", wallet = "WALLET" }
     @State private var showPurchaseLessons = false
     @State private var showingDescriptionSheet = false
@@ -550,25 +551,15 @@ private struct SignedInProfileScreen: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 4)
                 
-                // Dynamically display all package types from pricing structure
-                let packageTypes = pricingService.allPackageOptions
-                if packageTypes.isEmpty {
+                // Display passes grouped by category
+                let categories = buildCategoryGroups()
+                if categories.isEmpty {
                     Text("No pass types configured")
                         .foregroundStyle(.secondary)
                         .padding()
                 } else {
-                    ForEach(packageTypes) { packageOption in
-                        let count = remainingPasses(forType: packageOption.packageType)
-                        let earliestExp = earliestExpiration(forType: packageOption.packageType)
-                        let _ = print("🎨 Package: \(packageOption.title), category: \(packageOption.packageCategory), type: \(packageOption.packageType)")
-                        passTypeCard(
-                            title: packageOption.title,
-                            description: packageOption.description,
-                            count: count,
-                            icon: iconForPackageType(packageOption.packageType),
-                            category: packageOption.packageCategory,
-                            earliestExpiration: earliestExp
-                        )
+                    ForEach(categories) { category in
+                        categoryCard(category: category)
                     }
                 }
 
@@ -609,6 +600,313 @@ private struct SignedInProfileScreen: View {
             }
         }
         .padding(.horizontal, 16)
+    }
+    
+    // MARK: - Category Data Structures
+    
+    struct PassCategory: Identifiable {
+        let id: String
+        let displayName: String
+        let isFixed: Bool  // true for 1-4 athlete, false for classes
+        var totalRemaining: Int
+        var nextExpiration: Date?
+        var purchases: [PurchaseDetail]
+        var icon: String
+        var category: PackageCategory
+    }
+    
+    struct PurchaseDetail: Identifiable {
+        let id: String
+        let packageName: String
+        let totalLessons: Int
+        let remainingLessons: Int
+        let purchaseDate: Date
+        let expirationDate: Date
+        let isExpired: Bool
+    }
+    
+    // MARK: - Category Building
+    
+    private func buildCategoryGroups() -> [PassCategory] {
+        var categories: [PassCategory] = []
+        
+        // Fixed categories - always show
+        let fixedCategories: [(id: String, name: String, icon: String)] = [
+            ("oneAthlete", "One Athlete", "person.fill"),
+            ("twoAthlete", "Two Athletes", "person.2.fill"),
+            ("threeAthlete", "Three Athletes", "person.3.fill"),
+            ("fourAthlete", "Four Athletes", "person.fill.badge.plus")
+        ]
+        
+        for fixed in fixedCategories {
+            let purchases = getPurchasesForCategory(fixed.id)
+            let activePurchases = purchases.filter { !$0.isExpired }
+            let totalRemaining = activePurchases.reduce(0) { $0 + $1.remainingLessons }
+            let nextExp = activePurchases.compactMap { $0.expirationDate }.min()
+            
+            categories.append(PassCategory(
+                id: fixed.id,
+                displayName: fixed.name,
+                isFixed: true,
+                totalRemaining: totalRemaining,
+                nextExpiration: nextExp,
+                purchases: purchases,
+                icon: fixed.icon,
+                category: .oneAthlete
+            ))
+        }
+        
+        // Dynamic class categories - only show if purchased
+        let allPurchases = packagesService.packages
+        let classPurchases = allPurchases.filter { pkg in
+            let category = mapPackageTypeToCategory(pkg.packageType)
+            return !["oneAthlete", "twoAthlete", "threeAthlete", "fourAthlete"].contains(category)
+        }
+        
+        if !classPurchases.isEmpty {
+            let groupedByCategory = Dictionary(grouping: classPurchases) { pkg in
+                mapPackageTypeToCategory(pkg.packageType)
+            }
+            
+            for (categoryId, packages) in groupedByCategory {
+                let purchases = packages.map { pkg in
+                    PurchaseDetail(
+                        id: pkg.id ?? UUID().uuidString,
+                        packageName: pkg.packageName ?? "Unknown Package",
+                        totalLessons: pkg.totalLessons,
+                        remainingLessons: max(0, pkg.lessonsRemaining),
+                        purchaseDate: pkg.purchaseDate,
+                        expirationDate: pkg.expirationDate,
+                        isExpired: pkg.expirationDate < Date()
+                    )
+                }.sorted { $0.purchaseDate > $1.purchaseDate }
+                
+                let activePurchases = purchases.filter { !$0.isExpired }
+                let totalRemaining = activePurchases.reduce(0) { $0 + $1.remainingLessons }
+                let nextExp = activePurchases.compactMap { $0.expirationDate }.min()
+                
+                categories.append(PassCategory(
+                    id: categoryId,
+                    displayName: getCategoryDisplayName(categoryId),
+                    isFixed: false,
+                    totalRemaining: totalRemaining,
+                    nextExpiration: nextExp,
+                    purchases: purchases,
+                    icon: "calendar.badge.clock",
+                    category: .classPass
+                ))
+            }
+        }
+        
+        return categories
+    }
+    
+    private func getPurchasesForCategory(_ categoryId: String) -> [PurchaseDetail] {
+        packagesService.packages
+            .filter { pkg in
+                let pkgCategory = mapPackageTypeToCategory(pkg.packageType)
+                return pkgCategory == categoryId
+            }
+            .map { pkg in
+                PurchaseDetail(
+                    id: pkg.id ?? UUID().uuidString,
+                    packageName: pkg.packageName ?? "Unknown Package",
+                    totalLessons: pkg.totalLessons,
+                    remainingLessons: max(0, pkg.lessonsRemaining),
+                    purchaseDate: pkg.purchaseDate,
+                    expirationDate: pkg.expirationDate,
+                    isExpired: pkg.expirationDate < Date()
+                )
+            }
+            .sorted { $0.purchaseDate > $1.purchaseDate }
+    }
+    
+    private func mapPackageTypeToCategory(_ packageType: String) -> String {
+        switch packageType {
+        case "1_athlete", "private":
+            return "oneAthlete"
+        case "2_athlete":
+            return "twoAthlete"
+        case "3_athlete":
+            return "threeAthlete"
+        case "4_athlete":
+            return "fourAthlete"
+        default:
+            // For classes or other types, use the package type itself
+            return packageType
+        }
+    }
+    
+    private func getCategoryDisplayName(_ categoryId: String) -> String {
+        switch categoryId {
+        case "oneAthlete":
+            return "One Athlete"
+        case "twoAthlete":
+            return "Two Athletes"
+        case "threeAthlete":
+            return "Three Athletes"
+        case "fourAthlete":
+            return "Four Athletes"
+        case "class_pass", "class":
+            return "Class Passes"
+        default:
+            return categoryId.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+    
+    private func toggleCategory(_ categoryId: String) {
+        if expandedCategories.contains(categoryId) {
+            expandedCategories.remove(categoryId)
+        } else {
+            expandedCategories.insert(categoryId)
+        }
+    }
+    
+    // MARK: - Category Card View
+    
+    private func categoryCard(category: PassCategory) -> some View {
+        let isExpanded = expandedCategories.contains(category.id)
+        let gradientColor = category.category == .classPass ? AppTheme.secondary : AppTheme.primary
+        let expiringSoon = isExpiringSoon(category.nextExpiration)
+        
+        return card {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header (always visible)
+                Button(action: {
+                    toggleCategory(category.id)
+                }) {
+                    HStack(spacing: Spacing.md) {
+                        // Icon with gradient background
+                        ZStack {
+                            RoundedRectangle(cornerRadius: CornerRadius.sm, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [gradientColor, gradientColor.opacity(0.7)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 56, height: 56)
+                            
+                            Image(systemName: category.icon)
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                        
+                        // Category info
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(category.displayName)
+                                .font(.headingMedium)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            
+                            if category.totalRemaining > 0 {
+                                HStack(spacing: Spacing.xxs) {
+                                    Image(systemName: "ticket.fill")
+                                        .font(.labelSmall)
+                                    Text("\(category.totalRemaining) remaining")
+                                        .font(.labelMedium)
+                                }
+                                .foregroundStyle(AppTheme.success)
+                                
+                                if let nextExp = category.nextExpiration {
+                                    HStack(spacing: Spacing.xxs) {
+                                        Image(systemName: expiringSoon ? "exclamationmark.triangle.fill" : "calendar")
+                                            .font(.labelSmall)
+                                        Text("Next expires \(nextExp, style: .date)")
+                                            .font(.labelSmall)
+                                    }
+                                    .foregroundStyle(expiringSoon ? Color.orange : AppTheme.textSecondary)
+                                }
+                            } else {
+                                Text("No active passes")
+                                    .font(.labelMedium)
+                                    .foregroundStyle(AppTheme.textTertiary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // Count badge
+                        Text("\(category.totalRemaining)")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundStyle(category.totalRemaining > 0 ? gradientColor : AppTheme.textTertiary)
+                        
+                        // Expand icon
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .font(.system(size: 14))
+                    }
+                }
+                .buttonStyle(.plain)
+                
+                // Expanded details
+                if isExpanded {
+                    Divider()
+                        .padding(.vertical, 4)
+                    
+                    if category.purchases.isEmpty {
+                        Text("No passes in this category")
+                            .font(.bodyMedium)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .padding(.vertical, 8)
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(category.purchases) { purchase in
+                                purchaseDetailRow(purchase: purchase)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func purchaseDetailRow(purchase: PurchaseDetail) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(purchase.packageName)
+                    .font(.bodyMedium.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                
+                if purchase.isExpired {
+                    Text("EXPIRED")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(AppTheme.error)
+                        .cornerRadius(4)
+                }
+            }
+            
+            HStack(spacing: 16) {
+                HStack(spacing: 4) {
+                    Image(systemName: "ticket.fill")
+                        .font(.caption)
+                    Text("\(purchase.remainingLessons) of \(purchase.totalLessons) remaining")
+                        .font(.labelMedium)
+                }
+                .foregroundStyle(AppTheme.textSecondary)
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                    Text("Purchased \(purchase.purchaseDate, style: .date)")
+                        .font(.labelSmall)
+                }
+                .foregroundStyle(AppTheme.textTertiary)
+            }
+            
+            HStack(spacing: 4) {
+                Image(systemName: purchase.isExpired ? "exclamationmark.triangle.fill" : "clock")
+                    .font(.caption)
+                Text("Expires \(purchase.expirationDate, style: .date)")
+                    .font(.labelSmall)
+            }
+            .foregroundStyle(purchase.isExpired ? AppTheme.error : AppTheme.textSecondary)
+        }
+        .opacity(purchase.isExpired ? 0.6 : 1.0)
+        .padding(.vertical, 8)
     }
     
     // Helper to get remaining passes for a specific packageType

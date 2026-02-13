@@ -190,7 +190,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+      <div className="max-w-md w-full bg-card rounded-xl shadow-2xl shadow-black/50 p-8 border border-border">
         <div className="text-center mb-8">
           <a href="/" className="text-3xl font-bold text-blue-600">Skedence</a>
           <h2 className="mt-4 text-2xl font-semibold">
@@ -211,9 +211,9 @@ export default function RegisterPage() {
             <span className="text-xs text-muted-foreground">Step {step} of 3</span>
             <span className="text-xs text-muted-foreground">{Math.round((step / 3) * 100)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-border rounded-full h-2">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              className="bg-primary h-2 rounded-full transition-all duration-300"
               style={{ width: `${(step / 3) * 100}%` }}
             />
           </div>
@@ -351,7 +351,7 @@ export default function RegisterPage() {
             </div>
 
             {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-md text-sm">
+              <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm border border-destructive/20">
                 {error}
               </div>
             )}
@@ -492,12 +492,12 @@ export default function RegisterPage() {
             </div>
 
             {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-md text-sm">
+              <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm border border-destructive/20">
                 {error}
               </div>
             )}
 
-            <div className="flex gap-3 pt-4 border-t sticky bottom-0 bg-white">
+            <div className="flex gap-3 pt-4 border-t border-border sticky bottom-0 bg-card">
               <Button
                 type="button"
                 variant="outline"
@@ -517,9 +517,9 @@ export default function RegisterPage() {
         {/* Step 3: Mobile App Download */}
         {step === 3 && (
           <div className="space-y-6">
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+            <div className="bg-primary/10 border-2 border-primary/20 rounded-xl p-6">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                <div className="flex-shrink-0 w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>

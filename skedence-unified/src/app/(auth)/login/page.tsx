@@ -29,17 +29,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-card rounded-xl shadow-2xl shadow-black/50 p-8 border border-border">
         <div className="text-center mb-8">
-          <a href="/" className="text-3xl font-bold text-blue-600">Skedence</a>
-          <h2 className="mt-4 text-2xl font-semibold">Welcome back</h2>
-          <p className="text-foreground/80">Sign in to your account</p>
+          <a href="/" className="text-3xl font-bold text-primary">Skedence</a>
+          <h2 className="mt-6 text-3xl font-bold text-foreground">Welcome back</h2>
+          <p className="mt-2 text-foreground/60">Sign in to your account</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
               Email
             </label>
             <input
@@ -48,13 +48,13 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-background border border-input rounded-lg text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
               Password
             </label>
             <input
@@ -63,36 +63,36 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-background border border-input rounded-lg text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-md text-sm">
+            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm border border-destructive/20">
               {error}
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full mt-6" disabled={loading}>
             {loading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-foreground/80 text-sm mb-2">
+        <div className="mt-8 text-center">
+          <p className="text-foreground/60 text-sm mb-3">
             Don't have an account yet?
           </p>
           <a 
             href="/register" 
-            className="text-blue-600 hover:text-blue-700 font-medium text-sm hover:underline"
+            className="text-primary hover:text-primary/80 font-medium text-sm hover:underline transition-colors"
           >
             Register Now →
           </a>
         </div>
 
-        <div className="mt-4 text-center text-sm">
-          <a href="/setup-password" className="text-muted-foreground hover:text-foreground hover:underline">
+        <div className="mt-6 text-center text-sm">
+          <a href="/setup-password" className="text-foreground/50 hover:text-foreground hover:underline transition-colors">
             Need to set up your password?
           </a>
         </div>

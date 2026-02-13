@@ -4,84 +4,73 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Plus, Minus, Package, User } from 'lucide-react';
-import { logPassIssued } from '@/lib/activity-logger';
+import { Package, ChevronDown, ChevronUp, Calendar, User, Clock } from 'lucide-react';
+import { format } from 'date-fns';
 
-interface Client {
+interface ClientPass {
   id: string;
-  userId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-}
-
-interface PackageOption {
-  id: string;
-  title: string;
-  priceInCents: number;
+  clientId: string;
+  clientName: string;
   packageType: string;
-  packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'classPass';
-  expirationDays: number; // Days until expiration after purchase
+  packageCategory: string;
+  packageName: string;
+  totalLessons: number;
+  lessonsUsed: number;
+  remainingLessons: number;
+  purchaseDate: Date;
+  expirationDate: Date;
+  isExpired: boolean;
 }
 
-// Helper function to get display name for package category
+interface CategoryGroup {
+  category: string;
+  displayName: string;
+  totalRemaining: number;
+  nextExpiration: Date | null;
+  passes: ClientPass[];
+  isFixed: boolean; // true for 1-4 athlete categories
+}
+
+// Fixed category definitions
+const FIXED_CATEGORIES = [
+  { id: 'oneAthlete', name: 'One Athlete' },
+  { id: 'twoAthlete', name: 'Two Athletes' },
+  { id: 'threeAthlete', name: 'Three Athletes' },
+  { id: 'fourAthlete', name: 'Four Athletes' },
+];
+
 function getCategoryDisplayName(category: string): string {
   switch (category) {
     case 'oneAthlete':
-      return '1 Athlete';
+      return 'One Athlete';
     case 'twoAthlete':
-      return '2 Athletes';
+      return 'Two Athletes';
     case 'threeAthlete':
-      return '3 Athletes';
+      return 'Three Athletes';
     case 'fourAthlete':
-      return '4 Athletes';
-    case 'classPass':
-    case 'class':
-      return 'Class';
-    case 'pass':
-      return 'Pass';
+      return 'Four Athletes';
     default:
-      return category;
+      // For class passes, use the category name as-is (capitalized)
+      return category.split(/(?=[A-Z])/).join(' ').replace(/^\w/, c => c.toUpperCase());
   }
 }
 
-interface LessonPackage {
-  id: string;
-  packageType: string;
-  packageCategory: string;
-  packageName?: string;
-  totalLessons: number;
-  lessonsUsed: number;
-  remainingLessons?: number;
-  purchaseDate: any;
-  expirationDate: any;
-  transactionId: string;
-}
-
 export default function PassesPage() {
-  const { orgId, user, userData } = useAuth();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [packages, setPackages] = useState<PackageOption[]>([]);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<PackageOption | null>(null);
-  const [action, setAction] = useState<'add' | 'remove'>('add');
-  const [quantity, setQuantity] = useState(1);
+  const { orgId } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [clientPackages, setClientPackages] = useState<LessonPackage[]>([]);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [categoryGroups, setCategoryGroups] = useState<CategoryGroup[]>([]);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!orgId) return;
 
-    async function loadData() {
+    async function loadAllPasses() {
       try {
-        if (!orgId) return; // Type guard
-        
-        // Load clients from orgMembers (matching iOS AdminService.loadAllUsers)
+        if (!orgId) return;
+
+        // Load all clients
         const membersQuery = query(
           collection(db, 'orgMembers'),
           where('orgId', '==', orgId),
@@ -89,271 +78,151 @@ export default function PassesPage() {
           where('isActive', '==', true)
         );
         const membersSnap = await getDocs(membersQuery);
-        
-        // Load full user data for each member
-        const clientsData: Client[] = [];
+
+        // Load passes for all clients
+        const allPasses: ClientPass[] = [];
+        const now = new Date();
+
         for (const memberDoc of membersSnap.docs) {
           const memberData = memberDoc.data();
           const userId = memberData.userId;
-          
-          if (userId) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', userId));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                clientsData.push({
-                  id: memberDoc.id,
-                  userId: userId,
-                  firstName: userData.firstName || '',
-                  lastName: userData.lastName || '',
-                  email: userData.email || ''
-                });
-              }
-            } catch (err) {
-              console.warn('Could not load user data for', userId, err);
-            }
-          }
-        }
-        
-        setClients(clientsData.sort((a, b) => a.lastName.localeCompare(b.lastName)));
 
-        // Load pricing structure from organization document field (matching iOS PricingStructureService)
-        const orgDoc = await getDoc(doc(db, 'organizations', orgId));
-        if (orgDoc.exists()) {
-          const orgData = orgDoc.data();
-          const pricingData = orgData.pricingStructure;
-          
-          if (pricingData && pricingData.tiers && Array.isArray(pricingData.tiers)) {
-            const allPackages: PackageOption[] = [];
-            pricingData.tiers.forEach((tier: any) => {
-              if (tier.packages && Array.isArray(tier.packages)) {
-                tier.packages.forEach((pkg: any) => {
-                  allPackages.push({
-                    id: pkg.id || `${tier.id}-${pkg.packageType}`,
-                    title: pkg.title || pkg.packageType,
-                    priceInCents: pkg.priceInCents || 0,
-                    packageType: pkg.packageType,
-                    packageCategory: pkg.packageCategory || 'pass',
-                    expirationDays: pkg.expirationDays || 365
-                  });
-                });
-              }
+          if (!userId) continue;
+
+          try {
+            // Load user data for name
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            if (!userDoc.exists()) continue;
+
+            const userData = userDoc.data();
+            const clientName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+
+            // Try new organization path first
+            let packagesSnap = await getDocs(
+              collection(db, 'organizations', orgId, 'users', userId, 'packages')
+            );
+
+            // Fall back to old path if no packages found
+            if (packagesSnap.empty) {
+              packagesSnap = await getDocs(
+                collection(db, 'users', userId, 'lessonPackages')
+              );
+            }
+
+            // Process each package
+            packagesSnap.docs.forEach(pkgDoc => {
+              const data = pkgDoc.data();
+              const purchaseDate = data.purchaseDate?.toDate?.() || new Date();
+              const expirationDate = data.expirationDate?.toDate?.() || new Date();
+              const isExpired = expirationDate < now;
+              const remainingLessons = (data.totalLessons || 0) - (data.lessonsUsed || 0);
+
+              allPasses.push({
+                id: pkgDoc.id,
+                clientId: userId,
+                clientName,
+                packageType: data.packageType || '',
+                packageCategory: data.packageCategory || 'pass',
+                packageName: data.packageName || data.packageType || 'Pass',
+                totalLessons: data.totalLessons || 0,
+                lessonsUsed: data.lessonsUsed || 0,
+                remainingLessons,
+                purchaseDate,
+                expirationDate,
+                isExpired,
+              });
             });
-            setPackages(allPackages);
+          } catch (err) {
+            console.warn('Error loading passes for user', userId, err);
           }
         }
+
+        // Group passes by category
+        const categoryMap = new Map<string, ClientPass[]>();
+        
+        allPasses.forEach(pass => {
+          const category = pass.packageCategory;
+          if (!categoryMap.has(category)) {
+            categoryMap.set(category, []);
+          }
+          categoryMap.get(category)!.push(pass);
+        });
+
+        // Build category groups
+        const groups: CategoryGroup[] = [];
+
+        // Add fixed categories (always show, even if empty)
+        FIXED_CATEGORIES.forEach(fixedCat => {
+          const passes = categoryMap.get(fixedCat.id) || [];
+          const activePasses = passes.filter(p => !p.isExpired);
+          const totalRemaining = activePasses.reduce((sum, p) => sum + p.remainingLessons, 0);
+          
+          // Find next expiration among active passes
+          const nextExpiration = activePasses.length > 0
+            ? activePasses.reduce((earliest, p) => 
+                !earliest || p.expirationDate < earliest ? p.expirationDate : earliest, 
+                null as Date | null
+              )
+            : null;
+
+          groups.push({
+            category: fixedCat.id,
+            displayName: fixedCat.name,
+            totalRemaining,
+            nextExpiration,
+            passes: passes.sort((a, b) => b.purchaseDate.getTime() - a.purchaseDate.getTime()),
+            isFixed: true,
+          });
+        });
+
+        // Add dynamic class categories (only if they have passes)
+        Array.from(categoryMap.keys())
+          .filter(cat => !FIXED_CATEGORIES.some(fc => fc.id === cat))
+          .forEach(category => {
+            const passes = categoryMap.get(category) || [];
+            const activePasses = passes.filter(p => !p.isExpired);
+            const totalRemaining = activePasses.reduce((sum, p) => sum + p.remainingLessons, 0);
+            
+            const nextExpiration = activePasses.length > 0
+              ? activePasses.reduce((earliest, p) => 
+                  !earliest || p.expirationDate < earliest ? p.expirationDate : earliest, 
+                  null as Date | null
+                )
+              : null;
+
+            if (passes.length > 0) {
+              groups.push({
+                category,
+                displayName: getCategoryDisplayName(category),
+                totalRemaining,
+                nextExpiration,
+                passes: passes.sort((a, b) => b.purchaseDate.getTime() - a.purchaseDate.getTime()),
+                isFixed: false,
+              });
+            }
+          });
+
+        setCategoryGroups(groups);
       } catch (error) {
-        console.error('Error loading passes data:', error);
-        setMessage({ type: 'error', text: 'Failed to load data' });
+        console.error('Error loading passes:', error);
       } finally {
         setLoading(false);
       }
     }
 
-    loadData();
+    loadAllPasses();
   }, [orgId]);
 
-  useEffect(() => {
-    if (!selectedClient) {
-      setClientPackages([]);
-      return;
-    }
-
-    async function loadClientPackages() {
-      if (!selectedClient || !orgId) return; // Type guard
-      
-      try {
-        // Try new organization path first
-        let packagesSnap = await getDocs(
-          collection(db, 'organizations', orgId!, 'users', selectedClient.userId, 'packages')
-        );
-        
-        // Fall back to old path if no packages found
-        if (packagesSnap.empty) {
-          packagesSnap = await getDocs(
-            collection(db, 'users', selectedClient.userId, 'lessonPackages')
-          );
-        }
-        
-        const packagesData = packagesSnap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            remainingLessons: (data.totalLessons || 0) - (data.lessonsUsed || 0)
-          } as LessonPackage;
-        });
-        setClientPackages(packagesData);
-      } catch (error) {
-        console.error('Error loading client packages:', error);
-      }
-    }
-
-    loadClientPackages();
-  }, [selectedClient, orgId]);
-
-  const handleSubmit = async () => {
-    if (!selectedClient || !selectedPackage || !orgId) return;
-
-    setSubmitting(true);
-    setMessage(null);
-
-    try {
-      if (action === 'add') {
-        // Add passes to client
-        const now = new Date();
-        const expirationDate = new Date(now);
-        // Use expirationDays from package, default to 365 if not set
-        const daysToExpire = selectedPackage.expirationDays || 365;
-        expirationDate.setDate(expirationDate.getDate() + daysToExpire);
-
-        const passData = {
-          packageType: selectedPackage.packageType,
-          packageCategory: selectedPackage.packageCategory,
-          packageName: selectedPackage.title,
-          totalLessons: quantity,
-          lessonsUsed: 0,
-          purchaseDate: Timestamp.fromDate(now),
-          expirationDate: Timestamp.fromDate(expirationDate),
-          transactionId: `ADMIN_ADDED_${Date.now()}`,
-          orgId: orgId
-        };
-
-        // Write to new organization path
-        await addDoc(
-          collection(db, 'organizations', orgId!, 'users', selectedClient.userId, 'packages'),
-          passData
-        );
-
-        // Log activity
-        if (orgId && user && userData) {
-          await logPassIssued({
-            orgId: orgId,
-            actorId: user.uid,
-            actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-            actorRole: 'admin',
-            clientId: selectedClient.userId,
-            clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
-            passType: selectedPackage.packageType,
-            passTitle: selectedPackage.title,
-            quantity: quantity,
-            totalSessions: quantity,
-          });
-        }
-
-        setMessage({
-          type: 'success',
-          text: `Successfully added ${quantity} ${selectedPackage.title}${quantity === 1 ? '' : 's'} to ${selectedClient.firstName} ${selectedClient.lastName}'s account.`
-        });
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
       } else {
-        // Remove passes from client - try new path first
-        let packagesQuery = query(
-          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
-          where('packageType', '==', selectedPackage.packageType)
-        );
-        let packagesSnap = await getDocs(packagesQuery);
-
-        // Fallback to old path if empty
-        const usingNewPath = !packagesSnap.empty;
-        if (packagesSnap.empty) {
-          packagesQuery = query(
-            collection(db, 'users', selectedClient.userId, 'lessonPackages'),
-            where('packageType', '==', selectedPackage.packageType)
-          );
-          packagesSnap = await getDocs(packagesQuery);
-        }
-
-        if (packagesSnap.empty) {
-          setMessage({
-            type: 'error',
-            text: 'No passes of this type found for client'
-          });
-          setSubmitting(false);
-          return;
-        }
-
-        // Sort by expiration date (remove from closest to expiring first)
-        const sortedPackages = packagesSnap.docs.sort((a, b) => {
-          const expA = a.data().expirationDate?.toDate?.() || new Date(8640000000000000);
-          const expB = b.data().expirationDate?.toDate?.() || new Date(8640000000000000);
-          return expA.getTime() - expB.getTime();
-        });
-
-        let remainingToRemove = quantity;
-
-        for (const packageDoc of sortedPackages) {
-          if (remainingToRemove <= 0) break;
-
-          const packageData = packageDoc.data();
-          const totalLessons = packageData.totalLessons || 0;
-          const lessonsUsed = packageData.lessonsUsed || 0;
-          const remaining = totalLessons - lessonsUsed;
-
-          if (remaining <= 0) continue;
-
-          // Use the correct path based on where we found the packages
-          const docRef = usingNewPath
-            ? doc(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages', packageDoc.id)
-            : doc(db, 'users', selectedClient.userId, 'lessonPackages', packageDoc.id);
-
-          if (remaining <= remainingToRemove) {
-            // Remove entire package
-            await deleteDoc(docRef);
-            remainingToRemove -= remaining;
-          } else {
-            // Reduce totalLessons
-            await updateDoc(
-              docRef,
-              { totalLessons: lessonsUsed + (remaining - remainingToRemove) }
-            );
-            remainingToRemove = 0;
-          }
-        }
-
-        setMessage({
-          type: 'success',
-          text: `Successfully removed ${quantity} ${selectedPackage.title}${quantity === 1 ? '' : 's'} from ${selectedClient.firstName} ${selectedClient.lastName}'s account.`
-        });
+        next.add(category);
       }
-
-      // Reset form
-      setSelectedClient(null);
-      setSelectedPackage(null);
-      setQuantity(1);
-      
-      // Reload client packages if we had a client selected
-      if (selectedClient) {
-        // Try new path first
-        let packagesSnap = await getDocs(
-          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
-        );
-        
-        // Fallback to old path if empty
-        if (packagesSnap.empty) {
-          packagesSnap = await getDocs(
-            collection(db, 'users', selectedClient.userId, 'lessonPackages')
-          );
-        }
-        
-        const packagesData = packagesSnap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            remainingLessons: (data.totalLessons || 0) - (data.lessonsUsed || 0)
-          } as LessonPackage;
-        });
-        setClientPackages(packagesData);
-      }
-    } catch (error) {
-      console.error('Error managing passes:', error);
-      setMessage({
-        type: 'error',
-        text: `Failed to ${action} passes: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
-    } finally {
-      setSubmitting(false);
-    }
+      return next;
+    });
   };
 
   if (loading) {
@@ -361,10 +230,7 @@ export default function PassesPage() {
       <BusinessSettingsSubmenu>
         <div className="p-6 lg:p-8">
           <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-foreground/80">Loading passes...</p>
-          </div>
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
         </div>
       </BusinessSettingsSubmenu>
@@ -375,178 +241,152 @@ export default function PassesPage() {
     <BusinessSettingsSubmenu>
       <div className="p-6 lg:p-8">
         <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Manage Passes</h1>
-          <p className="text-foreground/80 mt-1">
-            {action === 'add' ? 'Add lesson passes to client accounts' : 'Remove lesson passes from client accounts'}
-          </p>
-        </div>
-
-        {message && (
-          <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-            {message.text}
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Passes Overview</h1>
+            <p className="text-gray-600 mt-1">
+              View all client passes organized by category
+            </p>
           </div>
-        )}
 
-        <Card>
-          <CardContent className="pt-6 space-y-6">
-            {/* Client Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Select Client</label>
-              <select
-                value={selectedClient?.id || ''}
-                onChange={(e) => {
-                  const client = clients.find(c => c.id === e.target.value);
-                  setSelectedClient(client || null);
-                }}
-                className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
-              >
-                <option value="">Choose a client</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>
-                    {client.firstName} {client.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="border-t border-gray-200"></div>
-
-            {/* Pass Type Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Pass Type</label>
-              <select
-                value={selectedPackage?.id || ''}
-                onChange={(e) => {
-                  const pkg = packages.find(p => p.id === e.target.value);
-                  setSelectedPackage(pkg || null);
-                }}
-                className="w-full px-3 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
-                disabled={packages.length === 0}
-              >
-                <option value="">Select a pass type</option>
-                {packages.map(pkg => (
-                  <option key={pkg.id} value={pkg.id}>
-                    {pkg.title} - ${(pkg.priceInCents / 100).toFixed(2)} ({getCategoryDisplayName(pkg.packageCategory)})
-                  </option>
-                ))}
-              </select>
-              {packages.length === 0 && (
-                <p className="text-sm text-amber-600">No packages available. Please configure pricing first.</p>
-              )}
-            </div>
-
-            <div className="border-t border-gray-200"></div>
-
-            {/* Action Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Action</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setAction('add')}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                    action === 'add'
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
-                  }`}
-                >
-                  Add Passes
-                </button>
-                <button
-                  onClick={() => setAction('remove')}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                    action === 'remove'
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
-                  }`}
-                >
-                  Remove Passes
-                </button>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-200"></div>
-
-            {/* Quantity */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Number of Passes</label>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                  disabled={quantity <= 1}
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <div className="flex-1 text-center">
-                  <span className="text-2xl font-bold text-primary">{quantity}</span>
-                  <span className="text-foreground/80 ml-2">pass{quantity === 1 ? '' : 'es'}</span>
+          {categoryGroups.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Passes Yet</h3>
+                  <p className="text-gray-600">
+                    No clients have purchased passes yet.
+                  </p>
                 </div>
-                <button
-                  onClick={() => setQuantity(Math.min(100, quantity + 1))}
-                  className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                  disabled={quantity >= 100}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {categoryGroups.map(group => {
+                const isExpanded = expandedCategories.has(group.category);
+                const hasActivePasses = group.totalRemaining > 0;
+
+                return (
+                  <Card key={group.category} className="overflow-hidden">
+                    {/* Category Header - Clickable */}
+                    <button
+                      onClick={() => toggleCategory(group.category)}
+                      className="w-full"
+                    >
+                      <CardHeader className="hover:bg-gray-50 transition-colors cursor-pointer">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Package className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="text-left">
+                              <CardTitle className="text-xl">{group.displayName}</CardTitle>
+                              {hasActivePasses ? (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {group.totalRemaining} pass{group.totalRemaining === 1 ? '' : 'es'} remaining
+                                  {group.nextExpiration && (
+                                    <span className="ml-2">
+                                      · Next expires {format(group.nextExpiration, 'MMM d, yyyy')}
+                                    </span>
+                                  )}
+                                </p>
+                              ) : (
+                                <p className="text-sm text-gray-500 mt-1">No active passes</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {hasActivePasses && (
+                              <div className="text-right mr-4">
+                                <div className="text-3xl font-bold text-primary">
+                                  {group.totalRemaining}
+                                </div>
+                                <div className="text-xs text-gray-500">total remaining</div>
+                              </div>
+                            )}
+                            {isExpanded ? (
+                              <ChevronUp className="h-5 w-5 text-gray-400" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5 text-gray-400" />
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                    </button>
+
+                    {/* Expanded Details */}
+                    {isExpanded && (
+                      <CardContent className="border-t">
+                        {group.passes.length === 0 ? (
+                          <div className="py-8 text-center text-gray-500">
+                            <Package className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm">No passes in this category</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y">
+                            {group.passes.map(pass => (
+                              <div
+                                key={pass.id}
+                                className={`py-4 ${pass.isExpired ? 'opacity-60' : ''}`}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <User className="h-4 w-4 text-gray-400" />
+                                      <span className="font-semibold text-gray-900">
+                                        {pass.clientName}
+                                      </span>
+                                      {pass.isExpired && (
+                                        <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                          Expired
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="ml-6 space-y-1 text-sm">
+                                      <div className="flex items-center gap-2 text-gray-700">
+                                        <Package className="h-3.5 w-3.5 text-gray-400" />
+                                        <span className="font-medium">{pass.packageName}</span>
+                                        <span className="text-gray-500">
+                                          · {pass.remainingLessons} of {pass.totalLessons} remaining
+                                        </span>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-4 text-gray-600">
+                                        <div className="flex items-center gap-1.5">
+                                          <Clock className="h-3.5 w-3.5 text-gray-400" />
+                                          <span>Purchased {format(pass.purchaseDate, 'MMM d, yyyy')}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <Calendar className={`h-3.5 w-3.5 ${pass.isExpired ? 'text-red-400' : 'text-gray-400'}`} />
+                                          <span className={pass.isExpired ? 'text-red-600 font-medium' : ''}>
+                                            Expires {format(pass.expirationDate, 'MMM d, yyyy')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right ml-4">
+                                    <div className={`text-2xl font-bold ${pass.isExpired ? 'text-gray-400' : 'text-primary'}`}>
+                                      {pass.remainingLessons}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      of {pass.totalLessons}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })}
             </div>
-
-            {/* Submit Button */}
-            <Button
-              onClick={handleSubmit}
-              disabled={!selectedClient || !selectedPackage || submitting}
-              className="w-full bg-primary hover:bg-primary/90 text-white py-6 text-lg"
-            >
-              {submitting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  {action === 'add' ? 'Adding Pass...' : 'Removing Pass...'}
-                </>
-              ) : (
-                <>
-                  {action === 'add' ? <Plus className="mr-2 h-5 w-5" /> : <Minus className="mr-2 h-5 w-5" />}
-                  {action === 'add' ? 'Add Pass to Client' : 'Remove Pass from Client'}
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Client Packages Display */}
-        {selectedClient && clientPackages.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                {selectedClient.firstName} {selectedClient.lastName}'s Passes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {clientPackages.map(pkg => (
-                  <div key={pkg.id} className="flex items-center justify-between p-4 bg-background rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-foreground">{pkg.packageName || pkg.packageType}</h4>
-                      <p className="text-sm text-foreground/80">
-                        {pkg.remainingLessons || 0} of {pkg.totalLessons} remaining
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Expires: {pkg.expirationDate?.toDate?.()?.toLocaleDateString() || 'N/A'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-primary">
-                        {pkg.remainingLessons || 0}
-                      </div>
-                      <div className="text-xs text-muted-foreground">passes left</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          )}
         </div>
       </div>
     </BusinessSettingsSubmenu>

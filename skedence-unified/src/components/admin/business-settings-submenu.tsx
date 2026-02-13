@@ -36,7 +36,7 @@ export function BusinessSettingsSubmenu({ children }: BusinessSettingsSubmenuPro
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-gray-50">
       {/* Left Sidebar */}
       <div className="w-80 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col overflow-y-auto scrollbar-premium shadow-premium-lg">
         {/* Back to Activity Feed */}

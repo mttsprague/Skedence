@@ -799,12 +799,12 @@ export default function ActivityPage() {
                         <div 
                           key={cls.id} 
                           onClick={() => setSelectedClass(cls)}
-                          className="p-3 bg-background rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                          className="p-3 bg-white rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border"
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="font-medium text-foreground">{cls.title}</div>
-                              <div className="text-sm text-foreground/80 flex items-center gap-3 mt-1">
+                              <div className="font-medium text-gray-900">{cls.title}</div>
+                              <div className="text-sm text-gray-600 flex items-center gap-3 mt-1">
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {format(cls.startTime, 'h:mm a')}
@@ -816,10 +816,10 @@ export default function ActivityPage() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-lg font-bold text-foreground">
+                              <div className="text-lg font-bold text-gray-900">
                                 {cls.enrolled}/{cls.capacity}
                               </div>
-                              <div className={`text-sm font-medium ${percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-foreground/80'}`}>
+                              <div className={`text-sm font-medium ${percentage >= 80 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-gray-700'}`}>
                                 ({percentage.toFixed(0)}%)
                               </div>
                             </div>
@@ -841,12 +841,12 @@ export default function ActivityPage() {
                       <div 
                         key={booking.id}
                         onClick={() => setSelectedBooking(booking)}
-                        className="p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                        className="p-3 bg-white rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border border-blue-200"
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-medium text-foreground">{booking.clientName}</div>
-                            <div className="text-sm text-foreground/80 flex items-center gap-3 mt-1">
+                            <div className="font-medium text-gray-900">{booking.clientName}</div>
+                            <div className="text-sm text-gray-600 flex items-center gap-3 mt-1">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 {format(booking.startTime, 'h:mm a')}
@@ -857,7 +857,7 @@ export default function ActivityPage() {
                               </span>
                             </div>
                           </div>
-                          <div className="text-sm text-foreground/80">
+                          <div className="text-sm text-gray-700">
                             {booking.trainerName}
                           </div>
                         </div>
@@ -874,8 +874,8 @@ export default function ActivityPage() {
                 ) : (
                   <div className="space-y-3">
                     {Object.entries(trainerSchedules).map(([trainerId, schedule]) => (
-                      <div key={trainerId} className="p-3 bg-teal-50 rounded-lg">
-                        <div className="font-medium text-foreground mb-2 flex items-center gap-2">
+                      <div key={trainerId} className="p-3 bg-white rounded-lg border border-teal-200">
+                        <div className="font-medium text-gray-900 mb-2 flex items-center gap-2">
                           <UserPlus className="h-4 w-4 text-teal-600" />
                           {schedule.trainerName}
                         </div>
@@ -890,10 +890,10 @@ export default function ActivityPage() {
                                 );
                                 if (booking) setSelectedBooking(booking);
                               }}
-                              className="text-sm text-foreground/80 flex items-center justify-between hover:bg-teal-100 p-1 rounded cursor-pointer transition-colors"
+                              className="text-sm text-gray-700 flex items-center justify-between hover:bg-gray-50 p-1 rounded cursor-pointer transition-colors"
                             >
                               <span>{client.clientName}</span>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-gray-500">
                                 {format(client.startTime, 'h:mm a')}
                               </span>
                             </div>
@@ -1270,13 +1270,13 @@ export default function ActivityPage() {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-white p-3 border rounded shadow-lg">
+                        <div className="bg-card p-3 border border-border rounded shadow-lg text-foreground">
                           <p className="font-semibold mb-2">{data.day}</p>
                           <div className="space-y-1 text-sm">
-                            <p className="text-blue-600">
+                            <p className="text-blue-400">
                               {range1Label} ({data.date1}): {data.range1Bookings} bookings
                             </p>
-                            <p className="text-purple-600">
+                            <p className="text-purple-400">
                               {range2Label} ({data.date2}): {data.range2Bookings} bookings
                             </p>
                             <p className="text-red-600">
