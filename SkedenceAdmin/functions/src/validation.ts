@@ -63,14 +63,9 @@ export const bookingSchemas = {
 export const paymentSchemas = {
   createPaymentIntent: Joi.object({
     orgId: Joi.string().pattern(patterns.firestoreId).required(),
-    packageType: Joi.string().valid(
-      'single_lesson',
-      'package_5',
-      'package_10',
-      'monthly'
-    ).required(),
+    packageType: Joi.string().min(1).max(100).required(), // Accept any package type (dynamic from org settings)
     amount: Joi.number().integer().min(100).max(1000000).required(), // $1 to $10,000
-    trainerId: Joi.string().pattern(patterns.firestoreId).required(),
+    trainerId: Joi.string().min(1).max(100).required(), // Allow "general" or actual IDs
     userId: Joi.string().pattern(patterns.firestoreId).required(),
     paymentMethodId: Joi.string().optional(), // Stripe payment method ID
   }),
@@ -168,14 +163,9 @@ export const organizationSchemas = {
 export const packageSchemas = {
   createPackage: Joi.object({
     userId: Joi.string().pattern(patterns.firestoreId).required(),
-    trainerId: Joi.string().pattern(patterns.firestoreId).required(),
+    trainerId: Joi.string().min(1).max(100).required(), // Allow "general" or actual IDs
     orgId: Joi.string().pattern(patterns.firestoreId).required(),
-    packageType: Joi.string().valid(
-      'single_lesson',
-      'package_5',
-      'package_10',
-      'monthly'
-    ).required(),
+    packageType: Joi.string().min(1).max(100).required(), // Accept any package type (dynamic from org settings)
     totalLessons: Joi.number().integer().min(1).max(100).required(),
     lessonsUsed: Joi.number().integer().min(0).max(100).default(0),
     expiresAt: Joi.date().optional(),
