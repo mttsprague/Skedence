@@ -800,13 +800,16 @@ export const cancelLesson = functions.https.onCall(
             functions.logger.info(`Updating slot ${bookingData.slotId} for trainer ${bookingData.trainerId} to open`);
             transaction.update(trainerSlotRef, {
               status: "open",
-              clientId: null,
-              clientName: null,
-              bookedAt: null,
+              clientId: admin.firestore.FieldValue.delete(),
+              clientName: admin.firestore.FieldValue.delete(),
+              bookedAt: admin.firestore.FieldValue.delete(),
             });
           } else {
-            functions.logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId}`);
+            functions.logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId} - slot may have been deleted or schedule restructured`);
+            // Don't throw error - missing slot shouldn't block cancellation
           }
+        } else {
+          functions.logger.warn(`Missing trainerId or slotId in booking data - cannot update schedule slot`);
         }
 
         // Delete the booking
