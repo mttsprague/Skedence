@@ -92,6 +92,34 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Sport Landing Pages */}
+      <section className="py-24 px-6 bg-background">
+        <div className="container mx-auto max-w-7xl">
+          <div className="text-center space-y-4 mb-12">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">Built For Your Sport</h2>
+            <p className="text-lg text-foreground/60">Explore Skedence pages tailored to your coaching business</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Link href="/volleyball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
+              <h3 className="text-xl font-bold text-foreground mb-2">Volleyball</h3>
+              <p className="text-sm text-foreground/60">Scheduling and packages for volleyball lessons.</p>
+            </Link>
+            <Link href="/basketball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
+              <h3 className="text-xl font-bold text-foreground mb-2">Basketball</h3>
+              <p className="text-sm text-foreground/60">Built for private basketball trainers and clubs.</p>
+            </Link>
+            <Link href="/baseball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
+              <h3 className="text-xl font-bold text-foreground mb-2">Baseball</h3>
+              <p className="text-sm text-foreground/60">Lesson packages and booking for baseball coaches.</p>
+            </Link>
+            <Link href="/soccer" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
+              <h3 className="text-xl font-bold text-foreground mb-2">Soccer</h3>
+              <p className="text-sm text-foreground/60">Scheduling built for soccer training businesses.</p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-32 px-6 bg-gradient-to-b from-background to-muted/20">
         <div className="container mx-auto max-w-7xl">
