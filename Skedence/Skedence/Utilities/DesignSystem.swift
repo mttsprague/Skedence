@@ -35,6 +35,9 @@ enum AppTheme {
     static let warning = Color(light: .orange, dark: Color(red: 1.0, green: 0.7, blue: 0.3))
     static let error = Color(light: .red, dark: Color(red: 1.0, green: 0.4, blue: 0.4))
     static let info = Color(light: .blue, dark: Color(red: 0.4, green: 0.7, blue: 1.0))
+    
+    // Surface token used for card/sheet backgrounds
+    static let surface = Color.platformBackground
 }
 
 // MARK: - Color Extension for Light/Dark Mode
@@ -321,3 +324,4 @@ extension View {
         }
     }
 }
+

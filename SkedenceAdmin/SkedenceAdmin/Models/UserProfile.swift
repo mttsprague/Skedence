@@ -84,6 +84,13 @@ struct UserProfile: Identifiable {
     var athlete2ExperienceLevel: String?
     var athlete2Position: String?
     
+    var athlete3FirstName: String?
+    var athlete3LastName: String?
+    var athlete3Birthday: String?
+    var athlete3SchoolClubTeam: String?
+    var athlete3ExperienceLevel: String?
+    var athlete3Position: String?
+    
     var fullName: String {
         "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
     }

@@ -229,7 +229,29 @@ struct ClientCardView: View {
                 lesson: viewModel.displayedLesson,
                 isSelectedBooking: selectedBooking != nil
             )
-            AthletesSection(client: client)
+            
+            // Profile details from Firestore
+            if let profile = viewModel.userProfile {
+                ClientProfileDetailsSection(profile: profile)
+            } else if viewModel.isLoadingProfile {
+                CardView {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .tint(AppTheme.primary)
+                        Spacer()
+                    }
+                    .padding()
+                }
+            }
+            
+            // Athletes with enhanced details
+            if let profile = viewModel.userProfile {
+                EnhancedAthletesSection(profile: profile)
+            } else {
+                AthletesSection(client: client)
+            }
+            
             NotesSection(notes: client.notesForCoach)
         }
         .padding(.horizontal, Spacing.lg)
@@ -330,11 +352,13 @@ class ClientCardViewModel: ObservableObject {
     @Published var paymentMethodInfo: String? = nil
     @Published var paymentMethods: [PaymentMethodInfo] = []
     @Published var isAdmin = false
+    @Published var userProfile: UserProfile?
     
     @Published var isLoadingPackages = false
     @Published var isLoadingBookings = false
     @Published var isLoadingDocuments = false
     @Published var isLoadingPaymentMethod = false
+    @Published var isLoadingProfile = false
     
     func loadClientData(clientId: String, selectedBooking: ClientBooking?, orgId: String?) async {
         // Check admin status
@@ -342,9 +366,10 @@ class ClientCardViewModel: ObservableObject {
         await checkAdminStatus()
         #endif
         
-        // Load data in parallel (packages, documents always; bookings only if orgId available)
+        // Load data in parallel (packages, documents, profile always; bookings only if orgId available)
         async let packagesTask: () = loadPackages(clientId: clientId)
         async let documentsTask: () = loadDocuments(clientId: clientId)
+        async let profileTask: () = loadUserProfile(clientId: clientId)
         async let bookingsTask: () = {
             if let orgId = orgId {
                 await loadBookings(clientId: clientId, orgId: orgId)
@@ -359,6 +384,7 @@ class ClientCardViewModel: ObservableObject {
         await packagesTask
         await bookingsTask
         await documentsTask
+        await profileTask
         
         // Load payment methods if admin
         if isAdmin, let orgId = orgId {
@@ -470,5 +496,60 @@ class ClientCardViewModel: ObservableObject {
         // Copy results into our view model
         self.paymentMethods = service.paymentMethods
         self.paymentMethodInfo = self.paymentMethods.first?.last4
+    }
+    
+    private func loadUserProfile(clientId: String) async {
+        isLoadingProfile = true
+        defer { isLoadingProfile = false }
+        
+        #if canImport(FirebaseFirestore)
+        do {
+            let doc = try await Firestore.firestore().collection("users").document(clientId).getDocument()
+            guard let data = doc.data() else { return }
+            
+            // Decode athletes array
+            var athletes: [AthleteInfo] = []
+            if let athletesData = data["athletes"] as? [[String: Any]] {
+                athletes = athletesData.compactMap { try? AthleteInfo(from: $0) }
+            }
+            
+            userProfile = UserProfile(
+                id: clientId,
+                referenceCode: data["referenceCode"] as? String,
+                emailAddress: data["emailAddress"] as? String ?? data["email"] as? String ?? "",
+                firstName: data["firstName"] as? String ?? "",
+                lastName: data["lastName"] as? String ?? "",
+                phoneNumber: data["phoneNumber"] as? String ?? "",
+                photoURL: data["photoURL"] as? String,
+                active: data["active"] as? Bool,
+                createdAt: (data["createdAt"] as? Timestamp)?.dateValue(),
+                updatedAt: (data["updatedAt"] as? Timestamp)?.dateValue(),
+                emergencyContactName: data["emergencyContactName"] as? String ?? "",
+                emergencyContactNumber: data["emergencyContactNumber"] as? String ?? "",
+                referredBy: data["referredBy"] as? String,
+                notesForCoach: data["notesForCoach"] as? String,
+                athletes: athletes,
+                athleteFirstName: data["athleteFirstName"] as? String,
+                athleteLastName: data["athleteLastName"] as? String,
+                athleteBirthday: data["athleteBirthday"] as? String,
+                athleteSchoolClubTeam: data["athleteSchoolClubTeam"] as? String,
+                athleteExperienceLevel: data["athleteExperienceLevel"] as? String,
+                athletePosition: data["athletePosition"] as? String,
+                athlete2FirstName: data["athlete2FirstName"] as? String,
+                athlete2LastName: data["athlete2LastName"] as? String,
+                athlete2Birthday: data["athlete2Birthday"] as? String,
+                athlete2SchoolClubTeam: data["athlete2SchoolClubTeam"] as? String,
+                athlete2ExperienceLevel: data["athlete2ExperienceLevel"] as? String,
+                athlete2Position: data["athlete2Position"] as? String,
+                athlete3FirstName: data["athlete3FirstName"] as? String,
+                athlete3LastName: data["athlete3LastName"] as? String,
+                athlete3Birthday: data["athlete3Birthday"] as? String,
+                athlete3SchoolClubTeam: data["athlete3SchoolClubTeam"] as? String,
+                athlete3ExperienceLevel: data["athlete3ExperienceLevel"] as? String,
+                athlete3Position: data["athlete3Position"] as? String
+            )
+        } catch {
+        }
+        #endif
     }
 }
