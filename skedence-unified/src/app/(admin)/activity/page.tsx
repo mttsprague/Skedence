@@ -474,6 +474,7 @@ export default function ActivityPage() {
 
     async function loadUpcomingClassesSnapshot() {
       try {
+        console.log('🔍 Loading upcoming classes snapshot for orgId:', orgId);
         const now = Timestamp.fromDate(new Date());
         
         const classesQuery = query(
@@ -485,6 +486,7 @@ export default function ActivityPage() {
         );
         
         const classesSnap = await getDocs(classesQuery);
+        console.log('📊 Found', classesSnap.docs.length, 'upcoming classes');
         
         const classes: ClassSnapshot[] = await Promise.all(
           classesSnap.docs.map(async (doc) => {
@@ -506,9 +508,10 @@ export default function ActivityPage() {
           })
         );
         
+        console.log('✅ Classes snapshot loaded:', classes);
         setUpcomingClassesSnapshot(classes);
       } catch (error) {
-        console.error('Error loading upcoming classes snapshot:', error);
+        console.error('❌ Error loading upcoming classes snapshot:', error);
       }
     }
 
@@ -1052,9 +1055,15 @@ export default function ActivityPage() {
                 )}
               </div>
 
+              {/* Divider */}
+              <div className="border-t border-gray-200 my-4"></div>
+
               {/* Classes Snapshot - Next 3 Upcoming */}
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Classes Snapshot</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-indigo-600" />
+                  Classes Snapshot - Next 3 Upcoming
+                </h3>
                 {upcomingClassesSnapshot.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No upcoming classes scheduled</p>
                 ) : (
