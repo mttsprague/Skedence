@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Search,
   X as XIcon,
+  X,
   UserPlus,
   Users,
   Package,
@@ -59,6 +60,18 @@ interface ClassSnapshot {
   capacity: number;
   enrolled: number;
   location: string;
+}
+
+interface Participant {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  registeredAt: Timestamp;
+  classPassPackageId?: string;
+  athleteName?: string;
+  email?: string;
+  phoneNumber?: string;
 }
 
 interface BookingSnapshot {
@@ -113,6 +126,12 @@ export default function ActivityPage() {
   const [selectedClass, setSelectedClass] = useState<ClassSnapshot | null>(null);
   const [cancellingBooking, setCancellingBooking] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
+  
+  // Classes Snapshot data (next 3 upcoming)
+  const [upcomingClassesSnapshot, setUpcomingClassesSnapshot] = useState<ClassSnapshot[]>([]);
+  const [viewingParticipants, setViewingParticipants] = useState<ClassSnapshot | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
   
   // Compare time frames
   const [compareMode, setCompareMode] = useState<'week' | 'month' | 'custom'>('week');
@@ -448,6 +467,106 @@ export default function ActivityPage() {
 
     loadTodayBookings();
   }, [orgId, happeningDate]);
+
+  // Load next 3 upcoming classes snapshot
+  useEffect(() => {
+    if (!orgId) return;
+
+    async function loadUpcomingClassesSnapshot() {
+      try {
+        const now = Timestamp.fromDate(new Date());
+        
+        const classesQuery = query(
+          collection(db, 'classes'),
+          where('orgId', '==', orgId),
+          where('startTime', '>=', now),
+          orderBy('startTime', 'asc'),
+          limit(3)
+        );
+        
+        const classesSnap = await getDocs(classesQuery);
+        
+        const classes: ClassSnapshot[] = await Promise.all(
+          classesSnap.docs.map(async (doc) => {
+            const data = doc.data();
+            
+            // Count participants for this class
+            const participantsQuery = query(collection(db, 'classes', doc.id, 'participants'));
+            const participantsSnap = await getDocs(participantsQuery);
+            
+            return {
+              id: doc.id,
+              title: data.title || 'Untitled Class',
+              startTime: data.startTime?.toDate() || new Date(),
+              endTime: data.endTime?.toDate() || new Date(),
+              capacity: data.maxParticipants || data.capacity || 10,
+              enrolled: participantsSnap.docs.length,
+              location: data.location || 'TBD',
+            };
+          })
+        );
+        
+        setUpcomingClassesSnapshot(classes);
+      } catch (error) {
+        console.error('Error loading upcoming classes snapshot:', error);
+      }
+    }
+
+    loadUpcomingClassesSnapshot();
+  }, [orgId]);
+
+  // Handle viewing participants (similar to classes page)
+  const handleViewParticipants = async (cls: ClassSnapshot) => {
+    setViewingParticipants(cls);
+    setLoadingParticipants(true);
+    
+    try {
+      // Query participants subcollection
+      const participantsQuery = query(collection(db, 'classes', cls.id, 'participants'));
+      const participantsSnapshot = await getDocs(participantsQuery);
+      const participantsData = participantsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Participant[];
+      
+      // Fetch full user details for each participant (phone and email)
+      const enrichedParticipants = await Promise.all(
+        participantsData.map(async (participant) => {
+          try {
+            // Fetch user details from users collection
+            const userQuery = query(
+              collection(db, 'users'),
+              where('__name__', '==', participant.userId)
+            );
+            const userDoc = await getDocs(userQuery);
+            
+            if (!userDoc.empty) {
+              const userData = userDoc.docs[0].data();
+              return {
+                ...participant,
+                email: userData.email || userData.emailAddress,
+                phoneNumber: userData.phoneNumber || userData.phone,
+              };
+            }
+            
+            return participant;
+          } catch (error) {
+            console.error('Error fetching user details:', error);
+            return participant;
+          }
+        })
+      );
+      
+      setParticipants(enrichedParticipants.sort((a, b) => 
+        b.registeredAt.seconds - a.registeredAt.seconds
+      ));
+    } catch (error) {
+      console.error('Error loading participants:', error);
+      setParticipants([]);
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
 
   // Memoized filtering logic
   const filteredActivities = useMemo(() => {
@@ -929,6 +1048,55 @@ export default function ActivityPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Classes Snapshot - Next 3 Upcoming */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Classes Snapshot</h3>
+                {upcomingClassesSnapshot.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No upcoming classes scheduled</p>
+                ) : (
+                  <div className="space-y-2">
+                    {upcomingClassesSnapshot.map(cls => {
+                      const percentage = cls.capacity > 0 ? (cls.enrolled / cls.capacity) * 100 : 0;
+                      return (
+                        <div 
+                          key={cls.id} 
+                          onClick={() => handleViewParticipants(cls)}
+                          className="p-3 bg-white rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer border border-indigo-200 hover:border-indigo-300"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 pr-3">
+                              <div className="font-medium text-gray-900">{cls.title}</div>
+                              <div className="text-xs text-gray-600 flex items-center gap-2 mt-1">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {format(cls.startTime, 'MMM d, h:mm a')}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {cls.location}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-lg font-bold text-gray-900">
+                                {cls.enrolled}/{cls.capacity}
+                              </div>
+                              <div className={`text-sm font-semibold ${
+                                percentage >= 80 ? 'text-green-600' : 
+                                percentage >= 50 ? 'text-yellow-600' : 
+                                'text-gray-700'
+                              }`}>
+                                ({percentage.toFixed(0)}%)
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1630,6 +1798,100 @@ export default function ActivityPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Participants Dialog */}
+      {viewingParticipants && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold text-foreground">Class Participants</h2>
+                  <p className="text-sm text-foreground/80 mt-1">{viewingParticipants.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {format(viewingParticipants.startTime, 'EEE, MMM d, yyyy • h:mm a')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setViewingParticipants(null);
+                    setParticipants([]);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
+              {loadingParticipants ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <p className="text-muted-foreground mt-2">Loading participants...</p>
+                </div>
+              ) : participants.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-muted-foreground">No participants registered yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {participants.map((participant, index) => (
+                    <div
+                      key={participant.id}
+                      className="p-4 bg-background rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold flex-shrink-0">
+                            {participant.firstName?.charAt(0)}{participant.lastName?.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground">
+                              {participant.firstName} {participant.lastName}
+                            </p>
+                            {participant.email && (
+                              <p className="text-sm text-muted-foreground">
+                                📧 {participant.email}
+                              </p>
+                            )}
+                            {participant.phoneNumber && (
+                              <p className="text-sm text-muted-foreground">
+                                📱 {participant.phoneNumber}
+                              </p>
+                            )}
+                            {participant.athleteName && (
+                              <p className="text-sm text-blue-600 font-medium">
+                                🏃 Athlete: {participant.athleteName}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Registered {format(participant.registeredAt.toDate(), 'MMM d, yyyy • h:mm a')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground flex-shrink-0 ml-2">
+                          #{index + 1}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Total Participants:</span>
+                  <span className="text-lg font-bold text-primary">
+                    {participants.length} / {viewingParticipants.capacity}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
