@@ -1055,62 +1055,6 @@ export default function ActivityPage() {
           )}
         </Card>
 
-      {/* Classes Snapshot Card - Separate at bottom */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-indigo-600" />
-            Classes Snapshot
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {upcomingClassesSnapshot.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No upcoming classes scheduled</p>
-          ) : (
-            <div className="space-y-3">
-              {upcomingClassesSnapshot.map(cls => {
-                const percentage = cls.capacity > 0 ? (cls.enrolled / cls.capacity) * 100 : 0;
-                return (
-                  <div 
-                    key={cls.id} 
-                    onClick={() => handleViewParticipants(cls)}
-                    className="p-4 bg-white rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer border border-indigo-200 hover:border-indigo-300 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 pr-4">
-                        <div className="font-semibold text-gray-900 text-base">{cls.title}</div>
-                        <div className="text-sm text-gray-600 flex items-center gap-3 mt-2">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {format(cls.startTime, 'MMM d, h:mm a')}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {cls.location}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-2xl font-bold text-gray-900">
-                          {cls.enrolled}/{cls.capacity}
-                        </div>
-                        <div className={`text-base font-semibold ${
-                          percentage >= 80 ? 'text-green-600' : 
-                          percentage >= 50 ? 'text-yellow-600' : 
-                          'text-gray-700'
-                        }`}>
-                          ({percentage.toFixed(0)}%)
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       <div className="flex flex-col sm:flex-row gap-4">
         <Card className="flex-1">
           <CardContent className="pt-6">
