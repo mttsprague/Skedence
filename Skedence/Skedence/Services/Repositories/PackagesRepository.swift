@@ -24,14 +24,33 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             throw RepositoryError.unauthorized
         }
         
-        let snapshot = try await db.collection("users")
+        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
+        let newSnapshot = try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
+            .document(userId)
+            .collection("packages")
+            .order(by: "purchaseDate", descending: true)
+            .getDocuments()
+        
+        if !newSnapshot.documents.isEmpty {
+            print("✅ PackagesRepository: Loaded \(newSnapshot.documents.count) packages from NEW path")
+            return newSnapshot.documents.compactMap { doc in
+                decodePackage(id: doc.documentID, data: doc.data())
+            }
+        }
+        
+        // Fallback to OLD path: users/{userId}/lessonPackages
+        print("⚠️ PackagesRepository: Falling back to OLD path")
+        let oldSnapshot = try await db.collection("users")
             .document(userId)
             .collection("lessonPackages")
             .whereField("orgId", isEqualTo: orgId)
             .order(by: "purchaseDate", descending: true)
             .getDocuments()
         
-        let packages = snapshot.documents.compactMap { doc in
+        print("✅ PackagesRepository: Loaded \(oldSnapshot.documents.count) packages from OLD path")
+        let packages = oldSnapshot.documents.compactMap { doc in
             decodePackage(id: doc.documentID, data: doc.data())
         }
         
@@ -144,7 +163,26 @@ final class PackagesRepository: QueryableRepositoryProtocol {
         
         let now = Timestamp(date: Date())
         
-        let snapshot = try await db.collection("users")
+        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
+        let newSnapshot = try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
+            .document(userId)
+            .collection("packages")
+            .whereField("expirationDate", isGreaterThan: now)
+            .order(by: "expirationDate", descending: false)
+            .getDocuments()
+        
+        if !newSnapshot.documents.isEmpty {
+            return newSnapshot.documents.compactMap { doc in
+                let pkg = decodePackage(id: doc.documentID, data: doc.data())
+                // Filter to only packages with remaining lessons
+                return (pkg?.lessonsRemaining ?? 0) > 0 ? pkg : nil
+            }
+        }
+        
+        // Fallback to OLD path: users/{userId}/lessonPackages
+        let oldSnapshot = try await db.collection("users")
             .document(userId)
             .collection("lessonPackages")
             .whereField("orgId", isEqualTo: orgId)
@@ -152,7 +190,7 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             .order(by: "expirationDate", descending: false)
             .getDocuments()
         
-        return snapshot.documents.compactMap { doc in
+        return oldSnapshot.documents.compactMap { doc in
             let pkg = decodePackage(id: doc.documentID, data: doc.data())
             // Filter to only packages with remaining lessons
             return (pkg?.lessonsRemaining ?? 0) > 0 ? pkg : nil

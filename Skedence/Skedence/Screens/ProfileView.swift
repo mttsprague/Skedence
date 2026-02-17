@@ -551,19 +551,7 @@ private struct SignedInProfileScreen: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 4)
                 
-                // Display passes grouped by category
-                let categories = buildCategoryGroups()
-                if categories.isEmpty {
-                    Text("No pass types configured")
-                        .foregroundStyle(.secondary)
-                        .padding()
-                } else {
-                    ForEach(categories) { category in
-                        categoryCard(category: category)
-                    }
-                }
-
-                // Bottom buttons: Refresh and Buy
+                // Action buttons: Refresh and Buy (moved above passes)
                 HStack(spacing: 12) {
                     // Refresh button
                     Button {
@@ -596,7 +584,20 @@ private struct SignedInProfileScreen: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                 }
-                .padding(.top, 8)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+                
+                // Display passes grouped by category
+                let categories = buildCategoryGroups()
+                if categories.isEmpty {
+                    Text("No pass types configured")
+                        .foregroundStyle(.secondary)
+                        .padding()
+                } else {
+                    ForEach(categories) { category in
+                        categoryCard(category: category)
+                    }
+                }
             }
         }
         .padding(.horizontal, 16)

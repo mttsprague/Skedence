@@ -21,6 +21,7 @@ struct PurchaseLessonsView: View {
     @State private var pendingPurchaseOrgId: String?
     @State private var pendingPurchasePackage: PackageOption? // Stored data for purchase
     @State private var confirmationPackage: PackageOption? // Sheet presents when this is non-nil
+    @State private var detailsSheetPackage: PackageOption? // For showing full package details
 
     // Default expiration policy
     private let expirationMonths = 12
@@ -49,12 +50,6 @@ struct PurchaseLessonsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Big page header
-                Text("Purchase Passes")
-                    .font(.system(size: 34, weight: .bold))
-                    .foregroundStyle(Brand.primary)
-                    .padding(.horizontal)
-
                 // Package section header
                 Text("Package")
                     .font(.title2.weight(.semibold))
@@ -232,13 +227,32 @@ struct PurchaseLessonsView: View {
                 }
             )
         }
+        .sheet(item: $detailsSheetPackage) { package in
+            PackageDetailsSheet(package: package, onDismiss: {
+                detailsSheetPackage = nil
+            })
+        }
     }
 
     // MARK: - Package Group Card (Groups packages by category)
     
     private func packageGroupCard(category: PackageCategory, packages: [PackageOption]) -> some View {
         let gradientColor = category == .classPass ? AppTheme.secondary : AppTheme.primary
-        let icon = category == .classPass ? "person.3.fill" : "figure.run"
+        
+        // Match icons to ProfileView for consistency
+        let icon: String
+        switch category {
+        case .oneAthlete:
+            icon = "person.fill"
+        case .twoAthlete:
+            icon = "person.2.fill"
+        case .threeAthlete:
+            icon = "person.3.fill"
+        case .fourAthlete:
+            icon = "person.fill.badge.plus"
+        case .classPass:
+            icon = "calendar.badge.clock"
+        }
         
         return VStack(alignment: .leading, spacing: Spacing.sm) {
             // Category Header
@@ -323,10 +337,20 @@ struct PurchaseLessonsView: View {
                     }
                     
                     if !package.description.isEmpty {
-                        Text(package.description)
-                            .font(.labelMedium)
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .lineLimit(2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(package.description)
+                                .font(.labelMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .lineLimit(4)
+                            
+                            Button {
+                                detailsSheetPackage = package
+                            } label: {
+                                Text("see more")
+                                    .font(.labelSmall)
+                                    .foregroundStyle(.blue)
+                            }
+                        }
                     }
                     
                     // Price and per-pass price
@@ -928,5 +952,150 @@ private struct SavedCardRow: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal)
+    }
+}
+
+// MARK: - Package Details Sheet
+
+struct PackageDetailsSheet: View {
+    let package: PackageOption
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // Category badge
+                    HStack {
+                        Label {
+                            Text(package.packageCategory.displayName)
+                                .font(.labelLarge)
+                                .fontWeight(.semibold)
+                        } icon: {
+                            Image(systemName: package.packageCategory == .classPass ? "person.3.fill" : "figure.run")
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(package.packageCategory == .classPass ? AppTheme.secondary : AppTheme.primary)
+                        )
+                        
+                        Spacer()
+                    }
+                    
+                    // Title
+                    if !package.title.isEmpty && package.title != package.packageCategory.displayName {
+                        Text(package.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+                    
+                    // Price
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Price")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        HStack(spacing: 12) {
+                            Text(package.formattedPrice)
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundStyle(AppTheme.success)
+                            
+                            if package.lessonCount > 1 {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    let perPassPrice = Double(package.priceInCents) / Double(package.lessonCount) / 100.0
+                                    Text("\(String(format: "$%.2f", perPassPrice)) per pass")
+                                        .font(.labelMedium)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    Text("\(package.lessonCount) passes total")
+                                        .font(.labelSmall)
+                                        .foregroundStyle(AppTheme.textTertiary)
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(AppTheme.surface)
+                    )
+                    
+                    // Description
+                    if !package.description.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Description")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            
+                            Text(package.description)
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppTheme.surface)
+                        )
+                    }
+                    
+                    // Details
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Details")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        
+                        VStack(spacing: 12) {
+                            DetailRow(label: "Lessons Included", value: "\(package.lessonCount)")
+                            DetailRow(label: "Package Type", value: package.packageType)
+                            DetailRow(label: "Category", value: package.packageCategory.displayName)
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(AppTheme.surface)
+                    )
+                }
+                .padding()
+            }
+            .background(Color.platformGroupedBackground)
+            .navigationTitle("Package Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        onDismiss()
+                    }
+                    .foregroundStyle(Brand.primary)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Detail Row Helper
+
+private struct DetailRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.bodyMedium)
+                .foregroundStyle(AppTheme.textSecondary)
+            Spacer()
+            Text(value)
+                .font(.bodyMedium)
+                .fontWeight(.semibold)
+                .foregroundStyle(AppTheme.textPrimary)
+        }
     }
 }
