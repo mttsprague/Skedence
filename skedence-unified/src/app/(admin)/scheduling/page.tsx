@@ -85,6 +85,10 @@ export default function SchedulingPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
   const [cancellingBooking, setCancellingBooking] = useState(false);
 
+  // Touch swipe state for calendar navigation
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
   // Set mounted state and initialize current time on client
   useEffect(() => {
     setIsMounted(true);
@@ -560,6 +564,48 @@ export default function SchedulingPage() {
     setWeekStart(startOfWeek(today, { weekStartsOn: 0 }));
   };
 
+  // Touch swipe handlers for calendar navigation
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || touchStartY === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // Only trigger swipe if horizontal movement is greater than vertical
+    // This prevents conflicts with vertical scrolling
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      if (deltaX > 0) {
+        // Swipe right - go to previous week/day
+        if (viewMode === 'individual') {
+          goToPreviousWeek();
+        } else {
+          goToPreviousAllTrainersDay();
+        }
+      } else {
+        // Swipe left - go to next week/day
+        if (viewMode === 'individual') {
+          goToNextWeek();
+        } else {
+          goToNextAllTrainersDay();
+        }
+      }
+    }
+
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // Optional: can add visual feedback during swipe here
+  };
+
   // Reload schedule after modal actions - just re-trigger the useEffect
   const reloadSchedule = () => {
     if (weekStart) {
@@ -760,7 +806,12 @@ export default function SchedulingPage() {
               </div>
             ) : viewMode === 'individual' ? (
               /* Week View (Individual Trainer) */
-              <div className="min-w-[900px]">
+              <div 
+                className="min-w-[900px]"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
                 {/* Week Days Header */}
                 <div className="grid grid-cols-8 border-b border-gray-200 bg-white sticky top-0 z-10">
                   <div className="p-3 text-xs font-medium text-gray-600">Time</div>
@@ -872,7 +923,12 @@ export default function SchedulingPage() {
             ) : (
               /* All Trainers Day View */
               <div className="overflow-x-auto">
-                <div style={{ minWidth: `${200 + trainers.length * 240}px` }}>
+                <div 
+                  style={{ minWidth: `${200 + trainers.length * 240}px` }}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
                   {/* Trainers Header */}
                   <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
                     <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-600 border-r border-gray-200">Time</div>
