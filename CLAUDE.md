@@ -1,9 +1,8 @@
 # CLAUDE.md - Complete Skedence/CoachFlow Project Reference
 
-**Last Updated:** February 10, 2026  
+**Last Updated:** February 17, 2026  
 **Firebase Project:** polyface-ae6d3  
-**Production Domain:** https://polyface-ae6d3.web.app (Unified Admin Portal)
-**Legacy Domain:** https://skedence.com (Old marketing site - not actively used)
+**Production Domain:** https://skedence.com (Unified Admin Portal & Marketing Site)
 **Status:** Production (Live with Stripe payments)
 
 ---
@@ -61,31 +60,27 @@ A multi-tenant SaaS platform for fitness and sports organizations to manage:
 ### Current Architecture (Updated Feb 2026)
 
 **Active Admin Portal:** `skedence-unified/` - Next.js 16.1.6 app
-- **Live URL:** https://polyface-ae6d3.web.app
+- **Live URL:** https://skedence.com
 - **Framework:** Next.js 16.1.6 with App Router
 - **Build Mode:** Static export (`output: 'export'`)
-- **Deployment:** Firebase Hosting (direct to root)
+- **Deployment:** Firebase Hosting on skedence.com domain
 - **Build Output:** `out/` directory
 
 ### Domain & Hosting Structure
 
-**IMPORTANT:** The unified admin portal is deployed to **polyface-ae6d3.web.app**. The legacy skedence.com domain and old admin portal are no longer actively used.
+**IMPORTANT:** The unified admin portal is deployed to **skedence.com**. This domain hosts both the marketing site and admin portal.
 
 #### Live Sites
-- **Unified Admin Portal:** https://polyface-ae6d3.web.app
+- **Unified Admin Portal & Marketing Site:** https://skedence.com
   - Location: `/skedence-unified/`
   - Next.js 16.1.6 static site
   - Full admin dashboard with reports, clients, trainers, scheduling, etc.
+  - Marketing home page, legal pages (privacy, terms, support)
   - Built with: `npm run build` (outputs to `out/`)
   - Deployed with: `firebase deploy --only hosting`
 
-- **Legacy Marketing Site:** https://skedence.com (inactive)
-  - Location: `/web/index.html`
-  - Old static HTML site
-  - No longer actively maintained
-
-- **Legacy Admin Portal:** https://skedence.com/admin-portal/ (inactive)
-  - Location: `/admin-portal/` (old Next.js 14 app)
+- **Legacy Admin Portal:** `/admin-portal/` (archived)
+  - Old Next.js 14 app
   - Replaced by unified portal
   - No longer deployed
 
@@ -132,7 +127,7 @@ firebase deploy --only hosting
 1. Builds Next.js app with static export: `next build`
 2. Generates static files in: `out/` directory
 3. Deploys to Firebase Hosting: `firebase deploy --only hosting`
-4. Goes live at: https://polyface-ae6d3.web.app
+4. Goes live at: https://skedence.com
 
 **Quick Deploy Script:**
 ```bash
@@ -208,9 +203,8 @@ cd SkedenceAdmin/functions && firebase deploy --only functions
 ### Critical Rules
 
 1. **Admin Portal URL:**
-   - Production: https://polyface-ae6d3.web.app
+   - Production: https://skedence.com
    - Always use this URL for testing and sharing
-   - Legacy skedence.com domain is no longer active
    
 2. **Static Export Limitations:**
    - Cannot use dynamic routes like `/clients/[id]` without `generateStaticParams()`
@@ -232,7 +226,7 @@ cd SkedenceAdmin/functions && firebase deploy --only functions
 5. **Deployment Order:**
    - Always build before deploying: `npm run build && firebase deploy --only hosting`
    - Deploy functions separately if email templates change
-   - Test on polyface-ae6d3.web.app after deployment
+   - Test on skedence.com after deployment
    - Commit changes to git after successful deployment
 
 ---
@@ -1411,7 +1405,7 @@ cd ../SkedenceAdmin && firebase deploy --only firestore:rules
 - [ ] Copy build to web: `cp -r admin-portal/out web/admin-portal`
 - [ ] Test locally: `cd web && firebase serve`
 - [ ] Deploy hosting: `firebase deploy --only hosting`
-- [ ] Test on skedence.com (not polyface domain)
+- [ ] Test on skedence.com after deployment
 - [ ] Deploy functions if changed: `cd SkedenceAdmin/functions && firebase deploy --only functions`
 - [ ] Deploy rules if changed: Deploy to BOTH Skedence and SkedenceAdmin
 - [ ] Verify emails use skedence.com links
@@ -1651,6 +1645,20 @@ const paymentIntent = await stripe.paymentIntents.create({
 ---
 
 ## 🔄 Recent Changes & Updates
+
+### February 17, 2026 - Domain Migration & Footer Updates
+- **Domain Migration Complete:**
+  - Migrated from polyface-ae6d3.web.app to skedence.com as primary domain
+  - Unified admin portal and marketing site now live on skedence.com
+  - Legal pages (privacy, terms, support) deployed to skedence.com
+  - Updated all documentation to reflect new domain structure
+  - Firebase project ID remains "polyface-ae6d3" (backend unchanged)
+
+- **Footer Visibility Improvements:**
+  - Changed footer link colors from light gray to orange (text-orange-500)
+  - Improved contrast against black background for better readability
+  - Updated hover states to lighter orange (text-orange-400)
+  - Applied to all footer sections: Product, Company, Legal, Connect
 
 ### February 6, 2026 - Package Category Refactoring & PDF Enhancements
 - **Package Category Enum Implementation:**

@@ -502,31 +502,31 @@ export default function HomePage() {
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Product</h4>
               <ul className="space-y-3">
-                <li><a href="#features" className="text-sm text-foreground/50 hover:text-primary transition-colors">Features</a></li>
-                <li><a href="#pricing" className="text-sm text-foreground/50 hover:text-primary transition-colors">Pricing</a></li>
-                <li><Link href="/support" className="text-sm text-foreground/50 hover:text-primary transition-colors">Support</Link></li>
+                <li><a href="#features" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Features</a></li>
+                <li><a href="#pricing" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Pricing</a></li>
+                <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Support</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Company</h4>
               <ul className="space-y-3">
-                <li><Link href="/about" className="text-sm text-foreground/50 hover:text-primary transition-colors">About</Link></li>
-                <li><Link href="/support" className="text-sm text-foreground/50 hover:text-primary transition-colors">Contact</Link></li>
+                <li><Link href="/about" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">About</Link></li>
+                <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Contact</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Legal</h4>
               <ul className="space-y-3">
-                <li><Link href="/privacy" className="text-sm text-foreground/50 hover:text-primary transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="text-sm text-foreground/50 hover:text-primary transition-colors">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Terms of Service</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Connect</h4>
-              <p className="text-sm text-foreground/50">support@skedence.com</p>
+              <p className="text-sm text-orange-500">support@skedence.com</p>
             </div>
           </div>
           
