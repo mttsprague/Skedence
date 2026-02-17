@@ -62,6 +62,9 @@ struct InAppSubscriptionView: View {
                                 .foregroundStyle(.blue)
                         }
                         .padding(.top, 8)
+                        
+                        // REQUIRED: Legal Links for App Store Compliance
+                        legalLinksSection
                     }
                 }
                 .padding()
@@ -213,6 +216,49 @@ struct InAppSubscriptionView: View {
                 )
             }
         }
+    }
+    
+    // MARK: - Legal Links Section (Required by App Store)
+    
+    private var legalLinksSection: some View {
+        VStack(spacing: 12) {
+            Divider()
+                .padding(.vertical, 8)
+            
+            Text("All subscriptions auto-renew unless canceled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage your subscription and turn off auto-renewal in your App Store Account Settings after purchase.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 8)
+            
+            HStack(spacing: 20) {
+                Link(destination: URL(string: "https://skedence.com/privacy.html")!) {
+                    Text("Privacy Policy")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+                
+                Text("•")
+                    .foregroundStyle(.secondary)
+                
+                Link(destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!) {
+                    Text("Terms of Use")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+                
+                Text("•")
+                    .foregroundStyle(.secondary)
+                
+                Link(destination: URL(string: "https://skedence.com/support.html")!) {
+                    Text("Support")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+            }
+            .padding(.top, 4)
+        }
+        .padding(.top, 16)
     }
 }
 
