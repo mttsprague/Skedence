@@ -474,7 +474,6 @@ export default function ActivityPage() {
 
     async function loadUpcomingClassesSnapshot() {
       try {
-        console.log('🔍 Loading upcoming classes snapshot for orgId:', orgId);
         const now = Timestamp.fromDate(new Date());
         
         const classesQuery = query(
@@ -486,7 +485,6 @@ export default function ActivityPage() {
         );
         
         const classesSnap = await getDocs(classesQuery);
-        console.log('📊 Found', classesSnap.docs.length, 'upcoming classes');
         
         const classes: ClassSnapshot[] = await Promise.all(
           classesSnap.docs.map(async (doc) => {
@@ -508,10 +506,9 @@ export default function ActivityPage() {
           })
         );
         
-        console.log('✅ Classes snapshot loaded:', classes);
         setUpcomingClassesSnapshot(classes);
       } catch (error) {
-        console.error('❌ Error loading upcoming classes snapshot:', error);
+        console.error('Error loading upcoming classes snapshot:', error);
       }
     }
 

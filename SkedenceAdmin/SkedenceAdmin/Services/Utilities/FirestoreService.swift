@@ -745,18 +745,32 @@ final class FirestoreService {
         // 2. Get trainer name (best-effort; avoid extra Firestore round-trip)
         let trainerName = (slotData["trainerName"] as? String) ?? "Trainer"
         
-        // 3. Get client name (best-effort; avoid blocking booking if fetch fails)
-        var clientName = (slotData["clientName"] as? String) ?? "Client"
-        if clientName == "Client" {
-            let clientRef = db.collection("users").document(safeClientId)
-            if let clientSnap = try? await clientRef.getDocument(),
-               let clientData = clientSnap.data() {
-                let firstName = clientData["firstName"] as? String ?? ""
-                let lastName = clientData["lastName"] as? String ?? ""
-                let combined = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
-                if !combined.isEmpty { clientName = combined }
-            } else {
-            }
+        // 3. Get complete client profile data
+        var clientName = "Client"
+        var clientEmail: String? = nil
+        var clientPhone: String? = nil
+        var emergencyContactName: String? = nil
+        var emergencyContactNumber: String? = nil
+        var referredBy: String? = nil
+        var notesForCoach: String? = nil
+        var athletes: [[String: Any]]? = nil
+        
+        let clientRef = db.collection("users").document(safeClientId)
+        if let clientSnap = try? await clientRef.getDocument(),
+           let clientData = clientSnap.data() {
+            let firstName = clientData["firstName"] as? String ?? ""
+            let lastName = clientData["lastName"] as? String ?? ""
+            let combined = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+            if !combined.isEmpty { clientName = combined }
+            
+            // Extract full profile data
+            clientEmail = clientData["emailAddress"] as? String ?? clientData["email"] as? String
+            clientPhone = clientData["phoneNumber"] as? String
+            emergencyContactName = clientData["emergencyContactName"] as? String
+            emergencyContactNumber = clientData["emergencyContactNumber"] as? String
+            referredBy = clientData["referredBy"] as? String
+            notesForCoach = clientData["notesForCoach"] as? String
+            athletes = clientData["athletes"] as? [[String: Any]]
         }
         
         // 3a. Validate package - ensure it's not a class pass
@@ -806,9 +820,9 @@ final class FirestoreService {
         // 4. Create a batch
         let batch = db.batch()
         
-        // 5. Create the booking document with all required fields including orgId
+        // 5. Create the booking document with all required fields including complete profile data
         let bookingRef = db.collection("bookings").document()
-        batch.setData([
+        var bookingData: [String: Any] = [
             "clientUID": safeClientId,
             "clientName": clientName,
             "trainerUID": safeTrainerId,
@@ -823,7 +837,32 @@ final class FirestoreService {
             "scheduleSlotId": slotId,
             "slotId": slotId,
             "orgId": safeOrgId
-        ], forDocument: bookingRef)
+        ]
+        
+        // Add client profile data if available
+        if let email = clientEmail {
+            bookingData["clientEmail"] = email
+        }
+        if let phone = clientPhone {
+            bookingData["clientPhone"] = phone
+        }
+        if let emergencyName = emergencyContactName {
+            bookingData["emergencyContactName"] = emergencyName
+        }
+        if let emergencyNumber = emergencyContactNumber {
+            bookingData["emergencyContactNumber"] = emergencyNumber
+        }
+        if let referred = referredBy {
+            bookingData["referredBy"] = referred
+        }
+        if let notes = notesForCoach {
+            bookingData["notesForCoach"] = notes
+        }
+        if let athleteData = athletes {
+            bookingData["athletes"] = athleteData
+        }
+        
+        batch.setData(bookingData, forDocument: bookingRef)
         
         // 6. Increment the package lessons used (packageIdCopy already defined above)
         batch.updateData([

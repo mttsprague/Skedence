@@ -367,6 +367,15 @@ export const bookLesson = functions.https.onCall(
           );
         }
 
+        // Extract complete client profile data
+        const clientEmail = userData.emailAddress || userData.email || null;
+        const clientPhone = userData.phoneNumber || null;
+        const emergencyContactName = userData.emergencyContactName || null;
+        const emergencyContactNumber = userData.emergencyContactNumber || null;
+        const referredBy = userData.referredBy || null;
+        const notesForCoach = userData.notesForCoach || null;
+        const athletes = userData.athletes || null; // Array of athlete info
+
         transaction.update(lessonPackageRef, {
           lessonsUsed: admin.firestore.FieldValue.increment(1),
         });
@@ -403,6 +412,14 @@ export const bookLesson = functions.https.onCall(
           secondAthleteName: secondAthleteName || null, // Legacy support
           athleteNames: athleteNames || null, // New array format
           lessonNotes: lessonNotes || null, // Session-specific notes
+          // Client profile data
+          clientEmail: clientEmail,
+          clientPhone: clientPhone,
+          emergencyContactName: emergencyContactName,
+          emergencyContactNumber: emergencyContactNumber,
+          referredBy: referredBy,
+          notesForCoach: notesForCoach,
+          athletes: athletes, // Full athlete info array
         });
 
         // Log activity for the booking
