@@ -20,6 +20,8 @@ struct Trainer: Identifiable, Hashable {
     let photoURL: String?
     let imageUrl: String?
     let active: Bool?
+    let birthday: String?
+    let trainerDescription: String?
     
     var name: String? {
         guard let first = firstName, let last = lastName else { return nil }

@@ -104,6 +104,9 @@ private struct SignedInProfileScreen: View {
     @State private var showingDescriptionSheet = false
     @State private var descriptionSheetTitle: String = ""
     @State private var descriptionSheetText: String = ""
+    @State private var showTrainerBio = false
+    @State private var selectedTrainer: Trainer?
+    @State private var showTrainersSection = false
 
     // Location is now dynamic from booking data - no hardcoded venue
 
@@ -111,6 +114,7 @@ private struct SignedInProfileScreen: View {
         ScrollView {
             VStack(spacing: 16) {
                 header
+                trainersSection
                 tabBar
                 content
             }
@@ -192,6 +196,11 @@ private struct SignedInProfileScreen: View {
                 }
             }
         }
+        .sheet(isPresented: $showTrainerBio) {
+            if let trainer = selectedTrainer {
+                TrainerBioSheet(trainer: trainer)
+            }
+        }
         .onChangeCompat(of: showPurchaseLessons) { isPresentingPurchase in
             // Reload packages when returning from purchase view
             if !isPresentingPurchase && tab == .passes {
@@ -249,6 +258,90 @@ private struct SignedInProfileScreen: View {
                     .padding(.bottom, 8)
             }
         }
+    }
+
+    // Trainers Section - Collapsible list of all trainers
+    private var trainersSection: some View {
+        VStack(spacing: 0) {
+            // Header button to expand/collapse
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showTrainersSection.toggle()
+                }
+            } label: {
+                HStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Brand.primary)
+                        Text("Trainers")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.primary)
+                    }
+                    Spacer()
+                    Image(systemName: showTrainersSection ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color.platformBackground)
+            }
+            .buttonStyle(.plain)
+            
+            // Expanded trainer list
+            if showTrainersSection {
+                VStack(spacing: 8) {
+                    ForEach(trainersService.trainers.filter { $0.active == true }, id: \\.id) { trainer in
+                        Button {
+                            selectedTrainer = trainer
+                            showTrainerBio = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                TrainerAvatarView(trainer: trainer, size: 44)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(trainer.name ?? "Trainer")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundStyle(.primary)
+                                    
+                                    if let hasDescription = trainer.trainerDescription, !hasDescription.isEmpty {
+                                        Text("Tap to view bio")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("No bio available")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(.tertiary)
+                                            .italic()
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(Color.platformBackground)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        if trainer.id != trainersService.trainers.filter({ $0.active == true }).last?.id {
+                            Divider()
+                                .padding(.leading, 76)
+                        }
+                    }
+                }
+                .background(Color.platformBackground)
+            }
+        }
+        .background(Color.platformBackground)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+        .padding(.horizontal, 16)
     }
 
     // Segmented tab bar (PASSES / SCHEDULE / WALLET)
