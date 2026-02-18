@@ -649,6 +649,18 @@ export default function ActivityPage() {
     return filtered;
   }, [activities, selectedDate, searchQuery, isSearching, selectedActivityType, selectedClient, selectedTrainer, selectedRole]);
 
+  // Helper function to format athlete names
+  const formatAthleteNames = (booking: BookingSnapshot): string => {
+    if (booking.athleteNames && booking.athleteNames.length > 0) {
+      return booking.athleteNames.join(', ');
+    }
+    // Fallback to legacy fields
+    const names: string[] = [];
+    if (booking.athleteName) names.push(booking.athleteName);
+    if (booking.secondAthleteName) names.push(booking.secondAthleteName);
+    return names.join(', ');
+  };
+
   // Memoized trainer schedules
   const trainerSchedules = useMemo(() => {
     return todayBookings.reduce((acc, booking) => {
@@ -660,11 +672,12 @@ export default function ActivityPage() {
       }
       acc[booking.trainerId].clients.push({
         clientName: booking.clientName,
+        athleteNames: formatAthleteNames(booking),
         startTime: booking.startTime,
         location: booking.location
       });
       return acc;
-    }, {} as Record<string, { trainerName: string; clients: Array<{ clientName: string; startTime: Date; location: string }> }>);
+    }, {} as Record<string, { trainerName: string; clients: Array<{ clientName: string; athleteNames: string; startTime: Date; location: string }> }>);
   }, [todayBookings]);
 
   // Memoized computed values
@@ -984,7 +997,9 @@ export default function ActivityPage() {
                   <p className="text-sm text-muted-foreground">No private lessons scheduled for this day</p>
                 ) : (
                   <div className="space-y-2">
-                    {todayBookings.map(booking => (
+                    {todayBookings.map(booking => {
+                      const athleteNames = formatAthleteNames(booking);
+                      return (
                       <div 
                         key={booking.id}
                         onClick={() => setSelectedBooking(booking)}
@@ -992,7 +1007,12 @@ export default function ActivityPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-medium text-gray-900">{booking.clientName}</div>
+                            <div className="font-medium text-gray-900">
+                              {booking.clientName}
+                              {athleteNames && (
+                                <span className="text-gray-600 font-normal"> - {athleteNames}</span>
+                              )}
+                            </div>
                             <div className="text-sm text-gray-600 flex items-center gap-3 mt-1">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
@@ -1009,7 +1029,8 @@ export default function ActivityPage() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
               </div>
@@ -1039,7 +1060,12 @@ export default function ActivityPage() {
                               }}
                               className="text-sm text-gray-700 flex items-center justify-between hover:bg-gray-50 p-1 rounded cursor-pointer transition-colors"
                             >
-                              <span>{client.clientName}</span>
+                              <span>
+                                {client.clientName}
+                                {client.athleteNames && (
+                                  <span className="text-gray-500"> - {client.athleteNames}</span>
+                                )}
+                              </span>
                               <span className="text-xs text-gray-500">
                                 {format(client.startTime, 'h:mm a')}
                               </span>
