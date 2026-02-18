@@ -114,7 +114,9 @@ final class TrainersRepository: QueryableRepositoryProtocol {
             avatarUrl: data["avatarUrl"] as? String,
             photoURL: data["photoURL"] as? String,
             imageUrl: data["imageUrl"] as? String,
-            active: data["active"] as? Bool
+            active: data["active"] as? Bool,
+            birthday: data["birthday"] as? String,
+            trainerDescription: data["trainerDescription"] as? String
         )
     }
     
@@ -151,6 +153,14 @@ final class TrainersRepository: QueryableRepositoryProtocol {
         
         if let imageUrl = trainer.imageUrl {
             data["imageUrl"] = imageUrl
+        }
+        
+        if let birthday = trainer.birthday {
+            data["birthday"] = birthday
+        }
+        
+        if let trainerDescription = trainer.trainerDescription {
+            data["trainerDescription"] = trainerDescription
         }
         
         return data
