@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { collection, query, where, getDocs, orderBy, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
-import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X, RotateCcw, FileText } from 'lucide-react';
+import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X, RotateCcw, FileText, Edit } from 'lucide-react';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { logTrainerCreated, logTrainerActivated, logTrainerDeactivated } from '@/lib/activity-logger';
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
@@ -451,16 +451,28 @@ export default function TrainersPage() {
                 className="cursor-pointer"
               >
                 <Card className="hover:shadow-lg active:shadow-xl transition-shadow touch-manipulation">
-                  <CardContent className="p-4 sm:p-6">
+                  <CardContent className="p-4 sm:p-6 relative">
+                    {/* Edit Button - Top Right Corner */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditSheet(trainer);
+                      }}
+                      className="absolute top-3 right-3 p-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                      aria-label="Edit trainer"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    
                   <div className="flex items-start space-x-4">
                     <div className={`w-12 h-12 rounded-full ${
                       trainer.isActive 
                         ? 'bg-gradient-to-br from-teal-500 to-teal-600' 
                         : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                    } flex items-center justify-center text-white font-bold text-lg`}>
+                    } flex items-center justify-center text-white font-bold text-lg flex-shrink-0`}>
                       {trainer.firstName?.[0]}{trainer.lastName?.[0]}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 pr-8">
                       <h3 className="text-lg font-semibold text-foreground truncate">
                         {trainer.firstName} {trainer.lastName}
                       </h3>

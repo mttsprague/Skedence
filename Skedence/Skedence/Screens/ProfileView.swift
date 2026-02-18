@@ -292,7 +292,7 @@ private struct SignedInProfileScreen: View {
             // Expanded trainer list
             if showTrainersSection {
                 VStack(spacing: 8) {
-                    ForEach(trainersService.trainers.filter { $0.active == true }, id: \\.id) { trainer in
+                    ForEach(trainersService.trainers.filter { $0.active == true }, id: \.id) { trainer in
                         Button {
                             selectedTrainer = trainer
                             showTrainerBio = true
