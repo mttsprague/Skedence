@@ -30,6 +30,9 @@ export * from "./backfill-recent-activities";
 // Export billing/subscription functions
 export * from "./billing";
 
+// Export web subscription functions
+export * from "./web-subscriptions";
+
 // Export Stripe Connect webhook
 export * from "./stripe-connect-webhook";
 
