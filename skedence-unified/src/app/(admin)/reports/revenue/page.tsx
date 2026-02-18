@@ -2,92 +2,83 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent } from '@/components/ui/card';
-import { collection, query, where, getDocs, getDoc, doc, Timestamp } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
-import { Download, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
-
-interface RevenueData {
-  date: string;
-  revenue: number;
-  passes?: number;
-}
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, addMonths } from 'date-fns';
+import { Download, Calendar, Filter, ArrowUpDown, DollarSign, TrendingUp, Package } from 'lucide-react';
 
 interface PackageRevenue {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
   packageType: string;
+  packageName: string;
+  purchaseDate: Date;
+  amountPaid: number; // in dollars
+  transactionId: string;
+  source: 'paid' | 'admin_added';
+  totalLessons: number;
+  lessonsUsed: number;
+}
+
+interface DailyRevenue {
+  date: string;
+  paidRevenue: number;
+  adminRevenue: number;
+  totalRevenue: number;
+  paidPassCount: number;
+  adminPassCount: number;
+  totalPassCount: number;
+}
+
+interface RevenueByType {
+  packageType: string;
+  packageName: string;
   count: number;
   paidCount: number;
-  adminAddedCount: number;
-  totalRevenue: number;
+  adminCount: number;
+  revenue: number;
+  avgPrice: number;
 }
 
-interface AppointmentDetail {
-  id: string;
-  date: Date;
-  clientName: string;
-  clientEmail: string;
-  trainerName: string;
-  type: string;
-  cost: number;
-  paidViaPass: boolean;
-  packageType?: string;
-  status: 'scheduled' | 'cancelled' | 'no-show';
-}
-
-type SortField = 'packageType' | 'count' | 'paidCount' | 'adminAddedCount' | 'totalRevenue';
+type DateRangeType = 'month' | 'custom';
+type SortField = 'date' | 'user' | 'package' | 'amount' | 'source';
 type SortDirection = 'asc' | 'desc';
-type ChartFilter = 'all' | 'paid' | 'adminAdded' | 'none';
 
-export default function RevenuePage() {
+export default function RevenueReportPage() {
   const { orgId } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [chartData, setChartData] = useState<RevenueData[]>([]);
-  const [tableData, setTableData] = useState<PackageRevenue[]>([]);
-  const [sortField, setSortField] = useState<SortField>('packageType');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [appointments, setAppointments] = useState<AppointmentDetail[]>([]);
+  const [packages, setPackages] = useState<PackageRevenue[]>([]);
+  const [filteredPackages, setFilteredPackages] = useState<PackageRevenue[]>([]);
+  const [chartData, setChartData] = useState<DailyRevenue[]>([]);
+  const [revenueByType, setRevenueByType] = useState<RevenueByType[]>([]);
   
   // Filters
-  const [dateRange, setDateRange] = useState(format(new Date(), 'yyyy-MM'));
-  const [chartFilter, setChartFilter] = useState<ChartFilter>('all');
+  const [dateRangeType, setDateRangeType] = useState<DateRangeType>('month');
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [customStartDate, setCustomStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [customEndDate, setCustomEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'paid' | 'admin_added'>('all');
+  const [packageFilter, setPackageFilter] = useState<string>('all');
+  const [userSearch, setUserSearch] = useState('');
   
-  // Detailed appointments list state
-  const [showDetailedList, setShowDetailedList] = useState(false);
-  const [detailPaymentFilter, setDetailPaymentFilter] = useState<'all' | 'pass' | 'direct'>('all');
-
-  // Generate month options: 4 months future + current + all past months + "All"
+  // Sorting
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Month options: 4 future + current + 24 past
   const monthOptions = (() => {
     const options: { value: string; label: string }[] = [];
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
     
-    // Add "All" option
-    options.push({ value: 'all', label: 'All Time (Past)' });
-    
-    // Add 4 months into the future
-    for (let i = 4; i >= 1; i--) {
-      const futureDate = new Date(currentYear, currentMonth + i, 1);
+    for (let i = 4; i >= -24; i--) {
+      const date = addMonths(now, i);
       options.push({
-        value: format(futureDate, 'yyyy-MM'),
-        label: format(futureDate, 'MMMM yyyy')
-      });
-    }
-    
-    // Add current month
-    options.push({
-      value: format(now, 'yyyy-MM'),
-      label: format(now, 'MMMM yyyy') + ' (Current)'
-    });
-    
-    // Add all past months (going back 24 months)
-    for (let i = 1; i <= 24; i++) {
-      const pastDate = new Date(currentYear, currentMonth - i, 1);
-      options.push({
-        value: format(pastDate, 'yyyy-MM'),
-        label: format(pastDate, 'MMMM yyyy')
+        value: format(date, 'yyyy-MM'),
+        label: format(date, 'MMMM yyyy') + (i === 0 ? ' (Current)' : i > 0 ? ' (Future)' : '')
       });
     }
     
@@ -96,603 +87,355 @@ export default function RevenuePage() {
 
   useEffect(() => {
     if (!orgId) return;
-    loadRevenue();
-  }, [orgId, dateRange]);
+    loadPackages();
+  }, [orgId, dateRangeType, selectedMonth, customStartDate, customEndDate]);
 
-  // Separate chart data that tracks paid vs admin added separately
-  const [dailyPaidRevenue, setDailyPaidRevenue] = useState<{ [key: string]: number }>({});
-  const [dailyAdminRevenue, setDailyAdminRevenue] = useState<{ [key: string]: number }>({});
-  const [dailyPaidPasses, setDailyPaidPasses] = useState<{ [key: string]: number }>({});
-  const [dailyAdminPasses, setDailyAdminPasses] = useState<{ [key: string]: number }>({});
-  const [dailyAllPasses, setDailyAllPasses] = useState<{ [key: string]: number }>({});
+  useEffect(() => {
+    applyFilters();
+  }, [packages, sourceFilter, packageFilter, userSearch]);
 
-  async function loadRevenue() {
+  async function loadPackages() {
     if (!orgId) return;
     
     try {
       setLoading(true);
       
-      console.log('Revenue: Selected dateRange:', dateRange);
-      
       let startDate: Date;
       let endDate: Date;
       
-      // Handle "All" date range - all past data only
-      if (dateRange === 'all') {
-        startDate = new Date(2020, 0, 1); // Start from Jan 1, 2020
-        endDate = new Date(); // Up to now
-      } else {
-        startDate = startOfMonth(parseISO(`${dateRange}-01`));
+      if (dateRangeType === 'month') {
+        startDate = startOfMonth(parseISO(`${selectedMonth}-01`));
         endDate = endOfMonth(startDate);
+      } else {
+        startDate = parseISO(customStartDate);
+        endDate = parseISO(customEndDate);
       }
-      
-      console.log('Revenue: Date range calculated:', startDate, 'to', endDate);
 
-      // Get all org members to find clients
+      const loadedPackages: PackageRevenue[] = [];
+
+      // Load all users in organization
       const orgMembersQuery = query(
         collection(db, 'orgMembers'),
-        where('orgId', '==', orgId),
-        where('role', '==', 'client')
+        where('orgId', '==', orgId)
       );
-      const orgMembersSnap = await getDocs(orgMembersQuery);
+      const orgMembersSnapshot = await getDocs(orgMembersQuery);
+      const userIds = orgMembersSnapshot.docs.map(doc => doc.data().userId);
 
-      const dailyRevenue: { [key: string]: number } = {};
-      const dailyPaid: { [key: string]: number } = {};
-      const dailyAdmin: { [key: string]: number } = {};
-      const dailyPassesAll: { [key: string]: number } = {};
-      const dailyPassesPaid: { [key: string]: number } = {};
-      const dailyPassesAdmin: { [key: string]: number } = {};
-      const packageRevenue: { [key: string]: { count: number; paidCount: number; adminAddedCount: number; total: number } } = {};
-
-      // Process each client's packages
-      for (const memberDoc of orgMembersSnap.docs) {
-        const memberData = memberDoc.data();
+      // Load packages for each user (dual-path)
+      for (const userId of userIds) {
+        // Try NEW path first
+        const newPath = collection(db, `organizations/${orgId}/users/${userId}/packages`);
+        let packagesSnapshot = await getDocs(newPath);
         
+        // Fallback to OLD path if empty
+        if (packagesSnapshot.empty) {
+          const oldPath = collection(db, `users/${userId}/lessonPackages`);
+          packagesSnapshot = await getDocs(oldPath);
+        }
+
+        // Get user info
+        let userName = 'Unknown User';
+        let userEmail = '';
         try {
-          // Try new organization path first
-          let packagesSnap = await getDocs(
-            collection(db, 'organizations', orgId, 'users', memberData.userId, 'packages')
-          );
-          
-          // Fall back to old path if no packages found
-          if (packagesSnap.empty) {
-            packagesSnap = await getDocs(
-              collection(db, 'users', memberData.userId, 'lessonPackages')
-            );
-          }
-          
-          for (const pkgDoc of packagesSnap.docs) {
-            const pkgData = pkgDoc.data();
-            
-            console.log('Revenue: Processing package', pkgDoc.id, 'ALL FIELDS:', Object.keys(pkgData));
-            console.log('Revenue: Package full data:', pkgData);
-            
-            // Check if package was purchased in date range
-            let purchaseDate: Date | null = null;
-            if (pkgData.purchaseDate) {
-              purchaseDate = pkgData.purchaseDate?.toDate?.() || new Date(pkgData.purchaseDate);
-            } else if (pkgData.purchasedAt) {
-              purchaseDate = pkgData.purchasedAt?.toDate?.() || new Date(pkgData.purchasedAt);
-            }
-            
-            if (!purchaseDate) {
-              console.warn('Revenue: No purchase date found for package', pkgDoc.id);
-              continue;
-            }
-            
-            if (purchaseDate < startDate || purchaseDate > endDate) {
-              console.log('Revenue: Package outside date range', purchaseDate, 'range:', startDate, 'to', endDate);
-              continue;
-            }
-            
-            const isAdminAdded = pkgData.transactionId?.startsWith('ADMIN_ADDED');
-            const revenue = pkgData.amountPaid ? pkgData.amountPaid / 100 : 0; // Convert cents to dollars
-            const dateKey = format(purchaseDate, 'yyyy-MM-dd');
-            
-            if (!pkgData.amountPaid) {
-              console.warn('Revenue: No amountPaid for package', pkgDoc.id, '- counting package but $0 revenue');
-            } else {
-              console.log('Revenue: Adding revenue', revenue, 'for date', dateKey);
-            }
-            
-            // Track daily revenue (all)
-            dailyRevenue[dateKey] = (dailyRevenue[dateKey] || 0) + revenue;
-            
-            // Track paid vs admin added separately for chart
-            if (isAdminAdded) {
-              dailyAdmin[dateKey] = (dailyAdmin[dateKey] || 0) + revenue;
-              dailyPassesAdmin[dateKey] = (dailyPassesAdmin[dateKey] || 0) + 1;
-            } else {
-              dailyPaid[dateKey] = (dailyPaid[dateKey] || 0) + revenue;
-              dailyPassesPaid[dateKey] = (dailyPassesPaid[dateKey] || 0) + 1;
-            }
-            
-            // Track all passes
-            dailyPassesAll[dateKey] = (dailyPassesAll[dateKey] || 0) + 1;
-            
-            // Track package type revenue - count package even if no revenue
-            const packageType = pkgData.packageType || pkgData.packageName || 'Unknown Package';
-            if (!packageRevenue[packageType]) {
-              packageRevenue[packageType] = { count: 0, paidCount: 0, adminAddedCount: 0, total: 0 };
-            }
-            packageRevenue[packageType].count += 1;
-            if (isAdminAdded) {
-              packageRevenue[packageType].adminAddedCount += 1;
-            } else {
-              packageRevenue[packageType].paidCount += 1;
-            }
-            packageRevenue[packageType].total += revenue;
+          const userDoc = await getDoc(doc(db, 'users', userId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            userName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+            userEmail = userData.emailAddress || userData.email || '';
           }
         } catch (err) {
-          console.warn('Revenue: Could not load packages for user', memberData.userId, err);
+          console.warn('Could not load user:', err);
+        }
+
+        // Process packages
+        for (const packageDoc of packagesSnapshot.docs) {
+          const data = packageDoc.data();
+          
+          // Get purchase date (check both field names)
+          let purchaseDate: Date | null = null;
+          if (data.purchaseDate) {
+            purchaseDate = data.purchaseDate.toDate();
+          } else if (data.purchasedAt) {
+            purchaseDate = data.purchasedAt.toDate();
+          }
+          
+          if (!purchaseDate) {
+            console.warn('Package missing purchase date:', packageDoc.id);
+            continue;
+          }
+          
+          // Filter by date range
+          if (purchaseDate < startDate || purchaseDate > endDate) {
+            continue;
+          }
+          
+          // Get amount paid (in cents, convert to dollars)
+          const amountPaidCents = data.amountPaid || 0;
+          const amountPaid = amountPaidCents / 100;
+          
+          // Determine source
+          const transactionId = data.transactionId || '';
+          const source: 'paid' | 'admin_added' = transactionId.startsWith('ADMIN_ADDED') 
+            ? 'admin_added' 
+            : 'paid';
+          
+          loadedPackages.push({
+            id: packageDoc.id,
+            userId,
+            userName,
+            userEmail,
+            packageType: data.packageType || '',
+            packageName: data.packageName || data.packageType || 'Unknown Package',
+            purchaseDate,
+            amountPaid,
+            transactionId,
+            source,
+            totalLessons: data.totalLessons || 0,
+            lessonsUsed: data.lessonsUsed || 0
+          });
         }
       }
-
-      // Process chart data based on filter
-      const days = eachDayOfInterval({ start: startDate, end: endDate });
-      const chartDataArray: RevenueData[] = days.map(day => {
-        const dateKey = format(day, 'yyyy-MM-dd');
-        let revenueValue = 0;
-        let passesValue: number | undefined;
-        
-        if (chartFilter === 'all') {
-          revenueValue = dailyRevenue[dateKey] || 0;
-          passesValue = dailyPassesAll[dateKey] || 0;
-        } else if (chartFilter === 'paid') {
-          revenueValue = dailyPaid[dateKey] || 0;
-          passesValue = dailyPassesPaid[dateKey] || 0;
-        } else if (chartFilter === 'adminAdded') {
-          revenueValue = dailyAdmin[dateKey] || 0;
-          passesValue = dailyPassesAdmin[dateKey] || 0;
-        } else if (chartFilter === 'none') {
-          revenueValue = dailyRevenue[dateKey] || 0;
-          passesValue = undefined; // Don't show passes line
-        }
-        
-        return {
-          date: format(day, 'MMM d'),
-          revenue: revenueValue,
-          passes: passesValue
-        };
-      });
       
-      setChartData(chartDataArray);
-      setDailyPaidRevenue(dailyPaid);
-      setDailyAdminRevenue(dailyAdmin);
-      setDailyPaidPasses(dailyPassesPaid);
-      setDailyAdminPasses(dailyPassesAdmin);
-      setDailyAllPasses(dailyPassesAll);
-
-      // Process table data
-      const tableDataArray: PackageRevenue[] = Object.entries(packageRevenue).map(([type, data]) => ({
-        packageType: type,
-        count: data.count,
-        paidCount: data.paidCount,
-        adminAddedCount: data.adminAddedCount,
-        totalRevenue: data.total
-      }));
-      
-      setTableData(tableDataArray);
-      
-      // Load appointment details
-      await loadAppointmentDetails(startDate, endDate);
+      setPackages(loadedPackages);
+      generateChartData(loadedPackages, startDate, endDate);
+      generateRevenueByType(loadedPackages);
       
     } catch (error) {
-      console.error('Error loading revenue:', error);
+      console.error('Error loading packages:', error);
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadAppointmentDetails(startDate: Date, endDate: Date) {
-    if (!orgId) return;
+  function generateChartData(packages: PackageRevenue[], startDate: Date, endDate: Date) {
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
     
-    try {
-      const appointmentsList: AppointmentDetail[] = [];
-      
-      // Load bookings
-      const bookingsQuery = query(
-        collection(db, 'bookings'),
-        where('orgId', '==', orgId),
-        where('startTime', '>=', Timestamp.fromDate(startDate)),
-        where('startTime', '<=', Timestamp.fromDate(endDate))
+    const data: DailyRevenue[] = days.map(day => {
+      const dayStr = format(day, 'yyyy-MM-dd');
+      const dayPackages = packages.filter(pkg => 
+        format(pkg.purchaseDate, 'yyyy-MM-dd') === dayStr
       );
       
-      const bookingsSnapshot = await getDocs(bookingsQuery);
-      
-      for (const bookingDoc of bookingsSnapshot.docs) {
-        const data = bookingDoc.data();
-        const startTime = data.startTime.toDate();
+      const paidRevenue = dayPackages
+        .filter(p => p.source === 'paid')
+        .reduce((sum, p) => sum + p.amountPaid, 0);
         
-        // Determine status
-        let status: 'scheduled' | 'cancelled' | 'no-show' = 'scheduled';
-        if (data.status === 'cancelled' || data.cancelled === true) {
-          status = 'cancelled';
-        } else if (data.status === 'no-show' || data.noShow === true) {
-          status = 'no-show';
-        }
+      const adminRevenue = dayPackages
+        .filter(p => p.source === 'admin_added')
+        .reduce((sum, p) => sum + p.amountPaid, 0);
         
-        // Get client info
-        const clientId = data.clientUID || data.clientId;
-        let clientName = 'Unknown Client';
-        let clientEmail = '';
-        
-        if (clientId) {
-          try {
-            const clientDoc = await getDocs(query(
-              collection(db, 'users'),
-              where('__name__', '==', clientId)
-            ));
-            if (!clientDoc.empty) {
-              const clientData = clientDoc.docs[0].data();
-              clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim();
-              clientEmail = clientData.emailAddress || clientData.email || '';
-            }
-          } catch (err) {
-            // Ignore
-          }
-        }
-        
-        // Get trainer info
-        let trainerName = 'Unknown Trainer';
-        if (data.trainerId) {
-          try {
-            const trainerDoc = await getDocs(query(
-              collection(db, 'trainers'),
-              where('__name__', '==', data.trainerId)
-            ));
-            if (!trainerDoc.empty) {
-              const trainerData = trainerDoc.docs[0].data();
-              trainerName = `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim();
-            }
-          } catch (err) {
-            // Ignore
-          }
-        }
-        
-        // Determine type and cost
-        const athleteCount = Array.isArray(data.athletes) ? data.athletes.length : 1;
-        const type = athleteCount > 1 ? `${athleteCount}-Athlete Session` : 'Private Session (1 Athlete)';
-        const cost = data.cost || (athleteCount > 1 ? 80 + (athleteCount - 1) * 20 : 80);
-        
-        // Check if paid via pass
-        const paidViaPass = !!data.packageId;
-        let packageType: string | undefined;
-        
-        if (paidViaPass && clientId) {
-          // Try to get package type
-          try {
-            let pkgDoc = await getDocs(query(
-              collection(db, 'organizations', orgId, 'users', clientId, 'packages'),
-              where('__name__', '==', data.packageId)
-            ));
-            
-            if (pkgDoc.empty) {
-              pkgDoc = await getDocs(query(
-                collection(db, 'users', clientId, 'lessonPackages'),
-                where('__name__', '==', data.packageId)
-              ));
-            }
-            
-            if (!pkgDoc.empty) {
-              const pkgData = pkgDoc.docs[0].data();
-              packageType = pkgData.packageName || pkgData.name || 'Package';
-            }
-          } catch (err) {
-            // Ignore
-          }
-        }
-        
-        appointmentsList.push({
-          id: bookingDoc.id,
-          date: startTime,
-          clientName,
-          clientEmail,
-          trainerName,
-          type,
-          cost,
-          paidViaPass,
-          packageType,
-          status
-        });
-      }
-      
-      // Sort by most recent first
-      appointmentsList.sort((a, b) => b.date.getTime() - a.date.getTime());
-      setAppointments(appointmentsList);
-      
-    } catch (error) {
-      console.error('Error loading appointment details:', error);
-    }
-  }
-
-  // Update chart when filter changes
-  useEffect(() => {
-    if (!orgId) return;
-    
-    // Recalculate chart data based on filter
-    const days = dateRange === 'all' 
-      ? eachDayOfInterval({ start: new Date(2020, 0, 1), end: new Date() })
-      : eachDayOfInterval({ 
-          start: startOfMonth(parseISO(`${dateRange}-01`)), 
-          end: endOfMonth(startOfMonth(parseISO(`${dateRange}-01`)))
-        });
-    
-    const chartDataArray: RevenueData[] = days.map(day => {
-      const dateKey = format(day, 'yyyy-MM-dd');
-      let revenueValue = 0;
-      let passesValue: number | undefined;
-      
-      if (chartFilter === 'all') {
-        revenueValue = (dailyPaidRevenue[dateKey] || 0) + (dailyAdminRevenue[dateKey] || 0);
-        passesValue = dailyAllPasses[dateKey] || 0;
-      } else if (chartFilter === 'paid') {
-        revenueValue = dailyPaidRevenue[dateKey] || 0;
-        passesValue = dailyPaidPasses[dateKey] || 0;
-      } else if (chartFilter === 'adminAdded') {
-        revenueValue = dailyAdminRevenue[dateKey] || 0;
-        passesValue = dailyAdminPasses[dateKey] || 0;
-      } else if (chartFilter === 'none') {
-        revenueValue = (dailyPaidRevenue[dateKey] || 0) + (dailyAdminRevenue[dateKey] || 0);
-        passesValue = undefined;
-      }
+      const paidPassCount = dayPackages.filter(p => p.source === 'paid').length;
+      const adminPassCount = dayPackages.filter(p => p.source === 'admin_added').length;
       
       return {
         date: format(day, 'MMM d'),
-        revenue: revenueValue,
-        passes: passesValue
+        paidRevenue: parseFloat(paidRevenue.toFixed(2)),
+        adminRevenue: parseFloat(adminRevenue.toFixed(2)),
+        totalRevenue: parseFloat((paidRevenue + adminRevenue).toFixed(2)),
+        paidPassCount,
+        adminPassCount,
+        totalPassCount: paidPassCount + adminPassCount
       };
     });
     
-    setChartData(chartDataArray);
-  }, [chartFilter, dailyPaidRevenue, dailyAdminRevenue, dailyPaidPasses, dailyAdminPasses, dailyAllPasses, dateRange]);
+    setChartData(data);
+  }
+
+  function generateRevenueByType(packages: PackageRevenue[]) {
+    const typeMap = new Map<string, {
+      packageName: string;
+      count: number;
+      paidCount: number;
+      adminCount: number;
+      revenue: number;
+    }>();
+    
+    for (const pkg of packages) {
+      const key = pkg.packageType || 'unknown';
+      
+      if (!typeMap.has(key)) {
+        typeMap.set(key, {
+          packageName: pkg.packageName,
+          count: 0,
+          paidCount: 0,
+          adminCount: 0,
+          revenue: 0
+        });
+      }
+      
+      const entry = typeMap.get(key)!;
+      entry.count++;
+      entry.revenue += pkg.amountPaid;
+      
+      if (pkg.source === 'paid') {
+        entry.paidCount++;
+      } else {
+        entry.adminCount++;
+      }
+    }
+    
+    const revenueByTypeArray: RevenueByType[] = Array.from(typeMap.entries()).map(([type, data]) => ({
+      packageType: type,
+      packageName: data.packageName,
+      count: data.count,
+      paidCount: data.paidCount,
+      adminCount: data.adminCount,
+      revenue: data.revenue,
+      avgPrice: data.count > 0 ? data.revenue / data.count : 0
+    }));
+    
+    revenueByTypeArray.sort((a, b) => b.revenue - a.revenue);
+    setRevenueByType(revenueByTypeArray);
+  }
+
+  function applyFilters() {
+    let filtered = [...packages];
+    
+    if (sourceFilter !== 'all') {
+      filtered = filtered.filter(p => p.source === sourceFilter);
+    }
+    
+    if (packageFilter !== 'all') {
+      filtered = filtered.filter(p => p.packageType === packageFilter);
+    }
+    
+    if (userSearch.trim()) {
+      const search = userSearch.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.userName.toLowerCase().includes(search) ||
+        p.userEmail.toLowerCase().includes(search)
+      );
+    }
+    
+    setFilteredPackages(filtered);
+  }
 
   function handleSort(field: SortField) {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection('desc');
     }
   }
 
-  function getSortedTableData() {
-    const sorted = [...tableData].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
-      }
-      
-      return sortDirection === 'asc' 
-        ? (aVal as number) - (bVal as number)
-        : (bVal as number) - (aVal as number);
-    });
+  const sortedPackages = [...filteredPackages].sort((a, b) => {
+    let comparison = 0;
     
-    return sorted;
-  }
+    switch (sortField) {
+      case 'date':
+        comparison = a.purchaseDate.getTime() - b.purchaseDate.getTime();
+        break;
+      case 'user':
+        comparison = a.userName.localeCompare(b.userName);
+        break;
+      case 'package':
+        comparison = a.packageName.localeCompare(b.packageName);
+        break;
+      case 'amount':
+        comparison = a.amountPaid - b.amountPaid;
+        break;
+      case 'source':
+        comparison = a.source.localeCompare(b.source);
+        break;
+    }
+    
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
 
-  function exportToSpreadsheet() {
+  function exportToCSV() {
+    const headers = ['Date', 'User', 'Email', 'Package', 'Amount', 'Source', 'Transaction ID', 'Total Lessons', 'Used'];
+    const rows = sortedPackages.map(pkg => [
+      format(pkg.purchaseDate, 'yyyy-MM-dd'),
+      pkg.userName,
+      pkg.userEmail,
+      pkg.packageName,
+      `$${pkg.amountPaid.toFixed(2)}`,
+      pkg.source === 'paid' ? 'Paid' : 'Admin Added',
+      pkg.transactionId,
+      pkg.totalLessons.toString(),
+      pkg.lessonsUsed.toString()
+    ]);
+
     const csv = [
-      ['Package Type', 'Count', 'Paid', 'Admin Added', 'Total Revenue'],
-      ...getSortedTableData().map(row => [
-        row.packageType,
-        row.count,
-        row.paidCount,
-        row.adminAddedCount,
-        `$${row.totalRevenue.toFixed(2)}`
-      ]),
-      [
-        'Total',
-        tableData.reduce((sum, r) => sum + r.count, 0),
-        tableData.reduce((sum, r) => sum + r.paidCount, 0),
-        tableData.reduce((sum, r) => sum + r.adminAddedCount, 0),
-        `$${tableData.reduce((sum, r) => sum + r.totalRevenue, 0).toFixed(2)}`
-      ]
-    ].map(row => row.join(',')).join('\n');
-    
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `revenue-${dateRange}.csv`;
+    a.download = `revenue-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
   }
 
-  function getFilteredDetailedAppointments() {
-    return appointments.filter(apt => {
-      // Payment filter
-      if (detailPaymentFilter === 'pass' && !apt.paidViaPass) {
-        return false;
-      }
-      if (detailPaymentFilter === 'direct' && apt.paidViaPass) {
-        return false;
-      }
-      
-      return true;
-    });
-  }
+  // Get unique package types for filter
+  const uniquePackageTypes = Array.from(new Set(packages.map(p => p.packageType)));
 
-  function exportDetailedAppointments() {
-    const filtered = getFilteredDetailedAppointments();
-    const csv = [
-      ['Date', 'Time', 'Client', 'Email', 'Trainer', 'Type', 'Status', 'Cost', 'Paid Via Pass', 'Package'],
-      ...filtered.map(apt => [
-        format(apt.date, 'MMM d, yyyy'),
-        format(apt.date, 'h:mm a'),
-        apt.clientName,
-        apt.clientEmail,
-        apt.trainerName,
-        apt.type,
-        apt.status,
-        `$${apt.cost.toFixed(2)}`,
-        apt.paidViaPass ? 'Yes' : 'No',
-        apt.packageType || 'N/A'
-      ])
-    ].map(row => row.join(',')).join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `appointments-revenue-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-  }
-
-  const totalCount = tableData.reduce((sum, row) => sum + row.count, 0);
-  const totalPaidCount = tableData.reduce((sum, row) => sum + row.paidCount, 0);
-  const totalAdminAddedCount = tableData.reduce((sum, row) => sum + row.adminAddedCount, 0);
-  const totalRevenue = tableData.reduce((sum, row) => sum + row.totalRevenue, 0);
+  // Calculate summary stats
+  const totalRevenue = filteredPackages.reduce((sum, p) => sum + p.amountPaid, 0);
+  const paidRevenue = filteredPackages.filter(p => p.source === 'paid').reduce((sum, p) => sum + p.amountPaid, 0);
+  const adminRevenue = filteredPackages.filter(p => p.source === 'admin_added').reduce((sum, p) => sum + p.amountPaid, 0);
+  const totalPassesSold = filteredPackages.length;
+  const paidPasses = filteredPackages.filter(p => p.source === 'paid').length;
+  const adminPasses = filteredPackages.filter(p => p.source === 'admin_added').length;
+  const avgTransactionValue = totalPassesSold > 0 ? totalRevenue / totalPassesSold : 0;
 
   if (loading) {
     return (
-      <div className="p-6 lg:p-8">
-        <div className="text-center py-12">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading revenue data...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="space-y-6">
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            {dateRange === 'all' 
-              ? 'Revenue Report - All Time (Past)' 
-              : `Revenue Report - ${format(parseISO(`${dateRange}-01`), 'MMMM yyyy')}`
-            }
-          </h1>
-          <p className="text-foreground/80 mt-2">
-            Total Revenue: <span className="font-bold text-primary text-xl">${totalRevenue.toFixed(2)}</span>
-          </p>
+          <h1 className="text-3xl font-bold">Revenue Report</h1>
+          <p className="text-foreground/70 mt-1">Comprehensive revenue analytics and package sales tracking</p>
         </div>
+        <button
+          onClick={exportToCSV}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </button>
+      </div>
 
-        {/* Line Chart */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="mb-4 flex items-center gap-4">
-              <label className="text-sm font-medium text-foreground">
-                Chart Filter:
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setChartFilter('all')}
-                  className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
-                    chartFilter === 'all'
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setChartFilter('paid')}
-                  className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
-                    chartFilter === 'paid'
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
-                  }`}
-                >
-                  Paid
-                </button>
-                <button
-                  onClick={() => setChartFilter('adminAdded')}
-                  className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
-                    chartFilter === 'adminAdded'
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
-                  }`}
-                >
-                  Admin Added
-                </button>
-                <button
-                  onClick={() => setChartFilter('none')}
-                  className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
-                    chartFilter === 'none'
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
-                  }`}
-                >
-                  None
-                </button>
-              </div>
+      {/* Date Range Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Date Range
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Range Type</label>
+              <select
+                value={dateRangeType}
+                onChange={(e) => setDateRangeType(e.target.value as DateRangeType)}
+                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="month">Specific Month</option>
+                <option value="custom">Custom Date Range</option>
+              </select>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 12 }}
-                  interval="preserveStartEnd"
-                />
-                <YAxis 
-                  yAxisId="left"
-                  label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft' }}
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis 
-                  yAxisId="right"
-                  orientation="right"
-                  label={{ value: 'Passes', angle: 90, position: 'insideRight' }}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip 
-                  formatter={(value: number | undefined, name: string | undefined) => {
-                    if (name === 'Revenue') {
-                      return value !== undefined ? [`$${value.toFixed(2)}`, 'Revenue'] : ['$0.00', 'Revenue'];
-                    }
-                    if (name === 'Passes') {
-                      return value !== undefined ? [value, 'Passes'] : [0, 'Passes'];
-                    }
-                    return [value, name || ''];
-                  }}
-                />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '20px' }}
-                  iconType="line"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#22c55e" 
-                  strokeWidth={2}
-                  name="Revenue"
-                  yAxisId="left"
-                  dot={{ r: 3 }}
-                />
-                {chartFilter !== 'none' && (
-                  <Line 
-                    type="monotone" 
-                    dataKey="passes" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    name="Passes"
-                    yAxisId="right"
-                    dot={{ r: 3 }}
-                  />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Date range:
-                </label>
+            {dateRangeType === 'month' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Month</label>
                 <select
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {monthOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -701,221 +444,294 @@ export default function RevenuePage() {
                   ))}
                 </select>
               </div>
+            )}
 
-              <button
-                onClick={loadRevenue}
-                className="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors font-medium"
-              >
-                SHOW
-              </button>
-            </div>
+            {dateRangeType === 'custom' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">End Date</label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-            <div className="mt-4 text-right">
-              <button
-                onClick={exportToSpreadsheet}
-                className="text-primary hover:underline text-sm font-medium flex items-center gap-2 ml-auto"
-              >
-                <Download className="h-4 w-4" />
-                Export to spreadsheet
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Revenue Table */}
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th 
-                      onClick={() => handleSort('packageType')}
-                      className="text-left py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
-                    >
-                      <div className="flex items-center gap-2">
-                        Package Type
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('count')}
-                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        Count
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('paidCount')}
-                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        Paid
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('adminAddedCount')}
-                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        Admin Added
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('totalRevenue')}
-                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        Total Revenue
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getSortedTableData().map((row, index) => (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-background">
-                      <td className="py-3 px-4 text-foreground">{row.packageType}</td>
-                      <td className="py-3 px-4 text-right text-foreground">{row.count}</td>
-                      <td className="py-3 px-4 text-right text-foreground">{row.paidCount}</td>
-                      <td className="py-3 px-4 text-right text-foreground">{row.adminAddedCount}</td>
-                      <td className="py-3 px-4 text-right text-foreground">${row.totalRevenue.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                  <tr className="border-t-2 border-input font-semibold bg-background">
-                    <td className="py-3 px-4 text-foreground">Total</td>
-                    <td className="py-3 px-4 text-right text-foreground">{totalCount}</td>
-                    <td className="py-3 px-4 text-right text-foreground">{totalPaidCount}</td>
-                    <td className="py-3 px-4 text-right text-foreground">{totalAdminAddedCount}</td>
-                    <td className="py-3 px-4 text-right text-foreground">${totalRevenue.toFixed(2)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4 text-center">
-              <button 
-                onClick={() => setShowDetailedList(!showDetailedList)}
-                className="text-sm text-foreground/80 hover:text-foreground font-medium inline-flex items-center gap-2"
-              >
-                View Past Appointments
-                {showDetailedList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-            </div>
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Total Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="text-3xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              ${paidRevenue.toFixed(2)} paid, ${adminRevenue.toFixed(2)} admin
+            </p>
           </CardContent>
         </Card>
 
-        {/* Detailed Appointments List */}
-        {showDetailedList && (
-          <Card>
-            <CardContent className="pt-6">
-              {/* Filter and Export */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <label className="text-sm font-medium text-foreground">Filter by:</label>
-                  <select
-                    value={detailPaymentFilter}
-                    onChange={(e) => setDetailPaymentFilter(e.target.value as 'all' | 'pass' | 'direct')}
-                    className="px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
-                  >
-                    <option value="all">All Payments</option>
-                    <option value="pass">Paid via Pass</option>
-                    <option value="direct">Direct Payment</option>
-                  </select>
-                </div>
+        <Card>
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Passes Sold
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="text-3xl font-bold">{totalPassesSold}</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {paidPasses} paid, {adminPasses} admin added
+            </p>
+          </CardContent>
+        </Card>
 
-                <button
-                  onClick={exportDetailedAppointments}
-                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors font-medium inline-flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export CSV
-                </button>
-              </div>
+        <Card>
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Avg Transaction
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="text-3xl font-bold">${avgTransactionValue.toFixed(2)}</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Per package sold
+            </p>
+          </CardContent>
+        </Card>
 
-              {/* Appointments Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-background">
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Date & Time</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Client</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Trainer</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Type</th>
-                      <th className="text-center py-3 px-4 font-semibold text-foreground">Status</th>
-                      <th className="text-right py-3 px-4 font-semibold text-foreground">Cost</th>
-                      <th className="text-center py-3 px-4 font-semibold text-foreground">Paid Via Pass</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Package</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getFilteredDetailedAppointments().length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="text-center py-8 text-muted-foreground">
-                          No appointments found matching the selected filter.
-                        </td>
-                      </tr>
-                    ) : (
-                      getFilteredDetailedAppointments().map(apt => (
-                        <tr key={apt.id} className="border-b border-gray-100 hover:bg-background">
-                          <td className="py-3 px-4">
-                            <div className="text-sm font-medium text-foreground">
-                              {format(apt.date, 'MMM d, yyyy')}
-                            </div>
-                            <div className="text-xs text-foreground/80">
-                              {format(apt.date, 'h:mm a')}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="text-sm font-medium text-foreground">{apt.clientName}</div>
-                            <div className="text-xs text-foreground/80">{apt.clientEmail}</div>
-                          </td>
-                          <td className="py-3 px-4 text-sm text-foreground">{apt.trainerName}</td>
-                          <td className="py-3 px-4 text-sm text-foreground">{apt.type}</td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              apt.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                              apt.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              {apt.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
-                            ${apt.cost.toFixed(2)}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              apt.paidViaPass ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {apt.paidViaPass ? 'Yes' : 'No'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-sm text-foreground">
-                            {apt.packageType || '-'}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {getFilteredDetailedAppointments().length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="text-sm text-foreground/80">
-                    Showing {getFilteredDetailedAppointments().length} of {appointments.length} appointments
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-sm font-medium">Paid Conversion</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="text-3xl font-bold">
+              {totalPassesSold > 0 ? ((paidPasses / totalPassesSold) * 100).toFixed(1) : '0'}%
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {paidPasses} of {totalPassesSold} were paid
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Revenue Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Revenue Over Time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis yAxisId="left" />
+              <YAxis yAxisId="right" orientation="right" />
+              <Tooltip />
+              <Legend />
+              <Line yAxisId="left" type="monotone" dataKey="paidRevenue" stroke="#10b981" name="Paid Revenue ($)" />
+              <Line yAxisId="left" type="monotone" dataKey="adminRevenue" stroke="#f59e0b" name="Admin Revenue ($)" />
+              <Line yAxisId="right" type="monotone" dataKey="totalPassCount" stroke="#3b82f6" name="Total Passes" />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Revenue by Package Type */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Revenue by Package Type</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="p-3 text-left font-medium">Package Type</th>
+                  <th className="p-3 text-right font-medium">Total Sold</th>
+                  <th className="p-3 text-right font-medium">Paid</th>
+                  <th className="p-3 text-right font-medium">Admin Added</th>
+                  <th className="p-3 text-right font-medium">Total Revenue</th>
+                  <th className="p-3 text-right font-medium">Avg Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {revenueByType.map((item) => (
+                  <tr key={item.packageType} className="border-b hover:bg-muted/50">
+                    <td className="p-3 font-medium">{item.packageName}</td>
+                    <td className="p-3 text-right">{item.count}</td>
+                    <td className="p-3 text-right text-green-600">{item.paidCount}</td>
+                    <td className="p-3 text-right text-orange-600">{item.adminCount}</td>
+                    <td className="p-3 text-right font-medium">${item.revenue.toFixed(2)}</td>
+                    <td className="p-3 text-right text-muted-foreground">${item.avgPrice.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {revenueByType.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              No revenue data available for this period
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Source</label>
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value as any)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="all">All Sources</option>
+                <option value="paid">Paid Only</option>
+                <option value="admin_added">Admin Added Only</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Package Type</label>
+              <select
+                value={packageFilter}
+                onChange={(e) => setPackageFilter(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="all">All Packages</option>
+                {uniquePackageTypes.map(type => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Search User</label>
+              <input
+                type="text"
+                placeholder="Name or email..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Detailed Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Package Sales Detail ({sortedPackages.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="p-3 text-left">
+                    <button onClick={() => handleSort('date')} className="flex items-center gap-1 font-medium hover:text-primary">
+                      Date
+                      {sortField === 'date' && <ArrowUpDown className="h-4 w-4" />}
+                    </button>
+                  </th>
+                  <th className="p-3 text-left">
+                    <button onClick={() => handleSort('user')} className="flex items-center gap-1 font-medium hover:text-primary">
+                      User
+                      {sortField === 'user' && <ArrowUpDown className="h-4 w-4" />}
+                    </button>
+                  </th>
+                  <th className="p-3 text-left">
+                    <button onClick={() => handleSort('package')} className="flex items-center gap-1 font-medium hover:text-primary">
+                      Package
+                      {sortField === 'package' && <ArrowUpDown className="h-4 w-4" />}
+                    </button>
+                  </th>
+                  <th className="p-3 text-right">
+                    <button onClick={() => handleSort('amount')} className="flex items-center gap-1 font-medium hover:text-primary">
+                      Amount
+                      {sortField === 'amount' && <ArrowUpDown className="h-4 w-4" />}
+                    </button>
+                  </th>
+                  <th className="p-3 text-left">
+                    <button onClick={() => handleSort('source')} className="flex items-center gap-1 font-medium hover:text-primary">
+                      Source
+                      {sortField === 'source' && <ArrowUpDown className="h-4 w-4" />}
+                    </button>
+                  </th>
+                  <th className="p-3 text-right">Lessons</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedPackages.map((pkg) => (
+                  <tr key={pkg.id} className="border-b hover:bg-muted/50">
+                    <td className="p-3">{format(pkg.purchaseDate, 'MMM d, yyyy')}</td>
+                    <td className="p-3">
+                      <div className="font-medium">{pkg.userName}</div>
+                      <div className="text-muted-foreground text-xs truncate max-w-[200px]">{pkg.userEmail}</div>
+                    </td>
+                    <td className="p-3">
+                      <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                        {pkg.packageName}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-medium">
+                      ${pkg.amountPaid.toFixed(2)}
+                    </td>
+                    <td className="p-3">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                        pkg.source === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {pkg.source === 'paid' ? 'Paid' : 'Admin Added'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right text-muted-foreground text-xs">
+                      {pkg.lessonsUsed} / {pkg.totalLessons}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {sortedPackages.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              No packages found matching your filters
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

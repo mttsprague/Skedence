@@ -3,66 +3,65 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc as firestoreDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
-import { Download, ArrowUpDown, UserPlus } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval, parseISO, addMonths, differenceInDays } from 'date-fns';
+import { Download, Calendar, Filter, ArrowUpDown, Users, TrendingUp, UserPlus } from 'lucide-react';
 
 interface User {
   id: string;
   firstName: string;
   lastName: string;
+  name: string;
   email: string;
+  phoneNumber: string;
   createdAt: Date;
-  phoneNumber?: string;
-  athletes?: Array<{
-    firstName?: string;
-    lastName?: string;
-  }>;
+  athletes: string[];
+  athleteCount: number;
+  daysSinceSignup: number;
 }
 
 interface ChartData {
   date: string;
   signups: number;
+  cumulativeSignups: number;
 }
 
+type DateRangeType = 'month' | 'custom' | 'all';
 type SortField = 'name' | 'email' | 'createdAt' | 'athletes';
 type SortDirection = 'asc' | 'desc';
 
-export default function UsersPage() {
+export default function UsersReportPage() {
   const { orgId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  
+  // Filters
+  const [dateRangeType, setDateRangeType] = useState<DateRangeType>('month');
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [customStartDate, setCustomStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [customEndDate, setCustomEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [nameSearch, setNameSearch] = useState('');
+  const [emailSearch, setEmailSearch] = useState('');
+  const [athleteFilter, setAthleteFilter] = useState<'all' | 'has' | 'none'>('all');
+  
+  // Sorting
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
-  // Filters
-  const [dateRange, setDateRange] = useState(format(new Date(), 'yyyy-MM'));
-  
-  // Generate month options: current + all past months + "All"
+  // Month options: 4 future + current + 24 past
   const monthOptions = (() => {
     const options: { value: string; label: string }[] = [];
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
     
-    // Add "All" option
-    options.push({ value: 'all', label: 'All Time' });
-    
-    // Add current month
-    options.push({
-      value: format(now, 'yyyy-MM'),
-      label: format(now, 'MMMM yyyy') + ' (Current)'
-    });
-    
-    // Add all past months (going back 24 months)
-    for (let i = 1; i <= 24; i++) {
-      const pastDate = new Date(currentYear, currentMonth - i, 1);
+    for (let i = 4; i >= -24; i--) {
+      const date = addMonths(now, i);
       options.push({
-        value: format(pastDate, 'yyyy-MM'),
-        label: format(pastDate, 'MMMM yyyy')
+        value: format(date, 'yyyy-MM'),
+        label: format(date, 'MMMM yyyy') + (i === 0 ? ' (Current)' : i > 0 ? ' (Future)' : '')
       });
     }
     
@@ -72,119 +71,76 @@ export default function UsersPage() {
   useEffect(() => {
     if (!orgId) return;
     loadUsers();
-  }, [orgId, dateRange]);
+  }, [orgId]);
+
+  useEffect(() => {
+    applyFiltersAndChart();
+  }, [users, dateRangeType, selectedMonth, customStartDate, customEndDate, nameSearch, emailSearch, athleteFilter]);
 
   async function loadUsers() {
     if (!orgId) return;
     
     try {
       setLoading(true);
-      
-      let startDate: Date | null = null;
-      let endDate: Date | null = null;
-      
-      // Handle date range filtering
-      if (dateRange !== 'all') {
-        startDate = startOfMonth(parseISO(`${dateRange}-01`));
-        endDate = endOfMonth(startDate);
-      }
 
-      // Query users from orgMembers collection
+      // Load all client members
       const orgMembersQuery = query(
         collection(db, 'orgMembers'),
         where('orgId', '==', orgId),
         where('role', '==', 'client')
       );
-      
       const orgMembersSnapshot = await getDocs(orgMembersQuery);
       const userIds = orgMembersSnapshot.docs.map(doc => doc.data().userId);
 
-      if (userIds.length === 0) {
-        setUsers([]);
-        setChartData([]);
-        setLoading(false);
-        return;
-      }
-
-      // Load user details
+      // Batch load users (Firestore 'in' query limited to 30)
       const loadedUsers: User[] = [];
+      const batchSize = 30;
       
-      // Firestore 'in' queries can only handle 30 items at a time
-      const chunkSize = 30;
-      for (let i = 0; i < userIds.length; i += chunkSize) {
-        const chunk = userIds.slice(i, i + chunkSize);
+      for (let i = 0; i < userIds.length; i += batchSize) {
+        const batch = userIds.slice(i, i + batchSize);
+        
         const usersQuery = query(
           collection(db, 'users'),
-          where('__name__', 'in', chunk)
+          where('__name__', 'in', batch)
         );
-        
         const usersSnapshot = await getDocs(usersQuery);
         
-        usersSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          const createdAt = data.createdAt instanceof Timestamp 
-            ? data.createdAt.toDate() 
-            : new Date(data.createdAt || Date.now());
-
-          // Filter by date range if specified
-          if (dateRange !== 'all') {
-            if (startDate && endDate) {
-              if (createdAt < startDate || createdAt > endDate) {
-                return; // Skip this user
-              }
-            }
-          }
-
-          loadedUsers.push({
-            id: doc.id,
-            firstName: data.firstName || '',
-            lastName: data.lastName || '',
-            email: data.email || '',
-            phoneNumber: data.phoneNumber,
-            createdAt,
-            athletes: data.athletes || []
-          });
-        });
-      }
-
-      // Sort users by createdAt descending by default
-      loadedUsers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-      setUsers(loadedUsers);
-      
-      // Generate chart data
-      if (dateRange !== 'all' && startDate && endDate) {
-        const days = eachDayOfInterval({ start: startDate, end: endDate });
-        const dailyData: ChartData[] = days.map(day => {
-          const dayStr = format(day, 'yyyy-MM-dd');
-          const signups = loadedUsers.filter(user => 
-            format(user.createdAt, 'yyyy-MM-dd') === dayStr
-          ).length;
+        for (const userDoc of usersSnapshot.docs) {
+          const data = userDoc.data();
           
-          return {
-            date: format(day, 'MMM d'),
-            signups
-          };
-        });
-        setChartData(dailyData);
-      } else {
-        // For "All Time", group by month
-        const monthlyMap = new Map<string, number>();
-        loadedUsers.forEach(user => {
-          const month = format(user.createdAt, 'MMM yyyy');
-          monthlyMap.set(month, (monthlyMap.get(month) || 0) + 1);
-        });
-        
-        const monthlyData: ChartData[] = Array.from(monthlyMap.entries())
-          .map(([month, signups]) => ({ date: month, signups }))
-          .sort((a, b) => {
-            const dateA = parseISO(a.date.replace(' ', '-01-'));
-            const dateB = parseISO(b.date.replace(' ', '-01-'));
-            return dateA.getTime() - dateB.getTime();
+          let createdAt: Date;
+          if (data.createdAt) {
+            createdAt = data.createdAt.toDate();
+          } else {
+            // Fallback to current date if no createdAt
+            createdAt = new Date();
+          }
+          
+          const firstName = data.firstName || '';
+          const lastName = data.lastName || '';
+          const name = `${firstName} ${lastName}`.trim() || 'Unknown User';
+          const email = data.emailAddress || data.email || '';
+          const phoneNumber = data.phoneNumber || '';
+          const athletes = data.athletes || [];
+          const athleteCount = athletes.length;
+          const daysSinceSignup = differenceInDays(new Date(), createdAt);
+          
+          loadedUsers.push({
+            id: userDoc.id,
+            firstName,
+            lastName,
+            name,
+            email,
+            phoneNumber,
+            createdAt,
+            athletes,
+            athleteCount,
+            daysSinceSignup
           });
-        
-        setChartData(monthlyData);
+        }
       }
+      
+      setUsers(loadedUsers);
       
     } catch (error) {
       console.error('Error loading users:', error);
@@ -193,21 +149,115 @@ export default function UsersPage() {
     }
   }
 
+  function applyFiltersAndChart() {
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+    
+    if (dateRangeType === 'month') {
+      startDate = startOfMonth(parseISO(`${selectedMonth}-01`));
+      endDate = endOfMonth(startDate);
+    } else if (dateRangeType === 'custom') {
+      startDate = parseISO(customStartDate);
+      endDate = parseISO(customEndDate);
+    }
+    // 'all' means no date filter
+    
+    let filtered = [...users];
+    
+    // Date filter
+    if (startDate && endDate) {
+      filtered = filtered.filter(u => u.createdAt >= startDate! && u.createdAt <= endDate!);
+    }
+    
+    // Name search
+    if (nameSearch.trim()) {
+      const search = nameSearch.toLowerCase();
+      filtered = filtered.filter(u => u.name.toLowerCase().includes(search));
+    }
+    
+    // Email search
+    if (emailSearch.trim()) {
+      const search = emailSearch.toLowerCase();
+      filtered = filtered.filter(u => u.email.toLowerCase().includes(search));
+    }
+    
+    // Athlete filter
+    if (athleteFilter === 'has') {
+      filtered = filtered.filter(u => u.athleteCount > 0);
+    } else if (athleteFilter === 'none') {
+      filtered = filtered.filter(u => u.athleteCount === 0);
+    }
+    
+    setFilteredUsers(filtered);
+    generateChartData(filtered, startDate, endDate);
+  }
+
+  function generateChartData(users: User[], startDate: Date | null, endDate: Date | null) {
+    if (!startDate || !endDate) {
+      // For "all time", show monthly aggregation
+      const monthlyData = new Map<string, number>();
+      let cumulativeCount = 0;
+      
+      const sortedUsers = [...users].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      
+      for (const user of sortedUsers) {
+        const monthKey = format(user.createdAt, 'yyyy-MM');
+        monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + 1);
+      }
+      
+      const data: ChartData[] = [];
+      const sortedMonths = Array.from(monthlyData.keys()).sort();
+      
+      for (const month of sortedMonths) {
+        const count = monthlyData.get(month) || 0;
+        cumulativeCount += count;
+        data.push({
+          date: format(parseISO(`${month}-01`), 'MMM yyyy'),
+          signups: count,
+          cumulativeSignups: cumulativeCount
+        });
+      }
+      
+      setChartData(data);
+    } else {
+      // For specific date range, show daily aggregation
+      const days = eachDayOfInterval({ start: startDate, end: endDate });
+      let cumulativeCount = 0;
+      
+      const data: ChartData[] = days.map(day => {
+        const dayStr = format(day, 'yyyy-MM-dd');
+        const daySignups = users.filter(u => 
+          format(u.createdAt, 'yyyy-MM-dd') === dayStr
+        ).length;
+        
+        cumulativeCount += daySignups;
+        
+        return {
+          date: format(day, 'MMM d'),
+          signups: daySignups,
+          cumulativeSignups: cumulativeCount
+        };
+      });
+      
+      setChartData(data);
+    }
+  }
+
   function handleSort(field: SortField) {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection('desc');
     }
   }
 
-  const sortedUsers = [...users].sort((a, b) => {
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
     let comparison = 0;
     
     switch (sortField) {
       case 'name':
-        comparison = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        comparison = a.name.localeCompare(b.name);
         break;
       case 'email':
         comparison = a.email.localeCompare(b.email);
@@ -216,7 +266,7 @@ export default function UsersPage() {
         comparison = a.createdAt.getTime() - b.createdAt.getTime();
         break;
       case 'athletes':
-        comparison = (a.athletes?.length || 0) - (b.athletes?.length || 0);
+        comparison = a.athleteCount - b.athleteCount;
         break;
     }
     
@@ -224,13 +274,15 @@ export default function UsersPage() {
   });
 
   function exportToCSV() {
-    const headers = ['Name', 'Email', 'Phone', 'Athletes', 'Sign Up Date'];
+    const headers = ['Name', 'Email', 'Phone', 'Signup Date', 'Days Since Signup', 'Athletes', 'Athlete Names'];
     const rows = sortedUsers.map(user => [
-      `${user.firstName} ${user.lastName}`,
+      user.name,
       user.email,
-      user.phoneNumber || '',
-      user.athletes?.map(a => `${a.firstName || ''} ${a.lastName || ''}`).join(', ') || '0',
-      format(user.createdAt, 'yyyy-MM-dd HH:mm')
+      user.phoneNumber,
+      format(user.createdAt, 'yyyy-MM-dd'),
+      user.daysSinceSignup.toString(),
+      user.athleteCount.toString(),
+      user.athletes.join('; ')
     ]);
 
     const csv = [
@@ -242,14 +294,23 @@ export default function UsersPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `users-${dateRange}.csv`;
+    a.download = `users-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
   }
+
+  // Calculate summary stats
+  const totalSignups = filteredUsers.length;
+  const totalAthletes = filteredUsers.reduce((sum, u) => sum + u.athleteCount, 0);
+  const avgAthletesPerUser = totalSignups > 0 ? totalAthletes / totalSignups : 0;
+  const usersWithAthletes = filteredUsers.filter(u => u.athleteCount > 0).length;
+  const avgDaysSinceSignup = totalSignups > 0 
+    ? filteredUsers.reduce((sum, u) => sum + u.daysSinceSignup, 0) / totalSignups 
+    : 0;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading users...</div>
+        <div className="text-lg">Loading user data...</div>
       </div>
     );
   }
@@ -257,10 +318,10 @@ export default function UsersPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold">User Sign-ups</h1>
-          <p className="text-foreground/80 mt-1">Track new client registrations</p>
+          <h1 className="text-3xl font-bold">Users Report</h1>
+          <p className="text-foreground/70 mt-1">Client signup analytics and user demographics</p>
         </div>
         <button
           onClick={exportToCSV}
@@ -271,175 +332,272 @@ export default function UsersPage() {
         </button>
       </div>
 
+      {/* Date Range Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Date Range
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Range Type</label>
+              <select
+                value={dateRangeType}
+                onChange={(e) => setDateRangeType(e.target.value as DateRangeType)}
+                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="month">Specific Month</option>
+                <option value="custom">Custom Date Range</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
+
+            {dateRangeType === 'month' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Month</label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {monthOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {dateRangeType === 'custom' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">End Date</label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Total Signups
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="text-3xl font-bold">{totalSignups}</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {usersWithAthletes} have athletes
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Total Athletes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="text-3xl font-bold">{totalAthletes}</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Across all users
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Avg Athletes/User
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="text-3xl font-bold">{avgAthletesPerUser.toFixed(2)}</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Per user account
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-sm font-medium">Avg Account Age</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="text-3xl font-bold">{avgDaysSinceSignup.toFixed(0)} days</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Since signup
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Signup Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Signups Over Time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis yAxisId="left" />
+              <YAxis yAxisId="right" orientation="right" />
+              <Tooltip />
+              <Legend />
+              <Bar yAxisId="left" dataKey="signups" fill="#3b82f6" name="New Signups" />
+              <Line yAxisId="right" type="monotone" dataKey="cumulativeSignups" stroke="#10b981" name="Total Signups" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Date Range
-              </label>
+              <label className="block text-sm font-medium mb-2">Search Name</label>
+              <input
+                type="text"
+                placeholder="User name..."
+                value={nameSearch}
+                onChange={(e) => setNameSearch(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Search Email</label>
+              <input
+                type="text"
+                placeholder="Email address..."
+                value={emailSearch}
+                onChange={(e) => setEmailSearch(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Athletes Filter</label>
               <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                value={athleteFilter}
+                onChange={(e) => setAthleteFilter(e.target.value as any)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                {monthOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+                <option value="all">All Users</option>
+                <option value="has">Has Athletes</option>
+                <option value="none">No Athletes</option>
               </select>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-foreground/80">Total Sign-ups</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{users.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-foreground/80">Total Athletes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {users.reduce((sum, user) => sum + (user.athletes?.length || 0), 0)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-foreground/80">Avg Athletes per User</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {users.length > 0 
-                ? (users.reduce((sum, user) => sum + (user.athletes?.length || 0), 0) / users.length).toFixed(1)
-                : '0'}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Chart */}
+      {/* Detailed Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Sign-ups Over Time</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="signups" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
-                  name="New Sign-ups"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              No sign-up data available
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Users ({sortedUsers.length})</CardTitle>
+          <CardTitle>User Details ({sortedUsers.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4">
-                    <button
-                      onClick={() => handleSort('name')}
-                      className="flex items-center gap-2 font-semibold hover:text-primary"
-                    >
+            <table className="w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="p-3 text-left">
+                    <button onClick={() => handleSort('name')} className="flex items-center gap-1 font-medium hover:text-primary">
                       Name
-                      <ArrowUpDown className="h-4 w-4" />
+                      {sortField === 'name' && <ArrowUpDown className="h-4 w-4" />}
                     </button>
                   </th>
-                  <th className="text-left py-3 px-4">
-                    <button
-                      onClick={() => handleSort('email')}
-                      className="flex items-center gap-2 font-semibold hover:text-primary"
-                    >
+                  <th className="p-3 text-left">
+                    <button onClick={() => handleSort('email')} className="flex items-center gap-1 font-medium hover:text-primary">
                       Email
-                      <ArrowUpDown className="h-4 w-4" />
+                      {sortField === 'email' && <ArrowUpDown className="h-4 w-4" />}
                     </button>
                   </th>
-                  <th className="text-left py-3 px-4">Phone</th>
-                  <th className="text-left py-3 px-4">
-                    <button
-                      onClick={() => handleSort('athletes')}
-                      className="flex items-center gap-2 font-semibold hover:text-primary"
-                    >
+                  <th className="p-3 text-left">Phone</th>
+                  <th className="p-3 text-left">
+                    <button onClick={() => handleSort('createdAt')} className="flex items-center gap-1 font-medium hover:text-primary">
+                      Signup Date
+                      {sortField === 'createdAt' && <ArrowUpDown className="h-4 w-4" />}
+                    </button>
+                  </th>
+                  <th className="p-3 text-right">
+                    <button onClick={() => handleSort('athletes')} className="flex items-center gap-1 font-medium hover:text-primary">
                       Athletes
-                      <ArrowUpDown className="h-4 w-4" />
+                      {sortField === 'athletes' && <ArrowUpDown className="h-4 w-4" />}
                     </button>
                   </th>
-                  <th className="text-left py-3 px-4">
-                    <button
-                      onClick={() => handleSort('createdAt')}
-                      className="flex items-center gap-2 font-semibold hover:text-primary"
-                    >
-                      Sign Up Date
-                      <ArrowUpDown className="h-4 w-4" />
-                    </button>
-                  </th>
+                  <th className="p-3 text-left">Athlete Names</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedUsers.map((user) => (
-                  <tr key={user.id} className="border-b hover:bg-background">
-                    <td className="py-3 px-4">
-                      {user.firstName} {user.lastName}
+                  <tr key={user.id} className="border-b hover:bg-muted/50">
+                    <td className="p-3 font-medium">{user.name}</td>
+                    <td className="p-3 text-muted-foreground truncate max-w-[200px]">{user.email}</td>
+                    <td className="p-3 text-muted-foreground">{user.phoneNumber || '-'}</td>
+                    <td className="p-3">
+                      <div className="font-medium">{format(user.createdAt, 'MMM d, yyyy')}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {user.daysSinceSignup} days ago
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-foreground/80">{user.email}</td>
-                    <td className="py-3 px-4 text-foreground/80">{user.phoneNumber || '-'}</td>
-                    <td className="py-3 px-4">
-                      {user.athletes && user.athletes.length > 0 ? (
-                        <div className="text-sm">
-                          {user.athletes.map((athlete, idx) => (
-                            <div key={idx}>
-                              {athlete.firstName} {athlete.lastName}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">No athletes</span>
-                      )}
+                    <td className="p-3 text-right">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                        user.athleteCount > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {user.athleteCount}
+                      </span>
                     </td>
-                    <td className="py-3 px-4 text-foreground/80">
-                      {format(user.createdAt, 'MMM d, yyyy')}
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {user.athletes.length > 0 ? user.athletes.join(', ') : '-'}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          
+          {sortedUsers.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              No users found matching your filters
+            </div>
+            )}
         </CardContent>
       </Card>
     </div>
