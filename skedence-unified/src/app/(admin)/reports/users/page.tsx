@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc as firestoreDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval, parseISO, addMonths, differenceInDays } from 'date-fns';
 import { Download, Calendar, Filter, ArrowUpDown, Users, TrendingUp, UserPlus } from 'lucide-react';
 
@@ -465,7 +465,7 @@ export default function UsersReportPage() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
+            <ComposedChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis yAxisId="left" />
@@ -474,7 +474,7 @@ export default function UsersReportPage() {
               <Legend />
               <Bar yAxisId="left" dataKey="signups" fill="#3b82f6" name="New Signups" />
               <Line yAxisId="right" type="monotone" dataKey="cumulativeSignups" stroke="#10b981" name="Total Signups" strokeWidth={2} />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
@@ -556,8 +556,8 @@ export default function UsersReportPage() {
                       {sortField === 'createdAt' && <ArrowUpDown className="h-4 w-4" />}
                     </button>
                   </th>
-                  <th className="p-3 text-right">
-                    <button onClick={() => handleSort('athletes')} className="flex items-center gap-1 font-medium hover:text-primary">
+                  <th className="p-3 text-center">
+                    <button onClick={() => handleSort('athletes')} className="flex items-center justify-center gap-1 font-medium hover:text-primary mx-auto">
                       Athletes
                       {sortField === 'athletes' && <ArrowUpDown className="h-4 w-4" />}
                     </button>
@@ -577,7 +577,7 @@ export default function UsersReportPage() {
                         {user.daysSinceSignup} days ago
                       </div>
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="p-3 text-center">
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                         user.athleteCount > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
                       }`}>

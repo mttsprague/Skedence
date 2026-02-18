@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, addMonths } from 'date-fns';
 import { Download, Calendar, Filter, ArrowUpDown, DollarSign, TrendingUp, Package } from 'lucide-react';
 
@@ -541,7 +541,7 @@ export default function RevenueReportPage() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
+            <ComposedChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis yAxisId="left" />
@@ -551,7 +551,7 @@ export default function RevenueReportPage() {
               <Line yAxisId="left" type="monotone" dataKey="paidRevenue" stroke="#10b981" name="Paid Revenue ($)" />
               <Line yAxisId="left" type="monotone" dataKey="adminRevenue" stroke="#f59e0b" name="Admin Revenue ($)" />
               <Line yAxisId="right" type="monotone" dataKey="totalPassCount" stroke="#3b82f6" name="Total Passes" />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
