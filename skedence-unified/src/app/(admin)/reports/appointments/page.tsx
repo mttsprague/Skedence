@@ -16,7 +16,7 @@ interface Appointment {
   cost: number;
   startTime: Date;
   endTime: Date;
-  status: 'scheduled' | 'cancelled' | 'no-show';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
   duration: number; // in minutes
   trainerId?: string;
   trainerName: string;
@@ -37,6 +37,7 @@ interface Trainer {
 interface ChartData {
   date: string;
   scheduled: number;
+  completed: number;
   cancelled: number;
   'no-show': number;
   total: number;
@@ -59,7 +60,7 @@ export default function AppointmentsReportPage() {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [customStartDate, setCustomStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [customEndDate, setCustomEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [statusFilter, setStatusFilter] = useState<'all' | 'scheduled' | 'cancelled' | 'no-show'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'scheduled' | 'completed' | 'cancelled' | 'no-show'>('all');
   const [trainerFilter, setTrainerFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [clientSearch, setClientSearch] = useState('');
@@ -159,13 +160,22 @@ export default function AppointmentsReportPage() {
         const startTime = data.startTime.toDate();
         const endTime = data.endTime.toDate();
         const duration = differenceInMinutes(endTime, startTime);
+        const now = new Date();
         
-        // Determine status
-        let status: 'scheduled' | 'cancelled' | 'no-show' = 'scheduled';
+        // Determine status based on Firestore data and date
+        let status: 'scheduled' | 'completed' | 'cancelled' | 'no-show' = 'scheduled';
         if (data.status === 'cancelled' || data.cancelled === true) {
           status = 'cancelled';
         } else if (data.status === 'no-show' || data.noShow === true) {
           status = 'no-show';
+        } else if (data.status === 'completed') {
+          status = 'completed';
+        } else if (endTime < now) {
+          // Past appointment with no explicit status = completed
+          status = 'completed';
+        } else {
+          // Future appointment = scheduled
+          status = 'scheduled';
         }
         
         // Build type and category
@@ -249,6 +259,7 @@ export default function AppointmentsReportPage() {
         const startTime = classData.startTime.toDate();
         const endTime = classData.endTime.toDate();
         const duration = differenceInMinutes(endTime, startTime);
+        const now = new Date();
         
         // Get trainer info
         let trainerName = 'Unknown Trainer';
@@ -275,10 +286,19 @@ export default function AppointmentsReportPage() {
             console.warn('Could not load class participant:', err);
           }
           
-          // Note: Group classes don't have individual cancellation tracking per participant
-          // They're all scheduled unless the entire class is cancelled
-          const status: 'scheduled' | 'cancelled' | 'no-show' = 
-            classData.status === 'cancelled' ? 'cancelled' : 'scheduled';
+          // Determine status for group class
+          let status: 'scheduled' | 'completed' | 'cancelled' | 'no-show' = 'scheduled';
+          if (classData.status === 'cancelled') {
+            status = 'cancelled';
+          } else if (classData.status === 'completed') {
+            status = 'completed';
+          } else if (endTime < now) {
+            // Past class = completed
+            status = 'completed';
+          } else {
+            // Future class = scheduled
+            status = 'scheduled';
+          }
           
           loadedAppointments.push({
             id: `${classDoc.id}-${clientId}`,
@@ -321,6 +341,7 @@ export default function AppointmentsReportPage() {
       return {
         date: format(day, 'MMM d'),
         scheduled: dayAppointments.filter(a => a.status === 'scheduled').length,
+        completed: dayAppointments.filter(a => a.status === 'completed').length,
         cancelled: dayAppointments.filter(a => a.status === 'cancelled').length,
         'no-show': dayAppointments.filter(a => a.status === 'no-show').length,
         total: dayAppointments.length
@@ -426,6 +447,7 @@ export default function AppointmentsReportPage() {
   // Calculate summary stats
   const totalAppointments = filteredAppointments.length;
   const scheduledCount = filteredAppointments.filter(a => a.status === 'scheduled').length;
+  const completedCount = filteredAppointments.filter(a => a.status === 'completed').length;
   const cancelledCount = filteredAppointments.filter(a => a.status === 'cancelled').length;
   const noShowCount = filteredAppointments.filter(a => a.status === 'no-show').length;
   const totalHours = filteredAppointments.reduce((sum, a) => sum + a.duration, 0) / 60;
@@ -536,7 +558,10 @@ export default function AppointmentsReportPage() {
           <CardContent className="pt-4">
             <div className="text-3xl font-bold">{totalAppointments}</div>
             <p className="text-sm text-muted-foreground mt-1">
-              {scheduledCount} scheduled, {cancelledCount} cancelled, {noShowCount} no-show
+              {scheduledCount} scheduled, {completedCount} completed
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {cancelledCount} cancelled, {noShowCount} no-show
             </p>
           </CardContent>
         </Card>
@@ -551,11 +576,11 @@ export default function AppointmentsReportPage() {
           <CardContent className="pt-4">
             <div className="text-3xl font-bold">
               {totalAppointments > 0 
-                ? ((scheduledCount / totalAppointments) * 100).toFixed(1)
+                ? ((completedCount / totalAppointments) * 100).toFixed(1)
                 : '0'}%
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {scheduledCount} of {totalAppointments} completed
+              {completedCount} of {totalAppointments} completed
             </p>
           </CardContent>
         </Card>
@@ -605,7 +630,8 @@ export default function AppointmentsReportPage() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="scheduled" fill="#10b981" name="Scheduled" />
+              <Bar dataKey="scheduled" fill="#3b82f6" name="Scheduled" />
+              <Bar dataKey="completed" fill="#10b981" name="Completed" />
               <Bar dataKey="cancelled" fill="#f59e0b" name="Cancelled" />
               <Bar dataKey="no-show" fill="#ef4444" name="No-show" />
             </BarChart>
@@ -632,6 +658,7 @@ export default function AppointmentsReportPage() {
               >
                 <option value="all">All Statuses</option>
                 <option value="scheduled">Scheduled Only</option>
+                <option value="completed">Completed Only</option>
                 <option value="cancelled">Cancelled Only</option>
                 <option value="no-show">No-show Only</option>
               </select>
@@ -759,11 +786,12 @@ export default function AppointmentsReportPage() {
                     <td className="p-3">{apt.duration} min</td>
                     <td className="p-3">
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                        apt.status === 'scheduled' ? 'bg-green-100 text-green-700' :
+                        apt.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                        apt.status === 'completed' ? 'bg-green-100 text-green-700' :
                         apt.status === 'cancelled' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-red-100 text-red-700'
                       }`}>
-                        {apt.status}
+                        {apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
                       </span>
                     </td>
                     <td className="p-3 text-muted-foreground text-xs">{apt.location || '-'}</td>
