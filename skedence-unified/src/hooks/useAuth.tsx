@@ -81,35 +81,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           console.log('Auth: User role from orgMembers:', role);
           
-          // Only allow owner, admin, and trainer roles to access admin portal
-          if (role === 'owner' || role === 'admin' || role === 'trainer') {
-            // Try to get additional user data from trainers or users collection
+          // Only allow owner role to access admin portal
+          if (role === 'owner') {
+            // Get user data from users collection
             let userName = firebaseUser.email?.split('@')[0] || '';
             
-            // Check trainers collection (for trainer role)
-            if (role === 'trainer') {
-              try {
-                const trainerDoc = await getDoc(doc(db, 'trainers', firebaseUser.uid));
-                if (trainerDoc.exists()) {
-                  const trainerData = trainerDoc.data();
-                  userName = trainerData.name || `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim() || userName;
-                }
-              } catch (err) {
-                console.warn('Auth: Could not fetch trainer data:', err);
+            try {
+              const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+              if (userDoc.exists()) {
+                const userDocData = userDoc.data();
+                userName = `${userDocData.firstName || ''} ${userDocData.lastName || ''}`.trim() || userDocData.name || userName;
               }
-            }
-            
-            // Check users collection (for owner/admin)
-            if (role === 'owner' || role === 'admin') {
-              try {
-                const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-                if (userDoc.exists()) {
-                  const userDocData = userDoc.data();
-                  userName = `${userDocData.firstName || ''} ${userDocData.lastName || ''}`.trim() || userDocData.name || userName;
-                }
-              } catch (err) {
-                console.warn('Auth: Could not fetch user data:', err);
-              }
+            } catch (err) {
+              console.warn('Auth: Could not fetch user data:', err);
             }
             
             setUserData({ 
@@ -124,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hasCompletedInitialCheck.current = true;
             validatedUserId.current = firebaseUser.uid;
           } else {
-            console.error('Auth: User role is client. Admin portal access denied.');
+            console.error('Auth: User is not an owner. Admin portal access denied (owner role required).');
             setUserData(null);
             setOrgId(null);
             
