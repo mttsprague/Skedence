@@ -14,6 +14,8 @@ interface Athlete {
   lastName?: string;
   birthday?: string;
   position?: string;
+  experienceLevel?: string;
+  schoolClubTeam?: string;
 }
 
 interface User {
@@ -129,12 +131,60 @@ export default function UsersReportPage() {
           const name = `${firstName} ${lastName}`.trim() || 'Unknown User';
           const email = data.emailAddress || data.email || '';
           const phoneNumber = data.phoneNumber || '';
-          const athletes = (data.athletes || []) as Athlete[];
+          
+          // Extract athletes - support both NEW array format and LEGACY flat field format
+          let athletes: Athlete[] = [];
+          
+          if (data.athletes && Array.isArray(data.athletes)) {
+            // NEW FORMAT: athletes array
+            athletes = data.athletes as Athlete[];
+          } else {
+            // LEGACY FORMAT: Flat fields (athleteFirstName, athlete2FirstName, athlete3FirstName, etc.)
+            // Extract up to 3 athletes from legacy format
+            const legacyAthletes: Athlete[] = [];
+            
+            // Athlete 1 (no number suffix)
+            if (data.athleteFirstName || data.athleteLastName) {
+              legacyAthletes.push({
+                firstName: data.athleteFirstName || '',
+                lastName: data.athleteLastName || '',
+                birthday: data.athleteBirthday || '',
+                position: data.athletePosition || '',
+                experienceLevel: data.athleteExperienceLevel || '',
+                schoolClubTeam: data.athleteSchoolClubTeam || ''
+              });
+            }
+            
+            // Athlete 2
+            if (data.athlete2FirstName || data.athlete2LastName) {
+              legacyAthletes.push({
+                firstName: data.athlete2FirstName || '',
+                lastName: data.athlete2LastName || '',
+                birthday: data.athlete2Birthday || '',
+                position: data.athlete2Position || '',
+                experienceLevel: data.athlete2ExperienceLevel || '',
+                schoolClubTeam: data.athlete2SchoolClubTeam || ''
+              });
+            }
+            
+            // Athlete 3
+            if (data.athlete3FirstName || data.athlete3LastName) {
+              legacyAthletes.push({
+                firstName: data.athlete3FirstName || '',
+                lastName: data.athlete3LastName || '',
+                birthday: data.athlete3Birthday || '',
+                position: data.athlete3Position || '',
+                experienceLevel: data.athlete3ExperienceLevel || '',
+                schoolClubTeam: data.athlete3SchoolClubTeam || ''
+              });
+            }
+            
+            athletes = legacyAthletes;
+          }
+          
           const athleteCount = athletes.length;
           
-          // Debug: Log athlete data for ALL users
-          console.log(`User: ${name} (${email}) - Athletes: ${athletes.length}`, athletes.length > 0 ? athletes : 'No athletes');
-          
+          // Extract athlete names for display
           const athleteNames = athletes.map(athlete => {
             const athleteFirstName = athlete.firstName || '';
             const athleteLastName = athlete.lastName || '';
