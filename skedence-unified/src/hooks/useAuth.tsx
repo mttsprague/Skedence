@@ -62,48 +62,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Only set user and check trainer if this is a new/different user
+      // Only set user and check role if this is a new/different user
       setUser(firebaseUser);
       isCheckingAuth.current = true;
       
       try {
-        // Check if user is a trainer (admin portal is only for trainers/admins)
-        const trainerDoc = await getDoc(doc(db, 'trainers', firebaseUser.uid));
+        // First, check orgMembers to get user's role and orgId
+        const orgMembersQuery = query(
+          collection(db, 'orgMembers'),
+          where('userId', '==', firebaseUser.uid)
+        );
+        const orgMembersSnap = await getDocs(orgMembersQuery);
         
-        if (trainerDoc.exists()) {
-          const trainerData = trainerDoc.data();
+        if (!orgMembersSnap.empty) {
+          const memberData = orgMembersSnap.docs[0].data();
+          const role = memberData.role as 'owner' | 'admin' | 'trainer' | 'client';
+          const userOrgId = memberData.orgId;
           
-          // Get role from orgMembers collection
-          let role: 'owner' | 'admin' | 'trainer' = 'trainer';
-          try {
-            const orgMembersQuery = query(
-              collection(db, 'orgMembers'),
-              where('userId', '==', firebaseUser.uid),
-              where('orgId', '==', trainerData.orgId)
-            );
-            const orgMembersSnap = await getDocs(orgMembersQuery);
-            if (!orgMembersSnap.empty) {
-              const memberData = orgMembersSnap.docs[0].data();
-              role = memberData.role as 'owner' | 'admin' | 'trainer';
-              console.log('Auth: User role from orgMembers:', role);
+          console.log('Auth: User role from orgMembers:', role);
+          
+          // Only allow owner, admin, and trainer roles to access admin portal
+          if (role === 'owner' || role === 'admin' || role === 'trainer') {
+            // Try to get additional user data from trainers or users collection
+            let userName = firebaseUser.email?.split('@')[0] || '';
+            
+            // Check trainers collection (for trainer role)
+            if (role === 'trainer') {
+              try {
+                const trainerDoc = await getDoc(doc(db, 'trainers', firebaseUser.uid));
+                if (trainerDoc.exists()) {
+                  const trainerData = trainerDoc.data();
+                  userName = trainerData.name || `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim() || userName;
+                }
+              } catch (err) {
+                console.warn('Auth: Could not fetch trainer data:', err);
+              }
             }
-          } catch (err) {
-            console.warn('Auth: Could not fetch orgMembers role, defaulting to trainer:', err);
+            
+            // Check users collection (for owner/admin)
+            if (role === 'owner' || role === 'admin') {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                if (userDoc.exists()) {
+                  const userDocData = userDoc.data();
+                  userName = `${userDocData.firstName || ''} ${userDocData.lastName || ''}`.trim() || userDocData.name || userName;
+                }
+              } catch (err) {
+                console.warn('Auth: Could not fetch user data:', err);
+              }
+            }
+            
+            setUserData({ 
+              id: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              name: userName,
+              role: role,
+              orgId: userOrgId,
+            } as User);
+            
+            setOrgId(userOrgId);
+            hasCompletedInitialCheck.current = true;
+            validatedUserId.current = firebaseUser.uid;
+          } else {
+            console.error('Auth: User role is client. Admin portal access denied.');
+            setUserData(null);
+            setOrgId(null);
+            
+            // Only sign out if we haven't already tried
+            if (!hasCompletedInitialCheck.current) {
+              hasCompletedInitialCheck.current = true;
+              await firebaseSignOut(auth);
+            }
           }
-          
-          setUserData({ 
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            name: trainerData.name || `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim() || '',
-            role: role,
-            orgId: trainerData.orgId,
-          } as User);
-          
-          setOrgId(trainerData.orgId);
-          hasCompletedInitialCheck.current = true;
-          validatedUserId.current = firebaseUser.uid;
         } else {
-          console.error('Auth: User is not a trainer. Admin portal access denied.');
+          console.error('Auth: User not found in orgMembers. Admin portal access denied.');
           setUserData(null);
           setOrgId(null);
           
