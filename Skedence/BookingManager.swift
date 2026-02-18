@@ -132,13 +132,26 @@ final class BookingManager: ObservableObject {
         func parsePackages(from snap: QuerySnapshot) -> [Pkg] {
             return snap.documents.compactMap { doc in
                 let data = doc.data()
+                
+                // Check if this is a class pass using the new packageCategory field first
+                if let packageCategory = data["packageCategory"] as? String {
+                    // Exclude class passes using the enum value
+                    if packageCategory == "classPass" || packageCategory == "class" {
+                        return nil
+                    }
+                } else if let packageType = data["packageType"] as? String {
+                    // Fallback to checking packageType for backward compatibility
+                    if packageType == "class_pass" || packageType == "class" {
+                        return nil
+                    }
+                }
+                
                 guard
-                    let packageType = data["packageType"] as? String,
-                    packageType != "class_pass" && packageType != "class", // Exclude class passes
                     let total = data["totalLessons"] as? Int,
                     let used = data["lessonsUsed"] as? Int,
                     let exp = date(from: data["expirationDate"])
                 else { return nil }
+                
                 return Pkg(id: doc.documentID, total: total, used: used, expiration: exp)
             }
         }
