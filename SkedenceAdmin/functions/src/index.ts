@@ -150,21 +150,55 @@ export const bookLesson = functions.https.onCall(
     }
 
     const userRef = db.collection("users").doc(userId);
-    const lessonPackageRef = userRef
-      .collection("lessonPackages")
-      .doc(lessonPackageId);
     const trainerRef = db.collection("trainers").doc(trainerId);
     // IMPORTANT: slotId is deterministic ("YYYY-MM-DDTHH")
     const trainerSlotRef = trainerRef.collection("schedules").doc(slotId);
 
     let orgId: string | undefined;
+    let lessonPackageRef: FirebaseFirestore.DocumentReference;
 
     try {
       await db.runTransaction(async (transaction) => {
         const userDoc = await transaction.get(userRef);
-        const lessonPackageDoc = await transaction.get(lessonPackageRef);
         const trainerDoc = await transaction.get(trainerRef);
         const trainerSlotDoc = await transaction.get(trainerSlotRef);
+
+        // Get orgId from trainer first for dual-path package lookup
+        if (!trainerDoc.exists) {
+          throw new functions.https.HttpsError(
+            "not-found",
+            "Trainer profile not found."
+          );
+        }
+        const trainerData = trainerDoc.data();
+        if (trainerData && trainerData.orgId) {
+          orgId = trainerData.orgId as string;
+        }
+
+        // Dual-path package lookup: Try new path first, fallback to old path
+        let lessonPackageDoc: FirebaseFirestore.DocumentSnapshot;
+        if (orgId) {
+          // Try new path: organizations/{orgId}/users/{userId}/packages/{packageId}
+          const newPathRef = db.collection("organizations")
+            .doc(orgId)
+            .collection("users")
+            .doc(userId)
+            .collection("packages")
+            .doc(lessonPackageId);
+          lessonPackageDoc = await transaction.get(newPathRef);
+          
+          if (lessonPackageDoc.exists) {
+            lessonPackageRef = newPathRef;
+          } else {
+            // Fallback to old path
+            lessonPackageRef = userRef.collection("lessonPackages").doc(lessonPackageId);
+            lessonPackageDoc = await transaction.get(lessonPackageRef);
+          }
+        } else {
+          // No orgId, use old path only
+          lessonPackageRef = userRef.collection("lessonPackages").doc(lessonPackageId);
+          lessonPackageDoc = await transaction.get(lessonPackageRef);
+        }
 
         if (!userDoc.exists) {
           throw new functions.https.HttpsError(
@@ -174,10 +208,7 @@ export const bookLesson = functions.https.onCall(
         }
 
         // STEP 10: Check trainer's organization billing status and quota
-        const trainerDataForBilling = trainerDoc.data();
-
-        if (trainerDataForBilling && trainerDataForBilling.orgId) {
-          orgId = trainerDataForBilling.orgId as string;
+        if (orgId) {
           const orgDoc = await transaction.get(
             db.collection("organizations").doc(orgId)
           );
@@ -235,7 +266,7 @@ export const bookLesson = functions.https.onCall(
 
         const userData = userDoc.data();
         const lessonPackageData = lessonPackageDoc.data();
-        const trainerData = trainerDoc.data();
+        // trainerData already declared earlier for dual-path lookup
         const trainerSlotData = trainerSlotDoc.data();
 
         if (!userData || !lessonPackageData || !trainerData || !trainerSlotData) {
