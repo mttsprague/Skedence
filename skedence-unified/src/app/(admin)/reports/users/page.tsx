@@ -132,10 +132,8 @@ export default function UsersReportPage() {
           const athletes = (data.athletes || []) as Athlete[];
           const athleteCount = athletes.length;
           
-          // Debug: Log athlete data for users with athletes
-          if (athletes.length > 0) {
-            console.log(`User ${name} has ${athletes.length} athletes:`, athletes);
-          }
+          // Debug: Log athlete data for ALL users
+          console.log(`User: ${name} (${email}) - Athletes: ${athletes.length}`, athletes.length > 0 ? athletes : 'No athletes');
           
           const athleteNames = athletes.map(athlete => {
             const athleteFirstName = athlete.firstName || '';
