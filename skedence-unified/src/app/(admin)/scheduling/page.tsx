@@ -922,16 +922,15 @@ export default function SchedulingPage() {
               </div>
             ) : (
               /* All Trainers Day View */
-              <div className="overflow-x-auto">
-                <div 
-                  style={{ minWidth: `${200 + trainers.length * 240}px` }}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                >
-                  {/* Trainers Header */}
-                  <div className="flex border-b border-gray-200 bg-white sticky top-0 z-30">
-                    <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-600 border-r border-gray-200">Time</div>
+              <div 
+                style={{ minWidth: `${200 + trainers.length * 240}px` }}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                {/* Trainers Header */}
+                <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
+                  <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-600 border-r border-gray-200">Time</div>
                     {trainers.map(trainer => (
                       <div
                         key={trainer.id}
@@ -1030,7 +1029,6 @@ export default function SchedulingPage() {
                     })}
                   </div>
                 </div>
-              </div>
             )}
           </div>
         </div>
