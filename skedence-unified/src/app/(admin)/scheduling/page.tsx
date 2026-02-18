@@ -930,7 +930,7 @@ export default function SchedulingPage() {
                   onTouchEnd={handleTouchEnd}
                 >
                   {/* Trainers Header */}
-                  <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
+                  <div className="flex border-b border-gray-200 bg-white sticky top-0 z-30">
                     <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-600 border-r border-gray-200">Time</div>
                     {trainers.map(trainer => (
                       <div
