@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
@@ -86,6 +87,7 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<User | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [editedClient, setEditedClient] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -323,6 +325,7 @@ export default function ClientsPage() {
     setSelectedClient(client);
     setEditedClient(JSON.parse(JSON.stringify(client)));
     setActiveTab('profile');
+    setSheetOpen(true);
   };
 
   const handleSave = async () => {
@@ -479,7 +482,7 @@ export default function ClientsPage() {
               <div 
                 key={client.id}
                 className="cursor-pointer"
-                onClick={() => router.push(`/clients/detail?id=${client.id}`)}
+                onClick={() => handleClientSelect(client)}
               >
                 <Card className="hover:shadow-lg transition-shadow h-full">
                   <CardContent className="p-6">
@@ -515,6 +518,379 @@ export default function ClientsPage() {
         )}
         </div>
       </div>
+
+      {/* Client Detail Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto p-0">
+          {selectedClient && (
+            <div className="flex flex-col h-full">
+              {/* Sticky Header */}
+              <div className="sticky top-0 bg-white z-10 border-b">
+                <SheetHeader className="p-6 pb-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-xl">
+                        {(selectedClient.firstName?.[0] || '') + (selectedClient.lastName?.[0] || '')}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <SheetTitle className="text-2xl font-bold text-foreground">
+                        {selectedClient.firstName} {selectedClient.lastName}
+                      </SheetTitle>
+                      <p className="text-sm text-foreground/80">{selectedClient.email || selectedClient.emailAddress}</p>
+                      {selectedClient.phone && (
+                        <p className="text-sm text-muted-foreground">{selectedClient.phone}</p>
+                      )}
+                    </div>
+                  </div>
+                </SheetHeader>
+
+                {/* Tabs */}
+                <div className="border-t border-gray-200 px-2">
+                  <nav className="flex gap-1 overflow-x-auto p-2">
+                    {[
+                      { id: 'profile' as TabType, label: 'Profile', icon: UserIcon },
+                      { id: 'upcoming' as TabType, label: 'Upcoming', icon: Calendar, count: upcomingBookings.length },
+                      { id: 'history' as TabType, label: 'History', icon: History, count: pastBookings.length },
+                      { id: 'passes' as TabType, label: 'Passes', icon: Package, count: packages.filter(p => p.remainingLessons > 0).length },
+                      { id: 'documents' as TabType, label: 'Documents', icon: FileText, count: documents.length },
+                      { id: 'payments' as TabType, label: 'Payments', icon: CreditCard, count: paymentMethods.length },
+                      { id: 'receipts' as TabType, label: 'Receipts', icon: Receipt, count: receipts.length },
+                    ].map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors whitespace-nowrap text-sm ${
+                            activeTab === tab.id
+                              ? 'bg-primary text-white'
+                              : 'text-foreground/80 hover:bg-gray-100'
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {tab.label}
+                          {tab.count !== undefined && (
+                            <span className={`ml-1 px-2 py-0.5 text-xs rounded-full ${
+                              activeTab === tab.id
+                                ? 'bg-white/20 text-white'
+                                : 'bg-gray-200 text-foreground'
+                            }`}>
+                              {tab.count}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1 overflow-y-auto">
+                {tabDataLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : (
+                  <>
+                    {activeTab === 'profile' && (
+                      <div className="p-6 space-y-6">
+                        {/* Stats Cards */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <Card>
+                            <CardContent className="pt-6">
+                              <div className="text-2xl font-bold text-primary">{upcomingBookings.length}</div>
+                              <div className="text-sm text-foreground/80">Upcoming</div>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="pt-6">
+                              <div className="text-2xl font-bold text-green-600">{packages.filter(p => p.remainingLessons > 0).length}</div>
+                              <div className="text-sm text-foreground/80">Active Passes</div>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        {/* Contact Info */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Contact Information</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-sm text-foreground/80">Email</p>
+                                <p className="font-medium">{selectedClient.email || selectedClient.emailAddress}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-foreground/80">Phone</p>
+                                <p className="font-medium">{selectedClient.phone || selectedClient.phoneNumber || 'Not provided'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-foreground/80">Emergency Contact</p>
+                                <p className="font-medium">{selectedClient.emergencyContactName || 'Not provided'}</p>
+                                {selectedClient.emergencyContactNumber && (
+                                  <p className="text-sm text-muted-foreground">{selectedClient.emergencyContactNumber}</p>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm text-foreground/80">Referred By</p>
+                                <p className="font-medium">{selectedClient.referredBy || 'Not provided'}</p>
+                              </div>
+                            </div>
+                            {selectedClient.notesForCoach && (
+                              <div>
+                                <p className="text-sm text-foreground/80">Notes for Coach</p>
+                                <p className="font-medium">{selectedClient.notesForCoach}</p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        {/* Athletes */}
+                        {selectedClient.athletes && selectedClient.athletes.length > 0 && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Athletes</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              {selectedClient.athletes.map((athlete, idx) => (
+                                <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+                                  <p className="font-semibold">{athlete.firstName} {athlete.lastName}</p>
+                                  {athlete.birthday && <p className="text-sm text-muted-foreground">DOB: {athlete.birthday}</p>}
+                                  {athlete.position && <p className="text-sm text-muted-foreground">Position: {athlete.position}</p>}
+                                </div>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === 'upcoming' && (
+                      <div className="p-6">
+                        {upcomingBookings.length === 0 ? (
+                          <div className="py-12 text-center text-muted-foreground">
+                            <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                            <p>No upcoming sessions</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {upcomingBookings.map((booking) => (
+                              <Card key={booking.id}>
+                                <CardContent className="pt-6">
+                                  <div className="flex items-start justify-between">
+                                    <div className="space-y-1">
+                                      <p className="font-semibold">{booking.startTime.toDate().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                                      <p className="text-sm text-foreground/80">
+                                        {booking.startTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                      </p>
+                                      <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
+                                      {booking.athleteNames && booking.athleteNames.length > 0 && (
+                                        <p className="text-xs text-muted-foreground">Athletes: {booking.athleteNames.join(', ')}</p>
+                                      )}
+                                    </div>
+                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                      {booking.status}
+                                    </span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === 'history' && (
+                      <div className="p-6">
+                        {pastBookings.length === 0 ? (
+                          <div className="py-12 text-center text-muted-foreground">
+                            <History className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                            <p>No past sessions</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {pastBookings.map((booking) => (
+                              <Card key={booking.id}>
+                                <CardContent className="pt-6">
+                                  <div className="flex items-start justify-between">
+                                    <div className="space-y-1">
+                                      <p className="font-semibold">{booking.startTime.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                                      <p className="text-sm text-foreground/80">
+                                        {booking.startTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                      </p>
+                                      <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
+                                    </div>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                      booking.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-foreground'
+                                    }`}>
+                                      {booking.status}
+                                    </span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === 'passes' && (
+                      <div className="p-6">
+                        {packages.length === 0 ? (
+                          <div className="py-12 text-center text-muted-foreground">
+                            <Package className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                            <p>No passes purchased</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            {packages.filter(p => p.remainingLessons > 0).length > 0 && (
+                              <div>
+                                <h3 className="text-lg font-semibold mb-3">Active Passes</h3>
+                                <div className="space-y-3">
+                                  {packages.filter(p => p.remainingLessons > 0).map((pkg) => (
+                                    <Card key={pkg.id}>
+                                      <CardContent className="pt-6">
+                                        <div className="flex items-start justify-between mb-2">
+                                          <h4 className="font-semibold">{pkg.packageName || pkg.packageType}</h4>
+                                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Active</span>
+                                        </div>
+                                        <p className="text-sm text-foreground/80">
+                                          <span className="font-medium text-primary">{pkg.remainingLessons}</span> of {pkg.totalLessons} sessions remaining
+                                        </p>
+                                        <p className="text-sm text-foreground/80">Expires: {pkg.expirationDate.toDate().toLocaleDateString()}</p>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {packages.filter(p => p.remainingLessons === 0).length > 0 && (
+                              <div>
+                                <h3 className="text-lg font-semibold mb-3">Used Passes</h3>
+                                <div className="space-y-3">
+                                  {packages.filter(p => p.remainingLessons === 0).map((pkg) => (
+                                    <Card key={pkg.id} className="opacity-60">
+                                      <CardContent className="pt-6">
+                                        <h4 className="font-semibold mb-2">{pkg.packageName || pkg.packageType}</h4>
+                                        <p className="text-sm text-foreground/80">{pkg.lessonsUsed} of {pkg.totalLessons} sessions used</p>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === 'documents' && (
+                      <div className="p-6">
+                        {documents.length === 0 ? (
+                          <div className="py-12 text-center text-muted-foreground">
+                            <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                            <p>No documents uploaded</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {documents.map((doc) => (
+                              <Card key={doc.id}>
+                                <CardContent className="pt-6">
+                                  <div className="flex items-start gap-3 mb-3">
+                                    <FileText className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium truncate">{doc.name}</p>
+                                      <p className="text-xs text-muted-foreground">{doc.uploadedAt.toDate().toLocaleDateString()}</p>
+                                    </div>
+                                  </div>
+                                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="block w-full text-center px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
+                                    View
+                                  </a>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === 'payments' && (
+                      <div className="p-6">
+                        {paymentMethods.length === 0 ? (
+                          <div className="py-12 text-center text-muted-foreground">
+                            <CreditCard className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                            <p>No payment methods on file</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {paymentMethods.map((method) => (
+                              <Card key={method.id}>
+                                <CardContent className="pt-6">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                      <CreditCard className="h-6 w-6 text-gray-400" />
+                                      <div>
+                                        <p className="font-medium">{method.brand.charAt(0).toUpperCase() + method.brand.slice(1)} •••• {method.last4}</p>
+                                        <p className="text-sm text-foreground/80">Expires {method.expMonth || method.expiryMonth}/{method.expYear || method.expiryYear}</p>
+                                      </div>
+                                    </div>
+                                    {method.isDefault && (
+                                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Default</span>
+                                    )}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === 'receipts' && (
+                      <div className="p-6">
+                        {receipts.length === 0 ? (
+                          <div className="py-12 text-center text-muted-foreground">
+                            <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                            <p>No receipts</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {receipts.map((receipt) => (
+                              <Card key={receipt.id}>
+                                <CardContent className="pt-6">
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <p className="font-semibold">{receipt.description || receipt.packageName || 'Purchase'}</p>
+                                      <p className="text-sm text-foreground/80 mt-1">
+                                        {receipt.createdAt?.toDate?.()?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-lg font-bold text-primary">${((receipt.amount || 0) / 100).toFixed(2)}</p>
+                                      <span className={`inline-block mt-1 px-3 py-1 text-xs font-medium rounded-full ${
+                                        receipt.status === 'succeeded' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-foreground'
+                                      }`}>
+                                        {receipt.status}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </SchedulingSubmenu>
   );
 }
