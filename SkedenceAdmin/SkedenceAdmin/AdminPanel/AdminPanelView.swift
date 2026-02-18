@@ -46,7 +46,6 @@ struct AdminPanelView: View {
     @State private var showingAddLocation = false
     @State private var locationToEdit: Location?
     @State private var organizationBilling: OrganizationBilling?
-    @State private var showingManageSubscription = false
     @State private var showingProcessPayment = false
     
     enum AdminTab: String, CaseIterable {
@@ -124,10 +123,6 @@ struct AdminPanelView: View {
                     }
                 )
                 .environmentObject(dependencies)
-            }
-            .sheet(isPresented: $showingManageSubscription) {
-                InAppSubscriptionView(orgId: auth.currentOrgId ?? "")
-                    .environmentObject(dependencies)
             }
             .sheet(isPresented: $showingProcessPayment) {
                 if let client = selectedClient {
@@ -213,7 +208,6 @@ struct AdminPanelView: View {
                         locationsService: locationsService,
                         locationToEdit: $locationToEdit,
                         showingAddLocation: $showingAddLocation,
-                        showingManageSubscription: $showingManageSubscription,
                         alertItem: $alertItem,
                         organizationBilling: organizationBilling
                     )

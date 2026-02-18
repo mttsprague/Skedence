@@ -16,7 +16,6 @@ struct LocationsTabView: View {
     
     @Binding var locationToEdit: Location?
     @Binding var showingAddLocation: Bool
-    @Binding var showingManageSubscription: Bool
     @Binding var alertItem: AlertItem?
     
     let organizationBilling: OrganizationBilling?
@@ -68,21 +67,9 @@ struct LocationsTabView: View {
                         .foregroundStyle(AppTheme.textPrimary)
                     
                     Text("Upgrade your subscription to add more locations")
+                        .font(.bodyMedium)at skedence.com to add more locations")
                         .font(.bodyMedium)
                         .foregroundStyle(AppTheme.textSecondary)
-                    
-                    Button {
-                        showingManageSubscription = true
-                    } label: {
-                        Text("Upgrade Subscription")
-                            .font(.bodyMedium.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, Spacing.md)
-                            .background(AppTheme.primary)
-                            .cornerRadius(12)
-                    }
-                }
                 .padding(Spacing.lg)
                 .background(Color(UIColor.systemGray6))
                 .cornerRadius(12)

@@ -45,22 +45,13 @@ struct ContentView: View {
                 }
                 .tag(2)
 
-            // Only show Management tab for owners and admins
-            if auth.currentOrgRole == "owner" || auth.currentOrgRole == "admin" {
-                AdminPanelView()
-                    .tabItem {
-                        Label("Manage", systemImage: selectedTab == 3 ? "briefcase.fill" : "briefcase")
-                    }
-                    .tag(3)
-            }
-
             // Only show Business tab for owners and admins
             if auth.currentOrgRole == "owner" || auth.currentOrgRole == "admin" {
-                SuperAdminView()
+                BusinessView()
                     .tabItem {
-                        Label("Business", systemImage: selectedTab == 4 ? "gear" : "gear")
+                        Label("Business", systemImage: selectedTab == 3 ? "briefcase.fill" : "briefcase")
                     }
-                    .tag(4)
+                    .tag(3)
             }
         }
         .tint(AppTheme.primary)
