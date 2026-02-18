@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Functions, httpsCallable } from 'firebase/functions';
 import { getFunctions } from 'firebase/functions';
 import { CreditCard, CheckCircle2, AlertCircle, Crown, Zap, Building2, Rocket, Check } from 'lucide-react';
+import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
 
 interface SubscriptionStatus {
   hasSubscription: boolean;
@@ -217,12 +218,13 @@ function SubscriptionContent() {
   const isActive = subscriptionStatus?.status === 'active' || isTrialing;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Subscription</h1>
-        <p className="text-foreground/70 mt-1">Choose the plan that fits your business</p>
-      </div>
+    <BusinessSettingsSubmenu>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold">Subscription</h1>
+          <p className="text-foreground/70 mt-1">Choose the plan that fits your business</p>
+        </div>
 
       {/* Success/Error Messages */}
       {message && (
@@ -398,7 +400,8 @@ function SubscriptionContent() {
           </Card>
         </div>
       )}
-    </div>
+      </div>
+    </BusinessSettingsSubmenu>
   );
 }
 
