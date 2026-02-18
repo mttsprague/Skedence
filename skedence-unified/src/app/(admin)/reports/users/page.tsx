@@ -9,6 +9,13 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval, parseISO, addMonths, differenceInDays } from 'date-fns';
 import { Download, Calendar, Filter, ArrowUpDown, Users, TrendingUp, UserPlus } from 'lucide-react';
 
+interface Athlete {
+  firstName?: string;
+  lastName?: string;
+  birthday?: string;
+  position?: string;
+}
+
 interface User {
   id: string;
   firstName: string;
@@ -17,8 +24,9 @@ interface User {
   email: string;
   phoneNumber: string;
   createdAt: Date;
-  athletes: string[];
+  athletes: Athlete[];
   athleteCount: number;
+  athleteNames: string[];
   daysSinceSignup: number;
 }
 
@@ -121,8 +129,11 @@ export default function UsersReportPage() {
           const name = `${firstName} ${lastName}`.trim() || 'Unknown User';
           const email = data.emailAddress || data.email || '';
           const phoneNumber = data.phoneNumber || '';
-          const athletes = data.athletes || [];
+          const athletes = (data.athletes || []) as Athlete[];
           const athleteCount = athletes.length;
+          const athleteNames = athletes.map(athlete => 
+            `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim()
+          ).filter(name => name);
           const daysSinceSignup = differenceInDays(new Date(), createdAt);
           
           loadedUsers.push({
@@ -135,6 +146,7 @@ export default function UsersReportPage() {
             createdAt,
             athletes,
             athleteCount,
+            athleteNames,
             daysSinceSignup
           });
         }
@@ -282,7 +294,7 @@ export default function UsersReportPage() {
       format(user.createdAt, 'yyyy-MM-dd'),
       user.daysSinceSignup.toString(),
       user.athleteCount.toString(),
-      user.athletes.join('; ')
+      user.athleteNames.join('; ')
     ]);
 
     const csv = [
@@ -585,7 +597,7 @@ export default function UsersReportPage() {
                       </span>
                     </td>
                     <td className="p-3 text-xs text-muted-foreground">
-                      {user.athletes.length > 0 ? user.athletes.join(', ') : '-'}
+                      {user.athleteNames.length > 0 ? user.athleteNames.join(', ') : '-'}
                     </td>
                   </tr>
                 ))}
