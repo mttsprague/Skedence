@@ -131,9 +131,29 @@ export default function UsersReportPage() {
           const phoneNumber = data.phoneNumber || '';
           const athletes = (data.athletes || []) as Athlete[];
           const athleteCount = athletes.length;
-          const athleteNames = athletes.map(athlete => 
-            `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim()
-          ).filter(name => name);
+          
+          // Debug: Log athlete data for users with athletes
+          if (athletes.length > 0) {
+            console.log(`User ${name} has ${athletes.length} athletes:`, athletes);
+          }
+          
+          const athleteNames = athletes.map(athlete => {
+            const athleteFirstName = athlete.firstName || '';
+            const athleteLastName = athlete.lastName || '';
+            const fullName = `${athleteFirstName} ${athleteLastName}`.trim();
+            
+            // Return full name if we have it, otherwise try individual parts, otherwise 'Athlete'
+            if (fullName) {
+              return fullName;
+            } else if (athleteFirstName) {
+              return athleteFirstName;
+            } else if (athleteLastName) {
+              return athleteLastName;
+            } else {
+              return 'Athlete'; // Fallback for athlete with no name
+            }
+          });
+          
           const daysSinceSignup = differenceInDays(new Date(), createdAt);
           
           loadedUsers.push({
