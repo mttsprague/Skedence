@@ -151,14 +151,6 @@ struct BusinessView: View {
                     Text("Add Trainer")
                         .foregroundStyle(canAddTrainer ? AppTheme.primary : .gray)
                 }
-            } else if selectedSubTab == .organizations {
-                Button {
-                    showingCreateOrganization = true
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(AppTheme.primary)
-                }
             }
         case .operations:
             if selectedSubTab == .classes {
@@ -179,8 +171,6 @@ struct BusinessView: View {
                         .foregroundStyle(AppTheme.primary)
                 }
             }
-        default:
-            EmptyView()
         }
     }
     
