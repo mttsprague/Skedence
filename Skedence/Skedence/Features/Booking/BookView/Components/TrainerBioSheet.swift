@@ -57,8 +57,10 @@ struct TrainerBioSheet: View {
                     
                     Spacer(minLength: 40)
                 }
+                .frame(maxWidth: .infinity)
             }
-            .background(Color.platformBackground)
+            .background(Color.platformGroupedBackground)
+            .scrollContentBackground(.hidden)
             .navigationTitle("Trainer Bio")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -70,5 +72,7 @@ struct TrainerBioSheet: View {
                 }
             }
         }
+        .presentationDragIndicator(.visible)
+        .presentationDetents([.medium, .large])
     }
 }

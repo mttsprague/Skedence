@@ -20,7 +20,6 @@ struct MorePlaceholderView: View {
     @State private var showingDeleteSuccess = false
     @State private var deleteMessage: String?
     @State private var isDeletingAccount = false
-    @State private var showTrainersSection = false
     @State private var selectedTrainer: Trainer?
     @State private var showTrainerBio = false
     
@@ -524,85 +523,77 @@ struct MorePlaceholderView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeaderView(title: "Meet Our Trainers")
             
-            VStack(spacing: 0) {
-                // Header Button
-                Button {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showTrainersSection.toggle()
-                    }
-                } label: {
-                    HStack {
-                        HStack(spacing: 8) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(Brand.primary)
-                            Text("Trainers")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(.primary)
-                        }
-                        Spacer()
-                        Image(systemName: showTrainersSection ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color.platformBackground)
-                }
-                .buttonStyle(.plain)
-                
-                // Expanded trainer list
-                if showTrainersSection {
-                    VStack(spacing: 8) {
-                        ForEach(trainersService.trainers.filter { $0.active == true }, id: \.id) { trainer in
-                            Button {
-                                selectedTrainer = trainer
-                                showTrainerBio = true
-                            } label: {
-                                HStack(spacing: 12) {
-                                    TrainerAvatarView(trainer: trainer, size: 44)
+            CardView {
+                VStack(spacing: Spacing.md) {
+                    ForEach(trainersService.trainers.filter { $0.active == true }, id: \.id) { trainer in
+                        Button {
+                            selectedTrainer = trainer
+                            showTrainerBio = true
+                        } label: {
+                            HStack(spacing: Spacing.md) {
+                                // Trainer Avatar
+                                TrainerAvatarView(trainer: trainer, size: 48)
+                                
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text(trainer.name ?? "Trainer")
+                                        .font(.bodyMedium)
+                                        .foregroundStyle(AppTheme.primary)
                                     
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(trainer.name ?? "Trainer")
-                                            .font(.system(size: 16, weight: .medium))
-                                            .foregroundStyle(.primary)
-                                        
-                                        if let hasDescription = trainer.trainerDescription, !hasDescription.isEmpty {
-                                            Text("Tap to view bio")
-                                                .font(.system(size: 13))
-                                                .foregroundStyle(.secondary)
-                                        } else {
-                                            Text("No bio available")
-                                                .font(.system(size: 13))
-                                                .foregroundStyle(.tertiary)
-                                                .italic()
-                                        }
+                                    if let hasDescription = trainer.trainerDescription, !hasDescription.isEmpty {
+                                        Text("View bio")
+                                            .font(.labelMedium)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    } else {
+                                        Text("No bio available")
+                                            .font(.labelMedium)
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                            .italic()
                                     }
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(.tertiary)
                                 }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 10)
-                                .background(Color.platformBackground)
-                            }
-                            .buttonStyle(.plain)
-                            
-                            if trainer.id != trainersService.trainers.filter({ $0.active == true }).last?.id {
-                                Divider()
-                                    .padding(.leading, 76)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.textTertiary)
                             }
                         }
+                        .buttonStyle(.plain)
+                        
+                        // Add divider between trainers (except after last one)
+                        if trainer.id != trainersService.trainers.filter({ $0.active == true }).last?.id {
+                            Divider()
+                        }
                     }
-                    .background(Color.platformBackground)
+                    
+                    // Show message if no trainers
+                    if trainersService.trainers.filter({ $0.active == true }).isEmpty {
+                        HStack(spacing: Spacing.md) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                    .fill(AppTheme.info.opacity(0.15))
+                                    .frame(width: 48, height: 48)
+                                
+                                Image(systemName: "person.2.slash")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(AppTheme.info)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("No Trainers Yet")
+                                    .font(.bodyMedium)
+                                    .foregroundStyle(AppTheme.primary)
+                                
+                                Text("Check back soon")
+                                    .font(.labelMedium)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            
+                            Spacer()
+                        }
+                    }
                 }
             }
-            .background(Color.platformBackground)
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
         }
     }
     
