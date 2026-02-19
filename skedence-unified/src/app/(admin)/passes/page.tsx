@@ -4,93 +4,123 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
+import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Package, ChevronDown, ChevronUp, Calendar, User, Clock } from 'lucide-react';
+import { Plus, Minus, Package, User, Search, Calendar, Clock, Mail, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { logPassIssued } from '@/lib/activity-logger';
 
-interface ClientPass {
+interface Client {
   id: string;
-  clientId: string;
-  clientName: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber?: string;
+}
+
+interface PackageOption {
+  id: string;
+  title: string;
+  priceInCents: number;
+  packageType: string;
+  packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'classPass';
+  lessonCount?: number;
+  expirationDays: number;
+}
+
+interface LessonPackage {
+  id: string;
   packageType: string;
   packageCategory: string;
-  packageName: string;
+  packageName?: string;
   totalLessons: number;
   lessonsUsed: number;
-  remainingLessons: number;
-  purchaseDate: Date;
-  expirationDate: Date;
-  isExpired: boolean;
+  remainingLessons?: number;
+  purchaseDate: any;
+  expirationDate: any;
+  transactionId: string;
 }
 
-interface CategoryGroup {
-  category: string;
-  displayName: string;
-  totalRemaining: number;
-  nextExpiration: Date | null;
-  passes: ClientPass[];
-  isFixed: boolean; // true for 1-4 athlete categories
-}
-
-// Fixed category definitions
-const FIXED_CATEGORIES = [
-  { id: 'oneAthlete', name: 'One Athlete' },
-  { id: 'twoAthlete', name: 'Two Athletes' },
-  { id: 'threeAthlete', name: 'Three Athletes' },
-  { id: 'fourAthlete', name: 'Four Athletes' },
-];
-
-// Map packageType to category for backward compatibility with packages that don't have packageCategory
-function mapPackageTypeToCategory(packageType: string): string {
-  const lowercased = packageType.toLowerCase();
-  
-  if (lowercased.includes('one_athlete') || lowercased === '1_athlete' || lowercased === 'private') {
-    return 'oneAthlete';
-  } else if (lowercased.includes('two_athlete') || lowercased === '2_athlete') {
-    return 'twoAthlete';
-  } else if (lowercased.includes('three_athlete') || lowercased === '3_athlete') {
-    return 'threeAthlete';
-  } else if (lowercased.includes('four_athlete') || lowercased === '4_athlete') {
-    return 'fourAthlete';
-  } else if (lowercased.includes('class') || lowercased.includes('weekend')) {
-    return 'class';
-  } else {
-    // Default to packageType as-is for unknown types
-    return packageType;
-  }
-}
-
+// Helper function to get display name for package category
 function getCategoryDisplayName(category: string): string {
   switch (category) {
     case 'oneAthlete':
-      return 'One Athlete';
+      return '1 Athlete';
     case 'twoAthlete':
-      return 'Two Athletes';
+      return '2 Athletes';
     case 'threeAthlete':
-      return 'Three Athletes';
+      return '3 Athletes';
     case 'fourAthlete':
-      return 'Four Athletes';
+      return '4 Athletes';
+    case 'classPass':
+    case 'class':
+      return 'Class';
+    case 'pass':
+      return 'Pass';
     default:
-      // For class passes, use the category name as-is (capitalized)
-      return category.split(/(?=[A-Z])/).join(' ').replace(/^\w/, c => c.toUpperCase());
+      return category;
   }
 }
 
+// Group packages by category
+function groupPackagesByCategory(packages: PackageOption[]): Array<{category: string; displayName: string; packages: PackageOption[]}> {
+  const grouped = new Map<string, PackageOption[]>();
+  
+  packages.forEach(pkg => {
+    const category = pkg.packageCategory || 'pass';
+    if (!grouped.has(category)) {
+      grouped.set(category, []);
+    }
+    grouped.get(category)!.push(pkg);
+  });
+  
+  // Sort categories: 1 athlete, 2 athlete, 3 athlete, 4 athlete, then class
+  const categoryOrder = ['oneAthlete', 'twoAthlete', 'threeAthlete', 'fourAthlete', 'classPass', 'class', 'pass'];
+  
+  const result: Array<{category: string; displayName: string; packages: PackageOption[]}> = [];
+  categoryOrder.forEach(category => {
+    if (grouped.has(category)) {
+      const categoryPackages = grouped.get(category)!;
+      // Sort packages within category by lessonCount
+      categoryPackages.sort((a, b) => (a.lessonCount || 1) - (b.lessonCount || 1));
+      result.push({
+        category,
+        displayName: getCategoryDisplayName(category),
+        packages: categoryPackages
+      });
+    }
+  });
+  
+  return result;
+}
+
 export default function PassesPage() {
-  const { orgId } = useAuth();
+  const { orgId, user, userData } = useAuth();
+  const [clients, setClients] = useState<Client[]>([]);
+  const [packages, setPackages] = useState<PackageOption[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [categoryGroups, setCategoryGroups] = useState<CategoryGroup[]>([]);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
+  const [clientPackages, setClientPackages] = useState<LessonPackage[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<PackageOption | null>(null);
+  const [action, setAction] = useState<'add' | 'remove'>('add');
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (!orgId) return;
 
-    async function loadAllPasses() {
+    async function loadData() {
       try {
         if (!orgId) return;
-
-        // Load all clients
+        
+        // Load clients from orgMembers
         const membersQuery = query(
           collection(db, 'orgMembers'),
           where('orgId', '==', orgId),
@@ -98,162 +128,302 @@ export default function PassesPage() {
           where('isActive', '==', true)
         );
         const membersSnap = await getDocs(membersQuery);
-
-        // Load passes for all clients
-        const allPasses: ClientPass[] = [];
-        const now = new Date();
-
+        
+        // Load full user data for each member
+        const clientsData: Client[] = [];
         for (const memberDoc of membersSnap.docs) {
           const memberData = memberDoc.data();
           const userId = memberData.userId;
-
-          if (!userId) continue;
-
-          try {
-            // Load user data for name
-            const userDoc = await getDoc(doc(db, 'users', userId));
-            if (!userDoc.exists()) continue;
-
-            const userData = userDoc.data();
-            const clientName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-
-            // Try new organization path first
-            let packagesSnap = await getDocs(
-              collection(db, 'organizations', orgId, 'users', userId, 'packages')
-            );
-
-            // Fall back to old path if no packages found
-            if (packagesSnap.empty) {
-              packagesSnap = await getDocs(
-                collection(db, 'users', userId, 'lessonPackages')
-              );
+          
+          if (userId) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                clientsData.push({
+                  id: memberDoc.id,
+                  userId: userId,
+                  firstName: userData.firstName || '',
+                  lastName: userData.lastName || '',
+                  email: userData.email || '',
+                  phoneNumber: userData.phoneNumber || ''
+                });
+              }
+            } catch (err) {
+              console.warn('Could not load user data for', userId, err);
             }
-
-            // Process each package
-            packagesSnap.docs.forEach(pkgDoc => {
-              const data = pkgDoc.data();
-              const purchaseDate = data.purchaseDate?.toDate?.() || new Date();
-              const expirationDate = data.expirationDate?.toDate?.() || new Date();
-              const isExpired = expirationDate < now;
-              const remainingLessons = (data.totalLessons || 0) - (data.lessonsUsed || 0);
-
-              // Use packageCategory if available, otherwise map from packageType
-              const packageCategory = data.packageCategory || mapPackageTypeToCategory(data.packageType || '');
-              
-              allPasses.push({
-                id: pkgDoc.id,
-                clientId: userId,
-                clientName,
-                packageType: data.packageType || '',
-                packageCategory,
-                packageName: data.packageName || data.packageType || 'Pass',
-                totalLessons: data.totalLessons || 0,
-                lessonsUsed: data.lessonsUsed || 0,
-                remainingLessons,
-                purchaseDate,
-                expirationDate,
-                isExpired,
-              });
-            });
-          } catch (err) {
-            console.warn('Error loading passes for user', userId, err);
           }
         }
-
-        // Group passes by category
-        const categoryMap = new Map<string, ClientPass[]>();
         
-        allPasses.forEach(pass => {
-          const category = pass.packageCategory;
-          if (!categoryMap.has(category)) {
-            categoryMap.set(category, []);
-          }
-          categoryMap.get(category)!.push(pass);
-        });
+        setClients(clientsData.sort((a, b) => a.lastName.localeCompare(b.lastName)));
 
-        // Build category groups
-        const groups: CategoryGroup[] = [];
-
-        // Add fixed categories (always show, even if empty)
-        FIXED_CATEGORIES.forEach(fixedCat => {
-          const passes = categoryMap.get(fixedCat.id) || [];
-          const activePasses = passes.filter(p => !p.isExpired);
-          const totalRemaining = activePasses.reduce((sum, p) => sum + p.remainingLessons, 0);
+        // Load pricing structure from organization
+        const orgDoc = await getDoc(doc(db, 'organizations', orgId));
+        if (orgDoc.exists()) {
+          const orgData = orgDoc.data();
+          const pricingData = orgData.pricingStructure;
           
-          // Find next expiration among active passes
-          const nextExpiration = activePasses.length > 0
-            ? activePasses.reduce((earliest, p) => 
-                !earliest || p.expirationDate < earliest ? p.expirationDate : earliest, 
-                null as Date | null
-              )
-            : null;
-
-          groups.push({
-            category: fixedCat.id,
-            displayName: fixedCat.name,
-            totalRemaining,
-            nextExpiration,
-            passes: passes.sort((a, b) => b.purchaseDate.getTime() - a.purchaseDate.getTime()),
-            isFixed: true,
-          });
-        });
-
-        // Add dynamic class categories (only if they have passes)
-        Array.from(categoryMap.keys())
-          .filter(cat => !FIXED_CATEGORIES.some(fc => fc.id === cat))
-          .forEach(category => {
-            const passes = categoryMap.get(category) || [];
-            const activePasses = passes.filter(p => !p.isExpired);
-            const totalRemaining = activePasses.reduce((sum, p) => sum + p.remainingLessons, 0);
-            
-            const nextExpiration = activePasses.length > 0
-              ? activePasses.reduce((earliest, p) => 
-                  !earliest || p.expirationDate < earliest ? p.expirationDate : earliest, 
-                  null as Date | null
-                )
-              : null;
-
-            if (passes.length > 0) {
-              groups.push({
-                category,
-                displayName: getCategoryDisplayName(category),
-                totalRemaining,
-                nextExpiration,
-                passes: passes.sort((a, b) => b.purchaseDate.getTime() - a.purchaseDate.getTime()),
-                isFixed: false,
-              });
-            }
-          });
-
-        setCategoryGroups(groups);
+          if (pricingData && pricingData.tiers && Array.isArray(pricingData.tiers)) {
+            const allPackages: PackageOption[] = [];
+            pricingData.tiers.forEach((tier: any) => {
+              if (tier.packages && Array.isArray(tier.packages)) {
+                tier.packages.forEach((pkg: any) => {
+                  allPackages.push({
+                    id: pkg.id || `${tier.id}-${pkg.packageType}`,
+                    title: pkg.title || pkg.packageType,
+                    priceInCents: pkg.priceInCents || 0,
+                    packageType: pkg.packageType,
+                    packageCategory: pkg.packageCategory || 'pass',
+                    lessonCount: pkg.lessonCount || 1,
+                    expirationDays: pkg.expirationDays || 365
+                  });
+                });
+              }
+            });
+            setPackages(allPackages);
+          }
+        }
       } catch (error) {
-        console.error('Error loading passes:', error);
+        console.error('Error loading passes data:', error);
       } finally {
         setLoading(false);
       }
     }
 
-    loadAllPasses();
+    loadData();
   }, [orgId]);
 
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
+  // Load selected client's packages
+  useEffect(() => {
+    if (!selectedClient) {
+      setClientPackages([]);
+      return;
+    }
+
+    async function loadClientPackages() {
+      if (!selectedClient || !orgId) return;
+      
+      try {
+        // Try new organization path first
+        let packagesSnap = await getDocs(
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
+        );
+        
+        // Fall back to old path if no packages found
+        if (packagesSnap.empty) {
+          packagesSnap = await getDocs(
+            collection(db, 'users', selectedClient.userId, 'lessonPackages')
+          );
+        }
+        
+        const packagesData = packagesSnap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            remainingLessons: (data.totalLessons || 0) - (data.lessonsUsed || 0)
+          } as LessonPackage;
+        });
+        setClientPackages(packagesData);
+      } catch (error) {
+        console.error('Error loading client packages:', error);
       }
-      return next;
-    });
+    }
+
+    loadClientPackages();
+  }, [selectedClient, orgId]);
+
+  const handleSubmit = async () => {
+    if (!selectedClient || !selectedPackage || !orgId) return;
+
+    setSubmitting(true);
+    setMessage(null);
+
+    try {
+      if (action === 'add') {
+        // Add passes to client
+        const now = new Date();
+        const expirationDate = new Date(now);
+        const daysToExpire = selectedPackage.expirationDays || 365;
+        expirationDate.setDate(expirationDate.getDate() + daysToExpire);
+
+        const passData = {
+          packageType: selectedPackage.packageType,
+          packageCategory: selectedPackage.packageCategory,
+          packageName: selectedPackage.title,
+          totalLessons: quantity,
+          lessonsUsed: 0,
+          purchaseDate: Timestamp.fromDate(now),
+          expirationDate: Timestamp.fromDate(expirationDate),
+          transactionId: `ADMIN_ADDED_${Date.now()}`,
+          orgId: orgId
+        };
+
+        // Write to new organization path
+        await addDoc(
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
+          passData
+        );
+
+        // Log activity
+        if (orgId && user && userData) {
+          await logPassIssued({
+            orgId: orgId,
+            actorId: user.uid,
+            actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+            actorRole: 'admin',
+            clientId: selectedClient.userId,
+            clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+            passType: selectedPackage.packageType,
+            passTitle: selectedPackage.title,
+            quantity: quantity,
+            totalSessions: quantity,
+          });
+        }
+
+        setMessage({
+          type: 'success',
+          text: `Successfully added ${quantity} ${selectedPackage.title}${quantity === 1 ? '' : 's'} to ${selectedClient.firstName} ${selectedClient.lastName}'s account.`
+        });
+
+        // Refresh client packages
+        const packagesSnap = await getDocs(
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
+        );
+        const packagesData = packagesSnap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            remainingLessons: (data.totalLessons || 0) - (data.lessonsUsed || 0)
+          } as LessonPackage;
+        });
+        setClientPackages(packagesData);
+      } else {
+        // Remove passes from client
+        let packagesQuery = query(
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
+          where('packageType', '==', selectedPackage.packageType)
+        );
+        let packagesSnap = await getDocs(packagesQuery);
+
+        const usingNewPath = !packagesSnap.empty;
+        if (packagesSnap.empty) {
+          packagesQuery = query(
+            collection(db, 'users', selectedClient.userId, 'lessonPackages'),
+            where('packageType', '==', selectedPackage.packageType)
+          );
+          packagesSnap = await getDocs(packagesQuery);
+        }
+
+        if (packagesSnap.empty) {
+          setMessage({
+            type: 'error',
+            text: 'No passes of this type found for client'
+          });
+          setSubmitting(false);
+          return;
+        }
+
+        // Sort by expiration date
+        const sortedPackages = packagesSnap.docs.sort((a, b) => {
+          const expA = a.data().expirationDate?.toDate?.() || new Date(8640000000000000);
+          const expB = b.data().expirationDate?.toDate?.() || new Date(8640000000000000);
+          return expA.getTime() - expB.getTime();
+        });
+
+        let remainingToRemove = quantity;
+
+        for (const packageDoc of sortedPackages) {
+          if (remainingToRemove <= 0) break;
+
+          const packageData = packageDoc.data();
+          const totalLessons = packageData.totalLessons || 0;
+          const lessonsUsed = packageData.lessonsUsed || 0;
+          const remaining = totalLessons - lessonsUsed;
+
+          if (remaining <= 0) continue;
+
+          const docRef = usingNewPath
+            ? doc(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages', packageDoc.id)
+            : doc(db, 'users', selectedClient.userId, 'lessonPackages', packageDoc.id);
+
+          if (remaining <= remainingToRemove) {
+            await deleteDoc(docRef);
+            remainingToRemove -= remaining;
+          } else {
+            await updateDoc(docRef, { totalLessons: lessonsUsed + (remaining - remainingToRemove) });
+            remainingToRemove = 0;
+          }
+        }
+
+        setMessage({
+          type: 'success',
+          text: `Successfully removed ${quantity} ${selectedPackage.title}${quantity === 1 ? '' : 's'} from ${selectedClient.firstName} ${selectedClient.lastName}'s account.`
+        });
+
+        // Refresh client packages
+        let updatedPackagesSnap = await getDocs(
+          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
+        );
+        if (updatedPackagesSnap.empty) {
+          updatedPackagesSnap = await getDocs(
+            collection(db, 'users', selectedClient.userId, 'lessonPackages')
+          );
+        }
+        const packagesData = updatedPackagesSnap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            remainingLessons: (data.totalLessons || 0) - (data.lessonsUsed || 0)
+          } as LessonPackage;
+        });
+        setClientPackages(packagesData);
+      }
+
+      // Reset form
+      setSelectedPackage(null);
+      setQuantity(1);
+    } catch (error) {
+      console.error('Error managing passes:', error);
+      setMessage({
+        type: 'error',
+        text: `Failed to ${action} passes: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const handleClientClick = (client: Client) => {
+    setSelectedClient(client);
+    setSheetOpen(true);
+    setMessage(null);
+    setSelectedPackage(null);
+    setAction('add');
+    setQuantity(1);
+  };
+
+  // Filter clients based on search query
+  const filteredClients = clients.filter(client => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      client.firstName.toLowerCase().includes(searchLower) ||
+      client.lastName.toLowerCase().includes(searchLower) ||
+      client.email.toLowerCase().includes(searchLower)
+    );
+  });
 
   if (loading) {
     return (
       <BusinessSettingsSubmenu>
         <div className="p-6 lg:p-8">
           <div className="flex items-center justify-center h-64">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="mt-4 text-foreground/80">Loading passes...</p>
+            </div>
           </div>
         </div>
       </BusinessSettingsSubmenu>
@@ -264,220 +434,323 @@ export default function PassesPage() {
     <BusinessSettingsSubmenu>
       <div className="p-6 lg:p-8">
         <div className="space-y-6">
+          {/* Header */}
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Passes Overview</h1>
-            <p className="text-gray-600 mt-1">
-              View all client passes organized by category
+            <h1 className="text-3xl font-bold text-foreground">Manage Passes</h1>
+            <p className="text-foreground/80 mt-1">
+              Add or remove lesson passes for clients
             </p>
           </div>
 
-          {categoryGroups.length === 0 ? (
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search clients by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-12 text-base"
+            />
+          </div>
+
+          {/* Clients Grid */}
+          {filteredClients.length === 0 ? (
             <Card>
               <CardContent className="py-12">
                 <div className="text-center">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Passes Yet</h3>
-                  <p className="text-gray-600">
-                    No clients have purchased passes yet.
+                  <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
+                    {searchQuery ? 'No clients found' : 'No clients yet'}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {searchQuery ? 'Try adjusting your search query' : 'Add clients to manage their passes'}
                   </p>
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {categoryGroups.map(group => {
-                const isExpanded = expandedCategories.has(group.category);
-                const hasActivePasses = group.totalRemaining > 0;
-
-                return (
-                  <Card key={group.category} className="overflow-hidden">
-                    {/* Category Header - Clickable */}
-                    <button
-                      onClick={() => toggleCategory(group.category)}
-                      className="w-full"
-                    >
-                      <CardHeader className="hover:bg-gray-50 transition-colors cursor-pointer">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Package className="h-5 w-5 text-primary" />
-                            </div>
-                            <div className="text-left">
-                              <CardTitle className="text-xl">{group.displayName}</CardTitle>
-                              {hasActivePasses ? (
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {group.totalRemaining} pass{group.totalRemaining === 1 ? '' : 'es'} remaining
-                                  {group.nextExpiration && (
-                                    <span className="ml-2">
-                                      · Next expires {format(group.nextExpiration, 'MMM d, yyyy')}
-                                    </span>
-                                  )}
-                                </p>
-                              ) : (
-                                <p className="text-sm text-gray-500 mt-1">No active passes</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {hasActivePasses && (
-                              <div className="text-right mr-4">
-                                <div className="text-3xl font-bold text-primary">
-                                  {group.totalRemaining}
-                                </div>
-                                <div className="text-xs text-gray-500">total remaining</div>
-                              </div>
-                            )}
-                            {isExpanded ? (
-                              <ChevronUp className="h-5 w-5 text-gray-400" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-gray-400" />
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </button>
-
-                    {/* Expanded Details */}
-                    {isExpanded && (
-                      <CardContent className="border-t">
-                        {group.passes.length === 0 ? (
-                          <div className="py-8 text-center text-gray-500">
-                            <Package className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                            <p className="text-sm">No passes in this category</p>
-                          </div>
-                        ) : (
-                          <>
-                            {/* Active Passes (with remaining lessons) */}
-                            <div className="divide-y">
-                              {group.passes.filter(p => p.remainingLessons > 0).map(pass => (
-                                <div
-                                  key={pass.id}
-                                  className={`py-4 ${pass.isExpired ? 'opacity-60' : ''}`}
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <User className="h-4 w-4 text-gray-400" />
-                                        <span className="font-semibold text-gray-900">
-                                          {pass.clientName}
-                                        </span>
-                                        {pass.isExpired && (
-                                          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
-                                            Expired
-                                          </span>
-                                        )}
-                                      </div>
-                                      
-                                      <div className="ml-6 space-y-1 text-sm">
-                                        <div className="flex items-center gap-2 text-gray-700">
-                                          <Package className="h-3.5 w-3.5 text-gray-400" />
-                                          <span className="font-medium">{pass.packageName}</span>
-                                          <span className="text-gray-500">
-                                            · {pass.remainingLessons} of {pass.totalLessons} remaining
-                                          </span>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-4 text-gray-600">
-                                          <div className="flex items-center gap-1.5">
-                                            <Clock className="h-3.5 w-3.5 text-gray-400" />
-                                            <span>Purchased {format(pass.purchaseDate, 'MMM d, yyyy')}</span>
-                                          </div>
-                                          <div className="flex items-center gap-1.5">
-                                            <Calendar className={`h-3.5 w-3.5 ${pass.isExpired ? 'text-red-400' : 'text-gray-400'}`} />
-                                            <span className={pass.isExpired ? 'text-red-600 font-medium' : ''}>
-                                              Expires {format(pass.expirationDate, 'MMM d, yyyy')}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="text-right ml-4">
-                                      <div className={`text-2xl font-bold ${pass.isExpired ? 'text-gray-400' : 'text-primary'}`}>
-                                        {pass.remainingLessons}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        of {pass.totalLessons}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Used Passes Section (0 remaining) */}
-                            {group.passes.filter(p => p.remainingLessons === 0).length > 0 && (
-                              <div className="mt-6 pt-6 border-t">
-                                <h4 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wide">
-                                  Used Passes
-                                </h4>
-                                <div className="divide-y">
-                                  {group.passes.filter(p => p.remainingLessons === 0).map(pass => (
-                                    <div
-                                      key={pass.id}
-                                      className="py-4 opacity-60"
-                                    >
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2 mb-2">
-                                            <User className="h-4 w-4 text-gray-400" />
-                                            <span className="font-semibold text-gray-700">
-                                              {pass.clientName}
-                                            </span>
-                                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded">
-                                              Used
-                                            </span>
-                                          </div>
-                                          
-                                          <div className="ml-6 space-y-1 text-sm">
-                                            <div className="flex items-center gap-2 text-gray-600">
-                                              <Package className="h-3.5 w-3.5 text-gray-400" />
-                                              <span className="font-medium">{pass.packageName}</span>
-                                              <span className="text-gray-500">
-                                                · {pass.totalLessons} of {pass.totalLessons} used
-                                              </span>
-                                            </div>
-                                            
-                                            <div className="flex items-center gap-4 text-gray-500">
-                                              <div className="flex items-center gap-1.5">
-                                                <Clock className="h-3.5 w-3.5 text-gray-400" />
-                                                <span>Purchased {format(pass.purchaseDate, 'MMM d, yyyy')}</span>
-                                              </div>
-                                              <div className="flex items-center gap-1.5">
-                                                <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                                                <span>
-                                                  Expired {format(pass.expirationDate, 'MMM d, yyyy')}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        <div className="text-right ml-4">
-                                          <div className="text-2xl font-bold text-gray-400">
-                                            0
-                                          </div>
-                                          <div className="text-xs text-gray-500">
-                                            of {pass.totalLessons}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredClients.map(client => (
+                <Card
+                  key={client.id}
+                  className="hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => handleClientClick(client)}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text truncate">
+                          {client.firstName} {client.lastName}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          {client.email}
+                        </p>
+                        {client.phoneNumber && (
+                          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3 w-3" />
+                            {client.phoneNumber}
+                          </p>
                         )}
-                      </CardContent>
-                    )}
-                  </Card>
-                );
-              })}
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Client Pass Management Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          {selectedClient && (
+            <>
+              <SheetHeader className="mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <SheetTitle className="text-2xl">
+                      {selectedClient.firstName} {selectedClient.lastName}
+                    </SheetTitle>
+                    <p className="text-sm text-muted-foreground">{selectedClient.email}</p>
+                  </div>
+                </div>
+              </SheetHeader>
+
+              <div className="space-y-6">
+                {/* Success/Error Message */}
+                {message && (
+                  <div className={`p-4 rounded-lg flex items-start gap-3 ${
+                    message.type === 'success' 
+                      ? 'bg-green-50 text-green-800 border border-green-200' 
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {message.type === 'success' ? (
+                      <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    )}
+                    <p className="text-sm">{message.text}</p>
+                  </div>
+                )}
+
+                {/* Current Passes */}
+                {clientPackages.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Package className="h-5 w-5" />
+                        Current Passes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {clientPackages.map(pkg => {
+                          const isExpired = pkg.expirationDate?.toDate?.() < new Date();
+                          return (
+                            <div
+                              key={pkg.id}
+                              className={`p-4 rounded-lg border ${isExpired ? 'bg-muted/30 border-muted' : 'bg-background border-border'}`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-foreground flex items-center gap-2">
+                                    {pkg.packageName || pkg.packageType}
+                                    {isExpired && (
+                                      <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                        Expired
+                                      </span>
+                                    )}
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {pkg.remainingLessons || 0} of {pkg.totalLessons} remaining
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    Expires: {pkg.expirationDate?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="text-right ml-4">
+                                  <div className={`text-3xl font-bold ${isExpired ? 'text-muted-foreground' : 'text-primary'}`}>
+                                    {pkg.remainingLessons || 0}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">passes left</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Add/Remove Toggle */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Action</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={action === 'add' ? 'default' : 'outline'}
+                      onClick={() => setAction('add')}
+                      className="h-12"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Passes
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={action === 'remove' ? 'default' : 'outline'}
+                      onClick={() => setAction('remove')}
+                      className="h-12"
+                    >
+                      <Minus className="h-4 w-4 mr-2" />
+                      Remove Passes
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Pass Type Selection */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Select Pass Type</label>
+                  {packages.length === 0 ? (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-700">No packages available. Please configure pricing first.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {groupPackagesByCategory(packages).map(group => (
+                        <div key={group.category} className="border border-border rounded-lg overflow-hidden">
+                          {/* Category Header */}
+                          <div className="bg-muted px-4 py-2 border-b border-border">
+                            <h3 className="font-semibold text-foreground flex items-center gap-2">
+                              <Package className="h-4 w-4" />
+                              {group.displayName}
+                            </h3>
+                          </div>
+                          
+                          {/* Package Options */}
+                          <div className="divide-y divide-border">
+                            {group.packages.map(pkg => {
+                              const isSelected = selectedPackage?.id === pkg.id;
+                              const perPassPrice = pkg.priceInCents / (pkg.lessonCount || 1) / 100;
+                              
+                              return (
+                                <button
+                                  key={pkg.id}
+                                  type="button"
+                                  onClick={() => setSelectedPackage(pkg)}
+                                  className={`w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors ${
+                                    isSelected ? 'bg-primary/5 border-l-4 border-l-primary' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-foreground">{pkg.title}</span>
+                                        {(pkg.lessonCount || 1) > 1 && (
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                                            {pkg.lessonCount} passes
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-sm font-semibold text-green-600">
+                                          ${(pkg.priceInCents / 100).toFixed(2)}
+                                        </span>
+                                        {(pkg.lessonCount || 1) > 1 && (
+                                          <span className="text-xs text-muted-foreground">
+                                            (${perPassPrice.toFixed(2)} per pass)
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                        isSelected 
+                                          ? 'border-primary bg-primary' 
+                                          : 'border-muted-foreground'
+                                      }`}>
+                                        {isSelected && (
+                                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 12 12">
+                                            <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                                          </svg>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quantity Selector */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Number of Passes</label>
+                  <div className="flex items-center gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1}
+                      className="h-12 w-12"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1 text-center">
+                      <span className="text-3xl font-bold text-primary">{quantity}</span>
+                      <span className="text-foreground/80 ml-2">pass{quantity === 1 ? '' : 'es'}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setQuantity(Math.min(100, quantity + 1))}
+                      disabled={quantity >= 100}
+                      className="h-12 w-12"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!selectedPackage || submitting}
+                  className="w-full h-14 text-lg"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      {action === 'add' ? 'Adding...' : 'Removing...'}
+                    </>
+                  ) : (
+                    <>
+                      {action === 'add' ? <Plus className="mr-2 h-5 w-5" /> : <Minus className="mr-2 h-5 w-5" />}
+                      {action === 'add' ? 'Add Passes to Client' : 'Remove Passes from Client'}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </BusinessSettingsSubmenu>
   );
 }
