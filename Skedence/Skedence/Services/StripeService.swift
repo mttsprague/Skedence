@@ -70,17 +70,16 @@ final class StripeService: ObservableObject {
     func confirmPayment(paymentIntentId: String, isDirect: Bool = true) async throws {
         isProcessing = true
         error = nil
-        defer { isProcessing = false }        
-        guard let userId = Auth.auth().currentUser?.uid else {            let authError = StripeError.notAuthenticated
-            print("❌ ConfirmPayment: User not authenticated")
+        defer { isProcessing = false }
+        
+        guard let userId = Auth.auth().currentUser?.uid else {
+            let authError = StripeError.notAuthenticated
             self.error = authError
             throw authError
         }
         
         // Use the appropriate function based on payment type
         let functionName = isDirect ? "confirmPaymentAndCreatePackageDirect" : "confirmPaymentAndCreatePackage"
-        print("🔧 Calling Firebase function: \(functionName)")
-        print("📋 Data: paymentIntentId=\(paymentIntentId), userId=\(userId)")
         
         let callable = functions.httpsCallable(functionName)
         let data: [String: Any] = [
