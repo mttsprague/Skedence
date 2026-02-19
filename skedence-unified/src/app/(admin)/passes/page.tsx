@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Plus, Minus, Package, User, Search, Calendar, Clock, Mail, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, Minus, Package, User, Search, Calendar, Clock, Mail, Phone, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { logPassIssued } from '@/lib/activity-logger';
 
@@ -112,6 +113,7 @@ export default function PassesPage() {
   const [selectedPackage, setSelectedPackage] = useState<PackageOption | null>(null);
   const [action, setAction] = useState<'add' | 'remove'>('add');
   const [quantity, setQuantity] = useState(1);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!orgId) return;
@@ -385,12 +387,27 @@ export default function PassesPage() {
       // Reset form
       setSelectedPackage(null);
       setQuantity(1);
-    } catch (error) {
+      setConfirmDialogOpen(false);
+    } catch (error: any) {
       console.error('Error managing passes:', error);
+      console.error('Error code:', error?.code);
+      console.error('Error details:', error?.message);
+      console.error('Current user:', user?.uid);
+      console.error('User role:', userData?.role);
+      console.error('OrgId:', orgId);
+      
+      let errorMessage = 'Unknown error';
+      if (error?.code === 'permission-denied') {
+        errorMessage = 'Permission denied. Please ensure you have admin/trainer access to this organization.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       setMessage({
         type: 'error',
-        text: `Failed to ${action} passes: ${error instanceof Error ? error.message : 'Unknown error'}`
+        text: `Failed to ${action} passes: ${errorMessage}`
       });
+      setConfirmDialogOpen(false);
     } finally {
       setSubmitting(false);
     }
@@ -732,7 +749,7 @@ export default function PassesPage() {
 
                 {/* Submit Button */}
                 <Button
-                  onClick={handleSubmit}
+                  onClick={() => setConfirmDialogOpen(true)}
                   disabled={!selectedPackage || submitting}
                   className="w-full h-14 text-lg"
                 >
@@ -753,6 +770,83 @@ export default function PassesPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirm {action === 'add' ? 'Add' : 'Remove'} Passes
+            </DialogTitle>
+            <DialogDescription>
+              {selectedClient && selectedPackage && (
+                <div className="space-y-3 pt-2">
+                  <p className="text-base">
+                    Are you sure you want to <span className="font-semibold">{action}</span>{' '}
+                    <span className="font-semibold text-primary">{quantity}</span>{' '}
+                    {selectedPackage.title}{quantity === 1 ? '' : 's'}{' '}
+                    {action === 'add' ? 'to' : 'from'}{' '}
+                    <span className="font-semibold">{selectedClient.firstName} {selectedClient.lastName}</span>?
+                  </p>
+                  
+                  {action === 'add' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                      <p className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          This will add {quantity} pass{quantity === 1 ? '' : 'es'} to the client's account at no charge. 
+                          The client will not be billed for this.
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                  
+                  {action === 'remove' && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                      <p className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          This will remove {quantity} pass{quantity === 1 ? '' : 'es'} from the client's account, 
+                          starting with the passes closest to expiring.
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmDialogOpen(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className={action === 'add' ? 'bg-primary' : 'bg-red-600 hover:bg-red-700'}
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  {action === 'add' ? 'Adding...' : 'Removing...'}
+                </>
+              ) : (
+                <>
+                  {action === 'add' ? <Plus className="mr-2 h-4 w-4" /> : <Minus className="mr-2 h-4 w-4" />}
+                  Confirm {action === 'add' ? 'Add' : 'Remove'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </BusinessSettingsSubmenu>
   );
 }
