@@ -17,7 +17,6 @@ struct SkedenceAdminApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     @StateObject private var dependencies = AdminAppDependencies()
-    @StateObject private var onboardingCoordinator = OnboardingCoordinator()
     @State private var stripeConnectCompleted = false
     @State private var passwordSetupData: (token: String, email: String, trainerId: String)?
     @Environment(\.scenePhase) private var scenePhase
@@ -50,29 +49,15 @@ struct SkedenceAdminApp: App {
                 handleDeepLink(url)
             }
         }
-        // Show onboarding if not authenticated OR if authenticated but onboarding not complete
+        // Show sign in page if not authenticated
         else if !auth.isAuthenticated {
-            OnboardingLandingView()
+            SignInView()
                 .environmentObject(dependencies)
-                .environmentObject(onboardingCoordinator)
-                .onAppear {
-                    // Reset coordinator when returning to landing (logged out state)
-                    onboardingCoordinator.currentStep = .account
-                    onboardingCoordinator.data = OnboardingData()
-                }
-                .onOpenURL { url in
-                    handleDeepLink(url)
-                }
-        } else if auth.isAuthenticated && !auth.onboardingComplete {
-            // User is authenticated but hasn't finished onboarding
-            // Show the onboarding flow which will handle both new and returning incomplete users
-            OnboardingFlowView()
-                .environmentObject(dependencies)
-                .environmentObject(onboardingCoordinator)
                 .onOpenURL { url in
                     handleDeepLink(url)
                 }
         } else {
+            // Authenticated - go straight to main app
             ContentViewWrapper()
                 .environmentObject(dependencies)
                 .task {

@@ -136,6 +136,23 @@ final class AuthManager: ObservableObject {
         self.errorMessage = "FirebaseAuth is not available in this build."
         #endif
     }
+    
+    // Sign in with explicit email and password parameters
+    func signIn(email: String, password: String) async throws {
+        errorMessage = nil
+        #if canImport(FirebaseAuth)
+        do {
+            _ = try await Auth.auth().signIn(withEmail: email, password: password)
+            // Auth listener will handle loading org and trainer data
+        } catch {
+            self.errorMessage = error.localizedDescription
+            throw error
+        }
+        #else
+        self.errorMessage = "FirebaseAuth is not available in this build."
+        throw NSError(domain: "AuthManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "FirebaseAuth is not available"])
+        #endif
+    }
 
     func signOut() {
         errorMessage = nil
