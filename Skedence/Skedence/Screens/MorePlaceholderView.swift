@@ -507,6 +507,11 @@ struct MorePlaceholderView: View {
         .sheet(isPresented: $showTrainerBio) {
             if let trainer = selectedTrainer {
                 TrainerBioSheet(trainer: trainer)
+            } else {
+                // Fallback in case trainer is nil
+                Text("Error: No trainer selected")
+                    .font(.title)
+                    .padding()
             }
         }
         .task {
@@ -527,7 +532,10 @@ struct MorePlaceholderView: View {
                 VStack(spacing: Spacing.md) {
                     ForEach(trainersService.trainers.filter { $0.active == true }, id: \.id) { trainer in
                         Button {
+                            print("DEBUG: Tapping trainer: \(trainer.name ?? "unknown"), active: \(trainer.active ?? false)")
+                            print("DEBUG: Trainer description: \(trainer.trainerDescription ?? "nil")")
                             selectedTrainer = trainer
+                            print("DEBUG: selectedTrainer set to: \(selectedTrainer?.name ?? "nil")")
                             showTrainerBio = true
                         } label: {
                             HStack(spacing: Spacing.md) {
