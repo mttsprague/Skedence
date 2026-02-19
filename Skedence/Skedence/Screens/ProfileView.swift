@@ -72,7 +72,7 @@ struct ProfileView: View {
             .task {
                 if isSignedIn {
                     await usersService.loadCurrentUserIfAvailable()
-                    await packagesService.loadMyPackages()
+                    await packagesService.loadMyPackages(orgId: auth.currentOrgId)
                     if let orgId = auth.currentOrgId {
                         await bookingsService.loadMyBookings(orgId: orgId)
                     }
@@ -142,7 +142,7 @@ private struct SignedInProfileScreen: View {
         .refreshable {
             guard let orgId = auth.currentOrgId else { return }
             await usersService.loadCurrentUserIfAvailable()
-            await packagesService.loadMyPackages()
+            await packagesService.loadMyPackages(orgId: auth.currentOrgId)
             await bookingsService.loadMyBookings(orgId: orgId)
             await classesService.loadMyRegisteredClasses(orgId: orgId)
             await customerService.loadPaymentMethods(orgId: orgId)
@@ -196,7 +196,7 @@ private struct SignedInProfileScreen: View {
             // Reload packages when returning from purchase view
             if !isPresentingPurchase && tab == .passes {
                 Task {
-                    await packagesService.loadMyPackages()
+                    await packagesService.loadMyPackages(orgId: auth.currentOrgId)
                 }
             }
         }
@@ -510,7 +510,7 @@ private struct SignedInProfileScreen: View {
                         .padding(.horizontal)
                     Button {
                         Task {
-                            await packagesService.loadMyPackages()
+                            await packagesService.loadMyPackages(orgId: auth.currentOrgId)
                         }
                     } label: {
                         Label("Try Again", systemImage: "arrow.clockwise")
@@ -556,7 +556,7 @@ private struct SignedInProfileScreen: View {
                     // Refresh button
                     Button {
                         Task {
-                            await packagesService.loadMyPackages()
+                            await packagesService.loadMyPackages(orgId: auth.currentOrgId)
                         }
                     } label: {
                         Image(systemName: "arrow.clockwise")

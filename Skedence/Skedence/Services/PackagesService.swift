@@ -48,9 +48,9 @@ final class PackagesService: ObservableObject {
     }
 
     /// Load packages for the current user (maintains backward compatibility)
-    func loadMyPackages() async {
+    func loadMyPackages(orgId: String? = nil) async {
         do {
-            try await loadMyPackagesInternal()
+            try await loadMyPackagesInternal(orgId: orgId)
         } catch {
             // Error already set in internal method
         }
@@ -58,7 +58,7 @@ final class PackagesService: ObservableObject {
     
     // MARK: - Internal Implementation
     
-    private func loadMyPackagesInternal() async throws {
+    private func loadMyPackagesInternal(orgId: String? = nil) async throws {
         guard let uid = Auth.auth().currentUser?.uid else {
             throw ServiceError.notAuthenticated
         }
@@ -67,18 +67,24 @@ final class PackagesService: ObservableObject {
         error = nil
         
         do {
-            // Look up the user's organization from orgMembers (same as AuthManager)
-            let orgMembersQuery = db.collection("orgMembers")
-                .whereField("userId", isEqualTo: uid)
-                .limit(to: 1)
-            
-            let orgMembersSnapshot = try await orgMembersQuery.getDocuments()
-            
-            if let memberDoc = orgMembersSnapshot.documents.first,
-               let orgId = memberDoc.data()["orgId"] as? String {
-                items = try await repository.fetchAll(orgId: orgId)
+            // Use provided orgId if available (preferred - from AuthManager)
+            if let providedOrgId = orgId {
+                items = try await repository.fetchAll(orgId: providedOrgId)
             } else {
-                items = []
+                // Fallback: Look up the user's organization from orgMembers
+                let orgMembersQuery = db.collection("orgMembers")
+                    .whereField("userId", isEqualTo: uid)
+                    .whereField("isActive", isEqualTo: true)
+                    .limit(to: 1)
+                
+                let orgMembersSnapshot = try await orgMembersQuery.getDocuments()
+                
+                if let memberDoc = orgMembersSnapshot.documents.first,
+                   let fetchedOrgId = memberDoc.data()["orgId"] as? String {
+                    items = try await repository.fetchAll(orgId: fetchedOrgId)
+                } else {
+                    items = []
+                }
             }
         } catch {
             self.error = mapRepositoryError(error)

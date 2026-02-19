@@ -687,7 +687,7 @@ struct PurchaseLessonsView: View {
             // Activity logging handled by cloud functions
             
             // Reload packages
-            await packagesService.loadMyPackages()
+            await packagesService.loadMyPackages(orgId: auth.currentOrgId)
             
             // Success - show alert
             alert = .init(
@@ -736,7 +736,7 @@ struct PurchaseLessonsView: View {
                     
                     // Reload packages to show the new one
                     print("📦 Reloading packages...")
-                    await packagesService.loadMyPackages()
+                    await packagesService.loadMyPackages(orgId: auth.currentOrgId)
                     print("✅ Packages reloaded, count: \(packagesService.packages.count)")
                 } catch {
                     print("❌ confirmPayment failed: \(error.localizedDescription)")
