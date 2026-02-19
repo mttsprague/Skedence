@@ -192,11 +192,6 @@ private struct SignedInProfileScreen: View {
                 }
             }
         }
-        .sheet(isPresented: $showTrainerBio) {
-            if let trainer = selectedTrainer {
-                TrainerBioSheet(trainer: trainer)
-            }
-        }
         .onChangeCompat(of: showPurchaseLessons) { isPresentingPurchase in
             // Reload packages when returning from purchase view
             if !isPresentingPurchase && tab == .passes {

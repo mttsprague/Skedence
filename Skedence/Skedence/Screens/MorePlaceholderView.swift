@@ -154,9 +154,13 @@ struct MorePlaceholderView: View {
                         }
                     }
                     
-                // Trainers Section
-                trainersSection
-                
+                    // Trainers Section
+                    trainersSection
+                    
+                    // Contact Section
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        SectionHeaderView(title: "Contact")
+                        
                         CardView {
                             VStack(spacing: Spacing.md) {
                                 // Email
