@@ -242,6 +242,29 @@ export default function PassesPage() {
     setMessage(null);
 
     try {
+      // Debug: Check if orgMember document exists
+      if (user?.uid && orgId) {
+        const orgMemberDocId = `${user.uid}_${orgId}`;
+        console.log('🔍 Checking orgMember document:', orgMemberDocId);
+        try {
+          const orgMemberDoc = await getDoc(doc(db, 'orgMembers', orgMemberDocId));
+          if (orgMemberDoc.exists()) {
+            console.log('✅ OrgMember document exists:', orgMemberDoc.data());
+          } else {
+            console.error('❌ OrgMember document does NOT exist:', orgMemberDocId);
+            console.error('This is likely why you have permission-denied errors');
+            setMessage({
+              type: 'error',
+              text: 'Your account is not properly linked to this organization. Please contact support.'
+            });
+            setConfirmDialogOpen(false);
+            setSubmitting(false);
+            return;
+          }
+        } catch (err) {
+          console.error('Error checking orgMember document:', err);
+        }
+      }
       if (action === 'add') {
         // Add passes to client
         const now = new Date();
@@ -261,26 +284,38 @@ export default function PassesPage() {
           orgId: orgId
         };
 
-        // Write to new organization path
+        // Write to BOTH paths for compatibility (like iOS admin app does):
+        // 1. Old path (backward compatibility)
+        await addDoc(
+          collection(db, 'users', selectedClient.userId, 'lessonPackages'),
+          passData
+        );
+
+        // 2. New path (where modern client apps read)
         await addDoc(
           collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
           passData
         );
 
-        // Log activity
+        // Try to log activity (but don't fail if it doesn't work - activities are write-protected)
         if (orgId && user && userData) {
-          await logPassIssued({
-            orgId: orgId,
-            actorId: user.uid,
-            actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-            actorRole: 'admin',
-            clientId: selectedClient.userId,
-            clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
-            passType: selectedPackage.packageType,
-            passTitle: selectedPackage.title,
-            quantity: quantity,
-            totalSessions: quantity,
-          });
+          try {
+            await logPassIssued({
+              orgId: orgId,
+              actorId: user.uid,
+              actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+              actorRole: 'admin',
+              clientId: selectedClient.userId,
+              clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+              passType: selectedPackage.packageType,
+              passTitle: selectedPackage.title,
+              quantity: quantity,
+              totalSessions: quantity,
+            });
+          } catch (activityError) {
+            console.warn('Could not log activity (activities collection is Cloud Function only):', activityError);
+            // Don't fail the operation if activity logging fails
+          }
         }
 
         setMessage({
