@@ -10,11 +10,8 @@ import {
   Calendar, 
   AlertCircle, 
   CheckCircle2,
-  Clock,
-  ArrowRight,
-  Sparkles
+  Clock
 } from 'lucide-react';
-import Link from 'next/link';
 
 interface SubscriptionStatus {
   hasSubscription: boolean;
@@ -144,23 +141,13 @@ export function SubscriptionStatusCard({ orgId }: SubscriptionStatusCardProps) {
       'bg-gradient-to-br from-purple-50 to-transparent'
     }`}>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Crown className={`h-5 w-5 ${
-              isTrialing ? 'text-green-600' :
-              isActive ? 'text-blue-600' :
-              'text-purple-600'
-            }`} />
-            Subscription Status
-          </div>
-          {!subscriptionStatus?.hasSubscription && (
-            <Link href="/settings/subscription">
-              <Button size="sm" className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                Start Free Trial
-              </Button>
-            </Link>
-          )}
+        <CardTitle className="flex items-center gap-2">
+          <Crown className={`h-5 w-5 ${
+            isTrialing ? 'text-green-600' :
+            isActive ? 'text-blue-600' :
+            'text-purple-600'
+          }`} />
+          Subscription Status
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -188,12 +175,9 @@ export function SubscriptionStatusCard({ orgId }: SubscriptionStatusCardProps) {
                 <div className="font-semibold">14 days</div>
               </div>
             </div>
-            <Link href="/settings/subscription">
-              <Button className="w-full gap-2">
-                View All Plans
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            <div className="text-sm text-center text-muted-foreground pt-2">
+              View pricing plans below to get started
+            </div>
           </div>
         ) : (
           // Has subscription - Show detailed info
@@ -331,25 +315,19 @@ export function SubscriptionStatusCard({ orgId }: SubscriptionStatusCardProps) {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
-              <Link href="/settings/subscription" className="flex-1">
-                <Button variant="outline" className="w-full gap-2">
-                  <Crown className="h-4 w-4" />
-                  View All Plans
-                </Button>
-              </Link>
+            <div className="flex flex-col gap-3">
               <Button 
                 onClick={handleManageSubscription} 
                 disabled={isManaging}
-                className="flex-1 gap-2"
+                className="w-full gap-2"
               >
                 <CreditCard className="h-4 w-4" />
                 {isManaging ? 'Loading...' : 'Manage Billing'}
               </Button>
-            </div>
-
-            <div className="text-xs text-center text-muted-foreground pt-2">
-              Manage your payment methods, view invoices, and update billing information
+              <div className="text-xs text-center text-muted-foreground">
+                Manage your payment methods, view invoices, and update billing information.<br/>
+                View pricing plans below to upgrade or change your subscription.
+              </div>
             </div>
           </div>
         )}
