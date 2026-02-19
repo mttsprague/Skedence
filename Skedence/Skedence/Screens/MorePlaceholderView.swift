@@ -12,7 +12,7 @@ import FirebaseFunctions
 
 struct MorePlaceholderView: View {
     @EnvironmentObject var auth: AuthManager
-    @EnvironmentObject var trainersService: TrainersRepository
+    @EnvironmentObject var trainersService: TrainersService
     @Binding var selectedTab: Int
     @State private var showingResetPassword = false
     @State private var resetMessage: String?
