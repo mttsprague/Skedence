@@ -36,6 +36,7 @@ import {
 import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ActivityType } from '@/lib/activity-logger';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { OnboardingChecklist } from '@/components/admin/onboarding-checklist';
 
 interface ActivityLog {
   id: string;
@@ -888,6 +889,9 @@ export default function ActivityPage() {
           View all recent actions and events in your organization
         </p>
       </div>
+
+      {/* Onboarding Checklist - Shows for new users */}
+      <OnboardingChecklist />
 
       {/* What's Happening Section - Moved to Top */}
       <Card>
