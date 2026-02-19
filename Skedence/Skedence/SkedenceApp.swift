@@ -23,9 +23,8 @@ struct SkedenceApp: App {
         // Use debug provider in development
         AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
         #else
-        // Use DeviceCheck provider in production
-        let providerFactory = AppAttestProviderFactory()
-        AppCheck.setAppCheckProviderFactory(providerFactory)
+        // Use DeviceCheck provider in production (more reliable for App Store)
+        AppCheck.setAppCheckProviderFactory(DeviceCheckProviderFactory())
         #endif
         
         // Configure Firebase AFTER setting App Check provider
