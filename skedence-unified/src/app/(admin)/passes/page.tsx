@@ -467,39 +467,41 @@ export default function PassesPage() {
                     {searchQuery ? 'Try adjusting your search query' : 'Add clients to manage their passes'}
                   </p>
                 </div>
-              </CardContent>
+          </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredClients.map(client => (
-                <Card
+                <div
                   key={client.id}
-                  className="hover:shadow-lg transition-shadow cursor-pointer"
                   onClick={() => handleClientClick(client)}
+                  className="cursor-pointer"
                 >
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text truncate">
-                          {client.firstName} {client.lastName}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          {client.email}
-                        </p>
-                        {client.phoneNumber && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <Phone className="h-3 w-3" />
-                            {client.phoneNumber}
+                  <Card className="hover:shadow-lg transition-shadow h-full">
+                    <CardHeader>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text truncate">
+                            {client.firstName} {client.lastName}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {client.email}
                           </p>
-                        )}
+                          {client.phoneNumber && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Phone className="h-3 w-3" />
+                              {client.phoneNumber}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                </Card>
+                    </CardHeader>
+                  </Card>
+                </div>
               ))}
             </div>
           )}
