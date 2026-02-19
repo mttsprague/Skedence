@@ -50,7 +50,6 @@ struct BusinessView: View {
     enum BusinessSection: String, CaseIterable {
         case team = "Team"
         case operations = "Operations"
-        case financial = "Financial"
     }
     
     enum SubTab: String {
@@ -220,6 +219,7 @@ struct BusinessView: View {
                         Text("Classes").tag(SubTab.classes)
                         Text("Locations").tag(SubTab.locations)
                         Text("Pricing").tag(SubTab.pricing)
+                        Text("Wallet").tag(SubTab.wallet)
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
@@ -250,7 +250,12 @@ struct BusinessView: View {
                             trainerLimit: trainerLimit,
                             trainerCount: superAdminViewModel.trainers.count,
                             onShowAvatarUpload: { },
-                            onShowAddTrainer: { showingAddTrainer = true }
+                            onShowAddTrainer: { showingAddTrainer = true },
+                            onShowPricing: {
+                                // Navigate to Pricing tab to upgrade plan
+                                selectedSection = .operations
+                                selectedSubTab = .pricing
+                            }
                         )
                         .environmentObject(dependencies)
                         
@@ -307,8 +312,7 @@ struct BusinessView: View {
                         )
                         .environmentObject(dependencies)
                         
-                    // FINANCIAL SECTION
-                    case (.financial, .wallet):
+                    case (.operations, .wallet):
                         WalletTabView(
                             adminService: adminService,
                             selectedClient: $selectedClient,
@@ -335,8 +339,6 @@ struct BusinessView: View {
             selectedSubTab = .organizations
         case .operations:
             selectedSubTab = .passes
-        case .financial:
-            selectedSubTab = .wallet
         }
     }
     

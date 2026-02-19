@@ -43,27 +43,6 @@ struct OrganizationsSection: View {
                 Divider()
                     .padding(.vertical, Spacing.md)
                 
-                // Manage Subscription
-                NavigationLink(destination: InAppSubscriptionView(orgId: currentOrgId ?? "")) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Manage Subscription")
-                                .font(.headingSmall)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text("\(billingPlan.capitalized) Plan")
-                                .font(.bodyMedium)
-                                .foregroundStyle(isBillingBlocked ? .red : AppTheme.textSecondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(CornerRadius.md)
-                    .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
-                }
-                
                 // Stripe Settings
                 NavigationLink(destination: StripeSettingsViewDirect()) {
                     HStack {
