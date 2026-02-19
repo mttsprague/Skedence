@@ -51,7 +51,6 @@ struct BusinessView: View {
         case team = "Team"
         case operations = "Operations"
         case financial = "Financial"
-        case settings = "Settings"
     }
     
     enum SubTab: String {
@@ -116,32 +115,18 @@ struct BusinessView: View {
             }
         }
         .sheet(isPresented: $showingAddLocation) {
-            AddLocationView(
-                locationToEdit: $locationToEdit,
-                onSave: { name, address, notes in
-                    Task {
-                        if let location = locationToEdit {
-                            try? await locationsService.updateLocation(
-                                location: Location(id: location.id, name: name, address: address, notes: notes, orgId: location.orgId)
-                            )
-                        } else {
-                            guard let orgId = auth.currentOrgId else { return }
-                            try? await locationsService.addLocation(
-                                name: name,
-                                address: address,
-                                notes: notes,
-                                orgId: orgId
-                            )
-                        }
-                        showingAddLocation = false
-                        locationToEdit = nil
-                    }
+            AddEditLocationSheet(
+                locationsService: locationsService,
+                locationToEdit: locationToEdit,
+                onSave: {
+                    locationToEdit = nil
                 }
             )
+            .environmentObject(dependencies)
         }
         .sheet(isPresented: $showingProcessPayment) {
-            if let client = selectedClient, let orgId = auth.currentOrgId {
-                ProcessPaymentView(client: client, orgId: orgId)
+            if let client = selectedClient {
+                ProcessPaymentView(client: client)
             }
         }
         .alert(item: $alertItem) { item in
@@ -265,8 +250,7 @@ struct BusinessView: View {
                             trainerLimit: trainerLimit,
                             trainerCount: superAdminViewModel.trainers.count,
                             onShowAvatarUpload: { },
-                            onShowAddTrainer: { showingAddTrainer = true },
-                            onShowPricing: { }
+                            onShowAddTrainer: { showingAddTrainer = true }
                         )
                         .environmentObject(dependencies)
                         
@@ -332,11 +316,6 @@ struct BusinessView: View {
                         )
                         .environmentObject(dependencies)
                         
-                    // SETTINGS SECTION
-                    case (.settings, .orgSettings):
-                        SettingsTabView()
-                            .environmentObject(dependencies)
-                        
                     default:
                         EmptyView()
                     }
@@ -358,8 +337,6 @@ struct BusinessView: View {
             selectedSubTab = .passes
         case .financial:
             selectedSubTab = .wallet
-        case .settings:
-            selectedSubTab = .orgSettings
         }
     }
     

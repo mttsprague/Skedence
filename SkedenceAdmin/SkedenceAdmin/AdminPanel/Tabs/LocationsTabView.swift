@@ -67,9 +67,9 @@ struct LocationsTabView: View {
                         .foregroundStyle(AppTheme.textPrimary)
                     
                     Text("Upgrade your subscription to add more locations")
-                        .font(.bodyMedium)at skedence.com to add more locations")
                         .font(.bodyMedium)
                         .foregroundStyle(AppTheme.textSecondary)
+                }
                 .padding(Spacing.lg)
                 .background(Color(UIColor.systemGray6))
                 .cornerRadius(12)
