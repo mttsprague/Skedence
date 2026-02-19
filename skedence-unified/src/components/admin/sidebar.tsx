@@ -12,7 +12,8 @@ import {
   X,
   FileText,
   Activity,
-  ChevronRight
+  ChevronRight,
+  Crown
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,12 @@ const navigation = [
     icon: Settings, 
     hasSubmenu: true,
     description: 'Configure business and account settings'
+  },
+  { 
+    name: 'Subscription', 
+    href: '/subscription', 
+    icon: Crown,
+    description: 'Manage your billing and subscription'
   },
 ];
 
