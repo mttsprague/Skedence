@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
-import { SubscriptionStatusCard } from '@/components/admin/subscription-status-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -101,12 +100,7 @@ export default function SettingsPage() {
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Subscription Status - Full Width */}
-            <SubscriptionStatusCard orgId={orgId} />
-
-            {/* Settings Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Booking Settings */}
             <Card>
               <CardHeader>
@@ -239,7 +233,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
         )}
       </div>
     </BusinessSettingsSubmenu>

@@ -31,11 +31,13 @@ import {
   TrendingDown,
   Minus,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Crown
 } from 'lucide-react';
 import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ActivityType } from '@/lib/activity-logger';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { SubscriptionStatusCard } from '@/components/admin/subscription-status-card';
 
 interface ActivityLog {
   id: string;
@@ -110,6 +112,7 @@ export default function ActivityPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [activeTab, setActiveTab] = useState<'activity' | 'subscription'>('activity');
   
   // Advanced filters
   const [selectedActivityType, setSelectedActivityType] = useState<string>('all');
@@ -883,12 +886,49 @@ export default function ActivityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Activity Feed</h1>
+        <h1 className="text-3xl font-bold text-foreground">Activity & Subscription</h1>
         <p className="mt-2 text-foreground/80">
-          View all recent actions and events in your organization
+          Monitor your organization's activity and manage billing
         </p>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab('activity')}
+            className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-colors ${
+              activeTab === 'activity'
+                ? 'bg-white text-primary border border-gray-200 border-b-white -mb-px'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <ActivityIcon className="h-4 w-4" />
+              Activity Feed
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('subscription')}
+            className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-colors ${
+              activeTab === 'subscription'
+                ? 'bg-white text-primary border border-gray-200 border-b-white -mb-px'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Crown className="h-4 w-4" />
+              Subscription
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'subscription' ? (
+        <SubscriptionStatusCard orgId={orgId} />
+      ) : (
+        <>
       {/* What's Happening Section - Moved to Top */}
       <Card>
         <CardHeader>
@@ -1919,6 +1959,8 @@ export default function ActivityPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
