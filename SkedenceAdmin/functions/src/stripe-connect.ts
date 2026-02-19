@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
@@ -46,10 +47,11 @@ interface CreateConnectAccountData {
  * Create a Stripe Connect account for a business
  * Called during organization onboarding
  */
-export const createConnectAccount = functions.https.onCall(
-  async (request: functions.https.CallableRequest<CreateConnectAccountData>) => {
+export const createConnectAccount = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -58,7 +60,7 @@ export const createConnectAccount = functions.https.onCall(
     const {orgId, email, businessName} = request.data;
 
     if (!orgId || !email || !businessName) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
@@ -70,7 +72,7 @@ export const createConnectAccount = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData || orgData.ownerUserId !== request.auth.uid) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You must be the organization owner"
         );
@@ -99,13 +101,23 @@ export const createConnectAccount = functions.https.onCall(
       });
 
       // Update organization with Connect account ID
-      await db.collection("organizations").doc(orgId).update({
+      // Also save platform publishable key for client-side payments
+      const platformPublishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+      const updateData: any = {
         "stripe.connectAccountId": account.id,
         "stripe.onboardingComplete": false,
         "stripe.chargesEnabled": false,
         "stripe.payoutsEnabled": false,
         "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+
+      if (platformPublishableKey) {
+        updateData["stripe.publishableKey"] = platformPublishableKey;
+      } else {
+        console.warn("⚠️ STRIPE_PUBLISHABLE_KEY not set in environment");
+      }
+
+      await db.collection("organizations").doc(orgId).update(updateData);
 
       return {
         success: true,
@@ -114,7 +126,7 @@ export const createConnectAccount = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error creating Connect account:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -127,10 +139,11 @@ interface CreateAccountLinkData {
  * Generate onboarding link for Stripe Connect account
  * Returns URL for business owner to complete Stripe setup
  */
-export const createConnectAccountLink = functions.https.onCall(
-  async (request: functions.https.CallableRequest<CreateAccountLinkData>) => {
+export const createConnectAccountLink = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -139,7 +152,7 @@ export const createConnectAccountLink = functions.https.onCall(
     const {orgId} = request.data;
 
     if (!orgId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId"
       );
@@ -151,7 +164,7 @@ export const createConnectAccountLink = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData || orgData.ownerUserId !== request.auth.uid) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You must be the organization owner"
         );
@@ -159,7 +172,7 @@ export const createConnectAccountLink = functions.https.onCall(
 
       const connectAccountId = orgData.stripe?.connectAccountId;
       if (!connectAccountId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No Connect account exists for this organization"
         );
@@ -182,7 +195,7 @@ export const createConnectAccountLink = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error creating account link:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -195,10 +208,11 @@ interface RefreshConnectAccountData {
  * Refresh Connect account status from Stripe
  * Updates charges_enabled, payouts_enabled, onboarding_complete
  */
-export const refreshConnectAccountStatus = functions.https.onCall(
-  async (request: functions.https.CallableRequest<RefreshConnectAccountData>) => {
+export const refreshConnectAccountStatus = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -207,7 +221,7 @@ export const refreshConnectAccountStatus = functions.https.onCall(
     const {orgId} = request.data;
 
     if (!orgId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId"
       );
@@ -219,7 +233,7 @@ export const refreshConnectAccountStatus = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData || orgData.ownerUserId !== request.auth.uid) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You must be the organization owner"
         );
@@ -227,7 +241,7 @@ export const refreshConnectAccountStatus = functions.https.onCall(
 
       const connectAccountId = orgData.stripe?.connectAccountId;
       if (!connectAccountId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No Connect account exists for this organization"
         );
@@ -236,13 +250,26 @@ export const refreshConnectAccountStatus = functions.https.onCall(
       // Fetch account from Stripe
       const account = await stripe.accounts.retrieve(connectAccountId);
 
+      // Get platform publishable key from environment
+      const platformPublishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+      if (!platformPublishableKey) {
+        console.warn("⚠️ STRIPE_PUBLISHABLE_KEY not set in environment");
+      }
+
       // Update organization with latest status
-      await db.collection("organizations").doc(orgId).update({
+      const updateData: any = {
         "stripe.chargesEnabled": account.charges_enabled,
         "stripe.payoutsEnabled": account.payouts_enabled,
         "stripe.onboardingComplete": account.details_submitted,
         "updatedAt": admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+
+      // Add publishable key if available (platform key used for all Connect payments)
+      if (platformPublishableKey) {
+        updateData["stripe.publishableKey"] = platformPublishableKey;
+      }
+
+      await db.collection("organizations").doc(orgId).update(updateData);
 
       return {
         success: true,
@@ -253,7 +280,7 @@ export const refreshConnectAccountStatus = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error refreshing account status:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -275,12 +302,11 @@ interface CreatePaymentIntentConnectData {
  * Routes payment to business's connected account
  * Platform takes application fee
  */
-export const createPaymentIntentConnect = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<CreatePaymentIntentConnectData>
-  ) => {
+export const createPaymentIntentConnect = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to create a payment"
       );
@@ -289,14 +315,14 @@ export const createPaymentIntentConnect = functions.https.onCall(
     const {orgId, packageType, amount, trainerId, userId} = request.data;
 
     if (!orgId || !packageType || !amount || !trainerId || !userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
     }
 
     if (request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
       );
@@ -308,7 +334,7 @@ export const createPaymentIntentConnect = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -316,14 +342,14 @@ export const createPaymentIntentConnect = functions.https.onCall(
 
       const connectAccountId = orgData.stripe?.connectAccountId;
       if (!connectAccountId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization has not connected Stripe account"
         );
       }
 
       if (!orgData.stripe?.chargesEnabled) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization's Stripe account is not ready to accept payments"
         );
@@ -350,7 +376,7 @@ export const createPaymentIntentConnect = functions.https.onCall(
       }
 
       if (!validPackages[packageType] || validPackages[packageType] !== amount) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           `Invalid package type or amount. Expected ${validPackages[packageType]} for ${packageType}, got ${amount}`
         );
@@ -428,11 +454,11 @@ export const createPaymentIntentConnect = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error creating payment intent:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );

@@ -59,7 +59,8 @@ final class TrainersService: ObservableObject {
                     avatarUrl: data["avatarUrl"] as? String,
                     photoURL: data["photoURL"] as? String,
                     imageUrl: data["imageUrl"] as? String,
-                    active: (data["active"] as? Bool) ?? true
+                    active: (data["active"] as? Bool) ?? true,
+                    trainerDescription: data["trainerDescription"] as? String
                 )
             }
         } catch {

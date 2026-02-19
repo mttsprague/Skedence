@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
@@ -8,15 +9,11 @@ const db = admin.firestore();
  * Create a setup intent to add payment method without immediate charge
  * Used for "Add Card to Wallet" functionality
  */
-export const createSetupIntentDirect = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<{
-      orgId: string;
-      userId: string;
-    }>
-  ) => {
+export const createSetupIntentDirect = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -25,14 +22,14 @@ export const createSetupIntentDirect = functions.https.onCall(
     const {orgId, userId} = request.data;
 
     if (!orgId || !userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId or userId"
       );
     }
 
     if (request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
       );
@@ -49,7 +46,7 @@ export const createSetupIntentDirect = functions.https.onCall(
 
       const stripeData = stripeDoc.data();
       if (!stripeData || !stripeData.secretKey) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
         );
@@ -161,11 +158,11 @@ export const createSetupIntentDirect = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error creating setup intent:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to create setup intent: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -176,12 +173,11 @@ export const createSetupIntentDirect = functions.https.onCall(
 /**
  * Get payment methods for a customer using organization's Stripe account
  */
-export const getPaymentMethodsDirect = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<{orgId: string; userId: string}>
-  ) => {
+export const getPaymentMethodsDirect = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -190,14 +186,14 @@ export const getPaymentMethodsDirect = functions.https.onCall(
     const {orgId, userId} = request.data;
 
     if (!orgId || !userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId or userId"
       );
     }
 
     if (request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
       );
@@ -216,7 +212,7 @@ export const getPaymentMethodsDirect = functions.https.onCall(
 
       if (!stripeDoc.exists) {
         console.error(`❌ No Stripe config found for org ${orgId}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization Stripe keys not configured - please configure in admin app"
         );
@@ -227,7 +223,7 @@ export const getPaymentMethodsDirect = functions.https.onCall(
 
       if (!stripeData?.secretKey || !stripeData?.publishableKey) {
         console.error(`❌ Stripe keys missing: secretKey=${!!stripeData?.secretKey}, publishableKey=${!!stripeData?.publishableKey}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization Stripe keys not configured properly"
         );
@@ -248,7 +244,7 @@ export const getPaymentMethodsDirect = functions.https.onCall(
         .get();
 
       if (usersSnapshot.empty) {
-        throw new functions.https.HttpsError("not-found", "User not found");
+        throw new HttpsError("not-found", "User not found");
       }
 
       const userData = usersSnapshot.docs[0].data();
@@ -343,11 +339,11 @@ export const getPaymentMethodsDirect = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error getting payment methods:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to get payment methods: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -359,12 +355,11 @@ export const getPaymentMethodsDirect = functions.https.onCall(
  * Get payment methods for any user (admin only)
  * Allows admins to view client payment methods for processing payments
  */
-export const getPaymentMethodsDirectAdmin = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<{orgId: string; userId: string}>
-  ) => {
+export const getPaymentMethodsDirectAdmin = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -373,7 +368,7 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
     const {orgId, userId} = request.data;
 
     if (!orgId || !userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId or userId"
       );
@@ -398,7 +393,7 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
 
       if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
         console.error(`❌ Permission denied - exists: ${memberDoc.exists}, role: ${memberData?.role || "none"}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Only owners and admins can view client payment methods"
         );
@@ -416,7 +411,7 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
 
       if (!stripeDoc.exists) {
         console.error(`❌ No Stripe config found for org ${orgId}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization Stripe keys not configured - please configure in admin app"
         );
@@ -427,7 +422,7 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
 
       if (!stripeData?.secretKey || !stripeData?.publishableKey) {
         console.error(`❌ Stripe keys missing: secretKey=${!!stripeData?.secretKey}, publishableKey=${!!stripeData?.publishableKey}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization Stripe keys not configured properly"
         );
@@ -444,7 +439,7 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
       const userDoc = await db.collection("users").doc(userId).get();
 
       if (!userDoc.exists) {
-        throw new functions.https.HttpsError("not-found", "User not found");
+        throw new HttpsError("not-found", "User not found");
       }
 
       const userData = userDoc.data();
@@ -543,11 +538,11 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error getting payment methods (admin):", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to get payment methods: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -558,16 +553,11 @@ export const getPaymentMethodsDirectAdmin = functions.https.onCall(
 /**
  * Attach a payment method to a customer
  */
-export const attachPaymentMethod = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<{
-      paymentMethodId: string;
-      customerId: string;
-      orgId?: string;
-    }>
-  ) => {
+export const attachPaymentMethod = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "Must be authenticated"
       );
@@ -576,7 +566,7 @@ export const attachPaymentMethod = functions.https.onCall(
     const {paymentMethodId, customerId, orgId} = request.data;
 
     if (!paymentMethodId || !customerId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing paymentMethodId or customerId"
       );
@@ -602,7 +592,7 @@ export const attachPaymentMethod = functions.https.onCall(
       }
 
       if (!stripeSecretKey) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Stripe not configured"
         );
@@ -629,7 +619,7 @@ export const attachPaymentMethod = functions.https.onCall(
       return {success: true};
     } catch (error) {
       console.error("❌ Error attaching payment method:", error);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to attach payment method: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -640,18 +630,11 @@ export const attachPaymentMethod = functions.https.onCall(
 /**
  * Charge a customer using a saved payment method
  */
-export const chargeWithSavedMethod = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<{
-      clientId: string;
-      paymentMethodId: string;
-      amount: number;
-      description: string;
-      orgId?: string;
-    }>
-  ) => {
+export const chargeWithSavedMethod = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "Must be authenticated"
       );
@@ -660,14 +643,14 @@ export const chargeWithSavedMethod = functions.https.onCall(
     const {clientId, paymentMethodId, amount, description, orgId} = request.data;
 
     if (!clientId || !paymentMethodId || !amount) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
     }
 
     if (request.auth.uid !== clientId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Can only charge your own card"
       );
@@ -679,7 +662,7 @@ export const chargeWithSavedMethod = functions.https.onCall(
       const stripeCustomerId = userDoc.data()?.stripeCustomerId;
 
       if (!stripeCustomerId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No Stripe customer found"
         );
@@ -703,7 +686,7 @@ export const chargeWithSavedMethod = functions.https.onCall(
       }
 
       if (!stripeSecretKey) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Stripe not configured"
         );
@@ -744,7 +727,7 @@ export const chargeWithSavedMethod = functions.https.onCall(
       };
     } catch (error) {
       console.error("❌ Error charging with saved method:", error);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to charge payment method: ${error instanceof Error ? error.message : "Unknown error"}`
       );

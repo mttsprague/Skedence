@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 
 interface SetupPasswordData {
@@ -12,13 +13,15 @@ interface SetupPasswordData {
  * Cloud Function to set/reset trainer password during setup
  * Uses Admin SDK to create or update Firebase Auth account
  */
-export const setupTrainerPassword = functions.https.onCall(async (request) => {
+export const setupTrainerPassword = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
   const data = request.data as SetupPasswordData;
   const {email, password, token, trainerId} = data;
 
   // Validate input
   if (!email || !password || !token || !trainerId) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "Missing required parameters"
     );
@@ -30,13 +33,13 @@ export const setupTrainerPassword = functions.https.onCall(async (request) => {
     const trainerDoc = await trainerRef.get();
 
     if (!trainerDoc.exists) {
-      throw new functions.https.HttpsError("not-found", "Trainer not found");
+      throw new HttpsError("not-found", "Trainer not found");
     }
 
     const trainerData = trainerDoc.data();
 
     if (!trainerData?.setupToken || trainerData.setupToken !== token) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Invalid setup token"
       );
@@ -46,7 +49,7 @@ export const setupTrainerPassword = functions.https.onCall(async (request) => {
       trainerData.setupTokenExpiry &&
       trainerData.setupTokenExpiry.toDate() < new Date()
     ) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Setup token has expired. Please request a new invitation."
       );
@@ -108,11 +111,11 @@ export const setupTrainerPassword = functions.https.onCall(async (request) => {
   } catch (error: any) {
     console.error("Password setup error:", error);
 
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof HttpsError) {
       throw error;
     }
 
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "internal",
       "An error occurred during password setup"
     );

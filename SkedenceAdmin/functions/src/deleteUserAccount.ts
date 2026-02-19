@@ -1,5 +1,5 @@
 /* eslint-disable quotes */
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import type {
   CollectionReference,
@@ -21,11 +21,12 @@ interface DeleteUserAccountData {
  * - Bookings where user is the client
  * - Firebase Auth account
  */
-export const deleteUserAccount = functions.https.onCall(
-  async (request: functions.https.CallableRequest<DeleteUserAccountData>) => {
+export const deleteUserAccount = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     // Verify user is authenticated
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "Must be authenticated to delete account"
       );
@@ -36,7 +37,7 @@ export const deleteUserAccount = functions.https.onCall(
 
     // Verify the user is deleting their own account
     if (userId !== requestingUserId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "You can only delete your own account"
       );
@@ -148,7 +149,7 @@ export const deleteUserAccount = functions.https.onCall(
       if (ownedOrgIds.size > 0) {
         console.log(`User ${userId} owns ${ownedOrgIds.size} organizations`);
         if (!shouldDeleteOwnedOrgs) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "Cannot delete account while owning organizations. Please transfer ownership or delete organizations first."
           );
@@ -210,10 +211,10 @@ export const deleteUserAccount = functions.https.onCall(
       };
     } catch (error) {
       console.error(`Error deleting account for user ${userId}:`, error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to delete account: ${error}`
       );

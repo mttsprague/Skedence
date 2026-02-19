@@ -43,29 +43,6 @@ struct OrganizationsSection: View {
                 Divider()
                     .padding(.vertical, Spacing.md)
                 
-                // Stripe Settings
-                NavigationLink(destination: StripeSettingsViewDirect()) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Stripe")
-                                .font(.headingSmall)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text("You can also add Stripe keys in the admin portal at skedence.com.")
-                                .font(.footnote)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                        Spacer()
-                        Image(systemName: "creditcard")
-                            .foregroundStyle(AppTheme.primary)
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(CornerRadius.md)
-                    .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
-                }
-                
                 // Contact Us
                 Button {
                     if let url = URL(string: "mailto:support@skedence.com?subject=Support%20Request") {

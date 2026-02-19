@@ -2,7 +2,7 @@
  * Cloud Function to delete a trainer and all associated data
  */
 
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 const db = admin.firestore();
@@ -19,10 +19,11 @@ interface DeleteTrainerData {
  * - All schedules and availability
  * - All bookings (mark as cancelled)
  */
-export const deleteTrainer = functions.https.onCall(
-  async (request: functions.https.CallableRequest<DeleteTrainerData>) => {
+export const deleteTrainer = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -31,7 +32,7 @@ export const deleteTrainer = functions.https.onCall(
     const {trainerId} = request.data;
 
     if (!trainerId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing trainerId"
       );
@@ -42,7 +43,7 @@ export const deleteTrainer = functions.https.onCall(
       const trainerDoc = await db.collection("trainers").doc(trainerId).get();
 
       if (!trainerDoc.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Trainer not found"
         );
@@ -50,7 +51,7 @@ export const deleteTrainer = functions.https.onCall(
 
       const trainerData = trainerDoc.data();
       if (!trainerData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Trainer data not found"
         );
@@ -66,7 +67,7 @@ export const deleteTrainer = functions.https.onCall(
         .get();
 
       if (!callerMemberDoc.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You are not a member of this organization"
         );
@@ -74,7 +75,7 @@ export const deleteTrainer = functions.https.onCall(
 
       const callerRole = callerMemberDoc.data()?.role;
       if (callerRole !== "owner" && callerRole !== "admin") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Only owners and admins can delete trainers"
         );
@@ -158,11 +159,11 @@ export const deleteTrainer = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error deleting trainer:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );

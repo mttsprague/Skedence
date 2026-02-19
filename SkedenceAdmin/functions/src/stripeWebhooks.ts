@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import { onRequest, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
@@ -35,7 +35,7 @@ function mapPriceIdToAddon(priceId: string): string {
   return addonMap[priceId] || "unknown";
 }
 
-export const stripeWebhook = functions.https.onRequest(async (req, res) => {
+export const stripeWebhook = onRequest(async (req, res) => {
   const sig = req.headers["stripe-signature"] as string;
 
   let event: Stripe.Event;

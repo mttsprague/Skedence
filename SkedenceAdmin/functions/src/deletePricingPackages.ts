@@ -13,6 +13,7 @@ interface DeletePricingPackageData {
 }
 
 export const deletePricingPackageLessons = functions.https.onCall(
+  { enforceAppCheck: true },
   async (
     request: functions.https.CallableRequest<DeletePricingPackageData>
   ) => {

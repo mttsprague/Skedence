@@ -18,6 +18,7 @@ struct Trainer: Identifiable, Codable, Hashable {
     var orgId: String?
     var active: Bool = true
     var admin: Bool = false
+    var trainerDescription: String?
     
     // Legacy field for backwards compatibility
     var name: String?
@@ -32,13 +33,14 @@ struct Trainer: Identifiable, Codable, Hashable {
     var anyPhotoURLString: String? { avatarUrl ?? photoURL ?? imageUrl }
     
     enum CodingKeys: String, CodingKey {
-        case firstName, lastName, email, avatarUrl, photoURL, imageUrl, orgId, name, active, admin
+        case firstName, lastName, email, avatarUrl, photoURL, imageUrl, orgId, name, active, admin, trainerDescription
     }
     
     // Memberwise initializer for manual construction
     init(id: String? = nil, firstName: String? = nil, lastName: String? = nil, email: String? = nil, 
          avatarUrl: String? = nil, photoURL: String? = nil, imageUrl: String? = nil, 
-         orgId: String? = nil, active: Bool = true, admin: Bool = false, name: String? = nil) {
+         orgId: String? = nil, active: Bool = true, admin: Bool = false, name: String? = nil, 
+         trainerDescription: String? = nil) {
         self.id = id
         self.firstName = firstName
         self.lastName = lastName
@@ -50,6 +52,7 @@ struct Trainer: Identifiable, Codable, Hashable {
         self.active = active
         self.admin = admin
         self.name = name
+        self.trainerDescription = trainerDescription
     }
     
     // Custom init to exclude id from decoding
@@ -65,6 +68,7 @@ struct Trainer: Identifiable, Codable, Hashable {
         name = try container.decodeIfPresent(String.self, forKey: .name)
         active = try container.decodeIfPresent(Bool.self, forKey: .active) ?? true
         admin = try container.decodeIfPresent(Bool.self, forKey: .admin) ?? false
+        trainerDescription = try container.decodeIfPresent(String.self, forKey: .trainerDescription)
         // id is not decoded - will be set manually from document ID
     }
     
@@ -81,6 +85,7 @@ struct Trainer: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(name, forKey: .name)
         try container.encode(active, forKey: .active)
         try container.encode(admin, forKey: .admin)
+        try container.encodeIfPresent(trainerDescription, forKey: .trainerDescription)
         // id is not encoded - it's stored as document ID in Firestore
     }
 }

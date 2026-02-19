@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
@@ -20,7 +20,7 @@ const db = admin.firestore();
  * - account.application.deauthorized: When organization disconnects
  * - payment_intent.succeeded: When payment is received by organization (optional)
  */
-export const stripeConnectWebhook = functions.https.onRequest(
+export const stripeConnectWebhook = onRequest(
   async (req, res) => {
     const sig = req.headers["stripe-signature"];
 

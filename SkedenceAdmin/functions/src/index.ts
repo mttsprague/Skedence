@@ -1,5 +1,6 @@
 /* eslint-disable quotes */
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { scheduler, logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import {
   checkQuota,
@@ -134,10 +135,11 @@ interface ProcessTrainerAvailabilityData {
 /**
  * Cloud Function to book a lesson for a user with a trainer.
  */
-export const bookLesson = functions.https.onCall(
-  async (request: functions.https.CallableRequest<BookLessonData>) => {
+export const bookLesson = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "The function must be called while authenticated."
       );
@@ -146,7 +148,7 @@ export const bookLesson = functions.https.onCall(
 
     const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, athleteNames, lessonNotes} = request.data;
     if (!trainerId || !slotId || !lessonPackageId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing trainerId, slotId, or lessonPackageId in request data."
       );
@@ -168,7 +170,7 @@ export const bookLesson = functions.https.onCall(
 
         // Get orgId from trainer first for dual-path package lookup
         if (!trainerDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "Trainer profile not found."
           );
@@ -204,7 +206,7 @@ export const bookLesson = functions.https.onCall(
         }
 
         if (!userDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "User profile not found for the authenticated user."
           );
@@ -220,13 +222,13 @@ export const bookLesson = functions.https.onCall(
             // Check if org is disabled or in read-only mode
             const orgAccess = await checkOrgAccess(orgId);
             if (!orgAccess.allowed) {
-              throw new functions.https.HttpsError(
+              throw new HttpsError(
                 "failed-precondition",
                 `Booking unavailable: ${orgAccess.reason}`
               );
             }
             if (orgAccess.isReadOnly) {
-              throw new functions.https.HttpsError(
+              throw new HttpsError(
                 "failed-precondition",
                 "Bookings are temporarily disabled. Please update your subscription."
               );
@@ -240,7 +242,7 @@ export const bookLesson = functions.https.onCall(
               const blockedStatuses = ["past_due", "canceled", "unpaid"];
 
               if (blockedStatuses.includes(status)) {
-                throw new functions.https.HttpsError(
+                throw new HttpsError(
                   "failed-precondition",
                   `Booking unavailable: The trainer's organization has a billing issue. Status: ${status}`
                 );
@@ -249,19 +251,19 @@ export const bookLesson = functions.https.onCall(
           }
         }
         if (!lessonPackageDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "Specified lesson package not found."
           );
         }
         if (!trainerDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "Trainer profile not found."
           );
         }
         if (!trainerSlotDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "Specified trainer slot not found."
           );
@@ -273,7 +275,7 @@ export const bookLesson = functions.https.onCall(
         const trainerSlotData = trainerSlotDoc.data();
 
         if (!userData || !lessonPackageData || !trainerData || !trainerSlotData) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "internal",
             "Unexpected missing document data."
           );
@@ -297,7 +299,7 @@ export const bookLesson = functions.https.onCall(
             if (slotStartTime) {
               const hoursUntilLesson = (slotStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
               if (hoursUntilLesson < minBookingHours) {
-                throw new functions.https.HttpsError(
+                throw new HttpsError(
                   "failed-precondition",
                   `Bookings must be made at least ${minBookingHours} hours in advance. This slot is too soon.`
                 );
@@ -324,7 +326,7 @@ export const bookLesson = functions.https.onCall(
                 const currentConcurrentBookings = locationBookingsQuery.size;
 
                 if (currentConcurrentBookings >= maxBookingsPerLocation) {
-                  throw new functions.https.HttpsError(
+                  throw new HttpsError(
                     "resource-exhausted",
                     `This location has reached its booking capacity (${maxBookingsPerLocation} concurrent sessions). Please choose a different time or location.`
                   );
@@ -341,7 +343,7 @@ export const bookLesson = functions.https.onCall(
 
         // Reject if it's a class package by type
         if (pkgType === "class" || pkgType === "class_pass") {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "invalid-argument",
             "Class packages can only be used to register for classes, not book lessons."
           );
@@ -350,7 +352,7 @@ export const bookLesson = functions.https.onCall(
         // Also check category as secondary validation - accept all athlete categories
         const validAthleteCategories = ["oneAthlete", "twoAthlete", "threeAthlete", "fourAthlete", "pass"];
         if (pkgCategory && pkgCategory === "class") {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "invalid-argument",
             "Class packages can only be used to register for classes, not book lessons."
           );
@@ -358,14 +360,14 @@ export const bookLesson = functions.https.onCall(
         
         // Validate that category is a valid athlete category if present
         if (pkgCategory && !validAthleteCategories.includes(pkgCategory)) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "invalid-argument",
             `Invalid package category: ${pkgCategory}. Expected one of: ${validAthleteCategories.join(", ")}`
           );
         }
 
         if (lessonPackageData.lessonsUsed >= lessonPackageData.totalLessons) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "Lesson package has no lessons remaining."
           );
@@ -374,7 +376,7 @@ export const bookLesson = functions.https.onCall(
           lessonPackageData.expirationDate &&
           lessonPackageData.expirationDate.toDate() < new Date()
         ) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "Lesson package has expired and cannot be used."
           );
@@ -385,7 +387,7 @@ export const bookLesson = functions.https.onCall(
           (trainerSlotData.clientId !== null &&
             trainerSlotData.clientId !== undefined)
         ) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "The requested trainer slot is not available or already booked."
           );
@@ -395,7 +397,7 @@ export const bookLesson = functions.https.onCall(
           userData.lastName || ""
         }`.trim();
         if (!clientFullName) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "User name missing in profile; cannot create booking record."
           );
@@ -490,16 +492,16 @@ export const bookLesson = functions.https.onCall(
         await incrementUsage(orgId, "bookings");
       }
 
-      functions.logger.info(
+      logger.info(
         `Lesson booked successfully for user ${userId} with trainer ${trainerId}, slot ${slotId}.`
       );
       return {message: "Lesson booked successfully!"};
     } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      functions.logger.error("Error booking lesson:", error);
-      throw new functions.https.HttpsError(
+      logger.error("Error booking lesson:", error);
+      throw new HttpsError(
         "internal",
         "An unexpected error occurred while booking the lesson.",
         (error as Error).message
@@ -511,10 +513,11 @@ export const bookLesson = functions.https.onCall(
 /**
  * Cloud Function to register for a class using a class pass.
  */
-export const registerForClass = functions.https.onCall(
-  async (request: functions.https.CallableRequest<RegisterForClassData>) => {
+export const registerForClass = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "The function must be called while authenticated."
       );
@@ -523,7 +526,7 @@ export const registerForClass = functions.https.onCall(
 
     const {classId, classPassPackageId, athleteName, secondAthleteName} = request.data;
     if (!classId || !classPassPackageId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing classId or classPassPackageId in request data."
       );
@@ -542,19 +545,19 @@ export const registerForClass = functions.https.onCall(
         const classDoc = await transaction.get(classRef);
 
         if (!userDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "User profile not found for the authenticated user."
           );
         }
         if (!classPassDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "Specified class pass not found."
           );
         }
         if (!classDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "Class not found."
           );
@@ -565,7 +568,7 @@ export const registerForClass = functions.https.onCall(
         const classData = classDoc.data();
 
         if (!userData || !classPassData || !classData) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "internal",
             "Unexpected missing document data."
           );
@@ -579,7 +582,7 @@ export const registerForClass = functions.https.onCall(
         const isClassPackage = pkgType === "class" || pkgType === "class_pass" || pkgCategory === "class";
 
         if (!isClassPackage) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "invalid-argument",
             "The specified package is not a class pass. Only packages with 'class' category can be used for classes."
           );
@@ -587,7 +590,7 @@ export const registerForClass = functions.https.onCall(
 
         // Check if pass has been used
         if (classPassData.lessonsUsed >= classPassData.totalLessons) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "Class pass has already been used."
           );
@@ -598,7 +601,7 @@ export const registerForClass = functions.https.onCall(
           classPassData.expirationDate &&
           classPassData.expirationDate.toDate() < new Date()
         ) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "Class pass has expired and cannot be used."
           );
@@ -610,7 +613,7 @@ export const registerForClass = functions.https.onCall(
         // Check if pass has enough lessons for all athletes (1 pass per athlete)
         const remainingLessons = classPassData.totalLessons - classPassData.lessonsUsed;
         if (remainingLessons < athleteCount) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             `Not enough class passes. You need ${athleteCount} pass(es), but only ${remainingLessons} remaining.`
           );
@@ -619,7 +622,7 @@ export const registerForClass = functions.https.onCall(
         // Check if class has enough space for all athletes
         const spotsRemaining = classData.maxParticipants - classData.currentParticipants;
         if (spotsRemaining < athleteCount) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             `Class does not have enough space. ${spotsRemaining} spot(s) remaining, but ${athleteCount} needed.`
           );
@@ -631,7 +634,7 @@ export const registerForClass = functions.https.onCall(
           const athleteParticipantRef = classRef.collection("participants").doc(athleteParticipantId);
           const athleteParticipantDoc = await transaction.get(athleteParticipantRef);
           if (athleteParticipantDoc.exists) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
               "already-exists",
               `${athleteName} is already registered for this class.`
             );
@@ -728,16 +731,16 @@ export const registerForClass = functions.https.onCall(
 
       // athleteCount already calculated in transaction scope
       const finalAthleteCount = secondAthleteName ? 2 : 1;
-      functions.logger.info(
+      logger.info(
         `User ${userId} registered ${finalAthleteCount} athlete(s) for class ${classId} using pass ${classPassPackageId}.`
       );
       return {message: `Successfully registered ${finalAthleteCount} athlete(s) for class!`};
     } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      functions.logger.error("Error registering for class:", error);
-      throw new functions.https.HttpsError(
+      logger.error("Error registering for class:", error);
+      throw new HttpsError(
         "internal",
         "An unexpected error occurred while registering for the class.",
         (error as Error).message
@@ -753,10 +756,11 @@ interface CancelLessonData {
   bookingId: string;
 }
 
-export const cancelLesson = functions.https.onCall(
-  async (request: functions.https.CallableRequest<CancelLessonData>) => {
+export const cancelLesson = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to cancel a lesson."
       );
@@ -765,7 +769,7 @@ export const cancelLesson = functions.https.onCall(
     const {bookingId} = request.data;
 
     if (!bookingId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing bookingId"
       );
@@ -780,7 +784,7 @@ export const cancelLesson = functions.https.onCall(
     );
 
     if (!allowed) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "resource-exhausted",
         "Too many cancellation attempts. Please try again in a minute."
       );
@@ -796,7 +800,7 @@ export const cancelLesson = functions.https.onCall(
         const bookingDoc = await transaction.get(bookingRef);
 
         if (!bookingDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "Booking not found."
           );
@@ -804,7 +808,7 @@ export const cancelLesson = functions.https.onCall(
 
         const bookingData = bookingDoc.data();
         if (!bookingData) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "internal",
             "Booking data is missing."
           );
@@ -813,7 +817,7 @@ export const cancelLesson = functions.https.onCall(
         // Verify user owns this booking - check both clientUID and clientId for compatibility
         const bookingClientId = bookingData.clientUID || bookingData.clientId;
         if (!bookingClientId || bookingClientId !== userId) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "permission-denied",
             "You can only cancel your own bookings."
           );
@@ -836,7 +840,7 @@ export const cancelLesson = functions.https.onCall(
             const hoursUntilLesson = (lessonStartTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
             if (hoursUntilLesson < minCancellationHours) {
-              throw new functions.https.HttpsError(
+              throw new HttpsError(
                 "failed-precondition",
                 `Cancellations must be made at least ${minCancellationHours} hours in advance. This lesson is too soon to cancel.`
               );
@@ -892,7 +896,7 @@ export const cancelLesson = functions.https.onCall(
 
         // Update trainer's schedule slot back to open
         if (slotDoc && slotDoc.exists && trainerSlotRef) {
-          functions.logger.info(`Updating slot ${bookingData.slotId} for trainer ${bookingData.trainerId} to open`);
+          logger.info(`Updating slot ${bookingData.slotId} for trainer ${bookingData.trainerId} to open`);
           transaction.update(trainerSlotRef, {
             status: "open",
             clientId: admin.firestore.FieldValue.delete(),
@@ -900,7 +904,7 @@ export const cancelLesson = functions.https.onCall(
             bookedAt: admin.firestore.FieldValue.delete(),
           });
         } else if (bookingData.trainerId && bookingData.slotId) {
-          functions.logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId} - slot may have been deleted or schedule restructured`);
+          logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId} - slot may have been deleted or schedule restructured`);
         }
 
         // Delete the booking
@@ -931,14 +935,14 @@ export const cancelLesson = functions.https.onCall(
         });
       });
 
-      functions.logger.info(`User ${userId} cancelled booking ${bookingId}`);
+      logger.info(`User ${userId} cancelled booking ${bookingId}`);
       return {message: "Lesson cancelled successfully!"};
     } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      functions.logger.error("Error cancelling lesson:", error);
-      throw new functions.https.HttpsError(
+      logger.error("Error cancelling lesson:", error);
+      throw new HttpsError(
         "internal",
         "An unexpected error occurred while cancelling the lesson.",
         (error as Error).message
@@ -951,7 +955,7 @@ export const cancelLesson = functions.https.onCall(
  * Scheduled function to mark past lessons as complete
  * Runs every hour to update booking statuses
  */
-export const markCompletedLessons = functions.scheduler.onSchedule({
+export const markCompletedLessons = scheduler.onSchedule({
   schedule: "every 1 hours",
   timeZone: "America/New_York",
 }, async (event) => {
@@ -1000,10 +1004,11 @@ interface AdminCancelLessonData {
   refundPass?: boolean; // Optional: true for early cancel, false for late cancel. Defaults to true for backward compatibility
 }
 
-export const adminCancelLesson = functions.https.onCall(
-  async (request: functions.https.CallableRequest<AdminCancelLessonData>) => {
+export const adminCancelLesson = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to cancel a lesson."
       );
@@ -1012,7 +1017,7 @@ export const adminCancelLesson = functions.https.onCall(
     const {bookingId, orgId, clientId, refundPass = true} = request.data; // Default to true for backward compatibility
 
     if (!bookingId || !orgId || !clientId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields: bookingId, orgId, clientId"
       );
@@ -1027,7 +1032,7 @@ export const adminCancelLesson = functions.https.onCall(
         .get();
 
       if (!memberDoc.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You are not a member of this organization"
         );
@@ -1037,7 +1042,7 @@ export const adminCancelLesson = functions.https.onCall(
       const role = memberData?.role;
 
       if (role !== "admin" && role !== "owner") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Only admins and owners can cancel client bookings"
         );
@@ -1048,7 +1053,7 @@ export const adminCancelLesson = functions.https.onCall(
       // Pre-check booking exists before transaction
       const bookingSnapshot = await bookingRef.get();
       if (!bookingSnapshot.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           `Booking ${bookingId} not found.`
         );
@@ -1056,7 +1061,7 @@ export const adminCancelLesson = functions.https.onCall(
 
       const preBookingData = bookingSnapshot.data();
       if (!preBookingData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "internal",
           "Booking data is missing."
         );
@@ -1064,13 +1069,13 @@ export const adminCancelLesson = functions.https.onCall(
 
       // Verify booking belongs to specified client
       if (preBookingData.clientUID !== clientId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           `Booking does not belong to client ${clientId}. Belongs to ${preBookingData.clientUID}`
         );
       }
 
-      functions.logger.info(`Cancelling booking ${bookingId} for client ${clientId}. RefundPass: ${refundPass}`);
+      logger.info(`Cancelling booking ${bookingId} for client ${clientId}. RefundPass: ${refundPass}`);
 
       // Fetch activity logging data before transaction
       let adminFullName = "Admin";
@@ -1093,7 +1098,7 @@ export const adminCancelLesson = functions.https.onCall(
           clientFullName = clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
         }
       } catch (fetchError) {
-        functions.logger.warn("Error fetching user data for activity log:", fetchError);
+        logger.warn("Error fetching user data for activity log:", fetchError);
       }
 
       await db.runTransaction(async (transaction) => {
@@ -1144,7 +1149,7 @@ export const adminCancelLesson = functions.https.onCall(
         // Get the lesson package and conditionally decrement lessonsUsed based on refundPass
         // If refundPass is true (early cancel), refund the pass. If false (late cancel), don't refund.
         if (refundPass && bookingData.packageId && packageDoc) {
-          functions.logger.info(`Refunding pass ${bookingData.packageId} for client ${clientId}`);
+          logger.info(`Refunding pass ${bookingData.packageId} for client ${clientId}`);
           const packageRef = db
             .collection("users")
             .doc(clientId)
@@ -1156,13 +1161,13 @@ export const adminCancelLesson = functions.https.onCall(
               lessonsUsed: admin.firestore.FieldValue.increment(-1),
             });
           } else {
-            functions.logger.warn(`Package ${bookingData.packageId} not found for refund`);
+            logger.warn(`Package ${bookingData.packageId} not found for refund`);
           }
         }
 
         // Update trainer's schedule slot back to open
         if (bookingData.trainerId && bookingData.slotId && slotDoc) {
-          functions.logger.info(`Opening slot ${bookingData.slotId} for trainer ${bookingData.trainerId}`);
+          logger.info(`Opening slot ${bookingData.slotId} for trainer ${bookingData.trainerId}`);
           const trainerSlotRef = db
             .collection("trainers")
             .doc(bookingData.trainerId)
@@ -1177,12 +1182,12 @@ export const adminCancelLesson = functions.https.onCall(
               bookedAt: null,
             });
           } else {
-            functions.logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId}`);
+            logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId}`);
           }
         }
 
         // Delete the booking
-        functions.logger.info(`Deleting booking ${bookingId}`);
+        logger.info(`Deleting booking ${bookingId}`);
         transaction.delete(bookingRef);
 
         // Log activity
@@ -1215,15 +1220,15 @@ export const adminCancelLesson = functions.https.onCall(
           });
       });
 
-      functions.logger.info(
+      logger.info(
         `Admin ${adminUid} (${role}) successfully cancelled booking ${bookingId} for client ${clientId} in org ${orgId}. RefundPass: ${refundPass}`
       );
       return {message: "Lesson cancelled successfully!"};
     } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      functions.logger.error("Error cancelling lesson:", {
+      logger.error("Error cancelling lesson:", {
         error: error,
         message: (error as Error).message,
         stack: (error as Error).stack,
@@ -1232,7 +1237,7 @@ export const adminCancelLesson = functions.https.onCall(
         clientId,
         refundPass
       });
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `An unexpected error occurred while cancelling the lesson: ${(error as Error).message}`,
         JSON.stringify({
@@ -1253,12 +1258,11 @@ interface CancelClassRegistrationData {
   classId: string;
 }
 
-export const cancelClassRegistration = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<CancelClassRegistrationData>
-  ) => {
+export const cancelClassRegistration = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to cancel a registration."
       );
@@ -1267,7 +1271,7 @@ export const cancelClassRegistration = functions.https.onCall(
     const {classId} = request.data;
 
     if (!classId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing classId"
       );
@@ -1282,14 +1286,14 @@ export const cancelClassRegistration = functions.https.onCall(
         const participantDoc = await transaction.get(participantRef);
 
         if (!classDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "Class not found."
           );
         }
 
         if (!participantDoc.exists) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "You are not registered for this class."
           );
@@ -1297,7 +1301,7 @@ export const cancelClassRegistration = functions.https.onCall(
 
         const participantData = participantDoc.data();
         if (!participantData) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "internal",
             "Participant data is missing."
           );
@@ -1364,16 +1368,16 @@ export const cancelClassRegistration = functions.https.onCall(
         });
       });
 
-      functions.logger.info(
+      logger.info(
         `User ${userId} cancelled registration for class ${classId}`
       );
       return {message: "Class registration cancelled successfully!"};
     } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      functions.logger.error("Error cancelling class registration:", error);
-      throw new functions.https.HttpsError(
+      logger.error("Error cancelling class registration:", error);
+      throw new HttpsError(
         "internal",
         "An unexpected error occurred while cancelling the registration.",
         (error as Error).message
@@ -1389,12 +1393,11 @@ export const cancelClassRegistration = functions.https.onCall(
  * Interprets provided dates and hours in the client's LOCAL timezone using timezoneOffsetMinutes.
  * timezoneOffsetMinutes must match JavaScript Date.getTimezoneOffset() (positive west of UTC).
  */
-export const processTrainerAvailability = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<ProcessTrainerAvailabilityData>
-  ) => {
+export const processTrainerAvailability = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "The function must be called while authenticated."
       );
@@ -1411,14 +1414,14 @@ export const processTrainerAvailability = functions.https.onCall(
     const trainerDoc = await trainerRef.get();
 
     if (!trainerDoc.exists) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Trainer not found."
       );
     }
     const trainerData = trainerDoc.data();
     if (!trainerData) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         "Unexpected missing trainer profile data."
       );
@@ -1438,7 +1441,7 @@ export const processTrainerAvailability = functions.https.onCall(
     } = request.data;
 
     if (typeof timezoneOffsetMinutes !== "number" || !isFinite(timezoneOffsetMinutes)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "timezoneOffsetMinutes (from Date.getTimezoneOffset()) is required."
       );
@@ -1455,7 +1458,7 @@ export const processTrainerAvailability = functions.https.onCall(
     const parseDateOnly = (s: string): {y: number; m: number; d: number} => {
       const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
       if (!match) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           "Invalid start or end date provided. Use YYYY-MM-DD format."
         );
@@ -1490,13 +1493,13 @@ export const processTrainerAvailability = functions.https.onCall(
 
     // Validation
     if (isNaN(startDateUTC.getTime()) || isNaN(endDateUTC.getTime())) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Invalid start or end date provided. Use YYYY-MM-DD format."
       );
     }
     if (startDateUTC > endDateUTC) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Start date cannot be after end date."
       );
@@ -1508,13 +1511,13 @@ export const processTrainerAvailability = functions.https.onCall(
       dailyEndHour > 24 ||
       dailyStartHour >= dailyEndHour
     ) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Invalid daily start or end hours."
       );
     }
     if (slotDurationMinutes <= 0 || slotDurationMinutes > 1440) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Slot duration must be a positive number of minutes."
       );
@@ -1609,15 +1612,15 @@ export const processTrainerAvailability = functions.https.onCall(
               // Only update if not booked and status is changing
               batch.update(slotRef, slotData);
               slotsAddedCount++;
-              functions.logger.debug(
+              logger.debug(
                 `Slot ${slotDocId} updated from ${existingStatus} to ${status} for trainer ${trainerId}.`
               );
             } else if (isBooked) {
-              functions.logger.debug(
+              logger.debug(
                 `Slot ${slotDocId} is booked for trainer ${trainerId}, skipping.`
               );
             } else {
-              functions.logger.debug(
+              logger.debug(
                 `Slot ${slotDocId} already has status ${status} for trainer ${trainerId}, skipping.`
               );
             }
@@ -1665,7 +1668,7 @@ export const processTrainerAvailability = functions.https.onCall(
         });
       }
 
-      functions.logger.info(
+      logger.info(
         `Trainer ${trainerId} availability processed. Added ${slotsAddedCount} new slots.`
       );
       return {
@@ -1673,14 +1676,14 @@ export const processTrainerAvailability = functions.https.onCall(
         slotsAdded: slotsAddedCount,
       };
     } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      functions.logger.error(
+      logger.error(
         "Error processing trainer availability:",
         error
       );
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         "An unexpected error occurred while processing trainer availability.",
         (error as Error).message
@@ -1693,11 +1696,12 @@ export const processTrainerAvailability = functions.https.onCall(
  * One-time function to update all class locations from "Midtown" to "Oakwood Community Church"
  * Admin-only function
  */
-export const updateClassLocations = functions.https.onCall(
-  async (request: functions.https.CallableRequest) => {
+export const updateClassLocations = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     // Check if user is authenticated and is admin
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to perform this action."
       );
@@ -1707,7 +1711,7 @@ export const updateClassLocations = functions.https.onCall(
     const userDoc = await db.collection("users").doc(userId).get();
 
     if (!userDoc.exists || !userDoc.data()?.isAdmin) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Only admins can update class locations."
       );
@@ -1728,7 +1732,7 @@ export const updateClassLocations = functions.https.onCall(
 
         // Check if location contains "Midtown" (case insensitive)
         if (data.location && data.location.toLowerCase().includes("midtown")) {
-          functions.logger.info(
+          logger.info(
             `Updating class "${data.title}" (${doc.id}): "${data.location}" -> "Oakwood Community Church"`
           );
           batch.update(doc.ref, {
@@ -1740,7 +1744,7 @@ export const updateClassLocations = functions.https.onCall(
 
       if (updateCount > 0) {
         await batch.commit();
-        functions.logger.info(
+        logger.info(
           `Successfully updated ${updateCount} class location(s).`
         );
         return {
@@ -1751,8 +1755,8 @@ export const updateClassLocations = functions.https.onCall(
         return {message: "No classes with 'Midtown' found. Nothing to update."};
       }
     } catch (error) {
-      functions.logger.error("Error updating class locations:", error);
-      throw new functions.https.HttpsError(
+      logger.error("Error updating class locations:", error);
+      throw new HttpsError(
         "internal",
         "An error occurred while updating class locations.",
         (error as Error).message
@@ -1765,18 +1769,11 @@ export const updateClassLocations = functions.https.onCall(
  * Register a new trainer profile
  * Called during trainer signup from admin app
  */
-export const registerTrainer = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<{
-      uid: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-      orgId?: string;
-    }>
-  ) => {
+export const registerTrainer = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "Must be authenticated"
       );
@@ -1785,7 +1782,7 @@ export const registerTrainer = functions.https.onCall(
     const {uid, email, firstName, lastName, orgId} = request.data;
 
     if (!uid || !email || !firstName || !lastName) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields: uid, email, firstName, lastName"
       );
@@ -1808,7 +1805,7 @@ export const registerTrainer = functions.https.onCall(
       return {success: true, trainerId: uid};
     } catch (error) {
       console.error("❌ Error registering trainer:", error);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to register trainer: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -1820,19 +1817,11 @@ export const registerTrainer = functions.https.onCall(
  * Manually register a client for a class (admin only)
  * Supports both existing clients with packages and manual entry
  */
-export const manualRegisterForClass = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<{
-      classId: string;
-      userId?: string;
-      classPassPackageId?: string;
-      firstName?: string;
-      lastName?: string;
-      email?: string | null;
-    }>
-  ) => {
+export const manualRegisterForClass = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "Must be authenticated"
       );
@@ -1841,7 +1830,7 @@ export const manualRegisterForClass = functions.https.onCall(
     const {classId, userId, classPassPackageId, firstName, lastName, email} = request.data;
 
     if (!classId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "classId is required"
       );
@@ -1851,14 +1840,14 @@ export const manualRegisterForClass = functions.https.onCall(
       // Get class document
       const classDoc = await db.collection("classes").doc(classId).get();
       if (!classDoc.exists) {
-        throw new functions.https.HttpsError("not-found", "Class not found");
+        throw new HttpsError("not-found", "Class not found");
       }
 
       const classData = classDoc.data()!;
       const orgId = classData.orgId;
 
       if (!orgId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Class missing orgId"
         );
@@ -1871,7 +1860,7 @@ export const manualRegisterForClass = functions.https.onCall(
         .get();
 
       if (!adminMember.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Not a member of this organization"
         );
@@ -1879,7 +1868,7 @@ export const manualRegisterForClass = functions.https.onCall(
 
       const role = adminMember.data()?.role;
       if (role !== "admin" && role !== "owner") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Must be admin or owner to manually register clients"
         );
@@ -1890,7 +1879,7 @@ export const manualRegisterForClass = functions.https.onCall(
       if (userId) {
         // Existing client registration
         if (!classPassPackageId) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "invalid-argument",
             "classPassPackageId required for existing client"
           );
@@ -1905,12 +1894,12 @@ export const manualRegisterForClass = functions.https.onCall(
           .get();
 
         if (!packageDoc.exists) {
-          throw new functions.https.HttpsError("not-found", "Package not found");
+          throw new HttpsError("not-found", "Package not found");
         }
 
         const packageData = packageDoc.data()!;
         if ((packageData.lessonsRemaining || 0) <= 0) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "Package has no remaining credits"
           );
@@ -1940,7 +1929,7 @@ export const manualRegisterForClass = functions.https.onCall(
       } else {
         // Manual entry registration
         if (!firstName || !lastName) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "invalid-argument",
             "firstName and lastName required for manual entry"
           );
@@ -2005,10 +1994,10 @@ export const manualRegisterForClass = functions.https.onCall(
       return {success: true};
     } catch (error) {
       console.error("❌ Error in manualRegisterForClass:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to register for class: ${error instanceof Error ? error.message : "Unknown error"}`
       );

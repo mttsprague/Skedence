@@ -61,7 +61,6 @@ final class LocationsService: ObservableObject {
             
             self.isLoading = false
             self.items = locations
-            print("✅ Loaded \(self.items.count) locations")
         }
     }
     

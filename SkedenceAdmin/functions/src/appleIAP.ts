@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import fetch from "node-fetch";
 
@@ -8,24 +8,18 @@ const db = admin.firestore();
  * Validate Apple receipt and sync subscription status to Firestore
  * Called from iOS app after successful purchase
  */
-export const validateAppleReceipt = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{
-    receipt: string;
-    productID: string;
-    transactionID: string;
-    organizationId?: string;
-    isTrialPeriod?: boolean;
-    expiresAt?: string;
-  }>) => {
+export const validateAppleReceipt = onCall(
+  {enforceAppCheck: true },
+  async (request) => {
     const {receipt, productID, transactionID, organizationId, isTrialPeriod, expiresAt} = request.data;
     const userId = request.auth?.uid;
 
     if (!userId) {
-      throw new functions.https.HttpsError("unauthenticated", "User not authenticated");
+      throw new HttpsError("unauthenticated", "User not authenticated");
     }
 
     if (!receipt || !productID || !transactionID) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields: receipt, productID, transactionID"
       );
@@ -52,7 +46,7 @@ export const validateAppleReceipt = functions.https.onCall(
 
         if (!latestReceiptInfo) {
           console.error("❌ No receipt info found. Receipt data:", JSON.stringify(receiptData, null, 2));
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "not-found",
             "No receipt info found for product"
           );
@@ -75,7 +69,7 @@ export const validateAppleReceipt = functions.https.onCall(
       }
 
       if (!orgId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "User has no organization"
         );
@@ -111,7 +105,7 @@ export const validateAppleReceipt = functions.https.onCall(
       };
     } catch (error: any) {
       console.error("❌ Failed to validate Apple receipt:", error);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         error.message || "Failed to validate receipt"
       );
@@ -183,7 +177,7 @@ function mapProductIDToPlan(productID: string): string {
  * Webhook handler for App Store Server Notifications (optional, for production)
  * This handles subscription renewals, cancellations, etc. automatically
  */
-export const appleWebhook = functions.https.onRequest(async (req, res) => {
+export const appleWebhook = onRequest(async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).send("Method Not Allowed");
     return;

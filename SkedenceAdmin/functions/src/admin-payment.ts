@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
@@ -16,12 +17,11 @@ interface AdminProcessPaymentData {
  * Admin-initiated payment processing
  * Allows admins to process payments on behalf of clients using the organization's Stripe account
  */
-export const adminProcessPayment = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<AdminProcessPaymentData>
-  ) => {
+export const adminProcessPayment = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to process payments"
       );
@@ -30,14 +30,14 @@ export const adminProcessPayment = functions.https.onCall(
     const {orgId, userId, amount, description, saveCard = false} = request.data;
 
     if (!orgId || !userId || !amount || !description) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields: orgId, userId, amount, description"
       );
     }
 
     if (amount < 50) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Amount must be at least $0.50"
       );
@@ -62,7 +62,7 @@ export const adminProcessPayment = functions.https.onCall(
 
       if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
         console.log(`❌ Permission denied - role: ${memberData?.role || "none"}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Only owners and admins can process payments"
         );
@@ -80,7 +80,7 @@ export const adminProcessPayment = functions.https.onCall(
 
       const stripeData = stripeDoc.data();
       if (!stripeData || !stripeData.secretKey) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
         );
@@ -102,7 +102,7 @@ export const adminProcessPayment = functions.https.onCall(
       const userData = userDoc.data();
 
       if (!userData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Client not found"
         );
@@ -174,11 +174,11 @@ export const adminProcessPayment = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error creating admin payment intent:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to create payment intent: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -198,10 +198,9 @@ interface AdminChargeWithSavedCardData {
  * Admin-initiated payment with saved card
  * Allows admins to charge clients using their saved payment methods
  */
-export const adminChargeWithSavedCard = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<AdminChargeWithSavedCardData>
-  ) => {
+export const adminChargeWithSavedCard = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     console.log("🔵 adminChargeWithSavedCard called");
     console.log("🔵 request.auth:", request.auth ? "present" : "MISSING");
     if (request.auth) {
@@ -210,7 +209,7 @@ export const adminChargeWithSavedCard = functions.https.onCall(
 
     if (!request.auth) {
       console.log("❌ No auth in request - throwing unauthenticated error");
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to process payments"
       );
@@ -219,14 +218,14 @@ export const adminChargeWithSavedCard = functions.https.onCall(
     const {orgId, userId, paymentMethodId, amount, description} = request.data;
 
     if (!orgId || !userId || !paymentMethodId || !amount || !description) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields: orgId, userId, paymentMethodId, amount, description"
       );
     }
 
     if (amount < 50) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Amount must be at least $0.50"
       );
@@ -250,7 +249,7 @@ export const adminChargeWithSavedCard = functions.https.onCall(
 
       if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
         console.log(`❌ Permission denied - role: ${memberData?.role || "none"}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Only owners and admins can process payments"
         );
@@ -268,7 +267,7 @@ export const adminChargeWithSavedCard = functions.https.onCall(
 
       const stripeData = stripeDoc.data();
       if (!stripeData || !stripeData.secretKey) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
         );
@@ -288,7 +287,7 @@ export const adminChargeWithSavedCard = functions.https.onCall(
       const userData = userDoc.data();
 
       if (!userData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Client not found"
         );
@@ -297,7 +296,7 @@ export const adminChargeWithSavedCard = functions.https.onCall(
       const customerId = userData.stripeCustomerId;
 
       if (!customerId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Client has no Stripe customer ID"
         );
@@ -333,7 +332,7 @@ export const adminChargeWithSavedCard = functions.https.onCall(
           status: paymentIntent.status,
         };
       } else {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "aborted",
           `Payment not completed. Status: ${paymentIntent.status}`
         );
@@ -341,11 +340,11 @@ export const adminChargeWithSavedCard = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error charging with saved card:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to charge card: ${error instanceof Error ? error.message : "Unknown error"}`
       );

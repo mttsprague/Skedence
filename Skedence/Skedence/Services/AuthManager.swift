@@ -24,10 +24,7 @@ final class AuthManager: ObservableObject {
     func ensureSignedIn() async {
         // If user is already authenticated, load their orgId
         if let currentUser = Auth.auth().currentUser {
-            print("AuthManager: User already signed in: \(currentUser.uid)")
             await loadOrgId(for: currentUser.uid)
-        } else {
-            print("AuthManager: No user signed in")
         }
         isReady = true
     }
@@ -98,7 +95,6 @@ final class AuthManager: ObservableObject {
                 firstName: safeFirstName,
                 lastName: safeLastName
             )
-            print("✅ Generated reference code: \(referenceCode) for \(safeFirstName) \(safeLastName)")
             
             let data: [String: Any?] = [
                 "emailAddress": email,
@@ -238,7 +234,6 @@ final class AuthManager: ObservableObject {
             if let doc = snapshot.documents.first,
                let orgId = doc.data()["orgId"] as? String {
                 currentOrgId = orgId
-                print("AuthManager: Loaded orgId from orgMembers: \(orgId) for user: \(userId)")
                 
                 // Load organization branding
                 await loadOrgBranding(orgId: orgId)
@@ -246,18 +241,15 @@ final class AuthManager: ObservableObject {
             }
             
             // Fallback: Try to load from user document
-            print("AuthManager: ⚠️ No active orgMember found, checking user document...")
             let userDoc = try await db.collection("users").document(userId).getDocument()
             
             if let data = userDoc.data(),
                let orgId = data["orgId"] as? String {
                 currentOrgId = orgId
-                print("AuthManager: Loaded orgId from user document: \(orgId) for user: \(userId)")
                 
                 // Load organization branding
                 await loadOrgBranding(orgId: orgId)
             } else {
-                print("AuthManager: ⚠️ No orgId found in user document either")
                 currentOrgId = nil
             }
         } catch {
@@ -280,7 +272,6 @@ final class AuthManager: ObservableObject {
             // Load organization name
             if let name = orgData["name"] as? String {
                 organizationName = name
-                print("AuthManager: Loaded organizationName: \(name)")
             }
             
             // Load branding
@@ -288,27 +279,18 @@ final class AuthManager: ObservableObject {
                 if let colorHex = branding["primaryColor"] as? String {
                     // Convert hex string to Color (e.g., "#33B2AE")
                     primaryColor = Color(hex: colorHex) ?? Color(red: 0.20, green: 0.70, blue: 0.68)
-                    print("AuthManager: Loaded primaryColor: \(colorHex)")
                 }
                 if let logo = branding["logoUrl"] as? String, !logo.isEmpty {
                     logoUrl = logo
-                    print("AuthManager: Loaded logoUrl: \(logo)")
                 }
             }
             
-            // Load Stripe publishable key from new direct integration structure
-            // Keys are now stored at organizations/{orgId}/stripe/config
-            let stripeDoc = try await Firestore.firestore()
-                .collection("organizations")
-                .document(orgId)
-                .collection("stripe")
-                .document("config")
-                .getDocument()
-            
-            if let stripeData = stripeDoc.data(),
-               let pubKey = stripeData["publishableKey"] as? String, !pubKey.isEmpty {
+            // Load Stripe publishable key from Stripe Connect configuration
+            // Keys are stored in the organizations document under stripe.publishableKey
+            if let stripe = orgData["stripe"] as? [String: Any],
+               let pubKey = stripe["publishableKey"] as? String, !pubKey.isEmpty {
                 stripePublishableKey = pubKey
-                print("AuthManager: Loaded Stripe publishable key")
+                print("AuthManager: Loaded Stripe publishable key from Connect")
             }
         } catch {
             print("AuthManager: ❌ Failed to load org branding: \(error.localizedDescription)")

@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
@@ -21,10 +22,11 @@ interface ConfirmPaymentData {
   userId: string;
 }
 
-export const createPaymentIntent = functions.https.onCall(
-  async (request: functions.https.CallableRequest<CreatePaymentIntentData>) => {
+export const createPaymentIntent = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to create a payment"
       );
@@ -33,14 +35,14 @@ export const createPaymentIntent = functions.https.onCall(
     const {packageType, amount, trainerId, userId} = request.data;
 
     if (!packageType || !amount || !trainerId || !userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
     }
 
     if (request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
       );
@@ -52,7 +54,7 @@ export const createPaymentIntent = functions.https.onCall(
       const userData = userDoc.data();
 
       if (!userData?.orgId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "User does not have an organization"
         );
@@ -83,7 +85,7 @@ export const createPaymentIntent = functions.https.onCall(
       }
 
       if (!validPackages[packageType] || validPackages[packageType] !== amount) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           `Invalid package type or amount. Expected ${validPackages[packageType]} for ${packageType}, got ${amount}`
         );
@@ -113,15 +115,16 @@ export const createPaymentIntent = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error creating payment intent:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
 
-export const confirmPaymentAndCreatePackage = functions.https.onCall(
-  async (request: functions.https.CallableRequest<ConfirmPaymentData>) => {
+export const confirmPaymentAndCreatePackage = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -130,14 +133,14 @@ export const confirmPaymentAndCreatePackage = functions.https.onCall(
     const {paymentIntentId, userId} = request.data;
 
     if (!paymentIntentId || !userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing paymentIntentId or userId"
       );
     }
 
     if (request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
       );
@@ -149,7 +152,7 @@ export const confirmPaymentAndCreatePackage = functions.https.onCall(
       );
 
       if (paymentIntent.status !== "succeeded") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Payment has not succeeded"
         );
@@ -169,7 +172,7 @@ export const confirmPaymentAndCreatePackage = functions.https.onCall(
 
       const totalLessons = lessonCounts[packageType];
       if (!totalLessons) {
-        throw new functions.https.HttpsError("internal", "Invalid package type");
+        throw new HttpsError("internal", "Invalid package type");
       }
 
       const now = admin.firestore.Timestamp.now();
@@ -194,19 +197,20 @@ export const confirmPaymentAndCreatePackage = functions.https.onCall(
       return {success: true, packageId: paymentIntentId};
     } catch (error: unknown) {
       console.error("Error confirming payment:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
 // Get or create Stripe Customer for user
-export const getOrCreateCustomer = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{ userId: string }>) => {
+export const getOrCreateCustomer = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -215,7 +219,7 @@ export const getOrCreateCustomer = functions.https.onCall(
     const {userId} = request.data;
 
     if (!userId || request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Invalid user ID"
       );
@@ -244,16 +248,17 @@ export const getOrCreateCustomer = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error getting/creating customer:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
 
 // Get payment methods for a customer
-export const getPaymentMethods = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{ userId: string }>) => {
+export const getPaymentMethods = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -262,7 +267,7 @@ export const getPaymentMethods = functions.https.onCall(
     const {userId} = request.data;
 
     if (!userId || request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Invalid user ID"
       );
@@ -293,16 +298,17 @@ export const getPaymentMethods = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error getting payment methods:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
 
 // Get payment methods for any user (admin only)
-export const getPaymentMethodsForUser = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{ userId: string }>) => {
+export const getPaymentMethodsForUser = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -311,7 +317,7 @@ export const getPaymentMethodsForUser = functions.https.onCall(
     const {userId} = request.data;
 
     if (!userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "User ID is required"
       );
@@ -323,7 +329,7 @@ export const getPaymentMethodsForUser = functions.https.onCall(
       const callerData = callerDoc.data();
 
       if (!callerData?.isAdmin && !callerData?.isOwner) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Only admins can view other users' payment methods"
         );
@@ -353,21 +359,17 @@ export const getPaymentMethodsForUser = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error getting payment methods for user:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
 
 // Confirm admin payment and optionally save payment method
-export const confirmAdminPayment = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{
-    orgId: string;
-    userId: string;
-    paymentIntentId: string;
-    saveCard: boolean;
-  }>) => {
+export const confirmAdminPayment = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -376,7 +378,7 @@ export const confirmAdminPayment = functions.https.onCall(
     const {orgId, userId, paymentIntentId, saveCard} = request.data;
 
     if (!orgId || !userId || !paymentIntentId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
@@ -393,7 +395,7 @@ export const confirmAdminPayment = functions.https.onCall(
 
       const memberData = memberDoc.data();
       if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Only owners and admins can confirm payments"
         );
@@ -409,7 +411,7 @@ export const confirmAdminPayment = functions.https.onCall(
 
       const stripeData = stripeDoc.data();
       if (!stripeData || !stripeData.secretKey) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
         );
@@ -424,7 +426,7 @@ export const confirmAdminPayment = functions.https.onCall(
       const paymentIntent = await orgStripe.paymentIntents.retrieve(paymentIntentId);
 
       if (paymentIntent.status !== "succeeded") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           `Payment has not succeeded. Status: ${paymentIntent.status}`
         );
@@ -492,11 +494,11 @@ export const confirmAdminPayment = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error confirming admin payment:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to confirm payment: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -505,13 +507,11 @@ export const confirmAdminPayment = functions.https.onCall(
 );
 
 // Detach (remove) a payment method
-export const detachPaymentMethod = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{
-    userId: string;
-    paymentMethodId: string;
-  }>) => {
+export const detachPaymentMethod = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -520,7 +520,7 @@ export const detachPaymentMethod = functions.https.onCall(
     const {userId, paymentMethodId} = request.data;
 
     if (!userId || request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Invalid user ID"
       );
@@ -532,7 +532,7 @@ export const detachPaymentMethod = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error detaching payment method:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -552,10 +552,11 @@ interface AdminChargeData {
  * Admin function to charge a client's card
  * Requires admin permissions
  */
-export const adminChargeClient = functions.https.onCall(
-  async (request: functions.https.CallableRequest<AdminChargeData>) => {
+export const adminChargeClient = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -564,7 +565,7 @@ export const adminChargeClient = functions.https.onCall(
     const {clientId, amount, description, saveCard} = request.data;
 
     if (!clientId || !amount || amount < 50) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields or amount too small (minimum $0.50)"
       );
@@ -576,7 +577,7 @@ export const adminChargeClient = functions.https.onCall(
       const adminData = adminDoc.data();
 
       if (!adminData?.isAdmin) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Admin access required"
         );
@@ -585,7 +586,7 @@ export const adminChargeClient = functions.https.onCall(
       // Get client information
       const clientDoc = await db.collection("users").doc(clientId).get();
       if (!clientDoc.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Client not found"
         );
@@ -593,7 +594,7 @@ export const adminChargeClient = functions.https.onCall(
 
       const clientData = clientDoc.data();
       if (!clientData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Client data not found"
         );
@@ -650,7 +651,7 @@ export const adminChargeClient = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error creating admin charge:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -665,12 +666,11 @@ interface AdminConfirmChargeData {
 /**
  * Confirm payment and create transaction record
  */
-export const adminConfirmCharge = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<AdminConfirmChargeData>
-  ) => {
+export const adminConfirmCharge = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -679,7 +679,7 @@ export const adminConfirmCharge = functions.https.onCall(
     const {paymentIntentId, clientId, amount, description} = request.data;
 
     if (!paymentIntentId || !clientId || !amount) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
@@ -691,7 +691,7 @@ export const adminConfirmCharge = functions.https.onCall(
       const adminData = adminDoc.data();
 
       if (!adminData?.isAdmin) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Admin access required"
         );
@@ -703,7 +703,7 @@ export const adminConfirmCharge = functions.https.onCall(
       );
 
       if (paymentIntent.status !== "succeeded") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Payment has not succeeded"
         );
@@ -761,7 +761,7 @@ export const adminConfirmCharge = functions.https.onCall(
     } catch (error: unknown) {
       console.error("Error confirming admin charge:", error);
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );

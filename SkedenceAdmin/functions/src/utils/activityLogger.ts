@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions";
+import type { https } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import {BaseActivity} from "./activityTypes";
 
@@ -43,7 +44,7 @@ export interface ActivityConfig<T = any> {
    * Return null to skip logging
    */
   getActivity: (
-    request: functions.https.CallableRequest<T>,
+    request: https.CallableRequest<T>,
     result: any,
     error?: any
   ) => BaseActivity | null | Promise<BaseActivity | null>;
@@ -61,10 +62,12 @@ export interface ActivityConfig<T = any> {
  * @returns Wrapped callable function
  */
 export function callableWithActivity<T = any>(
-  handler: (request: functions.https.CallableRequest<T>) => Promise<any>,
+  handler: (request: https.CallableRequest<T>) => Promise<any>,
   activityConfig?: ActivityConfig<T>
 ) {
-  return functions.https.onCall(async (request: functions.https.CallableRequest<T>) => {
+  return functions
+    
+    .https.onCall(async (request: https.CallableRequest<T>) => {
     let result: any;
     let error: any;
     

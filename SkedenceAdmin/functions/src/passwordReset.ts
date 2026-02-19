@@ -1,19 +1,21 @@
 /* eslint-disable quotes */
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 /**
  * Send password reset email via SendGrid
  * This replaces Firebase Auth's default password reset email
  */
-export const sendPasswordResetEmail = functions.https.onCall(
-  async (data: any, _context) => {
+export const sendPasswordResetEmail = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     try {
       // Log received data safely
       console.log("Received password reset request");
 
       // Extract email - Firebase Functions v2 might nest data in data.data
       let email: string | undefined;
+      const data = request.data;
       if (typeof data === "string") {
         email = data;
       } else if (data?.data?.email) {
@@ -24,7 +26,7 @@ export const sendPasswordResetEmail = functions.https.onCall(
 
       if (!email || typeof email !== "string") {
         console.error("Invalid email. Type:", typeof email);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           "Email is required"
         );
@@ -59,7 +61,7 @@ export const sendPasswordResetEmail = functions.https.onCall(
       return {success: true};
     } catch (error) {
       console.error("Error sending password reset email:", error);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         "Failed to send password reset email"
       );

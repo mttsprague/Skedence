@@ -18,6 +18,9 @@ struct SignInView: View {
     
     private var auth: AuthManager { dependencies.auth }
     
+    // Web app theme color (vibrant orange)
+    private let brandColor = Color(red: 1.0, green: 0.42, blue: 0.21) // #FF6B35
+    
     enum Field: Hashable {
         case email, password
     }
@@ -27,9 +30,9 @@ struct SignInView: View {
             // Background gradient
             LinearGradient(
                 colors: [
-                    auth.primaryColor.opacity(0.1),
+                    brandColor.opacity(0.1),
                     Color.white,
-                    auth.primaryColor.opacity(0.05)
+                    brandColor.opacity(0.05)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -48,13 +51,13 @@ struct SignInView: View {
                             Circle()
                                 .fill(
                                     LinearGradient(
-                                        colors: [auth.primaryColor, auth.primaryColor.opacity(0.7)],
+                                        colors: [brandColor, brandColor.opacity(0.7)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
                                 .frame(width: 100, height: 100)
-                                .shadow(color: auth.primaryColor.opacity(0.3), radius: 20, x: 0, y: 10)
+                                .shadow(color: brandColor.opacity(0.3), radius: 20, x: 0, y: 10)
                             
                             Image(systemName: "calendar.badge.clock")
                                 .font(.system(size: 44, weight: .medium))
@@ -66,7 +69,7 @@ struct SignInView: View {
                             .font(.system(size: 36, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
                         
-                        Text("Admin Portal")
+                        Text("Owners and Trainers")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.secondary)
                     }
@@ -93,7 +96,7 @@ struct SignInView: View {
                             
                             HStack {
                                 Image(systemName: "envelope")
-                                    .foregroundColor(auth.primaryColor)
+                                    .foregroundColor(brandColor)
                                     .frame(width: 20)
                                 
                                 TextField("your.email@example.com", text: $email)
@@ -111,7 +114,7 @@ struct SignInView: View {
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(focusedField == .email ? auth.primaryColor : Color(.systemGray5), lineWidth: 2)
+                                    .stroke(focusedField == .email ? brandColor : Color(.systemGray5), lineWidth: 2)
                             )
                         }
                         
@@ -123,7 +126,7 @@ struct SignInView: View {
                             
                             HStack {
                                 Image(systemName: "lock")
-                                    .foregroundColor(auth.primaryColor)
+                                    .foregroundColor(brandColor)
                                     .frame(width: 20)
                                 
                                 SecureField("Enter your password", text: $password)
@@ -139,7 +142,7 @@ struct SignInView: View {
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(focusedField == .password ? auth.primaryColor : Color(.systemGray5), lineWidth: 2)
+                                    .stroke(focusedField == .password ? brandColor : Color(.systemGray5), lineWidth: 2)
                             )
                         }
                         
@@ -161,14 +164,14 @@ struct SignInView: View {
                             .padding(.vertical, 16)
                             .background(
                                 LinearGradient(
-                                    colors: [auth.primaryColor, auth.primaryColor.opacity(0.8)],
+                                    colors: [brandColor, brandColor.opacity(0.8)],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
                             .foregroundColor(.white)
                             .cornerRadius(12)
-                            .shadow(color: auth.primaryColor.opacity(0.3), radius: 10, x: 0, y: 5)
+                            .shadow(color: brandColor.opacity(0.3), radius: 10, x: 0, y: 5)
                         }
                         .disabled(isLoading || email.isEmpty || password.isEmpty)
                         .opacity((email.isEmpty || password.isEmpty) ? 0.6 : 1.0)
@@ -214,7 +217,7 @@ struct SignInView: View {
                                 }
                             }
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(auth.primaryColor)
+                            .foregroundColor(brandColor)
                         }
                     }
                     .padding(.top, 40)
@@ -229,6 +232,12 @@ struct SignInView: View {
                 focusedField = .email
             }
         }
+        .onChange(of: auth.isAuthenticated) { oldValue, newValue in
+            // Reset loading state when auth state changes
+            if newValue {
+                isLoading = false
+            }
+        }
     }
     
     private func signIn() {
@@ -238,10 +247,16 @@ struct SignInView: View {
         showError = false
         focusedField = nil // Dismiss keyboard
         
+        // Force keyboard dismissal
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        
         Task {
             do {
                 try await auth.signIn(email: email, password: password)
-                // Success - auth listener will handle navigation
+                // Auth listener will load org data, then app will navigate automatically
+                await MainActor.run {
+                    isLoading = false
+                }
             } catch {
                 await MainActor.run {
                     isLoading = false

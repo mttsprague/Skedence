@@ -18,6 +18,7 @@ import FirebaseFirestore
 @MainActor
 final class AuthManager: ObservableObject {
     @Published var isAuthenticated: Bool = false
+    @Published private(set) var isReady: Bool = false
     @Published var userId: String?
     @Published var userEmail: String?
     @Published var errorMessage: String?
@@ -64,21 +65,26 @@ final class AuthManager: ObservableObject {
         #if canImport(FirebaseAuth)
         authListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
-            self.isAuthenticated = (user != nil)
-            self.userId = user?.uid
-            self.userEmail = user?.email
-            Task {
+            
+            Task { @MainActor in
+                self.isAuthenticated = (user != nil)
+                self.userId = user?.uid
+                self.userEmail = user?.email
+                self.isReady = true
+                
+                print("🔐 Auth state changed: isAuthenticated = \(user != nil), uid = \(user?.uid ?? "nil")")
+                
+                // Load org data
                 if let uid = user?.uid {
-                    // Always load org data on auth state change
-                    // loadOrgId will check onboarding status from Firestore
                     await self.loadOrgId(for: uid)
                     
                     // Only load trainer data if onboarding is complete
                     if self.onboardingComplete {
                         await self.refreshTrainerStatus()
                         await self.refreshTrainerProfileIfNeeded()
-                    } else {
                     }
+                    
+                    print("🎯 Org data loaded: orgId = \(self.currentOrgId ?? "nil"), onboarding = \(self.onboardingComplete)")
                 }
             }
         }
@@ -143,7 +149,7 @@ final class AuthManager: ObservableObject {
         #if canImport(FirebaseAuth)
         do {
             _ = try await Auth.auth().signIn(withEmail: email, password: password)
-            // Auth listener will handle loading org and trainer data
+            // Auth listener will load org data and handle navigation
         } catch {
             self.errorMessage = error.localizedDescription
             throw error
@@ -158,15 +164,13 @@ final class AuthManager: ObservableObject {
         errorMessage = nil
         #if canImport(FirebaseAuth)
         do {
+            // Stop all active listeners before signing out
+            SubscriptionStatusService.shared.stopMonitoring()
+            
+            // Now sign out (state will be updated by auth listener)
             try Auth.auth().signOut()
-            self.isTrainer = false
-            self.isAdmin = false
-            self.userId = nil
-            self.userEmail = nil
-            self.trainerDisplayName = nil
-            self.trainerPhotoURLString = nil
-            self.currentOrgId = nil
-            self.currentOrgRole = nil
+            
+            print("🚪 Signed out successfully")
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -276,51 +280,55 @@ final class AuthManager: ObservableObject {
             
             if let doc = snapshot.documents.first,
                let orgId = doc.data()["orgId"] as? String {
-                currentOrgId = orgId
-                currentOrgRole = doc.data()["role"] as? String
+                self.currentOrgId = orgId
+                self.currentOrgRole = doc.data()["role"] as? String
                 
                 // Set isAdmin based on role (owner or admin)
-                isAdmin = (currentOrgRole == "owner" || currentOrgRole == "admin")
-                
+                self.isAdmin = (self.currentOrgRole == "owner" || self.currentOrgRole == "admin")
                 
                 // If user is a trainer, find their trainer document ID
                 if currentOrgRole == "trainer" {
                     await loadTrainerId(userId: userId, orgId: orgId)
                 } else {
-                    trainerId = nil
+                    self.trainerId = nil
                 }
                 
                 // Load organization branding
                 await loadOrgBranding(orgId: orgId)
             } else {
-                currentOrgId = nil
-                currentOrgRole = nil
-                isAdmin = false
-                trainerId = nil
+                self.currentOrgId = nil
+                self.currentOrgRole = nil
+                self.isAdmin = false
+                self.trainerId = nil
             }
         } catch {
-            currentOrgId = nil
-            currentOrgRole = nil
-            trainerId = nil
+            self.currentOrgId = nil
+            self.currentOrgRole = nil
+            self.trainerId = nil
         }
         #else
-        currentOrgId = nil
-        currentOrgRole = nil
-        trainerId = nil
+        self.currentOrgId = nil
+        self.currentOrgRole = nil
+        self.trainerId = nil
         #endif
     }
     
     func loadTrainerId(userId: String, orgId: String) async {
         #if canImport(FirebaseFirestore)
         do {
+            print("🔍 loadTrainerId: Starting for userId: \(userId), orgId: \(orgId)")
             let db = Firestore.firestore()
             
             // Query trainers collection by orgId and email matching the userId's email
             // First get the user's email from users collection or auth
+            print("🔍 loadTrainerId: Fetching user document...")
             let userDoc = try? await db.collection("users").document(userId).getDocument()
             let userEmail = userDoc?.data()?["email"] as? String ?? userDoc?.data()?["emailAddress"] as? String ?? self.userEmail
             
+            print("🔍 loadTrainerId: User email: \(userEmail ?? "none")")
+            
             if let email = userEmail {
+                print("🔍 loadTrainerId: Querying trainers collection...")
                 let trainersSnapshot = try await db.collection("trainers")
                     .whereField("orgId", isEqualTo: orgId)
                     .whereField("email", isEqualTo: email)
@@ -328,76 +336,86 @@ final class AuthManager: ObservableObject {
                     .getDocuments()
                 
                 if let trainerDoc = trainersSnapshot.documents.first {
-                    trainerId = trainerDoc.documentID
+                    self.trainerId = trainerDoc.documentID
+                    print("✅ loadTrainerId: Found trainerId: \(trainerDoc.documentID)")
                 } else {
-                    trainerId = nil
+                    self.trainerId = nil
+                    print("⚠️ loadTrainerId: No trainer document found")
                 }
             } else {
-                trainerId = nil
+                self.trainerId = nil
+                print("⚠️ loadTrainerId: No email available")
             }
         } catch {
-            trainerId = nil
+            print("❌ loadTrainerId ERROR: \(error)")
+            print("❌ Error details: \(error.localizedDescription)")
+            self.trainerId = nil
         }
         #else
-        trainerId = nil
+        self.trainerId = nil
         #endif
     }
     
     // STEP 8: Load dynamic branding from organization
     func loadOrgBranding(orgId: String) async {
         guard !orgId.isEmpty else {
+            print("⚠️ loadOrgBranding: Empty orgId")
             return
         }
         
         #if canImport(FirebaseFirestore)
         do {
+            print("🔍 loadOrgBranding: Starting for orgId: \(orgId)")
             let db = Firestore.firestore()
+            print("🔍 loadOrgBranding: Fetching organization document...")
             let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
             
             guard let orgData = orgDoc.data() else {
+                self.onboardingComplete = false
                 return
             }
             
-            // Load organization name
-            organizationName = orgData["name"] as? String
+            self.onboardingComplete = true
             
-            // Check if onboarding is complete
-            if orgData["onboardingCompletedAt"] != nil {
-                onboardingComplete = true
-            } else {
-                onboardingComplete = false
+            // Optional: Capture organization name
+            if let name = orgData["name"] as? String {
+                self.organizationName = name
             }
             
             // Load branding
             if let branding = orgData["branding"] as? [String: Any] {
                 if let colorHex = branding["primaryColor"] as? String {
                     // Convert hex string to Color (e.g., "#33B2AE")
-                    primaryColor = Color(hex: colorHex) ?? Color(red: 0.20, green: 0.70, blue: 0.68)
+                    self.primaryColor = Color(hex: colorHex) ?? Color(red: 0.20, green: 0.70, blue: 0.68)
                 }
                 if let logo = branding["logoUrl"] as? String, !logo.isEmpty {
-                    logoUrl = logo
+                    self.logoUrl = logo
                 }
             }
             
             // Load Stripe publishable key
             if let stripe = orgData["stripe"] as? [String: Any],
                let pubKey = stripe["publishableKey"] as? String, !pubKey.isEmpty {
-                stripePublishableKey = pubKey
+                self.stripePublishableKey = pubKey
             }
             
             // STEP 10: Load billing status
             if let billing = orgData["billing"] as? [String: Any] {
-                billingPlan = billing["plan"] as? String ?? "free"
-                billingStatus = billing["status"] as? String ?? "active"
+                self.billingPlan = billing["plan"] as? String ?? "free"
+                
+                if let status = billing["status"] as? String {
+                    self.billingStatus = status
+                }
                 
                 if let endTimestamp = billing["currentPeriodEnd"] as? Timestamp {
-                    subscriptionEndDate = endTimestamp.dateValue()
+                    self.subscriptionEndDate = endTimestamp.dateValue()
                 }
                 
                 // Block if status is past_due, canceled, or unpaid
-                isBillingBlocked = ["past_due", "canceled", "unpaid"].contains(billingStatus)
-                
+                self.isBillingBlocked = ["past_due", "canceled", "unpaid"].contains(self.billingStatus)
             }
+            
+            print("✅ loadOrgBranding: Complete")
             
             // Load user profile data (firstName, lastName)
             if let uid = userId, !uid.isEmpty {
@@ -418,8 +436,10 @@ final class AuthManager: ObservableObject {
                 }
                 
                 if let data = userData {
-                    userFirstName = data["firstName"] as? String
-                    userLastName = data["lastName"] as? String
+                    await MainActor.run {
+                        self.userFirstName = data["firstName"] as? String
+                        self.userLastName = data["lastName"] as? String
+                    }
                 }
             }
         } catch {
@@ -444,4 +464,3 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 }
-

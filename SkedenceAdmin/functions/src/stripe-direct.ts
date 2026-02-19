@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 import { checkRateLimit, RATE_LIMITS } from "./rateLimiter";
@@ -19,12 +20,11 @@ interface CreatePaymentIntentDirectData {
  * Payment goes directly to business's Stripe account
  * No platform fees or Connect involved
  */
-export const createPaymentIntentDirect = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<CreatePaymentIntentDirectData>
-  ) => {
+export const createPaymentIntentDirect = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to create a payment"
       );
@@ -39,7 +39,7 @@ export const createPaymentIntentDirect = functions.https.onCall(
     const {orgId, packageType, amount, trainerId, userId} = validatedData;
 
     if (request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
       );
@@ -54,7 +54,7 @@ export const createPaymentIntentDirect = functions.https.onCall(
     );
 
     if (!allowed) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "resource-exhausted",
         "Too many payment attempts. Please try again in a minute."
       );
@@ -71,7 +71,7 @@ export const createPaymentIntentDirect = functions.https.onCall(
 
       const stripeData = stripeDoc.data();
       if (!stripeData || !stripeData.secretKey) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
         );
@@ -87,7 +87,7 @@ export const createPaymentIntentDirect = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -117,14 +117,14 @@ export const createPaymentIntentDirect = functions.https.onCall(
       }
 
       if (!validPackages[packageType]) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           `Invalid package type: ${packageType}`
         );
       }
 
       if (amount !== validPackages[packageType]) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           `Amount mismatch. Expected ${validPackages[packageType]}, got ${amount}`
         );
@@ -230,11 +230,11 @@ export const createPaymentIntentDirect = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error creating payment intent:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to create payment intent: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -245,12 +245,11 @@ export const createPaymentIntentDirect = functions.https.onCall(
 /**
  * Create and confirm payment intent using saved payment method
  */
-export const createAndConfirmPaymentDirect = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<CreatePaymentIntentDirectData & {paymentMethodId: string}>
-  ) => {
+export const createAndConfirmPaymentDirect = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in to create a payment"
       );
@@ -259,14 +258,14 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
     const {orgId, packageType, amount, trainerId, userId, paymentMethodId} = request.data;
 
     if (!orgId || !packageType || !amount || !trainerId || !userId || !paymentMethodId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
     }
 
     if (request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
       );
@@ -281,7 +280,7 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
     );
 
     if (!allowed) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "resource-exhausted",
         "Too many payment attempts. Please try again in a minute."
       );
@@ -298,7 +297,7 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
 
       const stripeData = stripeDoc.data();
       if (!stripeData || !stripeData.secretKey) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
         );
@@ -314,7 +313,7 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -349,14 +348,14 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
       }
 
       if (!validPackages[packageType]) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           `Invalid package type: ${packageType}`
         );
       }
 
       if (amount !== validPackages[packageType].price) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           `Amount mismatch. Expected ${validPackages[packageType].price}, got ${amount}`
         );
@@ -541,7 +540,7 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
           clientSecret: paymentIntent.client_secret,
         };
       } else {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "aborted",
           `Payment not completed. Status: ${paymentIntent.status}`
         );
@@ -549,11 +548,11 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error creating payment with saved card:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to process payment: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -565,12 +564,11 @@ export const createAndConfirmPaymentDirect = functions.https.onCall(
  * Confirm an existing payment intent and create lesson package
  * Used after Payment Sheet completes a payment created with createPaymentIntentDirect
  */
-export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
-  async (
-    request: functions.https.CallableRequest<{paymentIntentId: string; userId: string}>
-  ) => {
+export const confirmPaymentAndCreatePackageDirect = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -579,14 +577,14 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
     const {paymentIntentId, userId} = request.data;
 
     if (!paymentIntentId || !userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing paymentIntentId or userId"
       );
     }
 
     if (request.auth.uid !== userId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "User ID does not match authenticated user"
       );
@@ -632,14 +630,14 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
       }
 
       if (!stripe || !paymentIntent || !orgId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Payment intent not found in any organization"
         );
       }
 
       if (paymentIntent.status !== "succeeded") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           `Payment has not succeeded. Status: ${paymentIntent.status}`
         );
@@ -688,7 +686,7 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
       console.log(`🔍 Payment metadata - packageType: ${packageType}, trainerId: ${trainerId}`);
 
       if (!packageType || !trainerId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "internal",
           "Payment intent is missing required metadata"
         );
@@ -792,11 +790,11 @@ export const confirmPaymentAndCreatePackageDirect = functions.https.onCall(
     } catch (error: unknown) {
       console.error("❌ Error confirming payment:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to confirm payment: ${error instanceof Error ? error.message : "Unknown error"}`
       );

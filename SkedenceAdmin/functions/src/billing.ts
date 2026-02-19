@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 
@@ -43,10 +44,11 @@ interface CreateSubscriptionData {
 /**
  * Create a subscription for an organization
  */
-export const createSubscription = functions.https.onCall(
-  async (request: functions.https.CallableRequest<CreateSubscriptionData>) => {
+export const createSubscription = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -55,7 +57,7 @@ export const createSubscription = functions.https.onCall(
     const {orgId, priceId, paymentMethodId} = request.data;
 
     if (!orgId || !priceId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId or priceId"
       );
@@ -67,7 +69,7 @@ export const createSubscription = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData || orgData.ownerUserId !== request.auth.uid) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You must be the organization owner"
         );
@@ -134,11 +136,11 @@ export const createSubscription = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error creating subscription:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -151,10 +153,11 @@ interface SyncBillingData {
  * Sync org billing from Stripe (owner only)
  * Ensures plan/status fields match Stripe subscription state
  */
-export const syncBillingFromStripe = functions.https.onCall(
-  async (request: functions.https.CallableRequest<SyncBillingData>) => {
+export const syncBillingFromStripe = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -162,7 +165,7 @@ export const syncBillingFromStripe = functions.https.onCall(
 
     const {orgId} = request.data;
     if (!orgId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId"
       );
@@ -171,7 +174,7 @@ export const syncBillingFromStripe = functions.https.onCall(
     const orgDoc = await db.collection("organizations").doc(orgId).get();
     const orgData = orgDoc.data();
     if (!orgData || orgData.ownerUserId !== request.auth.uid) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "You must be the organization owner"
       );
@@ -197,7 +200,7 @@ export const syncBillingFromStripe = functions.https.onCall(
     }
 
     if (!subscription) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "failed-precondition",
         "No subscription found for this organization"
       );
@@ -249,8 +252,9 @@ interface CancelSubscriptionData {
 /**
  * Cancel an organization's subscription
  */
-export const cancelSubscription = functions.https.onCall(
-  async (request: functions.https.CallableRequest<CancelSubscriptionData>) => {
+export const cancelSubscription = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     console.log("🔴 cancelSubscription called on server");
     console.log("   request.auth:", request.auth ? "EXISTS" : "NULL");
     console.log("   request.auth.uid:", request.auth?.uid || "N/A");
@@ -258,7 +262,7 @@ export const cancelSubscription = functions.https.onCall(
 
     if (!request.auth) {
       console.log("❌ No auth context - throwing UNAUTHENTICATED");
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -267,7 +271,7 @@ export const cancelSubscription = functions.https.onCall(
     const {orgId} = request.data;
 
     if (!orgId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId"
       );
@@ -281,7 +285,7 @@ export const cancelSubscription = functions.https.onCall(
 
       if (!orgData || orgData.ownerUserId !== request.auth.uid) {
         console.log(`❌ Permission denied: ownerUserId=${orgData?.ownerUserId}, requestUid=${request.auth.uid}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You must be the organization owner"
         );
@@ -291,7 +295,7 @@ export const cancelSubscription = functions.https.onCall(
       console.log(`🔍 Found stripeSubscriptionId: ${subscriptionId || "null"}`);
 
       if (!subscriptionId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No active subscription found"
         );
@@ -323,11 +327,11 @@ export const cancelSubscription = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error canceling subscription:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -339,8 +343,9 @@ interface RestoreSubscriptionData {
 /**
  * Restore a canceled subscription (un-cancel)
  */
-export const restoreSubscription = functions.https.onCall(
-  async (request: functions.https.CallableRequest<RestoreSubscriptionData>) => {
+export const restoreSubscription = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     console.log("🔵 restoreSubscription called on server");
     console.log("   request.auth:", request.auth ? "EXISTS" : "NULL");
     console.log("   request.auth.uid:", request.auth?.uid || "N/A");
@@ -348,7 +353,7 @@ export const restoreSubscription = functions.https.onCall(
 
     if (!request.auth) {
       console.log("❌ No auth context - throwing UNAUTHENTICATED");
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -357,7 +362,7 @@ export const restoreSubscription = functions.https.onCall(
     const {orgId} = request.data;
 
     if (!orgId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId"
       );
@@ -371,7 +376,7 @@ export const restoreSubscription = functions.https.onCall(
 
       if (!orgData || orgData.ownerUserId !== request.auth.uid) {
         console.log(`❌ Permission denied: ownerUserId=${orgData?.ownerUserId}, requestUid=${request.auth.uid}`);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You must be the organization owner"
         );
@@ -381,7 +386,7 @@ export const restoreSubscription = functions.https.onCall(
       console.log(`🔍 Found stripeSubscriptionId: ${subscriptionId || "null"}`);
 
       if (!subscriptionId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No subscription found"
         );
@@ -412,11 +417,11 @@ export const restoreSubscription = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error restoring subscription:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -429,10 +434,11 @@ interface UpdateSubscriptionData {
 /**
  * Update subscription plan (upgrade/downgrade)
  */
-export const updateSubscription = functions.https.onCall(
-  async (request: functions.https.CallableRequest<UpdateSubscriptionData>) => {
+export const updateSubscription = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -441,7 +447,7 @@ export const updateSubscription = functions.https.onCall(
     const {orgId, newPriceId} = request.data;
 
     if (!orgId || !newPriceId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId or newPriceId"
       );
@@ -453,7 +459,7 @@ export const updateSubscription = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData || orgData.ownerUserId !== request.auth.uid) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You must be the organization owner"
         );
@@ -461,7 +467,7 @@ export const updateSubscription = functions.https.onCall(
 
       const subscriptionId = orgData.billing?.subscriptionId;
       if (!subscriptionId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No active subscription found"
         );
@@ -471,7 +477,7 @@ export const updateSubscription = functions.https.onCall(
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
       if (!subscription.items.data[0]) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Subscription has no items"
         );
@@ -498,11 +504,11 @@ export const updateSubscription = functions.https.onCall(
       return {success: true, newPlan};
     } catch (error: unknown) {
       console.error("Error updating subscription:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -510,7 +516,7 @@ export const updateSubscription = functions.https.onCall(
 /**
  * Webhook handler for Stripe events
  */
-export const stripeWebhook = functions.https.onRequest(
+export const stripeWebhook = onRequest(
   async (req, res) => {
     const sig = req.headers["stripe-signature"];
 
@@ -710,10 +716,11 @@ interface GetBillingStatusData {
 /**
  * Get current billing status and usage
  */
-export const getBillingStatus = functions.https.onCall(
-  async (request: functions.https.CallableRequest<GetBillingStatusData>) => {
+export const getBillingStatus = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -722,7 +729,7 @@ export const getBillingStatus = functions.https.onCall(
     const {orgId} = request.data;
 
     if (!orgId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing orgId"
       );
@@ -735,7 +742,7 @@ export const getBillingStatus = functions.https.onCall(
         .get();
 
       if (!memberDoc.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You are not a member of this organization"
         );
@@ -746,7 +753,7 @@ export const getBillingStatus = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -793,11 +800,11 @@ export const getBillingStatus = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error getting billing status:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -811,7 +818,7 @@ interface CreateCheckoutData {
 /**
  * Create a Stripe Checkout session for subscription signup
  */
-export const createStripeCheckout = functions.https.onRequest(
+export const createStripeCheckout = onRequest(
   async (req, res) => {
     // Set CORS headers - restrict to Firebase hosting domain only
     const allowedOrigins = [
@@ -950,10 +957,11 @@ export const createStripeCheckout = functions.https.onRequest(
  * Create Setup Intent for in-app payment collection
  * This allows users to add/update payment method without leaving the app
  */
-export const createSetupIntent = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{organizationId: string}>) => {
+export const createSetupIntent = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -962,7 +970,7 @@ export const createSetupIntent = functions.https.onCall(
     const {organizationId} = request.data;
 
     if (!organizationId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing organizationId"
       );
@@ -974,7 +982,7 @@ export const createSetupIntent = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -1029,11 +1037,11 @@ export const createSetupIntent = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error creating setup intent:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -1041,10 +1049,11 @@ export const createSetupIntent = functions.https.onCall(
 /**
  * Get payment method info for organization
  */
-export const getPaymentMethod = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{organizationId: string}>) => {
+export const getPaymentMethod = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -1053,7 +1062,7 @@ export const getPaymentMethod = functions.https.onCall(
     const {organizationId} = request.data;
 
     if (!organizationId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing organizationId"
       );
@@ -1065,7 +1074,7 @@ export const getPaymentMethod = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -1101,11 +1110,11 @@ export const getPaymentMethod = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error getting payment method:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -1113,10 +1122,11 @@ export const getPaymentMethod = functions.https.onCall(
 /**
  * Remove payment method from organization
  */
-export const removePaymentMethod = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{organizationId: string}>) => {
+export const removePaymentMethod = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -1125,7 +1135,7 @@ export const removePaymentMethod = functions.https.onCall(
     const {organizationId} = request.data;
 
     if (!organizationId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing organizationId"
       );
@@ -1137,14 +1147,14 @@ export const removePaymentMethod = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
       }
 
       if (orgData.ownerUserId !== request.auth.uid) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Only the organization owner can remove payment methods"
         );
@@ -1153,7 +1163,7 @@ export const removePaymentMethod = functions.https.onCall(
       const customerId = orgData.billing?.stripeCustomerId;
 
       if (!customerId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "No customer ID found"
         );
@@ -1186,11 +1196,11 @@ export const removePaymentMethod = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error removing payment method:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -1198,13 +1208,11 @@ export const removePaymentMethod = functions.https.onCall(
 /**
  * Save payment method directly (tokenize and attach to customer)
  */
-export const savePaymentMethod = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{
-    organizationId: string;
-    token: string;
-  }>) => {
+export const savePaymentMethod = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -1213,7 +1221,7 @@ export const savePaymentMethod = functions.https.onCall(
     const {organizationId, token} = request.data;
 
     if (!organizationId || !token) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
@@ -1225,7 +1233,7 @@ export const savePaymentMethod = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -1288,11 +1296,11 @@ export const savePaymentMethod = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error saving payment method:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -1301,14 +1309,11 @@ export const savePaymentMethod = functions.https.onCall(
  * Create or update subscription with payment method (in-app)
  * This is called after the user adds their payment method in the app
  */
-export const createInAppSubscription = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{
-    organizationId: string;
-    priceId: string;
-    paymentMethodId: string;
-  }>) => {
+export const createInAppSubscription = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -1317,7 +1322,7 @@ export const createInAppSubscription = functions.https.onCall(
     const {organizationId, priceId, paymentMethodId} = request.data;
 
     if (!organizationId || !priceId || !paymentMethodId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
@@ -1329,7 +1334,7 @@ export const createInAppSubscription = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -1338,7 +1343,7 @@ export const createInAppSubscription = functions.https.onCall(
       const customerId = orgData.billing?.stripeCustomerId;
 
       if (!customerId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No Stripe customer found"
         );
@@ -1448,11 +1453,11 @@ export const createInAppSubscription = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error creating in-app subscription:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );
@@ -1460,13 +1465,11 @@ export const createInAppSubscription = functions.https.onCall(
  * Simplified upgrade/downgrade using existing payment method
  * User must already have a payment method on file
  */
-export const upgradeSubscription = functions.https.onCall(
-  async (request: functions.https.CallableRequest<{
-    organizationId: string;
-    priceId: string;
-  }>) => {
+export const upgradeSubscription = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "You must be signed in"
       );
@@ -1475,7 +1478,7 @@ export const upgradeSubscription = functions.https.onCall(
     const {organizationId, priceId} = request.data;
 
     if (!organizationId || !priceId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Missing required fields"
       );
@@ -1487,7 +1490,7 @@ export const upgradeSubscription = functions.https.onCall(
       const orgData = orgDoc.data();
 
       if (!orgData) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organization not found"
         );
@@ -1496,7 +1499,7 @@ export const upgradeSubscription = functions.https.onCall(
       const customerId = orgData.billing?.stripeCustomerId;
 
       if (!customerId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No Stripe customer found. Please add a payment method first."
         );
@@ -1517,7 +1520,7 @@ export const upgradeSubscription = functions.https.onCall(
         });
 
         if (paymentMethods.data.length === 0) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "No payment method on file. Please add a payment method first."
           );
@@ -1635,11 +1638,11 @@ export const upgradeSubscription = functions.https.onCall(
       };
     } catch (error: unknown) {
       console.error("Error upgrading subscription:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new functions.https.HttpsError("internal", message);
+      throw new HttpsError("internal", message);
     }
   }
 );

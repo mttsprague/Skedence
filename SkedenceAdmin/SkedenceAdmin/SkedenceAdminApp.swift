@@ -17,23 +17,26 @@ struct SkedenceAdminApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     @StateObject private var dependencies = AdminAppDependencies()
-    @State private var stripeConnectCompleted = false
     @State private var passwordSetupData: (token: String, email: String, trainerId: String)?
+    @State private var stripeConnectCompleted: Bool = false
     @Environment(\.scenePhase) private var scenePhase
-    
-    // Convenience accessors
-    private var auth: AuthManager { dependencies.auth }
-    private var subscriptionStatus: SubscriptionStatusService { dependencies.subscription }
 
     var body: some Scene {
         WindowGroup {
-            contentView
+            Group {
+                if dependencies.auth.isReady {
+                    mainContent
+                } else {
+                    ProgressView("Loading...")
+                        .scaleEffect(1.5)
+                }
+            }
+            .environmentObject(dependencies)
         }
     }
     
     @ViewBuilder
-    private var contentView: some View {
-        // Show password setup if coming from invitation link
+    private var mainContent: some View {
         if let setupData = passwordSetupData {
             PasswordSetupView(
                 setupToken: setupData.token,
@@ -42,33 +45,27 @@ struct SkedenceAdminApp: App {
             )
             .environmentObject(dependencies)
             .onDisappear {
-                // Clear setup data after view dismisses
                 passwordSetupData = nil
             }
             .onOpenURL { url in
                 handleDeepLink(url)
             }
-        }
-        // Show sign in page if not authenticated
-        else if !auth.isAuthenticated {
+        } else if !dependencies.auth.isAuthenticated || dependencies.auth.currentOrgId == nil {
             SignInView()
                 .environmentObject(dependencies)
                 .onOpenURL { url in
                     handleDeepLink(url)
                 }
         } else {
-            // Authenticated - go straight to main app
             ContentViewWrapper()
                 .environmentObject(dependencies)
                 .task {
-                    // Monitor subscription status after auth
-                    if let orgId = auth.currentOrgId {
-                        subscriptionStatus.monitorOrgStatus(organizationId: orgId)
+                    if let orgId = dependencies.auth.currentOrgId {
+                        dependencies.subscription.monitorOrgStatus(organizationId: orgId)
                     }
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     if newPhase == .active {
-                        // Refresh billing when returning from Safari
                         Task {
                             await refreshBillingAfterCheckout()
                         }
@@ -81,13 +78,13 @@ struct SkedenceAdminApp: App {
     }
     
     private func refreshBillingAfterCheckout() async {
-        guard let orgId = auth.currentOrgId else { return }
+        guard let orgId = dependencies.auth.currentOrgId else { return }
         
         // Wait a moment for webhook to process
         try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
         
         // Reload org branding (which includes billing data)
-        await auth.loadOrgBranding(orgId: orgId)
+        await dependencies.auth.loadOrgBranding(orgId: orgId)
         
     }
     
@@ -109,9 +106,9 @@ struct SkedenceAdminApp: App {
                 // Wait for webhook to process
                 try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
                 
-                if let orgId = orgId ?? auth.currentOrgId {
-                    await auth.loadOrgBranding(orgId: orgId)
-                    subscriptionStatus.monitorOrgStatus(organizationId: orgId)
+                if let orgId = orgId ?? dependencies.auth.currentOrgId {
+                    await dependencies.auth.loadOrgBranding(orgId: orgId)
+                    dependencies.subscription.monitorOrgStatus(organizationId: orgId)
                 }
                 
                 // Show success message
@@ -166,7 +163,7 @@ struct SkedenceAdminApp: App {
                 stripeConnectCompleted = true
                 
                 // Trigger a refresh of Stripe status
-                if let orgId = auth.currentOrgId {
+                if let orgId = dependencies.auth.currentOrgId {
                     Task {
                         do {
                             #if canImport(FirebaseCore)

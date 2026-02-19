@@ -8,6 +8,7 @@
 import SwiftUI
 import Combine
 import FirebaseCore
+import FirebaseAppCheck
 import FirebaseCrashlytics
 import FirebaseAnalytics
 import StripePaymentSheet
@@ -17,7 +18,17 @@ struct SkedenceApp: App {
     @StateObject private var deepLinkManager = DeepLinkManager()
 
     init() {
-        // Configure Firebase
+        // CRITICAL: Set App Check provider BEFORE Firebase configuration
+        #if DEBUG
+        // Use debug provider in development
+        AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
+        #else
+        // Use DeviceCheck provider in production
+        let providerFactory = AppAttestProviderFactory()
+        AppCheck.setAppCheckProviderFactory(providerFactory)
+        #endif
+        
+        // Configure Firebase AFTER setting App Check provider
         FirebaseApp.configure()
         
         // Initialize Analytics and Crashlytics services

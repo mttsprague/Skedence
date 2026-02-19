@@ -12,6 +12,10 @@ class SubscriptionEnforcementService: ObservableObject {
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
     
+    deinit {
+        listener?.remove()
+    }
+    
     func startMonitoring(organizationId: String) {
         listener = db.collection("organizations").document(organizationId)
             .addSnapshotListener { [weak self] snapshot, error in

@@ -50,10 +50,16 @@ class AdminAppDependencies: ObservableObject {
     @Published var selectedTab = 0
     @Published var onboardingStep: Int?
     
+    // MARK: - Cancellables for nested ObservableObjects
+    
+    private var cancellables = Set<AnyCancellable>()
+    
     // MARK: - Initialization
     
     init() {
-        // Services are initialized automatically
-        // Add any additional setup here if needed
+        // Republish auth changes to trigger SwiftUI updates
+        auth.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
     }
 }

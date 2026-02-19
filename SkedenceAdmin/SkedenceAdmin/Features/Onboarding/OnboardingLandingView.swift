@@ -115,6 +115,7 @@ struct OnboardingLandingView: View {
                 .environmentObject(coordinator)
         }
         .sheet(isPresented: $showingSignIn) {
+            // Use the shared SignInView defined in SignInView.swift
             SignInView()
                 .environmentObject(dependencies)
         }
@@ -153,115 +154,8 @@ private struct FeatureRow: View {
     }
 }
 
-// MARK: - Sign In View (Simple)
-
-private struct SignInView: View {
-    @EnvironmentObject private var dependencies: AdminAppDependencies
-    @Environment(\.dismiss) var dismiss
-    
-    // Convenience accessor
-    private var auth: AuthManager { dependencies.auth }
-    
-    @State private var email: String = ""
-    @State private var password: String = ""
-    @State private var isSigningIn: Bool = false
-    @State private var errorMessage: String?
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: Spacing.lg) {
-                // Email
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("Email")
-                        .font(.labelLarge)
-                        .foregroundStyle(AppTheme.textSecondary)
-                    
-                    TextField("you@example.com", text: $email)
-                        .font(.bodyLarge)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.emailAddress)
-                        .padding()
-                        .background(AppTheme.surfaceSecondary)
-                        .cornerRadius(CornerRadius.md)
-                }
-                
-                // Password
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("Password")
-                        .font(.labelLarge)
-                        .foregroundStyle(AppTheme.textSecondary)
-                    
-                    SecureField("Password", text: $password)
-                        .font(.bodyLarge)
-                        .padding()
-                        .background(AppTheme.surfaceSecondary)
-                        .cornerRadius(CornerRadius.md)
-                }
-                
-                // Error
-                if let error = errorMessage {
-                    Text(error)
-                        .font(.bodyMedium)
-                        .foregroundStyle(.red)
-                }
-                
-                // Sign In Button
-                Button(action: signIn) {
-                    HStack {
-                        if isSigningIn {
-                            ProgressView()
-                                .tint(.white)
-                        }
-                        Text(isSigningIn ? "Signing In..." : "Sign In")
-                            .font(.headingSmall)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Spacing.md)
-                    .background(email.isEmpty || password.isEmpty ? Color.gray : AppTheme.primary)
-                    .foregroundStyle(.white)
-                    .cornerRadius(CornerRadius.md)
-                }
-                .disabled(email.isEmpty || password.isEmpty || isSigningIn)
-                
-                Spacer()
-            }
-            .padding(Spacing.lg)
-            .navigationTitle("Sign In")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-    
-    func signIn() {
-        isSigningIn = true
-        errorMessage = nil
-        
-        Task {
-            // Populate AuthManager's inputs and use its signIn() API
-            auth.emailInput = email
-            auth.passwordInput = password
-            
-            await auth.signIn()
-            
-            if let authError = auth.errorMessage, !authError.isEmpty {
-                // Surface error from AuthManager
-                errorMessage = authError
-                isSigningIn = false
-            } else {
-                // Success
-                dismiss()
-            }
-        }
-    }
-}
-
 #Preview {
     OnboardingLandingView()
-        .environmentObject(AuthManager())
+        .environmentObject(AdminAppDependencies())
+        .environmentObject(OnboardingCoordinator())
 }

@@ -534,6 +534,7 @@ struct SessionDetailView: View {
                 }
                 Text(isCancelling ? "Cancelling..." : "Cancel Session")
             }
+            .frame(height: 56) // Preserve the fixed height from the previous local style
         }
         .buttonStyle(DestructiveButtonStyle())
         .disabled(isCancelling)
@@ -650,22 +651,6 @@ struct SessionDetailView: View {
         } catch {
             print("Error loading user profile: \(error.localizedDescription)")
         }
-    }
-}
-
-// MARK: - Destructive Button Style
-struct DestructiveButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headingSmall)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(
-                RoundedRectangle(cornerRadius: CornerRadius.md)
-                    .fill(Color.red)
-            )
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
     }
 }
 
