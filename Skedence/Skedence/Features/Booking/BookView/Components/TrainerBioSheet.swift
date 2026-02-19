@@ -13,43 +13,60 @@ struct TrainerBioSheet: View {
     
     var body: some View {
         NavigationView {
-            ZStack {
-                // Test with bright red background
-                Color.red
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 20) {
-                    Text("TRAINER BIO SHEET")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // Header with Avatar and Name
+                    VStack(spacing: Spacing.md) {
+                        TrainerAvatarView(trainer: trainer, size: 80)
+                        
+                        Text(trainer.name ?? "Trainer")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        if let email = trainer.email {
+                            Text(email)
+                                .font(.bodySmall)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                     
-                    Text("Name: \(trainer.name ?? "Unknown")")
-                        .font(.title2)
-                        .foregroundColor(.white)
+                    Divider()
+                        .padding(.horizontal, Spacing.lg)
                     
-                    Text("Email: \(trainer.email ?? "No email")")
-                        .font(.body)
-                        .foregroundColor(.white)
-                    
-                    Text("Bio: \(trainer.trainerDescription ?? "No bio")")
-                        .font(.body)
-                        .foregroundColor(.white)
-                        .padding()
-                    
-                    Button("Close") {
+                    // Bio Content
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        Text("About")
+                            .font(.headingMedium)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        if let bio = trainer.trainerDescription, !bio.isEmpty {
+                            Text(bio)
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .lineSpacing(6)
+                        } else {
+                            Text("No bio available")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textTertiary)
+                                .italic()
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                }
+                .padding(.vertical, Spacing.xl)
+            }
+            .background(Color.platformGroupedBackground.ignoresSafeArea())
+            .navigationTitle("Trainer Bio")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
                         dismiss()
                     }
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
+                    .foregroundStyle(AppTheme.primary)
                 }
-                .padding()
             }
-            .navigationTitle("Debug View")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

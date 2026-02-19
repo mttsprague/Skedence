@@ -21,7 +21,6 @@ struct MorePlaceholderView: View {
     @State private var deleteMessage: String?
     @State private var isDeletingAccount = false
     @State private var selectedTrainer: Trainer?
-    @State private var showTrainerBio = false
     
     var body: some View {
         NavigationView {
@@ -504,15 +503,8 @@ struct MorePlaceholderView: View {
         } message: {
             Text("Your account has been successfully deleted.")
         }
-        .sheet(isPresented: $showTrainerBio) {
-            if let trainer = selectedTrainer {
-                TrainerBioSheet(trainer: trainer)
-            } else {
-                // Fallback in case trainer is nil
-                Text("Error: No trainer selected")
-                    .font(.title)
-                    .padding()
-            }
+        .sheet(item: $selectedTrainer) { trainer in
+            TrainerBioSheet(trainer: trainer)
         }
         .task {
             // Load trainers when view appears
@@ -532,11 +524,7 @@ struct MorePlaceholderView: View {
                 VStack(spacing: Spacing.md) {
                     ForEach(trainersService.trainers.filter { $0.active == true }, id: \.id) { trainer in
                         Button {
-                            print("DEBUG: Tapping trainer: \(trainer.name ?? "unknown"), active: \(trainer.active ?? false)")
-                            print("DEBUG: Trainer description: \(trainer.trainerDescription ?? "nil")")
                             selectedTrainer = trainer
-                            print("DEBUG: selectedTrainer set to: \(selectedTrainer?.name ?? "nil")")
-                            showTrainerBio = true
                         } label: {
                             HStack(spacing: Spacing.md) {
                                 // Trainer Avatar
