@@ -53,9 +53,10 @@ export default function AvailabilityPage() {
 
     async function loadTrainers() {
       try {
+        // Query trainers collection directly with orgId filter (matches iOS pattern)
         const trainersQuery = query(
-          collection(db, 'organizations', orgId!, 'users'),
-          where('role', '==', 'trainer')
+          collection(db, 'trainers'),
+          where('orgId', '==', orgId)
         );
         const snapshot = await getDocs(trainersQuery);
         const trainersData = snapshot.docs.map(doc => ({
