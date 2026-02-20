@@ -10,7 +10,6 @@ const db = admin.firestore();
  * Used for "Add Card to Wallet" functionality
  */
 export const createSetupIntentDirect = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -174,7 +173,6 @@ export const createSetupIntentDirect = onCall(
  * Get payment methods for a customer using organization's Stripe account
  */
 export const getPaymentMethodsDirect = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -356,7 +354,6 @@ export const getPaymentMethodsDirect = onCall(
  * Allows admins to view client payment methods for processing payments
  */
 export const getPaymentMethodsDirectAdmin = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -554,7 +551,6 @@ export const getPaymentMethodsDirectAdmin = onCall(
  * Attach a payment method to a customer
  */
 export const attachPaymentMethod = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -631,7 +627,6 @@ export const attachPaymentMethod = onCall(
  * Charge a customer using a saved payment method
  */
 export const chargeWithSavedMethod = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
