@@ -28,6 +28,8 @@ interface AvailabilitySlot {
 
 export default function AvailabilityPage() {
   const { orgId } = useAuth();
+  console.log('🔵 AvailabilityPage component loaded. orgId:', orgId);
+  
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [selectedTrainer, setSelectedTrainer] = useState<string>('');
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
@@ -47,9 +49,11 @@ export default function AvailabilityPage() {
   });
 
   useEffect(() => {
+    console.log('🔵 First useEffect triggered. orgId:', orgId);
     if (!orgId) return;
 
     async function loadTrainers() {
+      console.log('🔵 Loading trainers...');
       try {
         const trainersQuery = query(
           collection(db, 'organizations', orgId!, 'users'),
@@ -99,8 +103,14 @@ export default function AvailabilityPage() {
   }, [orgId, selectedTrainer]);
 
   const handleAddSlot = async () => {
-    if (!orgId || !selectedTrainer) return;
+    console.log('🔵 handleAddSlot called! orgId:', orgId, 'selectedTrainer:', selectedTrainer);
+    
+    if (!orgId || !selectedTrainer) {
+      console.error('❌ Missing required data. orgId:', orgId, 'selectedTrainer:', selectedTrainer);
+      return;
+    }
 
+    console.log('🔵 Validation passed, setting adding state...');
     setAdding(true);
     try {
       const startDateTime = new Date(`${newSlot.startDate}T${newSlot.startTime}`);
@@ -135,9 +145,12 @@ export default function AvailabilityPage() {
       }
 
       const processAvailability = httpsCallable(functions, 'processTrainerAvailability');
+      console.log('📅 Calling processTrainerAvailability cloud function...');
       await processAvailability(params);
+      console.log('✅ Cloud function completed successfully');
 
       // Reload slots
+      console.log('📅 Reloading slots from Firestore...');
       const trainerRef = doc(db, 'trainers', selectedTrainer);
       const slotsQuery = query(
         collection(trainerRef, 'schedules')
@@ -148,20 +161,24 @@ export default function AvailabilityPage() {
         ...doc.data(),
       })) as AvailabilitySlot[];
       setSlots(slotsData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
+      console.log('✅ Slots reloaded, count:', slotsData.length);
       
       // Mark "Create Trainer Availability" as complete in onboarding checklist
+      console.log('📅 About to mark onboarding step, orgId:', orgId);
       if (orgId) {
         try {
+          console.log('📅 orgId exists, proceeding to mark hasAvailability=true');
           const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
           const onboardingDoc = await getDoc(onboardingRef);
           const currentProgress = onboardingDoc.exists() ? onboardingDoc.data() : {};
-          console.log('📅 Availability: Marking hasAvailability=true in onboarding');
-          console.log('📅 Current progress:', currentProgress);
+          console.log('📅 Current onboarding progress:', currentProgress);
           await setDoc(onboardingRef, { ...currentProgress, hasAvailability: true }, { merge: true });
-          console.log('✅ Availability: Successfully marked hasAvailability=true');
+          console.log('✅ Successfully marked hasAvailability=true in Firestore');
         } catch (error) {
           console.error('❌ Error marking onboarding step complete:', error);
         }
+      } else {
+        console.error('❌ orgId is falsy, cannot mark onboarding step. orgId value:', orgId);
       }
 
       // Reset form

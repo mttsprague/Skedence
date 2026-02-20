@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 
 const submenuItems = [
   { name: 'Scheduling Page', href: '/scheduling', icon: CalendarIcon },
+  { name: 'Availability', href: '/availability', icon: CalendarIcon },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Trainers', href: '/trainers', icon: UserCog },
   { name: 'Book Session', href: '/bookings', icon: Plus },
