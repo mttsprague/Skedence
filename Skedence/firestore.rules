@@ -70,8 +70,10 @@ service cloud.firestore {
       
       // Users can create their own membership during registration
       // OR owners/admins can create memberships for new trainers in their org
+      // Support both userId pattern (old) and authUserId pattern (new)
       allow create: if isSignedIn() && (
         request.resource.data.userId == request.auth.uid
+        || request.resource.data.authUserId == request.auth.uid
         || isOrgAdmin(request.resource.data.orgId)
       );
       
@@ -288,8 +290,10 @@ service cloud.firestore {
 
       // Users can create their own trainer profile during registration
       // OR owners/admins can create trainer profiles for new trainers in their org
+      // Support both trainerId == authUid (old) and authUserId field (new)
       allow create: if isSignedIn() && (
         request.auth.uid == trainerId
+        || request.resource.data.authUserId == request.auth.uid
         || ('orgId' in request.resource.data && isOrgAdmin(request.resource.data.orgId))
       );
       

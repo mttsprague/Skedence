@@ -79,9 +79,10 @@ export default function RegisterPage() {
       const orgId = await generateOrganizationId(db, businessName);
       console.log('✅ Generated orgId:', orgId);
 
-      // For web registration, use Firebase Auth UID as trainer ID to match security rules
-      const trainerId = authUserId; // Use auth UID for now (security rules requirement)
-      console.log('✅ TrainerID set to auth UID:', trainerId);
+      // Generate human-readable trainer ID from name
+      console.log('🔧 Generating trainerId from:', firstName, lastName);
+      const trainerId = await generateTrainerId(db, firstName, lastName);
+      console.log('✅ Generated trainerId:', trainerId);
 
       // Calculate trial end date (14 days from now)
       const trialEndsAt = new Date();
@@ -145,7 +146,7 @@ export default function RegisterPage() {
       console.log('📝 Creating trainer document with ID:', trainerId);
       await setDoc(doc(db, "trainers", trainerId), {
         orgId: orgId,
-        authUserId: authUserId, // Map to Firebase Auth UID
+        authUserId: authUserId, // Map to Firebase Auth UID for lookups
         firstName: firstName,
         lastName: lastName,
         email: email,
@@ -153,20 +154,26 @@ export default function RegisterPage() {
         isAdmin: true,
         createdAt: serverTimestamp()
       });
+      console.log('✅ Trainer document created successfully');
 
-      // Create orgMembers entry for authentication
-      console.log('📝 Creating orgMembers document');
+      // CRITICAL: Create DUAL-PATH orgMembers for authentication
+      console.log('📝 Creating orgMembers documents');
       const memberData = {
         orgId: orgId,
-        userId: authUserId, // Use auth UID (matches security rules)
+        userId: trainerId, // Name-based trainer ID
+        authUserId: authUserId, // Firebase Auth UID for reverse lookups
         role: "owner",
         isActive: true,
         createdAt: serverTimestamp()
       };
 
-      // Single orgMembers document: {authUserId}_{orgId}
+      // 1. Name-based ID: {trainerId}_{orgId} - for application queries
+      await setDoc(doc(db, "orgMembers", `${trainerId}_${orgId}`), memberData);
+      console.log('✅ Created orgMembers:', `${trainerId}_${orgId}`);
+
+      // 2. Auth UID-based ID: {authUserId}_{orgId} - for security rules (fast lookup)
       await setDoc(doc(db, "orgMembers", `${authUserId}_${orgId}`), memberData);
-      console.log('✅ orgMembers document created');
+      console.log('✅ Created orgMembers:', `${authUserId}_${orgId}`);
 
       // Store orgId for step 3
       sessionStorage.setItem('newOrgId', orgId);
