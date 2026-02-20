@@ -155,9 +155,12 @@ export default function AvailabilityPage() {
           const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
           const onboardingDoc = await getDoc(onboardingRef);
           const currentProgress = onboardingDoc.exists() ? onboardingDoc.data() : {};
+          console.log('📅 Availability: Marking hasAvailability=true in onboarding');
+          console.log('📅 Current progress:', currentProgress);
           await setDoc(onboardingRef, { ...currentProgress, hasAvailability: true }, { merge: true });
+          console.log('✅ Availability: Successfully marked hasAvailability=true');
         } catch (error) {
-          console.error('Error marking onboarding step complete:', error);
+          console.error('❌ Error marking onboarding step complete:', error);
         }
       }
 

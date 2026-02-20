@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { doc, getDoc, setDoc, getFirestore, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getFirestore, collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
 
 interface OnboardingStep {
   id: string;
@@ -52,39 +52,38 @@ export function OnboardingChecklist() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    loadOnboardingProgress();
-  }, [orgId]);
-
-  async function loadOnboardingProgress() {
     if (!orgId) return;
 
-    try {
-      const db = getFirestore();
-      
-      // Use real-time listener for onboarding progress
-      const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
-      
-      // Set up real-time listener using onSnapshot from 'firebase/firestore'
-      const { onSnapshot } = await import('firebase/firestore');
-      const unsubscribe = onSnapshot(onboardingRef, (snapshot) => {
+    const db = getFirestore();
+    
+    // Set up real-time listener for onboarding progress
+    const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
+    
+    const unsubscribe = onSnapshot(
+      onboardingRef,
+      (snapshot) => {
+        console.log('📊 Onboarding Checklist: Received snapshot update');
         if (snapshot.exists()) {
           const data = snapshot.data() as OnboardingProgress;
+          console.log('📊 Onboarding progress data:', data);
           setProgress(data);
           setIsVisible(!data.dismissed);
           setIsLoading(false);
         } else {
+          console.log('📊 No onboarding doc exists, checking actual progress');
           // Check actual progress from other collections
           checkActualProgress();
         }
-      });
-      
-      // Clean up listener on unmount
-      return () => unsubscribe();
-    } catch (error) {
-      console.error('Error loading onboarding progress:', error);
-      setIsLoading(false);
-    }
-  }
+      },
+      (error) => {
+        console.error('❌ Error loading onboarding progress:', error);
+        setIsLoading(false);
+      }
+    );
+    
+    // Clean up listener on unmount
+    return () => unsubscribe();
+  }, [orgId]);
 
   async function checkActualProgress() {
     if (!orgId) return;
