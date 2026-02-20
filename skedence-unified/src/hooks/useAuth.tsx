@@ -68,9 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       try {
         // First, check orgMembers to get user's role and orgId
+        // Query by authUserId field (not userId which is the name-based ID)
         const orgMembersQuery = query(
           collection(db, 'orgMembers'),
-          where('userId', '==', firebaseUser.uid)
+          where('authUserId', '==', firebaseUser.uid)
         );
         const orgMembersSnap = await getDocs(orgMembersQuery);
         

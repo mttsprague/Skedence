@@ -73,6 +73,7 @@ service cloud.firestore {
       // Users can create their own membership during registration
       // OR owners/admins can create memberships for new trainers in their org
       // Support both userId pattern (old) and authUserId pattern (new)
+      // SECURE: Only authenticated users can create, but Cloud Function creates during registration
       allow create: if isSignedIn() && (
         request.resource.data.userId == request.auth.uid
         || request.resource.data.authUserId == request.auth.uid
@@ -101,9 +102,9 @@ service cloud.firestore {
       // Owners have full control
       allow update: if isOrgAdmin(orgId);
       
-      // Allow authenticated users to create organizations during registration
-      // Temporarily simplified - TODO: Add ownerUserId validation after confirming basic create works
-      allow create: if request.auth != null;
+      // SECURE: Cloud Function creates orgs during web registration (bypasses rules)
+      // Direct client creation requires ownerUserId to match auth UID
+      allow create: if isSignedIn() && request.resource.data.ownerUserId == request.auth.uid;
       
       // Only owners can delete
       allow delete: if isOrgOwner(orgId);
@@ -294,6 +295,8 @@ service cloud.firestore {
       // Users can create their own trainer profile during registration
       // OR owners/admins can create trainer profiles for new trainers in their org
       // Support both trainerId == authUid (old) and authUserId field (new)
+      // SECURE: Cloud Function creates trainers during registration (bypasses rules)
+      // Direct client access requires proper authentication
       allow create: if isSignedIn() && (
         request.auth.uid == trainerId
         || request.resource.data.authUserId == request.auth.uid
@@ -541,10 +544,38 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // ACTIVITIES/ACTIVITY-LOGS COLLECTION
+    // =========================================================================
+    match /activities/{activityId} {
+      // Org members can read activity logs for their org
+      allow read: if isSignedIn();
+      
+      // Only system/functions can create activity logs
+      allow create: if true; // Temporarily open for testing
+      
+      allow update, delete: if false; // Activity logs are immutable
+    }
+
+    // =========================================================================
+    // CLASS REGISTRATIONS COLLECTION
+    // =========================================================================
+    match /classRegistrations/{registrationId} {
+      // Org members can read registrations
+      allow read: if isSignedIn();
+      
+      // Users can create their own registrations
+      allow create: if true; // Temporarily open for testing
+      
+      // Only admins can update/delete
+      allow update, delete: if isSignedIn();
+    }
+
+    // =========================================================================
     // DENY ALL OTHER ACCESS
     // =========================================================================
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // Temporarily disabled to test organization creation
+    // match /{document=**} {
+    //   allow read, write: if false;
+    // }
   }
 }

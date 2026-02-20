@@ -70,7 +70,7 @@ export async function getTrainerById(
  */
 export async function getOrganizationById(
   orgId: string
-): Promise<admin.firestore.Document Snapshot | null> {
+): Promise<admin.firestore.DocumentSnapshot | null> {
   const doc = await db.collection("organizations").doc(orgId).get();
   return doc.exists ? doc : null;
 }

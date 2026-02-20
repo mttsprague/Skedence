@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp, collection } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { createUserWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { doc, setDoc, serverTimestamp, collection, initializeFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { auth, db, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { generateOrganizationId, generateTrainerId } from "@/lib/id-generator";
@@ -69,10 +70,11 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Create Firebase Auth user
+      // Create Firebase Auth user - MATCH iOS APP PATTERN
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const authUserId = user.uid; // This is the Firebase Auth UID
+      const authUserId = userCredential.user.uid;
+      
+      console.log('✅ Created Firebase Auth user:', authUserId);
 
       // Generate human-readable organization ID from business name
       console.log('🔧 Generating orgId from businessName:', businessName);
@@ -84,96 +86,37 @@ export default function RegisterPage() {
       const trainerId = await generateTrainerId(db, firstName, lastName);
       console.log('✅ Generated trainerId:', trainerId);
 
-      // Calculate trial end date (14 days from now)
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
-
-      // Build organization data - MATCH ADMIN APP SCHEMA EXACTLY
-      const orgData: any = {
-        name: businessName,
-        ownerUserId: authUserId, // Must match Firebase Auth UID for security rules
-        contactPhone: phone,
-        contactEmail: contactEmail || email,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: "active",
-        branding: {
-          primaryColor: "#33B2AE",
-          logoUrl: ""
-        },
-        stripe: {
-          connectAccountId: null,
-          publishableKey: null,
-          onboardingComplete: false,
-          chargesEnabled: false,
-          payoutsEnabled: false,
-          onboardingUrl: null
-        },
-        billing: {
-          plan: "free",
-          status: "trialing",
-          isActive: true,
-          isInGrace: false,
-          trialEndsAt: trialEndsAt
-        },
-        settings: {
-          timezone: timezone,
-          currency: currency
-        }
-      };
-
-      // Add optional fields if provided
-      if (website) {
-        orgData.website = website;
+      // Call Cloud Function to create organization server-side
+      // This bypasses client security rules which don't work with Next.js static exports
+      console.log('📝 Calling Cloud Function to create organization...');
+      const createOrgFunction = httpsCallable(functions, 'createOrganizationFromWeb');
+      
+      try {
+        const result = await createOrgFunction({
+          orgId,
+          trainerId,
+          businessName,
+          firstName,
+          lastName,
+          email,
+          phone,
+          timezone,
+          currency,
+          website,
+          addressLine1,
+          addressLine2,
+          city,
+          state,
+          zipCode,
+          contactEmail: contactEmail || email
+        });
+        
+        console.log('✅ Organization created via Cloud Function:', result);
+        
+      } catch (cloudFunctionError: any) {
+        console.error('❌ Cloud Function error:', cloudFunctionError);
+        throw new Error(`Failed to create organization: ${cloudFunctionError.message}`);
       }
-
-      if (addressLine1) {
-        orgData.address = {
-          line1: addressLine1,
-          line2: addressLine2 || "",
-          city: city,
-          state: state,
-          zipCode: zipCode
-        };
-      }
-
-      // Create organization document with human-readable ID
-      console.log('📝 Creating organization document with ID:', orgId);
-      await setDoc(doc(db, "organizations", orgId), orgData);
-      console.log('✅ Organization document created successfully');
-
-      // Create trainer document with human-readable ID - MATCH ADMIN APP SCHEMA EXACTLY
-      console.log('📝 Creating trainer document with ID:', trainerId);
-      await setDoc(doc(db, "trainers", trainerId), {
-        orgId: orgId,
-        authUserId: authUserId, // Map to Firebase Auth UID for lookups
-        firstName: firstName,
-        lastName: lastName,
-        email: email,
-        active: true,
-        isAdmin: true,
-        createdAt: serverTimestamp()
-      });
-      console.log('✅ Trainer document created successfully');
-
-      // CRITICAL: Create DUAL-PATH orgMembers for authentication
-      console.log('📝 Creating orgMembers documents');
-      const memberData = {
-        orgId: orgId,
-        userId: trainerId, // Name-based trainer ID
-        authUserId: authUserId, // Firebase Auth UID for reverse lookups
-        role: "owner",
-        isActive: true,
-        createdAt: serverTimestamp()
-      };
-
-      // 1. Name-based ID: {trainerId}_{orgId} - for application queries
-      await setDoc(doc(db, "orgMembers", `${trainerId}_${orgId}`), memberData);
-      console.log('✅ Created orgMembers:', `${trainerId}_${orgId}`);
-
-      // 2. Auth UID-based ID: {authUserId}_{orgId} - for security rules (fast lookup)
-      await setDoc(doc(db, "orgMembers", `${authUserId}_${orgId}`), memberData);
-      console.log('✅ Created orgMembers:', `${authUserId}_${orgId}`);
 
       // Store orgId for step 3
       sessionStorage.setItem('newOrgId', orgId);
