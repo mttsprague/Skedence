@@ -79,10 +79,9 @@ export default function RegisterPage() {
       const orgId = await generateOrganizationId(db, businessName);
       console.log('✅ Generated orgId:', orgId);
 
-      // Generate human-readable trainer ID from owner's name
-      console.log('🔧 Generating trainerId from:', firstName, lastName);
-      const trainerId = await generateTrainerId(db, firstName, lastName);
-      console.log('✅ Generated trainerId:', trainerId);
+      // For web registration, use Firebase Auth UID as trainer ID to match security rules
+      const trainerId = authUserId; // Use auth UID for now (security rules requirement)
+      console.log('✅ TrainerID set to auth UID:', trainerId);
 
       // Calculate trial end date (14 days from now)
       const trialEndsAt = new Date();
@@ -91,7 +90,7 @@ export default function RegisterPage() {
       // Build organization data - MATCH ADMIN APP SCHEMA EXACTLY
       const orgData: any = {
         name: businessName,
-        ownerUserId: trainerId, // Use name-based trainer ID, not Auth UID
+        ownerUserId: authUserId, // Must match Firebase Auth UID for security rules
         contactPhone: phone,
         contactEmail: contactEmail || email,
         createdAt: serverTimestamp(),
@@ -155,21 +154,19 @@ export default function RegisterPage() {
         createdAt: serverTimestamp()
       });
 
-      // CRITICAL: Create DUAL-PATH orgMembers for authentication
+      // Create orgMembers entry for authentication
+      console.log('📝 Creating orgMembers document');
       const memberData = {
         orgId: orgId,
-        userId: trainerId, // Name-based trainer ID
-        authUserId: authUserId, // Map to Firebase Auth UID
+        userId: authUserId, // Use auth UID (matches security rules)
         role: "owner",
         isActive: true,
         createdAt: serverTimestamp()
       };
 
-      // 1. Name-based ID: {trainerId}_{orgId} - for application logic
-      await setDoc(doc(db, "orgMembers", `${trainerId}_${orgId}`), memberData);
-
-      // 2. Auth UID based ID: {authUserId}_{orgId} - for security rules
+      // Single orgMembers document: {authUserId}_{orgId}
       await setDoc(doc(db, "orgMembers", `${authUserId}_${orgId}`), memberData);
+      console.log('✅ orgMembers document created');
 
       // Store orgId for step 3
       sessionStorage.setItem('newOrgId', orgId);
@@ -178,7 +175,22 @@ export default function RegisterPage() {
       setStep(3);
       setLoading(false);
     } catch (err: any) {
-      setError(err.message || "Failed to create account");
+      console.error('❌ Registration error:', err);
+      console.error('Error code:', err.code);
+      console.error('Error message:', err.message);
+      
+      // Provide user-friendly error messages
+      let errorMessage = err.message || "Failed to create account";
+      
+      if (err.code === 'auth/email-already-in-use') {
+        errorMessage = "This email is already registered. Please use a different email or try logging in.";
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email address format.";
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = "Password is too weak. Please use at least 6 characters.";
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };

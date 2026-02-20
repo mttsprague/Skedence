@@ -18,32 +18,12 @@ service cloud.firestore {
     // Check if user has an active membership in the organization
     // Supports both old pattern (authUid_orgId) and new pattern (userId_orgId with authUserId field)
     function isMemberOfOrg(orgId) {
-      // Try direct document access with auth UID first (for performance and backwards compatibility)
-      let authUidDoc = getAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
-      
-      // If found and active, return true
-      if (authUidDoc != null && authUidDoc.data.orgId == orgId && 
-          (authUidDoc.data.isActive == true || !('isActive' in authUidDoc.data))) {
-        return true;
-      }
-      
-      // Fallback: Check if there's a document where authUserId matches (for name-based IDs)
-      // Note: This queries all orgMembers with matching orgId, so it's less efficient
-      // But necessary during/after migration when userId ≠ authUid
-      return exists(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId))
-        || (isSignedIn() && orgId != null);
-      // TODO: After full migration, add a Firestore index on (authUserId, orgId, isActive)
-      // and enable query-based lookup here
+      return exists(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
     }
 
     // Get user's role in an organization
     function getUserOrgRole(orgId) {
-      let authUidDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
-      if (authUidDoc != null) {
-        return authUidDoc.data.role;
-      }
-      // Fallback for name-based IDs would require query (not supported in rules)
-      return null;
+      return get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId)).data.role;
     }
 
     // Check if user has a specific role in an organization
