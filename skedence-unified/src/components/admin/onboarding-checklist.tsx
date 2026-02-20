@@ -35,7 +35,6 @@ interface OnboardingProgress {
   hasPricing: boolean;
   hasSettings: boolean;
   hasAvailability: boolean;
-  hasClients: boolean;
   dismissed: boolean;
 }
 
@@ -47,7 +46,6 @@ export function OnboardingChecklist() {
     hasPricing: false,
     hasSettings: false,
     hasAvailability: false,
-    hasClients: false,
     dismissed: false
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -63,21 +61,27 @@ export function OnboardingChecklist() {
     try {
       const db = getFirestore();
       
-      // Load onboarding progress
+      // Use real-time listener for onboarding progress
       const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
-      const onboardingDoc = await getDoc(onboardingRef);
       
-      if (onboardingDoc.exists()) {
-        const data = onboardingDoc.data() as OnboardingProgress;
-        setProgress(data);
-        setIsVisible(!data.dismissed);
-      } else {
-        // Check actual progress from other collections
-        await checkActualProgress();
-      }
+      // Set up real-time listener using onSnapshot from 'firebase/firestore'
+      const { onSnapshot } = await import('firebase/firestore');
+      const unsubscribe = onSnapshot(onboardingRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data() as OnboardingProgress;
+          setProgress(data);
+          setIsVisible(!data.dismissed);
+          setIsLoading(false);
+        } else {
+          // Check actual progress from other collections
+          checkActualProgress();
+        }
+      });
+      
+      // Clean up listener on unmount
+      return () => unsubscribe();
     } catch (error) {
       console.error('Error loading onboarding progress:', error);
-    } finally {
       setIsLoading(false);
     }
   }
@@ -92,7 +96,6 @@ export function OnboardingChecklist() {
       hasPricing: false,
       hasSettings: false,
       hasAvailability: false,
-      hasClients: false,
       dismissed: false
     };
 
@@ -119,16 +122,6 @@ export function OnboardingChecklist() {
       // Check for any schedules (availability)
       const schedulesCount = await checkForSchedules();
       newProgress.hasAvailability = schedulesCount > 0;
-
-      // Check for clients
-      const usersQuery = query(
-        collection(db, 'users'),
-        where('orgId', '==', orgId),
-        where('role', '==', 'client'),
-        limit(1)
-      );
-      const usersSnapshot = await getDocs(usersQuery);
-      newProgress.hasClients = !usersSnapshot.empty;
 
       setProgress(newProgress);
       
@@ -240,14 +233,6 @@ export function OnboardingChecklist() {
       icon: Calendar,
       link: '/scheduling',
       completed: progress.hasAvailability
-    },
-    {
-      id: 'hasClients',
-      title: 'Invite Your First Client',
-      description: 'Add clients who can book sessions',
-      icon: UserPlus,
-      link: '/clients',
-      completed: progress.hasClients
     }
   ];
 

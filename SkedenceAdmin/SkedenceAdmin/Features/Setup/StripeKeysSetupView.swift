@@ -86,19 +86,19 @@ struct StripeKeysSetupView: View {
                             .foregroundStyle(AppTheme.textTertiary)
                     }
                     
-                    // Secret Key
+                    // Secret/Restricted Key
                     VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text("Secret Key")
+                        Text("Secret or Restricted Key")
                             .font(.labelMedium)
                             .foregroundStyle(AppTheme.textSecondary)
                         
-                        SecureField(isTestMode ? "sk_test_..." : "sk_live_...", text: $secretKey)
+                        SecureField(isTestMode ? "sk_test_... or rk_test_..." : "sk_live_... or rk_live_...", text: $secretKey)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .autocapitalization(.none)
                             .autocorrectionDisabled()
                             .font(.system(.body, design: .monospaced))
                         
-                        Text("⚠️ Keep this secret! Never share or commit to code.")
+                        Text("⚠️ Keep this secret! Stripe recommends using restricted keys (rk_) for better security.")
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
@@ -158,19 +158,21 @@ struct StripeKeysSetupView: View {
     
     var isFormValid: Bool {
         let expectedPkPrefix = isTestMode ? "pk_test_" : "pk_live_"
-        let expectedSkPrefix = isTestMode ? "sk_test_" : "sk_live_"
+        let expectedSkTestPrefix = isTestMode ? "sk_test_" : "sk_live_"
+        let expectedRkTestPrefix = isTestMode ? "rk_test_" : "rk_live_"
         
         // Stripe publishable keys are typically 40-50 characters
-        // Stripe secret keys are typically 50-100 characters
+        // Stripe secret/restricted keys are typically 50-100 characters
         let pkValid = publishableKey.hasPrefix(expectedPkPrefix) && publishableKey.count >= 40
-        let skValid = secretKey.hasPrefix(expectedSkPrefix) && secretKey.count >= 50
+        let skValid = (secretKey.hasPrefix(expectedSkTestPrefix) || secretKey.hasPrefix(expectedRkTestPrefix)) && secretKey.count >= 50
         
         return pkValid && skValid
     }
     
     var validationError: String? {
         let expectedPkPrefix = isTestMode ? "pk_test_" : "pk_live_"
-        let expectedSkPrefix = isTestMode ? "sk_test_" : "sk_live_"
+        let expectedSkTestPrefix = isTestMode ? "sk_test_" : "sk_live_"
+        let expectedRkTestPrefix = isTestMode ? "rk_test_" : "rk_live_"
         
         if !publishableKey.isEmpty && !publishableKey.hasPrefix(expectedPkPrefix) {
             return "Publishable key must start with \(expectedPkPrefix)"
@@ -180,12 +182,12 @@ struct StripeKeysSetupView: View {
             return "Publishable key is too short. Expected at least 40 characters, got \(publishableKey.count)"
         }
         
-        if !secretKey.isEmpty && !secretKey.hasPrefix(expectedSkPrefix) {
-            return "Secret key must start with \(expectedSkPrefix)"
+        if !secretKey.isEmpty && !secretKey.hasPrefix(expectedSkTestPrefix) && !secretKey.hasPrefix(expectedRkTestPrefix) {
+            return "Secret/restricted key must start with \(expectedSkTestPrefix) or \(expectedRkTestPrefix)"
         }
         
         if !secretKey.isEmpty && secretKey.count < 50 {
-            return "Secret key is too short. Expected at least 50 characters, got \(secretKey.count)"
+            return "Secret/restricted key is too short. Expected at least 50 characters, got \(secretKey.count)"
         }
         
         return nil
@@ -203,17 +205,15 @@ struct StripeKeysSetupView: View {
         do {
             let db = Firestore.firestore()
             
-            // Save publishable key to Firestore (safe to store client-side)
+            // Save both publishable and secret/restricted keys to Firestore
             try await db.collection("organizations").document(orgId).updateData([
                 "stripe.publishableKey": publishableKey,
+                "stripe.secretKey": secretKey, // Can be sk_ or rk_
                 "stripe.mode": isTestMode ? "test" : "live",
                 "stripe.keysConfigured": true,
                 "onboardingProgress.hasConnectedStripe": true,
                 "updatedAt": FieldValue.serverTimestamp()
             ])
-            
-            // Note: Secret key should be manually configured via Firebase CLI
-            // firebase functions:config:set stripe.secret_key="YOUR_SECRET_KEY"
             
             // Update local auth state
             await auth.loadOrgId(for: auth.userId ?? "")

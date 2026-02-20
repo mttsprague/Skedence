@@ -84,8 +84,9 @@ export default function StripeSettingsPage() {
       setMessage({ type: 'error', text: 'Publishable key must start with pk_test_ or pk_live_' });
       return;
     }
-    if (!secretKey.startsWith('sk_')) {
-      setMessage({ type: 'error', text: 'Secret key must start with sk_test_ or sk_live_' });
+    // Accept both secret keys (sk_) and restricted keys (rk_)
+    if (!secretKey.startsWith('sk_') && !secretKey.startsWith('rk_')) {
+      setMessage({ type: 'error', text: 'Key must start with sk_test_, sk_live_, rk_test_, or rk_live_' });
       return;
     }
 
@@ -233,17 +234,17 @@ export default function StripeSettingsPage() {
               </p>
             </div>
 
-            {/* Secret Key */}
+            {/* Secret/Restricted Key */}
             <div className="space-y-2">
               <Label htmlFor="secretKey">
-                Secret Key
-                <span className="text-muted-foreground ml-2 text-xs">(sk_test_... or sk_live_...)</span>
+                Secret or Restricted Key
+                <span className="text-muted-foreground ml-2 text-xs">(sk_ or rk_)</span>
               </Label>
               <div className="relative">
                 <Input
                   id="secretKey"
                   type={showSecretKey ? 'text' : 'password'}
-                  placeholder="sk_test_51..."
+                  placeholder="sk_test_... or rk_live_..."
                   value={secretKey}
                   onChange={(e) => setSecretKey(e.target.value)}
                   disabled={isSaving}
@@ -258,7 +259,7 @@ export default function StripeSettingsPage() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Keep this private! Used by your backend to process payments.
+                Keep this private! Stripe now recommends using restricted keys (rk_) for better security.
               </p>
             </div>
 
