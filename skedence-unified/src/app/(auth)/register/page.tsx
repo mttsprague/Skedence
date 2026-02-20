@@ -153,23 +153,14 @@ export default function RegisterPage() {
   };
 
   const handleComplete = async () => {
-    // Mark onboarding as complete
-    try {
-      const orgId = sessionStorage.getItem('newOrgId');
-      if (orgId) {
-        await setDoc(
-          doc(db, "organizations", orgId),
-          { 
-            onboardingCompletedAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          },
-          { merge: true }
-        );
-        sessionStorage.removeItem('newOrgId');
-      }
-    } catch (error) {
-      console.error("Error completing onboarding:", error);
-    }
+    // Wait 2 seconds for Firestore transaction to fully commit
+    // This ensures orgMembers docs are available when useAuth queries them
+    console.log('⏳ Waiting for database sync before navigating...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Clean up
+    sessionStorage.removeItem('newOrgId');
+    console.log('✅ Navigating to dashboard');
 
     // Navigate to activity feed
     router.push("/activity");

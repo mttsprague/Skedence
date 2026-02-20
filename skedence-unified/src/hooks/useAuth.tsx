@@ -73,7 +73,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           collection(db, 'orgMembers'),
           where('authUserId', '==', firebaseUser.uid)
         );
-        const orgMembersSnap = await getDocs(orgMembersQuery);
+        
+        let orgMembersSnap = await getDocs(orgMembersQuery);
+        
+        // Retry once if empty (handles freshly created accounts where transaction is still committing)
+        if (orgMembersSnap.empty) {
+          console.log('Auth: orgMembers empty, retrying in 2 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          orgMembersSnap = await getDocs(orgMembersQuery);
+        }
         
         if (!orgMembersSnap.empty) {
           const memberData = orgMembersSnap.docs[0].data();

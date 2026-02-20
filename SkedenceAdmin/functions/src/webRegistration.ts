@@ -84,6 +84,7 @@ export const createOrganizationFromWeb = onCall(
           ownerUserId: authUserId,
           contactPhone: phone,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          onboardingCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
           status: 'active',
           branding: {
             primaryColor: '#33B2AE',
