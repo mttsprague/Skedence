@@ -87,18 +87,19 @@ export default function RegisterPage() {
       console.log('✅ Generated trainerId:', trainerId);
 
       // CRITICAL: Get fresh ID token from the user we just created
-      // Next.js static export doesn't update auth.currentUser, so use userCredential.user directly
+      // Pass it explicitly to Cloud Function (Next.js static export workaround)
       console.log('🔑 Getting ID token for Cloud Function authentication...');
       const idToken = await userCredential.user.getIdToken(true); // Force fresh token
       console.log('✅ ID token obtained, length:', idToken.length);
 
       // Call Cloud Function to create organization server-side
-      // This bypasses client security rules which don't work with Next.js static exports
+      // Pass idToken explicitly instead of relying on Firebase SDK's automatic auth attachment
       console.log('📝 Calling Cloud Function to create organization...');
       const createOrgFunction = httpsCallable(functions, 'createOrganizationFromWeb');
       
       try {
         const result = await createOrgFunction({
+          idToken, // Pass token explicitly for static export compatibility
           orgId,
           trainerId,
           businessName,

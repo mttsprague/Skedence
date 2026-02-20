@@ -1,7 +1,7 @@
 import type { NextConfig} from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
+  output: 'export', // Keep static export - auth handled via explicit token passing
   images: {
     unoptimized: true,
   },

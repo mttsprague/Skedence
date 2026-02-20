@@ -10,6 +10,7 @@ import { logger } from "firebase-functions/v2";
 import * as admin from 'firebase-admin';
 
 interface CreateOrgData {
+  idToken: string; // NEW: Pass ID token explicitly for static export compatibility
   orgId: string;
   trainerId: string;
   businessName: string;
@@ -24,21 +25,29 @@ interface CreateOrgData {
 /**
  * Create a new organization and owner account
  * Called after Firebase Auth user is created on the client
+ * 
+ * NOTE: Accepts idToken explicitly to work with Next.js static export
  */
 export const createOrganizationFromWeb = onCall(
   { enforceAppCheck: false }, // Temporarily disable AppCheck for testing
   async (request) => {
     const db = admin.firestore();
     
-    // Verify the user is authenticated
-    if (!request.auth) {
+    const { idToken } = request.data as CreateOrgData;
+    
+    // Verify ID token manually (for Next.js static export compatibility)
+    let authUserId: string;
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      authUserId = decodedToken.uid;
+      logger.info(`✅ Token verified for user: ${authUserId}`);
+    } catch (error) {
+      logger.error('❌ Token verification failed:', error);
       throw new HttpsError(
         'unauthenticated',
-        'User must be authenticated to create an organization'
+        'Invalid authentication token'
       );
     }
-    
-    const authUserId = request.auth.uid;
     
     // Validate required fields
     const { 
