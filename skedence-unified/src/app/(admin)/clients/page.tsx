@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
-import { Save, X, User as UserIcon, Search, Calendar, Package, FileText, CreditCard, Receipt, History } from 'lucide-react';
+import { Save, X, User as UserIcon, Search, Calendar, Package, FileText, CreditCard, Receipt, History, Download, Smartphone, QrCode, Key } from 'lucide-react';
 import { logClientProfileUpdated } from '@/lib/activity-logger';
 
 interface Booking {
@@ -453,6 +453,82 @@ export default function ClientsPage() {
             {filteredClients.length !== clients.length && ` (filtered from ${clients.length})`}
           </p>
         </div>
+
+        {/* Client Invitation Instructions */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Smartphone className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
+                    <Download className="h-5 w-5 text-primary" />
+                    How to Invite Clients
+                  </h3>
+                  <p className="text-sm text-foreground/80">
+                    Your clients can download the Skedence app and connect to your business in three easy steps:
+                  </p>
+                </div>
+                
+                <ol className="space-y-3 text-sm">
+                  <li className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
+                      1
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">Download the Skedence app</p>
+                      <p className="text-foreground/70 mt-0.5">Available on iOS and Android app stores</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
+                      2
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">Create their account</p>
+                      <p className="text-foreground/70 mt-0.5">Sign up with their email address</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
+                      3
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">Enter your organization code</p>
+                      <div className="mt-2 p-3 bg-white dark:bg-gray-900 rounded-lg border border-primary/20">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-2">
+                            <Key className="h-4 w-4 text-primary" />
+                            <span className="text-xs text-foreground/70">Organization Code:</span>
+                          </div>
+                          <code className="px-3 py-1 bg-primary/10 rounded text-primary font-mono font-bold text-sm">
+                            {orgId}
+                          </code>
+                        </div>
+                      </div>
+                      <p className="text-foreground/70 mt-2">They enter this code during signup to connect to your business</p>
+                    </div>
+                  </li>
+                </ol>
+
+                <div className="pt-2 pb-1 flex flex-wrap items-center gap-3 text-xs text-foreground/70">
+                  <div className="flex items-center gap-1.5">
+                    <QrCode className="h-3.5 w-3.5" />
+                    <span>Share this code via text, email, or QR code</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Smartphone className="h-3.5 w-3.5" />
+                    <span>Clients can book 24/7 from their phone</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Search Bar */}
         <div className="relative">

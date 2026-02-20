@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { doc, getDoc, setDoc, getFirestore, collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
+import { OnboardingCelebration } from './onboarding-celebration';
 
 interface OnboardingStep {
   id: string;
@@ -36,6 +37,7 @@ interface OnboardingProgress {
   hasSettings: boolean;
   hasAvailability: boolean;
   dismissed: boolean;
+  celebrationDismissed?: boolean;
 }
 
 export function OnboardingChecklist() {
@@ -46,7 +48,8 @@ export function OnboardingChecklist() {
     hasPricing: false,
     hasSettings: false,
     hasAvailability: false,
-    dismissed: false
+    dismissed: false,
+    celebrationDismissed: false
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
@@ -95,7 +98,8 @@ export function OnboardingChecklist() {
       hasPricing: false,
       hasSettings: false,
       hasAvailability: false,
-      dismissed: false
+      dismissed: false,
+      celebrationDismissed: false
     };
 
     try {
@@ -239,7 +243,22 @@ export function OnboardingChecklist() {
   const progressPercent = (completedCount / steps.length) * 100;
   const isComplete = completedCount === steps.length;
 
-  if (isLoading || !isVisible || isComplete) {
+  if (isLoading) {
+    return null;
+  }
+
+  // Show celebration when complete (unless dismissed)
+  if (isComplete && !progress.celebrationDismissed) {
+    return <OnboardingCelebration />;
+  }
+
+  // Hide checklist if dismissed and not complete
+  if (!isVisible && !isComplete) {
+    return null;
+  }
+
+  // If complete and celebration was dismissed, hide everything
+  if (isComplete && progress.celebrationDismissed) {
     return null;
   }
 
