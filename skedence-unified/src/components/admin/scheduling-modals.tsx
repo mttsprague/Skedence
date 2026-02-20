@@ -351,8 +351,6 @@ export function CreateAvailabilityModal({
   orgId,
   onSuccess,
 }: CreateAvailabilityModalProps) {
-  console.log('🔵 CreateAvailabilityModal component rendered. isOpen:', isOpen);
-  
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [status, setStatus] = useState<'open' | 'unavailable'>('open');
@@ -368,7 +366,6 @@ export function CreateAvailabilityModal({
 
   useEffect(() => {
     if (isOpen && orgId) {
-      console.log('🔵 CreateAvailabilityModal opened!', { slotHour, orgId, trainerId, trainerName });
       setStartTime(`${slotHour.toString().padStart(2, '0')}:00`);
       setEndTime(`${(slotHour + 1).toString().padStart(2, '0')}:00`);
       // Set default recurring dates
@@ -411,27 +408,21 @@ export function CreateAvailabilityModal({
   };
 
   const handleCreate = async () => {
-    console.log('🔵 CreateAvailabilityModal: handleCreate called!', { trainerId, orgId, location });
-    
     if (!trainerId || !orgId) {
       setError('Missing trainer or organization');
-      console.error('❌ Missing trainer or organization');
       return;
     }
 
     if (!location.trim()) {
       setError('Location is required');
-      console.error('❌ Location is required');
       return;
     }
 
     if (isRecurring && selectedWeekdays.length === 0) {
       setError('Please select at least one day of the week');
-      console.error('❌ No weekdays selected');
       return;
     }
 
-    console.log('🔵 Validation passed, starting availability creation...');
     setLoading(true);
     setError('');
 
@@ -460,7 +451,6 @@ export function CreateAvailabilityModal({
       }
 
       const processAvailability = httpsCallable(functions, 'processTrainerAvailability');
-      console.log('📅 Scheduling Modal: Calling processTrainerAvailability...');
       const result = await processAvailability({
         trainerId,
         startDate: isRecurring ? recurringStartDate : format(slotDate, 'yyyy-MM-dd'),
@@ -473,22 +463,18 @@ export function CreateAvailabilityModal({
         status,
         location,
       });
-      console.log('✅ Scheduling Modal: Cloud function completed successfully');
 
       // Mark "Create Trainer Availability" as complete in onboarding checklist
       if (orgId) {
         try {
-          console.log('📅 Scheduling Modal: Marking hasAvailability=true in onboarding');
           const { doc, setDoc, getDoc, getFirestore } = await import('firebase/firestore');
           const db = getFirestore();
           const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
           const onboardingDoc = await getDoc(onboardingRef);
           const currentProgress = onboardingDoc.exists() ? onboardingDoc.data() : {};
-          console.log('📅 Current onboarding progress:', currentProgress);
           await setDoc(onboardingRef, { ...currentProgress, hasAvailability: true }, { merge: true });
-          console.log('✅ Successfully marked hasAvailability=true in Firestore');
         } catch (error) {
-          console.error('❌ Error marking onboarding step complete:', error);
+          console.error('Error marking onboarding step complete:', error);
         }
       }
 
@@ -698,10 +684,7 @@ export function CreateAvailabilityModal({
               Cancel
             </button>
             <button
-              onClick={() => {
-                console.log('🔵 Create button clicked!');
-                handleCreate();
-              }}
+              onClick={handleCreate}
               disabled={loading || !location.trim() || (isRecurring && selectedWeekdays.length === 0)}
               className={cn(
                 "flex-1 px-4 py-2 rounded-lg transition-colors font-medium",
