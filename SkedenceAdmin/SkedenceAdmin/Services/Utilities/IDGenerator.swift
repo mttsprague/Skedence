@@ -95,7 +95,17 @@ class IDGenerator {
     
     /// Check if a document exists in a collection
     private static func documentExists(collection: String, documentId: String) async throws -> Bool {
-        let doc = try await db.collection(collection).document(documentId).getDocument()
-        return doc.exists
+        do {
+            let doc = try await db.collection(collection).document(documentId).getDocument()
+            return doc.exists
+        } catch let error as NSError {
+            // If permission denied, assume document doesn't exist (can't check during registration)
+            if error.domain == "FIRFirestoreErrorDomain" && error.code == 7 { // PERMISSION_DENIED
+                print("⚠️ IDGenerator: Permission denied checking \(documentId) - assuming it doesn't exist")
+                return false
+            }
+            // Re-throw other errors
+            throw error
+        }
     }
 }

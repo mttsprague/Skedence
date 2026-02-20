@@ -20,9 +20,19 @@ async function documentExists(
   collection: string,
   documentId: string
 ): Promise<boolean> {
-  const docRef = doc(db, collection, documentId);
-  const docSnap = await getDoc(docRef);
-  return docSnap.exists();
+  try {
+    const docRef = doc(db, collection, documentId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists();
+  } catch (error: any) {
+    // If permission denied, assume document doesn't exist (can't check during registration)
+    if (error.code === 'permission-denied') {
+      console.log(`⚠️ [ID Generator] Permission denied checking "${documentId}" - assuming it doesn't exist`);
+      return false;
+    }
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 // Generate a unique ID for a given collection
