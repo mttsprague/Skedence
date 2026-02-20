@@ -192,9 +192,9 @@ struct OnboardingAccountView: View {
                 
                 let db = Firestore.firestore()
                 
-                // Create organization
-                let orgRef = db.collection("organizations").document()
-                let orgId = orgRef.documentID
+                // Generate unique organization ID from business name
+                let orgId = try await IDGenerator.generateOrganizationId(name: businessName)
+                let orgRef = db.collection("organizations").document(orgId)
                 
                 let orgData: [String: Any] = [
                     "name": businessName,
@@ -232,15 +232,27 @@ struct OnboardingAccountView: View {
                 // Users collection is for clients only
                 // Trainers go in trainers collection and orgMembers
                 
-                // Create orgMember
+                // Generate unique trainer ID from owner name
+                let trainerId = try await IDGenerator.generateTrainerId(firstName: ownerFirstName, lastName: ownerLastName)
+                
+                // Create orgMember (using trainerId, not Firebase Auth UID)
                 let memberData: [String: Any] = [
                     "orgId": orgId,
-                    "userId": userId,
+                    "userId": trainerId, // Using trainer ID, not Auth UID
+                    "authUserId": userId, // Map to Firebase Auth UID
                     "role": "owner",
                     "isActive": true,
                     "createdAt": Timestamp(date: Date())
                 ]
                 
+                // CRITICAL: Write to BOTH document ID patterns for dual-path support
+                
+                // 1. Name-based ID: {trainerId}_{orgId} - for application logic
+                try await db.collection("orgMembers")
+                    .document("\(trainerId)_\(orgId)")
+                    .setData(memberData)
+                
+                // 2. Auth UID based ID: {userId}_{orgId} - for security rules
                 try await db.collection("orgMembers")
                     .document("\(userId)_\(orgId)")
                     .setData(memberData)
@@ -248,6 +260,7 @@ struct OnboardingAccountView: View {
                 // Create trainer profile
                 let trainerData: [String: Any] = [
                     "orgId": orgId,
+                    "authUserId": userId, // Map to Firebase Auth UID
                     "firstName": ownerFirstName,
                     "lastName": ownerLastName,
                     "email": ownerEmail,
@@ -256,7 +269,7 @@ struct OnboardingAccountView: View {
                     "createdAt": Timestamp(date: Date())
                 ]
                 
-                try await db.collection("trainers").document(userId).setData(trainerData)
+                try await db.collection("trainers").document(trainerId).setData(trainerData)
                 
                 // Store orgId and other data in coordinator (userId already set above)
                 coordinator.orgId = orgId

@@ -284,18 +284,38 @@ export default function PassesPage() {
           orgId: orgId
         };
 
-        // Write to BOTH paths for compatibility (like iOS admin app does):
-        // 1. Old path (backward compatibility)
-        await addDoc(
-          collection(db, 'users', selectedClient.userId, 'lessonPackages'),
-          passData
-        );
+        console.log('📝 Writing pass data:', passData);
+        console.log('👤 Client userId:', selectedClient.userId);
+        console.log('🏢 Organization ID:', orgId);
 
-        // 2. New path (where modern client apps read)
-        await addDoc(
-          collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
-          passData
-        );
+        // Write to BOTH paths for compatibility (like iOS admin app does):
+        try {
+          // 1. Old path (backward compatibility)
+          console.log('📂 Writing to OLD path: users/' + selectedClient.userId + '/lessonPackages');
+          const oldDocRef = await addDoc(
+            collection(db, 'users', selectedClient.userId, 'lessonPackages'),
+            passData
+          );
+          console.log('✅ OLD path write successful! Doc ID:', oldDocRef.id);
+        } catch (oldPathError) {
+          console.error('❌ OLD path write FAILED:', oldPathError);
+          throw new Error(`Failed to write to legacy path: ${oldPathError instanceof Error ? oldPathError.message : String(oldPathError)}`);
+        }
+
+        try {
+          // 2. New path (where modern client apps read)
+          console.log('📂 Writing to NEW path: organizations/' + orgId + '/users/' + selectedClient.userId + '/packages');
+          const newDocRef = await addDoc(
+            collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
+            passData
+          );
+          console.log('✅ NEW path write successful! Doc ID:', newDocRef.id);
+        } catch (newPathError) {
+          console.error('❌ NEW path write FAILED:', newPathError);
+          throw new Error(`Failed to write to new path: ${newPathError instanceof Error ? newPathError.message : String(newPathError)}`);
+        }
+
+        console.log('🎉 Both writes completed successfully!');
 
         // Try to log activity (but don't fail if it doesn't work - activities are write-protected)
         if (orgId && user && userData) {

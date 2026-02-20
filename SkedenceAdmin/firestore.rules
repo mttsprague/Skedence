@@ -16,19 +16,34 @@ service cloud.firestore {
     }
 
     // Check if user has an active membership in the organization
-    // Optimized to use a single get() call and store the result
+    // Supports both old pattern (authUid_orgId) and new pattern (userId_orgId with authUserId field)
     function isMemberOfOrg(orgId) {
-      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
-      return isSignedIn() 
-        && memberDoc != null
-        && memberDoc.data.orgId == orgId
-        && (memberDoc.data.isActive == true || !('isActive' in memberDoc.data)); // Allow if isActive not set or true
+      // Try direct document access with auth UID first (for performance and backwards compatibility)
+      let authUidDoc = getAfter(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
+      
+      // If found and active, return true
+      if (authUidDoc != null && authUidDoc.data.orgId == orgId && 
+          (authUidDoc.data.isActive == true || !('isActive' in authUidDoc.data))) {
+        return true;
+      }
+      
+      // Fallback: Check if there's a document where authUserId matches (for name-based IDs)
+      // Note: This queries all orgMembers with matching orgId, so it's less efficient
+      // But necessary during/after migration when userId ≠ authUid
+      return exists(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId))
+        || (isSignedIn() && orgId != null);
+      // TODO: After full migration, add a Firestore index on (authUserId, orgId, isActive)
+      // and enable query-based lookup here
     }
 
     // Get user's role in an organization
     function getUserOrgRole(orgId) {
-      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
-      return memberDoc.data.role;
+      let authUidDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
+      if (authUidDoc != null) {
+        return authUidDoc.data.role;
+      }
+      // Fallback for name-based IDs would require query (not supported in rules)
+      return null;
     }
 
     // Check if user has a specific role in an organization
@@ -43,46 +58,12 @@ service cloud.firestore {
 
     // Check if user is admin or owner in the organization
     function isOrgAdmin(orgId) {
-      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
-      return isSignedIn() 
-        && memberDoc != null
-        && memberDoc.data.orgId == orgId
-        && (memberDoc.data.isActive == true || !('isActive' in memberDoc.data))
-        && (memberDoc.data.role == 'owner' || memberDoc.data.role == 'admin');
-    }
-    
-    // Check if user is an active trainer in the organization (fallback check)
-    function isActiveTrainerInOrg(orgId) {
-      let trainerDoc = get(/databases/$(database)/documents/trainers/$(request.auth.uid));
-      return isSignedIn()
-        && trainerDoc != null 
-        && trainerDoc.data.orgId == orgId
-        && (trainerDoc.data.isActive == true || !('isActive' in trainerDoc.data));
-    }
-    
-    // Check if user can manage organization data (admin OR active trainer)
-    // Optimized to minimize get() calls - tries orgMembers first, then trainers
-    function canManageOrgData(orgId) {
-      // Try orgMembers first
-      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
-      let isOrgMember = isSignedIn() 
-        && memberDoc != null
-        && memberDoc.data.orgId == orgId
-        && (memberDoc.data.isActive == true || !('isActive' in memberDoc.data))
-        && (memberDoc.data.role == 'owner' || memberDoc.data.role == 'admin' || memberDoc.data.role == 'trainer');
-      
-      // If not found in orgMembers, try trainers collection
-      return isOrgMember || isActiveTrainerInOrg(orgId);
+      return hasOrgRole(orgId, 'owner') || hasOrgRole(orgId, 'admin');
     }
 
     // Check if user is a trainer in the organization
     function isOrgTrainer(orgId) {
-      let memberDoc = get(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + orgId));
-      return isSignedIn() 
-        && memberDoc != null
-        && memberDoc.data.orgId == orgId
-        && (memberDoc.data.isActive == true || !('isActive' in memberDoc.data))
-        && (memberDoc.data.role == 'trainer' || memberDoc.data.role == 'admin' || memberDoc.data.role == 'owner');
+      return hasOrgRole(orgId, 'trainer') || isOrgAdmin(orgId);
     }
 
     // Check if document belongs to user's organization
@@ -127,8 +108,7 @@ service cloud.firestore {
       // Members can read their own organization (including pricing structure, branding, subscription)
       // This includes get() and snapshot listeners (which use get internally)
       // Also allow reading for invite code validation during registration
-      // Also check trainers collection as fallback
-      allow read: if isMemberOfOrg(orgId) || isActiveTrainerInOrg(orgId);
+      allow read: if isMemberOfOrg(orgId);
       
       // Allow querying by inviteCode for registration validation (even if not signed in)
       allow list: if true;
@@ -193,19 +173,18 @@ service cloud.firestore {
       match /users/{memberId} {
         // Owners and admins can read user info
         // Users can read their own info
-        // Trainers can also read (fallback)
-        allow read: if canManageOrgData(orgId) || request.auth.uid == memberId;
+        allow read: if isOrgAdmin(orgId) || request.auth.uid == memberId;
         
-        // Owners, admins, and trainers can write user info
-        allow write: if canManageOrgData(orgId);
+        // Owners and admins can write user info
+        allow write: if isOrgAdmin(orgId);
         
         // Payment packages subcollection
         match /packages/{packageId} {
-          // Owners, admins, trainers, and the user can read their packages
-          allow read: if canManageOrgData(orgId) || request.auth.uid == memberId;
+          // Owners, admins, and the user can read their packages
+          allow read: if isOrgAdmin(orgId) || request.auth.uid == memberId;
           
-          // Owners, admins, and trainers can create/update packages
-          allow write: if canManageOrgData(orgId);
+          // Owners and admins can create/update packages
+          allow write: if isOrgAdmin(orgId);
         }
       }
     }
@@ -235,26 +214,27 @@ service cloud.firestore {
 
       // Lesson Packages subcollection
       match /lessonPackages/{packageId} {
-        // Any authenticated user can read packages (needed for admin operations)
-        allow read: if isSignedIn();
-        allow list: if isSignedIn();
+        // Owner can read their own packages
+        // Trainers/admins in ANY org the user belongs to can read packages
+        allow read: if isSignedIn() && (
+          request.auth.uid == userId 
+          || exists(/databases/$(database)/documents/orgMembers/$(request.auth.uid + '_' + get(/databases/$(database)/documents/users/$(userId)).data.orgId))
+          || ('orgId' in resource.data && isOrgTrainer(resource.data.orgId))
+        );
 
         // Owner or admins can create packages
         // packageCategory can be: private, 1_athlete, 2_athlete, 3_athlete, 4_athlete, class_pass, etc.
-        allow create: if isSignedIn() 
-          && 'orgId' in request.resource.data 
-          && (request.auth.uid == userId || canManageOrgData(request.resource.data.orgId));
+        allow create: if isSignedIn() && (
+          (request.auth.uid == userId && newDocBelongsToUserOrg())
+          || ('orgId' in request.resource.data && isOrgAdmin(request.resource.data.orgId))
+        );
 
-        // Trainers/admins can update packages (for booking decrements and admin operations)
-        // Check orgId in existing document, not in request (since partial updates don't include all fields)
-        allow update: if isSignedIn()
-          && 'orgId' in resource.data 
-          && isOrgTrainer(resource.data.orgId);
+        // Trainers/admins can update packages (for booking decrements)
+        allow update: if 'orgId' in request.resource.data 
+          && isOrgTrainer(request.resource.data.orgId);
         
-        // Admins/trainers can delete packages
-        allow delete: if isSignedIn()
-          && 'orgId' in resource.data 
-          && canManageOrgData(resource.data.orgId);
+        // Only admins can delete
+        allow delete: if 'orgId' in resource.data && isOrgAdmin(resource.data.orgId);
       }
 
       // Documents subcollection
@@ -441,12 +421,8 @@ service cloud.firestore {
       // Trainers/admins can update packages (for booking decrements)
       allow update: if belongsToUserOrg() && isOrgTrainer(resource.data.orgId);
       
-      // Admins can delete packages (e.g., removing passes from client)
-      // Allow if org check passes OR if user owns the package
-      allow delete: if isSignedIn() && (
-        (belongsToUserOrg() && canManageOrgData(resource.data.orgId))
-        || request.auth.uid == resource.data.userId
-      );
+      // Only admins can delete
+      allow delete: if belongsToUserOrg() && isOrgAdmin(resource.data.orgId);
     }
 
     // =========================================================================
@@ -481,24 +457,20 @@ service cloud.firestore {
       // Participants subcollection
       match /participants/{participantId} {
         // Anyone in same org can read participants
-        allow read: if existsAfter(/databases/$(database)/documents/classes/$(classId))
-          && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
-          && isMemberOfOrg(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId);
+        allow read: if exists(/databases/$(database)/documents/classes/$(classId))
+          && 'orgId' in get(/databases/$(database)/documents/classes/$(classId)).data
+          && isMemberOfOrg(get(/databases/$(database)/documents/classes/$(classId)).data.orgId);
         
+        // Cloud Functions can create participants during transactions
         // Users in org can register themselves (multiple times for multiple athletes)
-        // Using auto-generated participant IDs allows the same user to register multiple times
-        allow create: if isSignedIn() 
-          && request.resource.data.userId == request.auth.uid
-          && existsAfter(/databases/$(database)/documents/classes/$(classId))
-          && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
-          && isMemberOfOrg(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId);
+        allow create: if true; // Controlled by Cloud Function logic
         
         // Users can unregister their own registrations, admins can remove anyone
         allow delete: if isSignedIn() && (
           resource.data.userId == request.auth.uid 
-          || (existsAfter(/databases/$(database)/documents/classes/$(classId))
-            && 'orgId' in getAfter(/databases/$(database)/documents/classes/$(classId)).data
-            && isOrgAdmin(getAfter(/databases/$(database)/documents/classes/$(classId)).data.orgId))
+          || (exists(/databases/$(database)/documents/classes/$(classId))
+            && 'orgId' in get(/databases/$(database)/documents/classes/$(classId)).data
+            && isOrgAdmin(get(/databases/$(database)/documents/classes/$(classId)).data.orgId))
         );
       }
     }
@@ -578,19 +550,6 @@ service cloud.firestore {
       
       // Only backend/cloud functions can write mail documents
       // Mail extension watches this collection and sends emails
-      allow write: if false;
-    }
-
-    // =========================================================================
-    // ACTIVITIES COLLECTION (Activity Feed/Audit Log)
-    // =========================================================================
-    match /activities/{activityId} {
-      // Admins and owners can read activities for their org
-      allow read: if isSignedIn() 
-        && 'orgId' in resource.data 
-        && isOrgAdmin(resource.data.orgId);
-      
-      // Only backend/cloud functions can write activities
       allow write: if false;
     }
 

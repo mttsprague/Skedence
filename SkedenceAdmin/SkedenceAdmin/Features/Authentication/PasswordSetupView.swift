@@ -203,26 +203,26 @@ struct PasswordSetupView: View {
             ])
             
             
-            // 4. Update orgMembers with Firebase UID (if different from trainerId)
+            // 4. Update orgMembers - create auth-based document for security rules
             if let orgId = trainerData["orgId"] as? String {
                 // Check if orgMember exists with trainerId
-                let oldMemberDocId = "\(trainerId)_\(orgId)"
-                let oldMemberDoc = try await db.collection("orgMembers").document(oldMemberDocId).getDocument()
+                let nameBasedDocId = "\(trainerId)_\(orgId)"
+                let oldMemberDoc = try await db.collection("orgMembers").document(nameBasedDocId).getDocument()
                 
                 if oldMemberDoc.exists, let memberData = oldMemberDoc.data() {
-                    // Create new orgMember with Firebase UID
-                    let newMemberDocId = "\(firebaseUid)_\(orgId)"
-                    var updatedMemberData = memberData
-                    updatedMemberData["userId"] = firebaseUid
-                    updatedMemberData["updatedAt"] = Timestamp()
+                    // Update existing name-based document with authUserId
+                    var updatedNameBasedData = memberData
+                    updatedNameBasedData["authUserId"] = firebaseUid
+                    updatedNameBasedData["updatedAt"] = Timestamp()
                     
-                    try await db.collection("orgMembers").document(newMemberDocId).setData(updatedMemberData)
+                    try await db.collection("orgMembers").document(nameBasedDocId).setData(updatedNameBasedData)
                     
-                    // Delete old orgMember if IDs are different
-                    if oldMemberDocId != newMemberDocId {
-                        try await db.collection("orgMembers").document(oldMemberDocId).delete()
-                    }
+                    // CRITICAL: Also create auth-based document for security rules
+                    let authBasedDocId = "\(firebaseUid)_\(orgId)"
+                    var authBasedData = updatedNameBasedData
+                    authBasedData["userId"] = trainerId // Keep name-based userId
                     
+                    try await db.collection("orgMembers").document(authBasedDocId).setData(authBasedData)
                 }
             }
             

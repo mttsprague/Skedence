@@ -464,9 +464,9 @@ class AddTrainerViewModel: ObservableObject {
             // Users collection is for clients only
             // Trainers go in trainers collection and orgMembers
             
-            // Generate a unique ID for this trainer
-            let trainerRef = db.collection("trainers").document()
-            let trainerId = trainerRef.documentID
+            // Generate a unique ID for this trainer based on name
+            let trainerId = try await IDGenerator.generateTrainerId(firstName: firstName, lastName: lastName)
+            let trainerRef = db.collection("trainers").document(trainerId)
             
             guard !trainerId.isEmpty else {
                 errorMessage = "Failed to generate trainer ID"

@@ -268,18 +268,20 @@ final class AuthManager: ObservableObject {
     
     // MARK: - Organization Management
     
-    func loadOrgId(for userId: String) async {
+    func loadOrgId(for authUserId: String) async {
         #if canImport(FirebaseFirestore)
         do {
             let db = Firestore.firestore()
+            // Query orgMembers by authUserId since document IDs are now name-based
             let snapshot = try await db.collection("orgMembers")
-                .whereField("userId", isEqualTo: userId)
+                .whereField("authUserId", isEqualTo: authUserId)
                 .whereField("isActive", isEqualTo: true)
                 .limit(to: 1)
                 .getDocuments()
             
             if let doc = snapshot.documents.first,
-               let orgId = doc.data()["orgId"] as? String {
+               let orgId = doc.data()["orgId"] as? String,
+               let userIdFromDoc = doc.data()["userId"] as? String {
                 self.currentOrgId = orgId
                 self.currentOrgRole = doc.data()["role"] as? String
                 
@@ -288,7 +290,8 @@ final class AuthManager: ObservableObject {
                 
                 // If user is a trainer, find their trainer document ID
                 if currentOrgRole == "trainer" {
-                    await loadTrainerId(userId: userId, orgId: orgId)
+                    // Use the name-based userId from orgMembers as trainerId
+                    self.trainerId = userIdFromDoc
                 } else {
                     self.trainerId = nil
                 }

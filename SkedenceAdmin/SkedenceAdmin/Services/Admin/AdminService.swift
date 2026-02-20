@@ -409,27 +409,40 @@ final class AdminService: ObservableObject {
     // Add pass to client (admin only)
     // passType parameter should be the packageType (e.g., "private", "2_athlete"), not the title
     func addPassToClient(clientId: String, passType: String, totalLessons: Int) async throws {
+        print("🎯 addPassToClient called")
+        print("   clientId: \(clientId)")
+        print("   passType: \(passType)")
+        print("   totalLessons: \(totalLessons)")
+        
         guard isAdmin else {
+            print("❌ Not authorized - isAdmin: \(isAdmin)")
             throw AdminServiceError.notAuthorized
         }
         
         guard !clientId.isEmpty else {
+            print("❌ Client ID is empty")
             throw AdminServiceError.invalidInput("Client ID is required")
         }
         
         guard !passType.isEmpty else {
+            print("❌ Pass type is empty")
             throw AdminServiceError.invalidInput("Pass type is required")
         }
         
         guard totalLessons > 0 else {
+            print("❌ Total lessons is not greater than 0")
             throw AdminServiceError.invalidInput("Total lessons must be greater than 0")
         }
         
         // Get the user's orgId
+        print("📂 Fetching user document: users/\(clientId)")
         let userDoc = try await db.collection("users").document(clientId).getDocument()
         guard let orgId = userDoc.data()?["orgId"] as? String else {
+            print("❌ No orgId found in user document")
+            print("   User data: \(userDoc.data() ?? [:])")
             throw AdminServiceError.userNotFound
         }
+        print("✅ Found orgId: \(orgId)")
         
         // Load pricing structure to get packageCategory and packageName
         let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
@@ -484,20 +497,41 @@ final class AdminService: ObservableObject {
             passData["packageName"] = packageName
         }
         
-        // Write to BOTH locations for compatibility:
-        // 1. Old path (backward compatibility for users not in orgs or old client apps)
-        try await db.collection("users")
-            .document(clientId)
-            .collection("lessonPackages")
-            .addDocument(data: passData)
+        print("📝 Pass data to write:")
+        print("   \(passData)")
         
-        // 2. New path (organizations/{orgId}/users/{userId}/packages) - where modern client apps read
-        try await db.collection("organizations")
-            .document(orgId)
-            .collection("users")
-            .document(clientId)
-            .collection("packages")
-            .addDocument(data: passData)
+        // Write to BOTH locations for compatibility:
+        do {
+            // 1. Old path (backward compatibility for users not in orgs or old client apps)
+            print("📂 Writing to OLD path: users/\(clientId)/lessonPackages")
+            let oldRef = try await db.collection("users")
+                .document(clientId)
+                .collection("lessonPackages")
+                .addDocument(data: passData)
+            print("✅ OLD path write successful! Doc ID: \(oldRef.documentID)")
+        } catch {
+            print("❌ OLD path write FAILED: \(error.localizedDescription)")
+            print("   Error details: \(error)")
+            throw error
+        }
+        
+        do {
+            // 2. New path (organizations/{orgId}/users/{userId}/packages) - where modern client apps read
+            print("📂 Writing to NEW path: organizations/\(orgId)/users/\(clientId)/packages")
+            let newRef = try await db.collection("organizations")
+                .document(orgId)
+                .collection("users")
+                .document(clientId)
+                .collection("packages")
+                .addDocument(data: passData)
+            print("✅ NEW path write successful! Doc ID: \(newRef.documentID)")
+        } catch {
+            print("❌ NEW path write FAILED: \(error.localizedDescription)")
+            print("   Error details: \(error)")
+            throw error
+        }
+        
+        print("🎉 Both writes completed successfully!")
     }
     
     // Remove pass from client (admin only)

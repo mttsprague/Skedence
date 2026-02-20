@@ -80,7 +80,7 @@ final class AuthManager: ObservableObject {
         authError = nil // Clear any stale errors before starting
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
-            let uid = result.user.uid
+            let authUid = result.user.uid // Firebase Auth UID
 
             let db = Firestore.firestore()
             let now = Date()
@@ -90,6 +90,9 @@ final class AuthManager: ObservableObject {
             let safeFirstName = (firstName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? emailPrefix
             let safeLastName = (lastName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "CLIENT"
             
+            // Generate unique user document ID from name
+            let userId = try await IDGenerator.generateUserId(firstName: safeFirstName, lastName: safeLastName)
+            
             // Generate reference code
             let referenceCode = try await ReferenceCodeGenerator.generateUserCode(
                 firstName: safeFirstName,
@@ -97,6 +100,7 @@ final class AuthManager: ObservableObject {
             )
             
             let data: [String: Any?] = [
+                "authUserId": authUid, // Map to Firebase Auth UID
                 "emailAddress": email,
                 "referenceCode": referenceCode,
                 "firstName": firstName,
@@ -167,17 +171,30 @@ final class AuthManager: ObservableObject {
                 finalPayload["athletes"] = athletesArray
             }
 
-            try await db.collection("users").document(uid).setData(finalPayload)
+            // Create user document with name-based ID
+            try await db.collection("users").document(userId).setData(finalPayload)
             
             // Create orgMembers entry if orgId provided
             if let orgId = orgId {
-                // Use deterministic document ID format: {userId}_{orgId}
-                let membershipId = "\(uid)_\(orgId)"
-                try await db.collection("orgMembers").document(membershipId).setData([
-                    "userId": uid,
+                let memberData: [String: Any] = [
+                    "userId": userId, // Name-based user ID
+                    "authUserId": authUid, // Map to Firebase Auth UID
                     "orgId": orgId,
                     "role": "client",
                     "isActive": true,
+                    "createdAt": Timestamp(date: Date())
+                ]
+                
+                // CRITICAL: Write to BOTH document ID patterns for dual-path support
+                
+                // 1. Name-based ID: {userId}_{orgId} - for application logic
+                let nameBasedId = "\(userId)_\(orgId)"
+                try await db.collection("orgMembers").document(nameBasedId).setData(memberData)
+                
+                // 2. Auth UID based ID: {authUid}_{orgId} - for security rules
+                let authBasedId = "\(authUid)_\(orgId)"
+                try await db.collection("orgMembers").document(authBasedId).setData(memberData)
+            }
                     "joinedAt": Timestamp(date: now)
                 ])
             }
@@ -220,13 +237,14 @@ final class AuthManager: ObservableObject {
     
     // MARK: - Organization Management
     
-    private func loadOrgId(for userId: String) async {
+    private func loadOrgId(for authUserId: String) async {
         do {
             let db = Firestore.firestore()
             
             // First, try to load from orgMembers collection (preferred method)
+            // Query by authUserId since document IDs are now name-based
             let snapshot = try await db.collection("orgMembers")
-                .whereField("userId", isEqualTo: userId)
+                .whereField("authUserId", isEqualTo: authUserId)
                 .whereField("isActive", isEqualTo: true)
                 .limit(to: 1)
                 .getDocuments()
@@ -240,10 +258,14 @@ final class AuthManager: ObservableObject {
                 return
             }
             
-            // Fallback: Try to load from user document
-            let userDoc = try await db.collection("users").document(userId).getDocument()
+            // Fallback: Try to load from user document by querying authUserId field
+            let userSnapshot = try await db.collection("users")
+                .whereField("authUserId", isEqualTo: authUserId)
+                .limit(to: 1)
+                .getDocuments()
             
-            if let data = userDoc.data(),
+            if let userDoc = userSnapshot.documents.first,
+               let data = userDoc.data(),
                let orgId = data["orgId"] as? String {
                 currentOrgId = orgId
                 
