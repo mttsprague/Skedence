@@ -32,15 +32,18 @@ async function generateUniqueId(
   collection: string
 ): Promise<string> {
   const sanitized = sanitizeName(baseName);
+  console.log(`🔧 [ID Generator] Sanitized "${baseName}" to "${sanitized}"`);
   let id = sanitized;
   let counter = 2;
 
   // Check if ID exists, append number if needed
   while (await documentExists(db, collection, id)) {
+    console.log(`⚠️ [ID Generator] ID "${id}" already exists, trying counter ${counter}`);
     id = `${sanitized}_${counter}`;
     counter++;
   }
 
+  console.log(`✅ [ID Generator] Final unique ID: "${id}"`);
   return id;
 }
 
@@ -72,5 +75,8 @@ export async function generateOrganizationId(
   db: Firestore,
   name: string
 ): Promise<string> {
-  return generateUniqueId(db, name, 'organizations');
+  console.log('🔧 [ID Generator] Generating organization ID for:', name);
+  const result = await generateUniqueId(db, name, 'organizations');
+  console.log('✅ [ID Generator] Generated organization ID:', result);
+  return result;
 }

@@ -6,6 +6,7 @@ import { doc, setDoc, serverTimestamp, collection } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { generateOrganizationId, generateTrainerId } from "@/lib/id-generator";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -71,11 +72,17 @@ export default function RegisterPage() {
       // Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      const userId = user.uid;
+      const authUserId = user.uid; // This is the Firebase Auth UID
 
-      // Generate organization document reference (Firestore will create the ID)
-      const orgRef = doc(collection(db, "organizations"));
-      const orgId = orgRef.id;
+      // Generate human-readable organization ID from business name
+      console.log('🔧 Generating orgId from businessName:', businessName);
+      const orgId = await generateOrganizationId(db, businessName);
+      console.log('✅ Generated orgId:', orgId);
+
+      // Generate human-readable trainer ID from owner's name
+      console.log('🔧 Generating trainerId from:', firstName, lastName);
+      const trainerId = await generateTrainerId(db, firstName, lastName);
+      console.log('✅ Generated trainerId:', trainerId);
 
       // Calculate trial end date (14 days from now)
       const trialEndsAt = new Date();
@@ -84,7 +91,7 @@ export default function RegisterPage() {
       // Build organization data - MATCH ADMIN APP SCHEMA EXACTLY
       const orgData: any = {
         name: businessName,
-        ownerUserId: userId,
+        ownerUserId: trainerId, // Use name-based trainer ID, not Auth UID
         contactPhone: phone,
         contactEmail: contactEmail || email,
         createdAt: serverTimestamp(),
@@ -130,12 +137,16 @@ export default function RegisterPage() {
         };
       }
 
-      // Create organization document
-      await setDoc(orgRef, orgData);
+      // Create organization document with human-readable ID
+      console.log('📝 Creating organization document with ID:', orgId);
+      await setDoc(doc(db, "organizations", orgId), orgData);
+      console.log('✅ Organization document created successfully');
 
-      // Create trainer document - MATCH ADMIN APP SCHEMA EXACTLY
-      await setDoc(doc(db, "trainers", userId), {
+      // Create trainer document with human-readable ID - MATCH ADMIN APP SCHEMA EXACTLY
+      console.log('📝 Creating trainer document with ID:', trainerId);
+      await setDoc(doc(db, "trainers", trainerId), {
         orgId: orgId,
+        authUserId: authUserId, // Map to Firebase Auth UID
         firstName: firstName,
         lastName: lastName,
         email: email,
@@ -144,14 +155,21 @@ export default function RegisterPage() {
         createdAt: serverTimestamp()
       });
 
-      // Create orgMember document - MATCH ADMIN APP SCHEMA EXACTLY
-      await setDoc(doc(db, "orgMembers", `${userId}_${orgId}`), {
+      // CRITICAL: Create DUAL-PATH orgMembers for authentication
+      const memberData = {
         orgId: orgId,
-        userId: userId,
+        userId: trainerId, // Name-based trainer ID
+        authUserId: authUserId, // Map to Firebase Auth UID
         role: "owner",
         isActive: true,
         createdAt: serverTimestamp()
-      });
+      };
+
+      // 1. Name-based ID: {trainerId}_{orgId} - for application logic
+      await setDoc(doc(db, "orgMembers", `${trainerId}_${orgId}`), memberData);
+
+      // 2. Auth UID based ID: {authUserId}_{orgId} - for security rules
+      await setDoc(doc(db, "orgMembers", `${authUserId}_${orgId}`), memberData);
 
       // Store orgId for step 3
       sessionStorage.setItem('newOrgId', orgId);
