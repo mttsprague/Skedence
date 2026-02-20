@@ -101,7 +101,8 @@ export function OnboardingChecklist() {
       const orgDoc = await getDoc(doc(db, 'organizations', orgId));
       if (orgDoc.exists()) {
         const orgData = orgDoc.data();
-        newProgress.stripeConnected = !!orgData.stripe?.connectAccountId && !!orgData.stripe?.onboardingComplete;
+        // Check for Stripe API keys (publishableKey and secretKey)
+        newProgress.stripeConnected = !!orgData.stripe?.publishableKey && !!orgData.stripe?.secretKey;
         newProgress.hasPricing = !!orgData.pricingStructure?.tiers && orgData.pricingStructure.tiers.length > 0;
         newProgress.hasSettings = !!orgData.name && !!orgData.adminEmail;
       }

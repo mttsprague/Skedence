@@ -1397,7 +1397,7 @@ export const cancelClassRegistration = onCall(
  * timezoneOffsetMinutes must match JavaScript Date.getTimezoneOffset() (positive west of UTC).
  */
 export const processTrainerAvailability = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Temporarily disabled for static export compatibility
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(

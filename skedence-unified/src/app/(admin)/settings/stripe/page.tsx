@@ -3,37 +3,36 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard, CheckCircle2, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { CreditCard, CheckCircle2, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 
-interface StripeStatus {
-  hasAccount: boolean;
-  accountId?: string;
-  onboardingComplete?: boolean;
-  chargesEnabled?: boolean;
-  payoutsEnabled?: boolean;
+interface StripeKeys {
   publishableKey?: string;
+  secretKey?: string;
 }
 
 export default function StripeSettingsPage() {
   const { orgId, user, userData } = useAuth();
-  const [stripeStatus, setStripeStatus] = useState<StripeStatus>({ hasAccount: false });
+  const [stripeKeys, setStripeKeys] = useState<StripeKeys>({});
+  const [publishableKey, setPublishableKey] = useState('');
+  const [secretKey, setSecretKey] = useState('');
+  const [showSecretKey, setShowSecretKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isOwner = userData?.role === 'owner';
 
   useEffect(() => {
-    loadStripeStatus();
+    loadStripeKeys();
   }, [orgId, isOwner]);
 
-  const loadStripeStatus = async () => {
+  const loadStripeKeys = async () => {
     if (!orgId || !isOwner) {
       setIsLoading(false);
       return;
@@ -47,94 +46,87 @@ export default function StripeSettingsPage() {
         const data = orgDoc.data();
         const stripe = data.stripe || {};
         
-        setStripeStatus({
-          hasAccount: !!stripe.connectAccountId,
-          accountId: stripe.connectAccountId,
-          onboardingComplete: stripe.onboardingComplete || false,
-          chargesEnabled: stripe.chargesEnabled || false,
-          payoutsEnabled: stripe.payoutsEnabled || false,
-          publishableKey: stripe.publishableKey
+        setStripeKeys({
+          publishableKey: stripe.publishableKey,
+          secretKey: stripe.secretKey
         });
+        
+        if (stripe.publishableKey) {
+          setPublishableKey(stripe.publishableKey);
+        }
+        if (stripe.secretKey) {
+          setSecretKey(stripe.secretKey);
+        }
       }
     } catch (error) {
-      console.error('Error loading Stripe status:', error);
-      setMessage({ type: 'error', text: 'Failed to load Stripe status' });
+      console.error('Error loading Stripe keys:', error);
+      setMessage({ type: 'error', text: 'Failed to load Stripe keys' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleConnectStripe = async () => {
+  const handleSaveKeys = async () => {
     if (!orgId) return;
 
-    setIsConnecting(true);
+    // Validation
+    if (!publishableKey.trim()) {
+      setMessage({ type: 'error', text: 'Publishable key is required' });
+      return;
+    }
+    if (!secretKey.trim()) {
+      setMessage({ type: 'error', text: 'Secret key is required' });
+      return;
+    }
+
+    // Validate key formats
+    if (!publishableKey.startsWith('pk_')) {
+      setMessage({ type: 'error', text: 'Publishable key must start with pk_test_ or pk_live_' });
+      return;
+    }
+    if (!secretKey.startsWith('sk_')) {
+      setMessage({ type: 'error', text: 'Secret key must start with sk_test_ or sk_live_' });
+      return;
+    }
+
+    setIsSaving(true);
     setMessage(null);
 
     try {
-      const functions = getFunctions();
-      
-      // First, create Connect account if needed
-      if (!stripeStatus.hasAccount) {
-        const createAccount = httpsCallable<
-          { orgId: string; email: string; businessName: string },
-          { success: boolean; accountId: string }
-        >(functions, 'createConnectAccount');
+      // Save keys to organization document
+      await setDoc(
+        doc(db, 'organizations', orgId),
+        {
+          stripe: {
+            publishableKey: publishableKey.trim(),
+            secretKey: secretKey.trim(),
+            updatedAt: new Date().toISOString()
+          }
+        },
+        { merge: true }
+      );
 
-        const orgDoc = await getDoc(doc(db, 'organizations', orgId));
-        const orgData = orgDoc.data();
-
-        await createAccount({
-          orgId,
-          email: orgData?.adminEmail || user?.email || '',
-          businessName: orgData?.name || 'My Business'
-        });
+      // Mark onboarding step as complete
+      try {
+        const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
+        const onboardingDoc = await getDoc(onboardingRef);
+        const currentProgress = onboardingDoc.exists() ? onboardingDoc.data() : {};
+        await setDoc(onboardingRef, { ...currentProgress, stripeConnected: true }, { merge: true });
+      } catch (error) {
+        console.error('Error marking onboarding step complete:', error);
       }
 
-      // Generate onboarding link
-      const createLink = httpsCallable<
-        { orgId: string },
-        { url: string }
-      >(functions, 'createConnectAccountLink');
-
-      const result = await createLink({ orgId });
-
-      // Redirect to Stripe onboarding
-      window.location.href = result.data.url;
-    } catch (error: any) {
-      console.error('Error connecting Stripe:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.message || 'Failed to connect Stripe. Please try again.' 
+      setStripeKeys({
+        publishableKey: publishableKey.trim(),
+        secretKey: secretKey.trim()
       });
-      setIsConnecting(false);
-    }
-  };
 
-  const handleRefreshStatus = async () => {
-    if (!orgId) return;
-
-    setIsRefreshing(true);
-    setMessage(null);
-
-    try {
-      const functions = getFunctions();
-      const refreshStatus = httpsCallable<
-        { orgId: string },
-        { success: boolean }
-      >(functions, 'refreshConnectAccountStatus');
-
-      await refreshStatus({ orgId });
-      await loadStripeStatus();
-
-      setMessage({ type: 'success', text: 'Stripe status refreshed!' });
-    } catch (error: any) {
-      console.error('Error refreshing status:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.message || 'Failed to refresh status' 
-      });
+      setMessage({ type: 'success', text: 'Stripe keys saved successfully! Your apps can now process payments.' });
+    } catch (error) {
+      console.error('Error saving Stripe keys:', error);
+      setMessage({ type: 'error', text: 'Failed to save Stripe keys' });
     } finally {
-      setIsRefreshing(false);
+      setIsSaving(false);
     }
   };
 
@@ -167,7 +159,7 @@ export default function StripeSettingsPage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Stripe Settings</h1>
-          <p className="text-foreground/80 mt-1">Connect your Stripe account to accept payments</p>
+          <p className="text-foreground/80 mt-1">Enter your Stripe API keys to enable payment processing</p>
         </div>
 
         {/* Messages */}
@@ -188,190 +180,186 @@ export default function StripeSettingsPage() {
           </div>
         )}
 
-        {/* Status Card */}
-        {stripeStatus.hasAccount && stripeStatus.onboardingComplete && (
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-6 w-6 text-green-600 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-green-900">Stripe Connected</h3>
-                  <p className="text-sm text-green-700 mt-1">
-                    Payments are enabled for your organization. Your mobile apps will use this account for all transactions.
-                  </p>
-                  <div className="mt-3 space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      {stripeStatus.chargesEnabled ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-orange-600" />
-                      )}
-                      <span className={stripeStatus.chargesEnabled ? 'text-green-800' : 'text-orange-800'}>
-                        Accepting payments: {stripeStatus.chargesEnabled ? 'Enabled' : 'Pending'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {stripeStatus.payoutsEnabled ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-orange-600" />
-                      )}
-                      <span className={stripeStatus.payoutsEnabled ? 'text-green-800' : 'text-orange-800'}>
-                        Payouts to bank: {stripeStatus.payoutsEnabled ? 'Enabled' : 'Pending'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex gap-3">
-                    <Button
-                      onClick={handleRefreshStatus}
-                      disabled={isRefreshing}
-                      variant="outline"
-                      size="sm"
-                      className="text-green-900 border-green-300 hover:bg-green-100"
-                    >
-                      {isRefreshing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Refresh Status
-                    </Button>
-                    <a 
-                      href="https://dashboard.stripe.com" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-green-800 hover:text-green-900 hover:underline"
-                    >
-                      Manage in Stripe
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Instructions Card */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="space-y-3 text-sm">
+              <p className="font-semibold text-blue-900">Where to find your API keys:</p>
+              <ol className="space-y-2 ml-4 list-decimal text-blue-800">
+                <li>
+                  Log in to your{' '}
+                  <a 
+                    href="https://dashboard.stripe.com/apikeys" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    Stripe Dashboard
+                  </a>
+                </li>
+                <li>Go to Developers → API keys</li>
+                <li>Copy your Publishable key (starts with pk_)</li>
+                <li>Reveal and copy your Secret key (starts with sk_)</li>
+              </ol>
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Incomplete Onboarding Status */}
-        {stripeStatus.hasAccount && !stripeStatus.onboardingComplete && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-6 w-6 text-orange-600 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-orange-900">Setup Incomplete</h3>
-                  <p className="text-sm text-orange-700 mt-1">
-                    Your Stripe account is created but setup isn't complete. Continue setup to start accepting payments.
-                  </p>
-                  <div className="mt-4">
-                    <Button
-                      onClick={handleConnectStripe}
-                      disabled={isConnecting}
-                      className="bg-orange-600 hover:bg-orange-700"
-                    >
-                      {isConnecting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Continue Stripe Setup
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* How It Works */}
+        {/* API Keys Form */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
-              How Stripe Connect Works
+              API Keys
             </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Publishable Key */}
+            <div className="space-y-2">
+              <Label htmlFor="publishableKey">
+                Publishable Key
+                <span className="text-muted-foreground ml-2 text-xs">(pk_test_... or pk_live_...)</span>
+              </Label>
+              <Input
+                id="publishableKey"
+                type="text"
+                placeholder="pk_test_51..."
+                value={publishableKey}
+                onChange={(e) => setPublishableKey(e.target.value)}
+                disabled={isSaving}
+              />
+              <p className="text-xs text-muted-foreground">
+                Used by your mobile apps to create payment methods. Safe to share publicly.
+              </p>
+            </div>
+
+            {/* Secret Key */}
+            <div className="space-y-2">
+              <Label htmlFor="secretKey">
+                Secret Key
+                <span className="text-muted-foreground ml-2 text-xs">(sk_test_... or sk_live_...)</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="secretKey"
+                  type={showSecretKey ? 'text' : 'password'}
+                  placeholder="sk_test_51..."
+                  value={secretKey}
+                  onChange={(e) => setSecretKey(e.target.value)}
+                  disabled={isSaving}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSecretKey(!showSecretKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showSecretKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Keep this private! Used by your backend to process payments.
+              </p>
+            </div>
+
+            {/* Current Keys Status */}
+            {(stripeKeys.publishableKey || stripeKeys.secretKey) && (
+              <div className="p-4 border rounded-lg bg-muted space-y-2">
+                <p className="text-sm font-medium">Current Keys Saved:</p>
+                {stripeKeys.publishableKey && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span className="text-xs text-muted-foreground">Publishable Key</span>
+                  </div>
+                )}
+                {stripeKeys.secretKey && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span className="text-xs text-muted-foreground">Secret Key</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Save Button */}
+            <Button 
+              onClick={handleSaveKeys}
+              disabled={isSaving}
+              size="lg"
+              className="w-full"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Save Stripe Keys
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* How It Works */}
+        <Card>
+          <CardHeader>
+            <CardTitle>How It Works</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3 text-sm text-foreground">
               <p>
-                Stripe Connect allows your business to accept payments directly into your own Stripe account. 
-                Payments go straight to your bank account.
+                Your Stripe API keys allow your mobile apps to process payments directly to your Stripe account. 
+                All payments go straight to your account.
               </p>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-                <p className="font-semibold text-blue-900">What happens when you connect:</p>
-                <ol className="space-y-2 ml-4 list-decimal text-blue-800">
-                  <li>You'll be redirected to Stripe's secure portal</li>
-                  <li>Sign in to your existing Stripe account or create a new one</li>
-                  <li>Connect your bank account for payouts</li>
-                  <li>Complete identity verification (required by Stripe/law)</li>
-                  <li>Return to Skedence - you're ready to accept payments!</li>
-                </ol>
-              </div>
-
-              <p className="font-semibold mt-4">Your mobile apps will automatically use this connection:</p>
+              <p className="font-semibold mt-4">Your mobile apps will use these keys:</p>
               <ul className="space-y-1 ml-4 list-disc">
                 <li><strong>Client App:</strong> Clients can purchase lesson packages</li>
                 <li><strong>Admin App Wallet:</strong> You can charge clients for services</li>
               </ul>
 
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+                <p className="font-semibold text-amber-900">Test vs Live Keys</p>
+                <p className="text-amber-800 mt-1">
+                  Use test keys (pk_test_ and sk_test_) for development. Switch to live keys 
+                  (pk_live_ and sk_live_) when ready for real payments.
+                </p>
+              </div>
+
               <p className="text-xs text-muted-foreground mt-4">
-                🔒 Your Stripe account credentials are never stored by Skedence. All payment processing 
-                is handled securely by Stripe.
+                🔒 Your keys are stored securely in Firebase and only accessible to your organization.
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Connect Button */}
-        {!stripeStatus.hasAccount && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Connect Your Stripe Account</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-foreground/80">
-                Connect your Stripe account to start accepting payments from clients. If you don't have 
-                a Stripe account yet, you can create one during the connection process.
-              </p>
-
-              <Button
-                onClick={handleConnectStripe}
-                disabled={isConnecting}
-                size="lg"
-                className="w-full"
-              >
-                {isConnecting ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Connecting to Stripe...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="h-5 w-5 mr-2" />
-                    Connect Stripe Account
-                  </>
-                )}
-              </Button>
-
-              <p className="text-xs text-center text-muted-foreground">
-                By connecting, you agree to Stripe's{' '}
+        {/* Help Card */}
+        <Card className="border-gray-200 bg-gray-50">
+          <CardContent className="pt-6">
+            <div className="text-sm space-y-2">
+              <p className="font-semibold">Common Questions</p>
+              <ul className="space-y-2 text-muted-foreground">
+                <li><strong>Is my data secure?</strong> Yes, your keys are stored securely in Firebase and only accessible to your organization.</li>
+                <li><strong>What are the fees?</strong> Stripe charges 2.9% + $0.30 per transaction. There are no monthly fees.</li>
+                <li><strong>Can I change my keys later?</strong> Yes, you can update your keys at any time.</li>
+              </ul>
+              <p className="mt-4">
+                For help, visit the{' '}
                 <a 
-                  href="https://stripe.com/connect-account/legal" 
+                  href="https://support.stripe.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  Connected Account Agreement
+                  Stripe Support Center
                 </a>
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Need Help */}
-        <Card className="border-gray-200 bg-gray-50">
-          <CardContent className="pt-6">
-            <div className="text-sm space-y-2">
-              <p className="font-semibold">Need Help?</p>
-              <p>
-                Contact us at{' '}
+                {' '}or contact us at{' '}
                 <a href="mailto:support@skedence.com" className="text-primary hover:underline">
                   support@skedence.com
                 </a>
-                {' '}if you have questions about connecting your Stripe account.
               </p>
             </div>
           </CardContent>

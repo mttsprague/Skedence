@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { collection, query, where, getDocs, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, deleteDoc, doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Calendar, Clock, Plus, Trash2, User, MapPin } from 'lucide-react';
@@ -148,6 +148,18 @@ export default function AvailabilityPage() {
         ...doc.data(),
       })) as AvailabilitySlot[];
       setSlots(slotsData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
+      
+      // Mark "Create Trainer Availability" as complete in onboarding checklist
+      if (orgId) {
+        try {
+          const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
+          const onboardingDoc = await getDoc(onboardingRef);
+          const currentProgress = onboardingDoc.exists() ? onboardingDoc.data() : {};
+          await setDoc(onboardingRef, { ...currentProgress, hasAvailability: true }, { merge: true });
+        } catch (error) {
+          console.error('Error marking onboarding step complete:', error);
+        }
+      }
 
       // Reset form
       setNewSlot({
