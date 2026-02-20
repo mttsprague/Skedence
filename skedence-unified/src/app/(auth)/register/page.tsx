@@ -153,10 +153,14 @@ export default function RegisterPage() {
   };
 
   const handleComplete = async () => {
-    // Wait 2 seconds for Firestore transaction to fully commit
+    // Wait 3 seconds for Cloud Function transaction to fully commit
     // This ensures orgMembers docs are available when useAuth queries them
     console.log('⏳ Waiting for database sync before navigating...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Force auth to reload to pick up new orgMembers
+    console.log('🔄 Reloading auth state...');
+    await auth.currentUser?.reload();
     
     // Clean up
     sessionStorage.removeItem('newOrgId');

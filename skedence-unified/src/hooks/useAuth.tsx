@@ -76,11 +76,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         let orgMembersSnap = await getDocs(orgMembersQuery);
         
-        // Retry once if empty (handles freshly created accounts where transaction is still committing)
+        // Retry up to 5 times with increasing delays (handles freshly created accounts)
+        // Total wait time: 2s + 3s + 4s + 5s + 6s = 20 seconds max
         if (orgMembersSnap.empty) {
-          console.log('Auth: orgMembers empty, retrying in 2 seconds...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          orgMembersSnap = await getDocs(orgMembersQuery);
+          const maxRetries = 5;
+          for (let i = 0; i < maxRetries; i++) {
+            const delay = 2000 + (i * 1000); // 2s, 3s, 4s, 5s, 6s
+            console.log(`Auth: orgMembers empty, retry ${i + 1}/${maxRetries} in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            orgMembersSnap = await getDocs(orgMembersQuery);
+            
+            if (!orgMembersSnap.empty) {
+              console.log(`Auth: ✅ Found orgMembers on retry ${i + 1}`);
+              break;
+            }
+          }
         }
         
         if (!orgMembersSnap.empty) {
