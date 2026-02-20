@@ -199,11 +199,12 @@ export default function AvailabilityPage() {
 
   return (
     <SchedulingSubmenu>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Availability Management</h1>
-          <p className="text-foreground/80 mt-2">Set trainer availability and time slots</p>
-        </div>
+      <div className="p-6 lg:p-8">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Availability Management</h1>
+            <p className="text-foreground/80 mt-2">Set trainer availability and time slots</p>
+          </div>
 
         {loading ? (
           <div className="text-center py-12">
@@ -448,6 +449,7 @@ export default function AvailabilityPage() {
             </Card>
           </div>
         )}
+        </div>
       </div>
     </SchedulingSubmenu>
   );
