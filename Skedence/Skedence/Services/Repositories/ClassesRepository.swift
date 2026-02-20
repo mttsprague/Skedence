@@ -42,8 +42,15 @@ final class ClassesRepository: QueryableRepositoryProtocol {
     
     func create(_ item: GroupClass, orgId: String) async throws -> String {
         let classData = encodeClass(item, orgId: orgId)
-        let ref = try await db.collection("classes").addDocument(data: classData)
-        return ref.documentID
+        
+        // Generate human-readable ID
+        let classId = try await IDGenerator.generateClassId(
+            className: item.title,
+            startTime: item.startTime
+        )
+        
+        try await db.collection("classes").document(classId).setData(classData)
+        return classId
     }
     
     func update(id: String, data: [String: Any], orgId: String) async throws {

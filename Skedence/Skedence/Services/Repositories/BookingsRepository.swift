@@ -47,8 +47,16 @@ final class BookingsRepository: QueryableRepositoryProtocol {
     
     func create(_ item: Booking, orgId: String) async throws -> String {
         let bookingData = encodeBooking(item, orgId: orgId)
-        let ref = try await db.collection("bookings").addDocument(data: bookingData)
-        return ref.documentID
+        
+        // Generate human-readable ID
+        let bookingId = IDGenerator.generateBookingId(
+            clientId: item.clientUID,
+            trainerId: item.trainerUID,
+            startTime: item.startTime ?? Date()
+        )
+        
+        try await db.collection("bookings").document(bookingId).setData(bookingData)
+        return bookingId
     }
     
     func update(id: String, data: [String: Any], orgId: String) async throws {

@@ -143,7 +143,12 @@ final class AdminService: ObservableObject {
             "createdAt": Timestamp(date: Date())
         ]
         
-        let classRef = try await db.collection("classes").addDocument(data: classData)
+        // Generate human-readable class ID
+        let classId = try await IDGenerator.generateClassId(className: title, startTime: startTime)
+        try await db.collection("classes").document(classId).setData(classData)
+        
+        // Generate human-readable schedule ID for the trainer's calendar block
+        let scheduleId = IDGenerator.generateScheduleId(trainerId: trainerId, startTime: startTime)
         
         // Create a booking ONLY on the assigned trainer's schedule to block off the time
         let bookingData: [String: Any] = [
@@ -152,15 +157,15 @@ final class AdminService: ObservableObject {
             "status": "booked",
             "clientId": "CLASS",
             "clientName": title,
-            "classId": classRef.documentID,
+            "classId": classId,
             "isClassBooking": true,
             "bookedAt": Timestamp(date: Date()),
             "orgId": orgId
         ]
         
-        // Add slot ONLY to the assigned trainer's schedule
+        // Add slot ONLY to the assigned trainer's schedule with human-readable ID
         try await db.collection("trainers").document(trainerId)
-            .collection("schedules").addDocument(data: bookingData)
+            .collection("schedules").document(scheduleId).setData(bookingData)
     }
     
     // Toggle class registration status
@@ -244,6 +249,9 @@ final class AdminService: ObservableObject {
             try await scheduleDoc.reference.delete()
         }
         
+        // Generate human-readable schedule ID for the new booking
+        let scheduleId = IDGenerator.generateScheduleId(trainerId: trainerId, startTime: startTime)
+        
         // Create new booking on the assigned trainer's schedule with updated times
         let bookingData: [String: Any] = [
             "clientId": "",
@@ -257,7 +265,7 @@ final class AdminService: ObservableObject {
         ]
         
         try await db.collection("trainers").document(trainerId)
-            .collection("schedules").addDocument(data: bookingData)
+            .collection("schedules").document(scheduleId).setData(bookingData)
     }
     
     // MARK: - User Management
@@ -357,6 +365,13 @@ final class AdminService: ObservableObject {
         let now = Date()
         let expirationDate = Calendar.current.date(byAdding: .day, value: expirationDays, to: now) ?? now.addingTimeInterval(Double(expirationDays) * 24 * 60 * 60)
         
+        // Generate human-readable package ID
+        let packageId = IDGenerator.generatePackageId(
+            userId: clientId,
+            packageType: passType,
+            purchaseDate: now
+        )
+        
         let passData: [String: Any] = [
             "packageType": passType, // This must be packageType (e.g., "private"), not title
             "packageCategory": packageCategory, // "pass" or "class"
@@ -371,7 +386,8 @@ final class AdminService: ObservableObject {
         try await db.collection("users")
             .document(clientId)
             .collection("lessonPackages")
-            .addDocument(data: passData)
+            .document(packageId)
+            .setData(passData)
     }
     
     // Remove pass from client (admin only)

@@ -67,23 +67,32 @@ final class DocumentsRepository {
         _ = try await storageRef.putDataAsync(data, metadata: storageMetadata)
         let downloadURL = try await storageRef.downloadURL()
         
+        // Generate human-readable document ID
+        let currentDate = Date()
+        let documentId = IDGenerator.generateDocumentId(
+            userId: userId,
+            documentType: type,
+            createdDate: currentDate
+        )
+        
         // Save metadata to Firestore
         var documentData: [String: Any] = [
             "name": filename,
             "type": type,
-            "uploadedAt": Timestamp(date: Date()),
+            "uploadedAt": Timestamp(date: currentDate),
             "url": downloadURL.absoluteString
         ]
         
         // Merge additional metadata
         documentData.merge(metadata) { _, new in new }
         
-        let docRef = try await db.collection("users")
+        try await db.collection("users")
             .document(userId)
             .collection("documents")
-            .addDocument(data: documentData)
+            .document(documentId)
+            .setData(documentData)
         
-        return decodeUserDocument(id: docRef.documentID, data: documentData)
+        return decodeUserDocument(id: documentId, data: documentData)
     }
     
     /// Delete a document (removes from Storage and Firestore)

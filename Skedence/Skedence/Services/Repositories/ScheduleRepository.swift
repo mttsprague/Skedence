@@ -35,12 +35,20 @@ final class ScheduleRepository: QueryableRepositoryProtocol {
         }
         
         let slotData = encodeSlot(item, orgId: orgId)
-        let ref = try await db.collection("trainers")
+        
+        // Generate human-readable ID
+        let scheduleId = IDGenerator.generateScheduleId(
+            trainerId: trainerId,
+            startTime: item.startTime
+        )
+        
+        try await db.collection("trainers")
             .document(trainerId)
             .collection("schedules")
-            .addDocument(data: slotData)
+            .document(scheduleId)
+            .setData(slotData)
         
-        return ref.documentID
+        return scheduleId
     }
     
     func update(id: String, data: [String: Any], orgId: String) async throws {

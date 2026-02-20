@@ -40,6 +40,44 @@ class IDGenerator {
         return try await generateUniqueId(baseName: name, collection: "organizations")
     }
     
+    /// Generate a booking ID based on client, trainer, and timestamp
+    /// Format: clientId_trainerId_timestamp (e.g., john_smith_jeff_wilson_1740045600)
+    static func generateBookingId(clientId: String, trainerId: String, startTime: Date) -> String {
+        let timestamp = Int(startTime.timeIntervalSince1970)
+        return "\(clientId)_\(trainerId)_\(timestamp)"
+    }
+    
+    /// Generate a class ID based on class name and start time
+    /// Format: sanitizedClassName_timestamp (e.g., yoga_fundamentals_1740045600)
+    static func generateClassId(className: String, startTime: Date) async throws -> String {
+        let timestamp = Int(startTime.timeIntervalSince1970)
+        let baseName = "\(className)_\(timestamp)"
+        return try await generateUniqueId(baseName: baseName, collection: "classes")
+    }
+    
+    /// Generate a package ID based on user, package type, and purchase date
+    /// Format: userId_packageType_timestamp (e.g., john_smith_private_1740045600)
+    static func generatePackageId(userId: String, packageType: String, purchaseDate: Date) -> String {
+        let timestamp = Int(purchaseDate.timeIntervalSince1970)
+        let sanitizedType = sanitizeName(packageType)
+        return "\(userId)_\(sanitizedType)_\(timestamp)"
+    }
+    
+    /// Generate a schedule ID based on trainer and start time
+    /// Format: trainerId_timestamp (e.g., jeff_wilson_1740045600)
+    static func generateScheduleId(trainerId: String, startTime: Date) -> String {
+        let timestamp = Int(startTime.timeIntervalSince1970)
+        return "\(trainerId)_\(timestamp)"
+    }
+    
+    /// Generate a waiver/document ID based on user, type, and date
+    /// Format: userId_documentType_timestamp (e.g., john_smith_waiver_1740045600)
+    static func generateDocumentId(userId: String, documentType: String, createdDate: Date) -> String {
+        let timestamp = Int(createdDate.timeIntervalSince1970)
+        let sanitizedType = sanitizeName(documentType)
+        return "\(userId)_\(sanitizedType)_\(timestamp)"
+    }
+    
     /// Generate a unique ID for a given collection
     private static func generateUniqueId(baseName: String, collection: String) async throws -> String {
         let sanitized = sanitizeName(baseName)

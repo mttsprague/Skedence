@@ -187,7 +187,12 @@ final class AdminService: ObservableObject {
             "eligiblePackageIds": eligiblePackageIds
         ]
         
-        let classRef = try await db.collection("classes").addDocument(data: classData)
+        // Generate human-readable class ID
+        let classId = try await IDGenerator.generateClassId(className: title, startTime: startTime)
+        try await db.collection("classes").document(classId).setData(classData)
+        
+        // Generate human-readable schedule ID for the trainer's calendar block
+        let scheduleId = IDGenerator.generateScheduleId(trainerId: trainerId, startTime: startTime)
         
         // Create a booking ONLY on the assigned trainer's schedule to block off the time
         let bookingData: [String: Any] = [
@@ -196,15 +201,15 @@ final class AdminService: ObservableObject {
             "status": "booked",
             "clientId": "CLASS",
             "clientName": title,
-            "classId": classRef.documentID,
+            "classId": classId,
             "isClassBooking": true,
             "bookedAt": Timestamp(date: Date()),
             "orgId": orgId
         ]
         
-        // Add slot ONLY to the assigned trainer's schedule
+        // Add slot ONLY to the assigned trainer's schedule with human-readable ID
         try await db.collection("trainers").document(trainerId)
-            .collection("schedules").addDocument(data: bookingData)
+            .collection("schedules").document(scheduleId).setData(bookingData)
         
         // Activity logging handled by cloud functions
     }
@@ -330,6 +335,9 @@ final class AdminService: ObservableObject {
             try await scheduleDoc.reference.delete()
         }
         
+        // Generate human-readable schedule ID for the new booking
+        let scheduleId = IDGenerator.generateScheduleId(trainerId: trainerId, startTime: startTime)
+        
         // Create new booking on the assigned trainer's schedule with updated times
         let bookingData: [String: Any] = [
             "clientId": "",
@@ -343,7 +351,7 @@ final class AdminService: ObservableObject {
         ]
         
         try await db.collection("trainers").document(trainerId)
-            .collection("schedules").addDocument(data: bookingData)
+            .collection("schedules").document(scheduleId).setData(bookingData)
     }
     
     // Load all users (admin only)
@@ -481,6 +489,13 @@ final class AdminService: ObservableObject {
         let now = Date()
         let expirationDate = Calendar.current.date(byAdding: .day, value: expirationDays, to: now) ?? now.addingTimeInterval(Double(expirationDays) * 24 * 60 * 60)
         
+        // Generate human-readable package ID
+        let packageId = IDGenerator.generatePackageId(
+            userId: clientId,
+            packageType: passType,
+            purchaseDate: now
+        )
+        
         var passData: [String: Any] = [
             "packageType": passType, // This must be packageType (e.g., "private"), not title
             "packageCategory": packageCategory, // "pass" or "class"
@@ -498,17 +513,19 @@ final class AdminService: ObservableObject {
         }
         
         print("📝 Pass data to write:")
+        print("   Package ID: \(packageId)")
         print("   \(passData)")
         
-        // Write to BOTH locations for compatibility:
+        // Write to BOTH locations for compatibility (using same ID):
         do {
             // 1. Old path (backward compatibility for users not in orgs or old client apps)
-            print("📂 Writing to OLD path: users/\(clientId)/lessonPackages")
-            let oldRef = try await db.collection("users")
+            print("📂 Writing to OLD path: users/\(clientId)/lessonPackages/\(packageId)")
+            try await db.collection("users")
                 .document(clientId)
                 .collection("lessonPackages")
-                .addDocument(data: passData)
-            print("✅ OLD path write successful! Doc ID: \(oldRef.documentID)")
+                .document(packageId)
+                .setData(passData)
+            print("✅ OLD path write successful!")
         } catch {
             print("❌ OLD path write FAILED: \(error.localizedDescription)")
             print("   Error details: \(error)")
@@ -517,14 +534,15 @@ final class AdminService: ObservableObject {
         
         do {
             // 2. New path (organizations/{orgId}/users/{userId}/packages) - where modern client apps read
-            print("📂 Writing to NEW path: organizations/\(orgId)/users/\(clientId)/packages")
-            let newRef = try await db.collection("organizations")
+            print("📂 Writing to NEW path: organizations/\(orgId)/users/\(clientId)/packages/\(packageId)")
+            try await db.collection("organizations")
                 .document(orgId)
                 .collection("users")
                 .document(clientId)
                 .collection("packages")
-                .addDocument(data: passData)
-            print("✅ NEW path write successful! Doc ID: \(newRef.documentID)")
+                .document(packageId)
+                .setData(passData)
+            print("✅ NEW path write successful!")
         } catch {
             print("❌ NEW path write FAILED: \(error.localizedDescription)")
             print("   Error details: \(error)")

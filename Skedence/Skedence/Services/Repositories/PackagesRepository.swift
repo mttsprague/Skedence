@@ -81,12 +81,21 @@ final class PackagesRepository: QueryableRepositoryProtocol {
         }
         
         let packageData = encodePackage(item, orgId: orgId)
-        let ref = try await db.collection("users")
+        
+        // Generate human-readable ID
+        let packageId = IDGenerator.generatePackageId(
+            userId: userId,
+            packageType: item.packageType,
+            purchaseDate: item.purchaseDate
+        )
+        
+        try await db.collection("users")
             .document(userId)
             .collection("lessonPackages")
-            .addDocument(data: packageData)
+            .document(packageId)
+            .setData(packageData)
         
-        return ref.documentID
+        return packageId
     }
     
     func update(id: String, data: [String: Any], orgId: String) async throws {
