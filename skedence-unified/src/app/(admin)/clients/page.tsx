@@ -100,7 +100,28 @@ export default function ClientsPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [receipts, setReceipts] = useState<Transaction[]>([]);
   const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>([]);
+  const [inviteCode, setInviteCode] = useState<string>('');
 
+  // Load organization data including invite code
+  useEffect(() => {
+    if (!orgId) return;
+
+    async function loadOrganizationData() {
+      try {
+        const orgDoc = await getDoc(doc(db, 'organizations', orgId!));
+        if (orgDoc.exists()) {
+          const orgData = orgDoc.data();
+          setInviteCode(orgData.inviteCode || '');
+        }
+      } catch (error) {
+        console.error('Error loading organization data:', error);
+      }
+    }
+
+    loadOrganizationData();
+  }, [orgId]);
+
+  // Load clients
   useEffect(() => {
     if (!orgId) return;
 
@@ -500,15 +521,13 @@ export default function ClientsPage() {
                     <div className="flex-1">
                       <p className="font-medium text-foreground">Enter your organization code</p>
                       <div className="mt-2 p-3 bg-white dark:bg-gray-900 rounded-lg border border-primary/20">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-2">
-                            <Key className="h-4 w-4 text-primary" />
-                            <span className="text-xs text-foreground/70">Organization Code:</span>
-                          </div>
-                          <code className="px-3 py-1 bg-primary/10 rounded text-primary font-mono font-bold text-sm">
-                            {orgId}
-                          </code>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Key className="h-4 w-4 text-primary" />
+                          <span className="text-xs text-foreground/70">Organization Code:</span>
                         </div>
+                        <code className="block px-3 py-2 bg-primary/10 rounded text-primary font-mono font-bold text-lg">
+                          {inviteCode || 'Loading...'}
+                        </code>
                       </div>
                       <p className="text-foreground/70 mt-2">They enter this code during signup to connect to your business</p>
                     </div>

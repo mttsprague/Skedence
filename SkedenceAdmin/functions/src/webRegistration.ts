@@ -9,6 +9,41 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import * as admin from 'firebase-admin';
 
+// Characters for invite code generation (excludes confusing characters like O, I, 0, 1)
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/**
+ * Generate a unique 6-character invite code
+ */
+async function generateUniqueInviteCode(db: admin.firestore.Firestore): Promise<string> {
+  let code: string;
+  let isUnique = false;
+  let attempts = 0;
+  const maxAttempts = 100;
+
+  while (!isUnique && attempts < maxAttempts) {
+    // Generate random 6-character code
+    code = Array.from({ length: 6 }, () => 
+      CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]
+    ).join('');
+
+    // Check if code already exists
+    const snapshot = await db.collection('organizations')
+      .where('inviteCode', '==', code)
+      .limit(1)
+      .get();
+
+    isUnique = snapshot.empty;
+    attempts++;
+  }
+
+  if (!isUnique) {
+    throw new Error('Failed to generate unique invite code after ' + maxAttempts + ' attempts');
+  }
+
+  return code!;
+}
+
 interface CreateOrgData {
   idToken: string; // NEW: Pass ID token explicitly for static export compatibility
   orgId: string;
@@ -72,6 +107,10 @@ export const createOrganizationFromWeb = onCall(
     logger.info(`Creating organization: ${orgId} for user: ${authUserId}`);
     
     try {
+      // Generate unique 6-character invite code
+      const inviteCode = await generateUniqueInviteCode(db);
+      logger.info(`✅ Generated invite code: ${inviteCode}`);
+      
       // Use a transaction to ensure all documents are created atomically
       await db.runTransaction(async (transaction) => {
         // 1. Create organization document
@@ -83,6 +122,7 @@ export const createOrganizationFromWeb = onCall(
           name: businessName,
           ownerUserId: authUserId,
           contactPhone: phone,
+          inviteCode: inviteCode,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           onboardingCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
           status: 'active',
@@ -157,6 +197,7 @@ export const createOrganizationFromWeb = onCall(
         success: true,
         orgId: orgId,
         trainerId: trainerId,
+        inviteCode: inviteCode,
         message: 'Organization created successfully'
       };
       
