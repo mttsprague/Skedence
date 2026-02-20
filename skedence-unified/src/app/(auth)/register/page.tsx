@@ -86,19 +86,11 @@ export default function RegisterPage() {
       const trainerId = await generateTrainerId(db, firstName, lastName);
       console.log('✅ Generated trainerId:', trainerId);
 
-      // CRITICAL: Wait for auth state to propagate and get fresh ID token
-      // Next.js static export requires explicit token management
-      console.log('🔄 Waiting for auth state to propagate...');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-      
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error('Auth state not set. Please try again.');
-      }
-      
-      console.log('🔑 Forcing ID token refresh for Cloud Function authentication...');
-      await currentUser.getIdToken(true); // Force refresh
-      console.log('✅ ID token refreshed');
+      // CRITICAL: Get fresh ID token from the user we just created
+      // Next.js static export doesn't update auth.currentUser, so use userCredential.user directly
+      console.log('🔑 Getting ID token for Cloud Function authentication...');
+      const idToken = await userCredential.user.getIdToken(true); // Force fresh token
+      console.log('✅ ID token obtained, length:', idToken.length);
 
       // Call Cloud Function to create organization server-side
       // This bypasses client security rules which don't work with Next.js static exports
