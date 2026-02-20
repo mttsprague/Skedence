@@ -14,6 +14,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Routes that use their own submenu sidebars
   const hasSubmenuSidebar = 
     pathname.startsWith('/scheduling') ||
+    pathname.startsWith('/availability') ||
     pathname.startsWith('/clients') ||
     pathname.startsWith('/trainers') ||
     pathname.startsWith('/bookings') ||
