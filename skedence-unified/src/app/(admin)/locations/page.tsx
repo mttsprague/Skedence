@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { MapPin, Plus, Edit2, Trash2, X, AlertCircle, Building2, Crown } from 'lucide-react';
 import { Location } from '@/types/location';
@@ -236,6 +236,16 @@ export default function LocationsPage() {
             locationName: form.name,
             address: fullAddress,
           });
+        }
+        
+        // Mark "Configure Business Settings" as complete in onboarding checklist
+        try {
+          const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
+          const onboardingDoc = await getDoc(onboardingRef);
+          const currentProgress = onboardingDoc.exists() ? onboardingDoc.data() : {};
+          await setDoc(onboardingRef, { ...currentProgress, hasSettings: true }, { merge: true });
+        } catch (error) {
+          console.error('Error marking onboarding step complete:', error);
         }
         
         setLocations([...locations, {

@@ -48,7 +48,7 @@ interface CreateConnectAccountData {
  * Called during organization onboarding
  */
 export const createConnectAccount = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Temporarily disabled to match createOrganizationFromWeb
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -140,7 +140,7 @@ interface CreateAccountLinkData {
  * Returns URL for business owner to complete Stripe setup
  */
 export const createConnectAccountLink = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Temporarily disabled to match createOrganizationFromWeb
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -209,7 +209,7 @@ interface RefreshConnectAccountData {
  * Updates charges_enabled, payouts_enabled, onboarding_complete
  */
 export const refreshConnectAccountStatus = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Temporarily disabled to match createOrganizationFromWeb
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(

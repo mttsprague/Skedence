@@ -246,6 +246,16 @@ export default function PricingPage() {
       );
 
       setMessage({ type: 'success', text: 'Pricing structure saved successfully!' });
+      
+      // Mark "Set up Pricing" as complete in onboarding checklist
+      try {
+        const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
+        const onboardingDoc = await getDoc(onboardingRef);
+        const currentProgress = onboardingDoc.exists() ? onboardingDoc.data() : {};
+        await setDoc(onboardingRef, { ...currentProgress, hasPricing: true }, { merge: true });
+      } catch (error) {
+        console.error('Error marking onboarding step complete:', error);
+      }
     } catch (error) {
       console.error('Error saving pricing:', error);
       setMessage({ type: 'error', text: 'Failed to save pricing structure' });
