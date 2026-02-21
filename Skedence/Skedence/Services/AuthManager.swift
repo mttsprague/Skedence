@@ -240,7 +240,7 @@ final class AuthManager: ObservableObject {
             // Create orgMembers entry if orgId provided
             if let orgId = orgId {
                 let memberData: [String: Any] = [
-                    "userId": userId, // Name-based user ID (firstName_lastName)
+                    "userId": userId, // Name-based user ID (firstName_lastName) for reference
                     "authUserId": authUid, // Firebase Auth UID
                     "orgId": orgId,
                     "role": "client",
@@ -248,8 +248,8 @@ final class AuthManager: ObservableObject {
                     "createdAt": Timestamp(date: now)
                 ]
                 
-                // Create SINGLE orgMember document with pattern: {userId}_{orgId}
-                let memberDocId = "\(userId)_\(orgId)"
+                // Create SINGLE orgMember document with auth-based pattern: {authUid}_{orgId}
+                let memberDocId = "\(authUid)_\(orgId)"
                 try await db.collection("orgMembers").document(memberDocId).setData(memberData)
             }
             

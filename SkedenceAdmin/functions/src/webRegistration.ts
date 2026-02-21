@@ -170,7 +170,7 @@ export const createOrganizationFromWeb = onCall(
         transaction.set(trainerRef, trainerData);
         logger.info(`✅ Created trainer: ${trainerId}`);
         
-        // 3. Create dual-path orgMembers
+        // 3. Create orgMembers (auth-based pattern only)
         const memberData = {
           orgId: orgId,
           userId: trainerId,
@@ -180,14 +180,9 @@ export const createOrganizationFromWeb = onCall(
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         };
         
-        // Name-based ID: {trainerId}_{orgId}
-        const memberRef1 = db.collection('orgMembers').doc(`${trainerId}_${orgId}`);
-        transaction.set(memberRef1, memberData);
-        logger.info(`✅ Created orgMembers: ${trainerId}_${orgId}`);
-        
-        // Auth UID-based ID: {authUserId}_{orgId}
-        const memberRef2 = db.collection('orgMembers').doc(`${authUserId}_${orgId}`);
-        transaction.set(memberRef2, memberData);
+        // Auth UID-based ID: {authUserId}_{orgId} - ONLY correct pattern
+        const memberRef = db.collection('orgMembers').doc(`${authUserId}_${orgId}`);
+        transaction.set(memberRef, memberData);
         logger.info(`✅ Created orgMembers: ${authUserId}_${orgId}`);
       });
       

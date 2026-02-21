@@ -245,14 +245,9 @@ struct OnboardingAccountView: View {
                     "createdAt": Timestamp(date: Date())
                 ]
                 
-                // CRITICAL: Write to BOTH document ID patterns for dual-path support
+                // CRITICAL: Write to auth-based pattern only
                 
-                // 1. Name-based ID: {trainerId}_{orgId} - for application logic
-                try await db.collection("orgMembers")
-                    .document("\(trainerId)_\(orgId)")
-                    .setData(memberData)
-                
-                // 2. Auth UID based ID: {userId}_{orgId} - for security rules
+                // Auth UID based ID: {userId}_{orgId} - ONLY correct pattern
                 try await db.collection("orgMembers")
                     .document("\(userId)_\(orgId)")
                     .setData(memberData)

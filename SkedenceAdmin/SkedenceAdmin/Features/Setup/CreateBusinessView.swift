@@ -339,22 +339,17 @@ struct CreateBusinessView: View {
                     .document(trainerId)  // Use name-based trainer ID
                     .setData(trainerData)
                 
-                // 8. Create DUAL orgMember documents (match web pattern)
+                // 8. Create orgMember document (auth-based pattern only)
                 let memberData: [String: Any] = [
                     "orgId": orgId,
-                    "userId": trainerId,         // Name-based trainer ID
+                    "userId": trainerId,         // Name-based trainer ID (for reference)
                     "authUserId": userId,        // Firebase Auth UID
                     "role": "admin",             // Admin role (primary)
                     "isActive": true,
                     "createdAt": Timestamp(date: Date())
                 ]
                 
-                // Pattern 1: {trainerId}_{orgId} (name-based)
-                try await db.collection("orgMembers")
-                    .document("\(trainerId)_\(orgId)")
-                    .setData(memberData)
-                
-                // Pattern 2: {authUserId}_{orgId} (auth-based, for useAuth queries)
+                // ONLY pattern: {authUserId}_{orgId} (auth-based)
                 try await db.collection("orgMembers")
                     .document("\(userId)_\(orgId)")
                     .setData(memberData)
@@ -363,7 +358,7 @@ struct CreateBusinessView: View {
                 print("   - Organization ID: \(orgId)")
                 print("   - Trainer ID: \(trainerId)")
                 print("   - User ID: \(nameBasedUserId)")
-                print("   - orgMembers: \(trainerId)_\(orgId) and \(userId)_\(orgId)")
+                print("   - orgMembers: \(userId)_\(orgId) (auth-based only)")
                 print("   - Role: admin (also trainer with isAdmin=true)")
                 
                 // 9. Load org data into AuthManager

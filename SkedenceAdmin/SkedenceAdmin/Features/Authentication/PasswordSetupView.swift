@@ -203,27 +203,21 @@ struct PasswordSetupView: View {
             ])
             
             
-            // 4. Update orgMembers - create auth-based document for security rules
+            // 4. Update orgMembers - create/update auth-based document only
             if let orgId = trainerData["orgId"] as? String {
-                // Check if orgMember exists with trainerId
-                let nameBasedDocId = "\(trainerId)_\(orgId)"
-                let oldMemberDoc = try await db.collection("orgMembers").document(nameBasedDocId).getDocument()
+                // Create auth-based orgMember document (ONLY pattern)
+                let authBasedDocId = "\(firebaseUid)_\(orgId)"
                 
-                if oldMemberDoc.exists, let memberData = oldMemberDoc.data() {
-                    // Update existing name-based document with authUserId
-                    var updatedNameBasedData = memberData
-                    updatedNameBasedData["authUserId"] = firebaseUid
-                    updatedNameBasedData["updatedAt"] = Timestamp()
-                    
-                    try await db.collection("orgMembers").document(nameBasedDocId).setData(updatedNameBasedData)
-                    
-                    // CRITICAL: Also create auth-based document for security rules
-                    let authBasedDocId = "\(firebaseUid)_\(orgId)"
-                    var authBasedData = updatedNameBasedData
-                    authBasedData["userId"] = trainerId // Keep name-based userId
-                    
-                    try await db.collection("orgMembers").document(authBasedDocId).setData(authBasedData)
-                }
+                let memberData: [String: Any] = [
+                    "userId": trainerId,
+                    "authUserId": firebaseUid,
+                    "orgId": orgId,
+                    "role": trainerData["role"] as? String ?? "trainer",
+                    "isActive": trainerData["active"] as? Bool ?? true,
+                    "updatedAt": Timestamp()
+                ]
+                
+                try await db.collection("orgMembers").document(authBasedDocId).setData(memberData, merge: true)
             }
             
             // 5. Success - auth listener will handle navigation
