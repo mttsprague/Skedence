@@ -169,6 +169,18 @@ export default function LocationsPage() {
     }
   };
 
+  // Helper function to sanitize location name for use as document ID
+  const sanitizeLocationId = (name: string): string => {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/-+/g, '_') // Replace hyphens with underscores
+      .replace(/_+/g, '_') // Replace multiple underscores with single
+      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgId) return;
@@ -218,8 +230,9 @@ export default function LocationsPage() {
         })) as Location[];
         setLocations(locationsData);
       } else {
-        // Add new location
-        const docRef = await addDoc(collection(db, 'locations'), {
+        // Add new location with name-based ID
+        const locationId = sanitizeLocationId(form.name);
+        await setDoc(doc(db, 'locations', locationId), {
           ...locationData,
           createdAt: Timestamp.fromDate(new Date()),
         });
@@ -232,7 +245,7 @@ export default function LocationsPage() {
             actorId: user.uid,
             actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Unknown',
             actorRole: 'owner',
-            locationId: docRef.id,
+            locationId: locationId,
             locationName: form.name,
             address: fullAddress,
           });
@@ -249,7 +262,7 @@ export default function LocationsPage() {
         }
         
         setLocations([...locations, {
-          id: docRef.id,
+          id: locationId,
           ...locationData,
           createdAt: Timestamp.fromDate(new Date()),
         }]);

@@ -37,6 +37,7 @@ import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays, st
 import { ActivityType } from '@/lib/activity-logger';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { OnboardingChecklist } from '@/components/admin/onboarding-checklist';
+import { TrialBanner } from '@/components/admin/trial-banner';
 
 interface ActivityLog {
   id: string;
@@ -889,6 +890,9 @@ export default function ActivityPage() {
           View all recent actions and events in your organization
         </p>
       </div>
+
+      {/* Trial Status Banner */}
+      <TrialBanner orgId={orgId} />
 
       {/* Onboarding Checklist - Shows for new users */}
       <OnboardingChecklist />

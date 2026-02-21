@@ -248,7 +248,6 @@ export const createCustomerPortalSession = onCall(
  * Get subscription status for web portal display
  */
 export const getWebSubscriptionStatus = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -278,14 +277,16 @@ export const getWebSubscriptionStatus = onCall(
         );
       }
 
+      // Check both top-level fields and billing object for backwards compatibility
       const billing = orgData.billing || {};
+      
+      // Check for Stripe subscription ID in either location
+      const stripeSubId = orgData.stripeSubscriptionId || billing.stripeSubscriptionId;
 
       // If we have a Stripe subscription, fetch latest status
-      if (billing.stripeSubscriptionId) {
+      if (stripeSubId) {
         try {
-          const subscription = await stripe.subscriptions.retrieve(
-            billing.stripeSubscriptionId
-          );
+          const subscription = await stripe.subscriptions.retrieve(stripeSubId);
 
           // Determine plan name from price ID
           let planName = "starter";
@@ -315,14 +316,37 @@ export const getWebSubscriptionStatus = onCall(
         }
       }
 
+      // Check for top-level subscription fields (CLAUDE.md schema)
+      const status = orgData.subscriptionStatus || billing.status || "inactive";
+      const plan = orgData.subscriptionTier || billing.plan || "free";
+      
+      // If organization is new (within 14 days) and has no subscription, set as trialing
+      const createdAt = orgData.createdAt;
+      const now = Date.now();
+      const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+      
+      let trialEnd = billing.trialEnd || null;
+      let finalStatus = status;
+      
+      // Auto-assign trial for organizations created within last 14 days with no subscription
+      if (createdAt && !stripeSubId && status === "inactive") {
+        const orgAgeMs = now - (createdAt.toDate ? createdAt.toDate().getTime() : createdAt);
+        if (orgAgeMs < fourteenDaysMs) {
+          finalStatus = "trialing";
+          // Set trial end to 14 days from creation
+          const trialEndDate = new Date((createdAt.toDate ? createdAt.toDate().getTime() : createdAt) + fourteenDaysMs);
+          trialEnd = admin.firestore.Timestamp.fromDate(trialEndDate);
+        }
+      }
+
       // Return Firestore data as fallback
       return {
-        hasSubscription: !!billing.stripeSubscriptionId,
-        plan: billing.plan || "free",
-        status: billing.status || "inactive",
-        currentPeriodEnd: billing.currentPeriodEnd || null,
+        hasSubscription: !!stripeSubId,
+        plan,
+        status: finalStatus,
+        currentPeriodEnd: orgData.currentPeriodEnd || billing.currentPeriodEnd || null,
         cancelAtPeriodEnd: billing.cancelAtPeriodEnd || false,
-        trialEnd: billing.trialEnd || null,
+        trialEnd,
       };
     } catch (error: unknown) {
       console.error("Error getting subscription status:", error);

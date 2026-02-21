@@ -156,7 +156,7 @@ private struct SignedInProfileScreen: View {
                 profileTab = nil
             }
         }
-        .onChangeCompat(of: profileTab) { newTab in
+        .onChangeCompat(of: profileTab) { _, newTab in
             if let tabString = newTab, let targetTab = Tab(rawValue: tabString) {
                 tab = targetTab
                 profileTab = nil // Reset after navigating
@@ -193,7 +193,7 @@ private struct SignedInProfileScreen: View {
                 }
             }
         }
-        .onChangeCompat(of: showPurchaseLessons) { isPresentingPurchase in
+        .onChangeCompat(of: showPurchaseLessons) { _, isPresentingPurchase in
             // Reload packages when returning from purchase view
             if !isPresentingPurchase && tab == .passes {
                 Task {
@@ -779,17 +779,6 @@ private struct SignedInProfileScreen: View {
                 .split(separator: " ")
                 .map { $0.capitalized }
                 .joined(separator: " ")
-        }
-    }
-            return "Two Athletes"
-        case "threeAthlete":
-            return "Three Athletes"
-        case "fourAthlete":
-            return "Four Athletes"
-        case "class_pass", "class":
-            return "Class Passes"
-        default:
-            return categoryId.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
     
@@ -1559,7 +1548,7 @@ private struct RegisterForm: View {
                                 autocapitalization: .characters,
                                 disableAutocorrection: true
                             )
-                            .onChangeCompat(of: organizationCode) { newValue in
+                            .onChangeCompat(of: organizationCode) { _, newValue in
                                 // Auto-validate when 6 characters entered
                                 if newValue.count == 6 {
                                     Task {
@@ -1711,7 +1700,7 @@ private struct RegisterForm: View {
                         text: $athleteBirthday,
                         keyboardType: .numberPad
                     )
-                    .onChangeCompat(of: athleteBirthday) { newValue in
+                    .onChangeCompat(of: athleteBirthday) { _, newValue in
                         athleteBirthday = formatBirthdayInput(newValue)
                     }
                 }

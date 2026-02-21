@@ -91,11 +91,26 @@ class LocationsService: ObservableObject {
         newLocation.updatedAt = Timestamp(date: Date())
         newLocation.isActive = true
         
+        // Use sanitized location name as document ID
+        let locationId = sanitizeLocationName(location.name)
+        
         do {
-            _ = try db.collection("locations").addDocument(from: newLocation)
+            try db.collection("locations").document(locationId).setData(from: newLocation)
         } catch {
             throw LocationsServiceError.addFailed(error.localizedDescription)
         }
+    }
+    
+    // Helper function to sanitize location name for use as document ID
+    private func sanitizeLocationName(_ name: String) -> String {
+        return name
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "[^a-z0-9\\s-]", with: "", options: .regularExpression) // Remove special chars
+            .replacingOccurrences(of: "\\s+", with: "_", options: .regularExpression) // Replace spaces with underscores
+            .replacingOccurrences(of: "-+", with: "_", options: .regularExpression) // Replace hyphens with underscores
+            .replacingOccurrences(of: "_+", with: "_", options: .regularExpression) // Replace multiple underscores
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_")) // Remove leading/trailing underscores
     }
     
     func updateLocation(_ location: Location) async throws {

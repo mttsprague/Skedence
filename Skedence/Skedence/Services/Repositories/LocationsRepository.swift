@@ -50,8 +50,22 @@ final class LocationsRepository: ListenerRepositoryProtocol {
         locationData["updatedAt"] = Timestamp(date: Date())
         locationData["isActive"] = true
         
-        let ref = try await db.collection("locations").addDocument(data: locationData)
-        return ref.documentID
+        // Use sanitized location name as document ID
+        let locationId = sanitizeLocationName(item.name)
+        try await db.collection("locations").document(locationId).setData(locationData)
+        return locationId
+    }
+    
+    // Helper function to sanitize location name for use as document ID
+    private func sanitizeLocationName(_ name: String) -> String {
+        return name
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "[^a-z0-9\\s-]", with: "", options: .regularExpression) // Remove special chars
+            .replacingOccurrences(of: "\\s+", with: "_", options: .regularExpression) // Replace spaces with underscores
+            .replacingOccurrences(of: "-+", with: "_", options: .regularExpression) // Replace hyphens with underscores
+            .replacingOccurrences(of: "_+", with: "_", options: .regularExpression) // Replace multiple underscores
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_")) // Remove leading/trailing underscores
     }
     
     func update(id: String, data: [String: Any], orgId: String) async throws {

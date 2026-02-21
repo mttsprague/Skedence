@@ -158,7 +158,9 @@ struct OnboardingLocationView: View {
                     "updatedAt": Timestamp(date: Date())
                 ]
                 
-                try await db.collection("locations").addDocument(data: locationData)
+                // Use sanitized location name as document ID
+                let locationId = sanitizeLocationName(locationName)
+                try await db.collection("locations").document(locationId).setData(locationData)
                 
                 coordinator.moveToNextStep()
                 isSaving = false
@@ -168,6 +170,18 @@ struct OnboardingLocationView: View {
                 isSaving = false
             }
         }
+    }
+    
+    // Helper function to sanitize location name for use as document ID
+    private func sanitizeLocationName(_ name: String) -> String {
+        return name
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "[^a-z0-9\\s-]", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: "_", options: .regularExpression)
+            .replacingOccurrences(of: "-+", with: "_", options: .regularExpression)
+            .replacingOccurrences(of: "_+", with: "_", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
     }
     
     func skipStep() {
