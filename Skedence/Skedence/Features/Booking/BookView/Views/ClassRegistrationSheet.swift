@@ -1121,10 +1121,15 @@ struct ClassRegistrationSheet: View {
         isRegistering = true
         
         do {
+            guard let userId = auth.currentUserId else {
+                throw NSError(domain: "ClassRegistrationSheet", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
+            }
+            
             let athleteForRegistration = selectedAthleteName
             let secondAthleteForRegistration = isOnlyParticipant == false ? secondAthleteName : nil
             
             try await classesService.registerForClassWithPass(
+                userId: userId,
                 classId: classId,
                 classPassPackageId: passId,
                 athleteName: athleteForRegistration,
@@ -1166,10 +1171,15 @@ struct ClassRegistrationSheet: View {
         }
         
         do {
+            guard let userId = auth.currentUserId else {
+                throw NSError(domain: "ClassRegistrationSheet", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
+            }
+            
             let athleteForRegistration = selectedAthleteName
             let secondAthleteForRegistration = isOnlyParticipant == false ? secondAthleteName : nil
             
             try await classesService.registerForClassWithPass(
+                userId: userId,
                 classId: classId,
                 classPassPackageId: passId,
                 athleteName: athleteForRegistration,

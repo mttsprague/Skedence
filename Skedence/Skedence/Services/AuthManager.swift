@@ -8,6 +8,9 @@ final class AuthManager: ObservableObject {
     @Published private(set) var isReady = false
     @Published private(set) var authError: String?
     @Published private(set) var currentOrgId: String?
+    @Published private(set) var currentUserId: String? // Firebase Auth UID
+    @Published private(set) var currentUserDocId: String? // Firestore document ID (firstName_lastName)
+    @Published private(set) var isAuthenticated: Bool = false // Reactive auth state
     
     // STEP 8: Dynamic branding from organization
     @Published var primaryColor: Color = Color(red: 0.20, green: 0.70, blue: 0.68) // Default teal
@@ -15,17 +18,72 @@ final class AuthManager: ObservableObject {
     @Published var stripePublishableKey: String?
     @Published var organizationName: String?
     
-    // Check if user is authenticated
-    var isAuthenticated: Bool {
-        return Auth.auth().currentUser != nil
+    private var authStateHandle: AuthStateDidChangeListenerHandle?
+    
+    init() {
+        // Set initial state based on current user
+        isAuthenticated = Auth.auth().currentUser != nil
+        print("AuthManager: Initialized, isAuthenticated = \(isAuthenticated)")
+        
+        // Set up auth state listener to properly handle session persistence
+        // This listener fires when Firebase finishes loading the persisted session from Keychain
+        authStateHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                // Only update if the auth state actually changed
+                let newAuthState = user != nil
+                if self.isAuthenticated != newAuthState {
+                    self.isAuthenticated = newAuthState
+                    self.currentUserId = user?.uid
+                    
+                    if let uid = user?.uid, newAuthState {
+                        print("AuthManager: Auth state changed - User signed in: \(uid)")
+                        await self.loadUserData(for: uid)
+                    } else {
+                        print("AuthManager: Auth state changed - User signed out")
+                        self.currentOrgId = nil
+                        self.currentUserDocId = nil
+                    }
+                }
+            }
+        }
+    }
+    
+    deinit {
+        if let handle = authStateHandle {
+            Auth.auth().removeStateDidChangeListener(handle)
+        }
     }
 
     // Check if user is already signed in and load their orgId
     func ensureSignedIn() async {
-        // If user is already authenticated, load their orgId
+        // Give Firebase Auth time to load persisted session from Keychain
+        // This can take 300-500ms on first launch
+        try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        
+        // If user is already authenticated, load their data
         if let currentUser = Auth.auth().currentUser {
-            await loadOrgId(for: currentUser.uid)
+            currentUserId = currentUser.uid
+            isAuthenticated = true
+            print("AuthManager: ensureSignedIn() - User exists, set isAuthenticated = true")
+            
+            // Force refresh the ID token to ensure Firestore recognizes auth state
+            // This prevents "insufficient permissions" errors from race conditions
+            do {
+                _ = try await currentUser.getIDTokenResult(forcingRefresh: true)
+                print("AuthManager: Refreshed auth token for Firestore sync")
+            } catch {
+                print("AuthManager: ⚠️ Failed to refresh token: \(error.localizedDescription)")
+            }
+            
+            await loadUserData(for: currentUser.uid)
+            print("AuthManager: ensureSignedIn() COMPLETE - isAuthenticated = \(isAuthenticated)")
+        } else {
+            isAuthenticated = false
+            print("AuthManager: ensureSignedIn() - No user, set isAuthenticated = false")
         }
+        // Only mark ready AFTER user data is loaded AND token is refreshed
         isReady = true
     }
 
@@ -37,6 +95,11 @@ final class AuthManager: ObservableObject {
             // Force refresh the ID token to ensure we have the latest auth state
             _ = try await result.user.getIDTokenResult(forcingRefresh: true)
             
+            // Set current user ID immediately
+            currentUserId = result.user.uid
+            isAuthenticated = true
+            print("AuthManager: signIn() - Set isAuthenticated = true")
+            
             // Track login event
             AnalyticsService.shared.logUserLogin(userId: result.user.uid, method: "email")
             AnalyticsService.shared.setUserId(result.user.uid)
@@ -44,10 +107,10 @@ final class AuthManager: ObservableObject {
             // Set Crashlytics user ID
             CrashlyticsService.shared.setUserId(result.user.uid)
             
-            // Load orgId and branding from organization
-            await loadOrgId(for: result.user.uid)
+            // Load orgId and user document ID from Firestore
+            await loadUserData(for: result.user.uid)
             
-            print("AuthManager: Successfully signed in with UID: \(result.user.uid)")
+            print("AuthManager: Successfully signed in with UID: \(result.user.uid), isAuthenticated = \(isAuthenticated)")
             authError = nil
             return true
         } catch {
@@ -177,37 +240,33 @@ final class AuthManager: ObservableObject {
             // Create orgMembers entry if orgId provided
             if let orgId = orgId {
                 let memberData: [String: Any] = [
-                    "userId": userId, // Name-based user ID
-                    "authUserId": authUid, // Map to Firebase Auth UID
+                    "userId": userId, // Name-based user ID (firstName_lastName)
+                    "authUserId": authUid, // Firebase Auth UID
                     "orgId": orgId,
                     "role": "client",
                     "isActive": true,
-                    "createdAt": Timestamp(date: Date())
+                    "createdAt": Timestamp(date: now)
                 ]
                 
-                // CRITICAL: Write to BOTH document ID patterns for dual-path support
-                
-                // 1. Name-based ID: {userId}_{orgId} - for application logic
-                let nameBasedId = "\(userId)_\(orgId)"
-                try await db.collection("orgMembers").document(nameBasedId).setData(memberData)
-                
-                // 2. Auth UID based ID: {authUid}_{orgId} - for security rules
-                let authBasedId = "\(authUid)_\(orgId)"
-                try await db.collection("orgMembers").document(authBasedId).setData(memberData)
-            }
-                    "joinedAt": Timestamp(date: now)
-                ])
+                // Create SINGLE orgMember document with pattern: {userId}_{orgId}
+                let memberDocId = "\(userId)_\(orgId)"
+                try await db.collection("orgMembers").document(memberDocId).setData(memberData)
             }
             
             // Track sign up event
-            AnalyticsService.shared.logUserSignUp(userId: uid, method: "email")
-            AnalyticsService.shared.setUserId(uid)
+            AnalyticsService.shared.logUserSignUp(userId: authUid, method: "email")
+            AnalyticsService.shared.setUserId(authUid)
             
             // Set Crashlytics user ID
-            CrashlyticsService.shared.setUserId(uid)
+            CrashlyticsService.shared.setUserId(authUid)
             
-            // Load orgId from orgMembers collection
-            await loadOrgId(for: uid)
+            // Set current user ID immediately
+            currentUserId = authUid
+            currentUserDocId = userId
+            isAuthenticated = true
+            
+            // Load orgId and branding from orgMembers collection
+            await loadUserData(for: authUid)
             
             // Activity logging handled by cloud functions
             
@@ -222,7 +281,11 @@ final class AuthManager: ObservableObject {
     func signOut() {
         do {
             try Auth.auth().signOut()
+            isAuthenticated = false
+            print("AuthManager: signOut() - Set isAuthenticated = false")
             currentOrgId = nil
+            currentUserId = nil
+            currentUserDocId = nil
             logoUrl = nil
             stripePublishableKey = nil
             // Reset to default branding
@@ -237,7 +300,7 @@ final class AuthManager: ObservableObject {
     
     // MARK: - Organization Management
     
-    private func loadOrgId(for authUserId: String) async {
+    private func loadUserData(for authUserId: String) async {
         do {
             let db = Firestore.firestore()
             
@@ -249,12 +312,20 @@ final class AuthManager: ObservableObject {
                 .limit(to: 1)
                 .getDocuments()
             
-            if let doc = snapshot.documents.first,
-               let orgId = doc.data()["orgId"] as? String {
-                currentOrgId = orgId
+            if let doc = snapshot.documents.first {
+                let data = doc.data()
+                if let orgId = data["orgId"] as? String {
+                    currentOrgId = orgId
+                }
+                if let userId = data["userId"] as? String {
+                    currentUserDocId = userId
+                    print("AuthManager: Loaded user doc ID: \(userId)")
+                }
                 
                 // Load organization branding
-                await loadOrgBranding(orgId: orgId)
+                if let orgId = currentOrgId {
+                    await loadOrgBranding(orgId: orgId)
+                }
                 return
             }
             
@@ -264,19 +335,27 @@ final class AuthManager: ObservableObject {
                 .limit(to: 1)
                 .getDocuments()
             
-            if let userDoc = userSnapshot.documents.first,
-               let data = userDoc.data(),
-               let orgId = data["orgId"] as? String {
-                currentOrgId = orgId
+            if let userDoc = userSnapshot.documents.first {
+                let data = userDoc.data()
+                currentUserDocId = userDoc.documentID
+                print("AuthManager: Loaded user doc ID from users collection: \(userDoc.documentID)")
                 
-                // Load organization branding
-                await loadOrgBranding(orgId: orgId)
+                if let orgId = data["orgId"] as? String {
+                    currentOrgId = orgId
+                    
+                    // Load organization branding
+                    await loadOrgBranding(orgId: orgId)
+                } else {
+                    currentOrgId = nil
+                }
             } else {
                 currentOrgId = nil
+                currentUserDocId = nil
             }
         } catch {
-            print("AuthManager: ❌ Failed to load orgId: \(error.localizedDescription)")
+            print("AuthManager: ❌ Failed to load user data: \(error.localizedDescription)")
             currentOrgId = nil
+            currentUserDocId = nil
         }
     }
     

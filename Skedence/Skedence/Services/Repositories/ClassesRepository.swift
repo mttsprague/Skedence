@@ -116,12 +116,7 @@ final class ClassesRepository: QueryableRepositoryProtocol {
     }
     
     /// Fetch classes user is registered for
-    func fetchUserRegistrations(orgId: String) async throws -> [GroupClass] {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            print("❌ No userId in fetchUserRegistrations")
-            throw RepositoryError.unauthorized
-        }
-        
+    func fetchUserRegistrations(userId: String, orgId: String) async throws -> [GroupClass] {
         print("🔍 Querying classRegistrations for userId: \(userId), orgId: \(orgId)")
         
         // First get registration IDs

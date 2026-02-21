@@ -23,15 +23,21 @@ class IDGenerator {
     /// Generate a unique user ID based on first and last name
     /// Format: firstName_lastName or firstName_lastName_2 if collision
     static func generateUserId(firstName: String, lastName: String) async throws -> String {
-        let baseName = "\(firstName)_\(lastName)"
-        return try await generateUniqueId(baseName: baseName, collection: "users")
+        // Sanitize names separately to preserve underscore separator
+        let sanitizedFirst = sanitizeName(firstName)
+        let sanitizedLast = sanitizeName(lastName)
+        let baseName = "\(sanitizedFirst)_\(sanitizedLast)"
+        return try await generateUniqueId(baseName: baseName, collection: "users", skipSanitization: true)
     }
     
     /// Generate a unique trainer ID based on first and last name
     /// Format: firstName_lastName or firstName_lastName_2 if collision
     static func generateTrainerId(firstName: String, lastName: String) async throws -> String {
-        let baseName = "\(firstName)_\(lastName)"
-        return try await generateUniqueId(baseName: baseName, collection: "trainers")
+        // Sanitize names separately to preserve underscore separator
+        let sanitizedFirst = sanitizeName(firstName)
+        let sanitizedLast = sanitizeName(lastName)
+        let baseName = "\(sanitizedFirst)_\(sanitizedLast)"
+        return try await generateUniqueId(baseName: baseName, collection: "trainers", skipSanitization: true)
     }
     
     /// Generate a unique organization ID based on organization name
@@ -79,8 +85,8 @@ class IDGenerator {
     }
     
     /// Generate a unique ID for a given collection
-    private static func generateUniqueId(baseName: String, collection: String) async throws -> String {
-        let sanitized = sanitizeName(baseName)
+    private static func generateUniqueId(baseName: String, collection: String, skipSanitization: Bool = false) async throws -> String {
+        let sanitized = skipSanitization ? baseName : sanitizeName(baseName)
         var id = sanitized
         var counter = 2
         

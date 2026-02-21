@@ -66,7 +66,7 @@ struct MyUpcomingLessonsView: View {
         .navigationTitle("My Schedule")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            guard let orgId = auth.currentOrgId else { return }
+            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
             
             // Load settings
             await settingsService.loadSettings(orgId: orgId)
@@ -78,13 +78,13 @@ struct MyUpcomingLessonsView: View {
                 await bookingsService.loadMyBookings(orgId: orgId)
             }
             if classesService.myRegisteredClasses.isEmpty {
-                await classesService.loadMyRegisteredClasses(orgId: orgId)
+                await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
             }
         }
         .refreshable {
-            guard let orgId = auth.currentOrgId else { return }
+            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
             await bookingsService.loadMyBookings(orgId: orgId)
-            await classesService.loadMyRegisteredClasses(orgId: orgId)
+            await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
         }
         .alert("Cancel Booking", isPresented: $showCancelAlert) {
             Button("Cancel", role: .cancel) {
@@ -194,9 +194,9 @@ struct MyUpcomingLessonsView: View {
             }
             
             // Refresh all data
-            guard let orgId = auth.currentOrgId else { return }
+            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
             await bookingsService.loadMyBookings(orgId: orgId)
-            await classesService.loadMyRegisteredClasses(orgId: orgId)
+            await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
             await packagesService.loadMyPackages()
             
             itemToCancel = nil

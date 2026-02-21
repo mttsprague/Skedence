@@ -37,9 +37,9 @@ struct OrganizationCodeCard: View {
                     HStack(spacing: Spacing.md) {
                         // Large code display
                         Text(inviteCode)
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
                             .foregroundStyle(AppTheme.primary)
-                            .tracking(4)
+                            .tracking(2)
                             .padding(.vertical, Spacing.md)
                             .padding(.horizontal, Spacing.lg)
                             .background(

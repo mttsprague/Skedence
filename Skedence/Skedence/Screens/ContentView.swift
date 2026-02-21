@@ -104,6 +104,12 @@ struct AppRootView: View {
                 }
             }
         }
+        .onChange(of: auth.isAuthenticated) { _, newValue in
+            // Navigate to Home tab when user signs in or registers
+            if newValue {
+                selectedTab = 0
+            }
+        }
         .task { @MainActor in
             await auth.ensureSignedIn() // Temporary anonymous; replace with Email/Password flow
             

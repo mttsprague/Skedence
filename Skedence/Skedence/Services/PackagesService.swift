@@ -73,7 +73,7 @@ final class PackagesService: ObservableObject {
             } else {
                 // Fallback: Look up the user's organization from orgMembers
                 let orgMembersQuery = db.collection("orgMembers")
-                    .whereField("userId", isEqualTo: uid)
+                    .whereField("authUserId", isEqualTo: uid)  // Fixed: Use authUserId field
                     .whereField("isActive", isEqualTo: true)
                     .limit(to: 1)
                 
@@ -116,7 +116,7 @@ final class PackagesService: ObservableObject {
                              purchaseDate: Date,
                              expirationDate: Date,
                              transactionId: String?) async throws {
-        guard let uid = Auth.auth().currentUser?.uid else {
+        guard Auth.auth().currentUser?.uid != nil else {
             throw ServiceError.notAuthenticated
         }
 
@@ -134,12 +134,12 @@ final class PackagesService: ObservableObject {
         ]
 
         // Compact out nils for Firestore
-        let data = payload.compactMapValues { $0 }
+        _ = payload.compactMapValues { $0 }
 
-        try await db.collection("users")
-            .document(uid)
-            .collection("lessonPackages")
-            .addDocument(data: data)
+        // NOTE: This legacy method should not be used.
+        // Use PackagesRepository.create() instead which writes to standard path.
+        // This method kept for backward compatibility but will fail security rules.
+        throw ServiceError.invalidOperation("Use PackagesRepository.create() instead")
     }
 
     // MARK: - Helpers

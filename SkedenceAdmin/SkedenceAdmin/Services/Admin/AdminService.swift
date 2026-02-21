@@ -58,9 +58,9 @@ final class AdminService: ObservableObject {
         isLoading = true
         
         do {
-            // First, check orgMembers collection for admin/owner role (preferred method)
+            // Query orgMembers by authUserId (Firebase Auth UID), not userId (name-based ID)
             let snapshot = try await db.collection("orgMembers")
-                .whereField("userId", isEqualTo: uid)
+                .whereField("authUserId", isEqualTo: uid)
                 .whereField("isActive", isEqualTo: true)
                 .limit(to: 1)
                 .getDocuments()
@@ -68,7 +68,11 @@ final class AdminService: ObservableObject {
             if let doc = snapshot.documents.first {
                 let data = doc.data()
                 let role = data["role"] as? String ?? ""
+                // Admin role has full access. Owner role kept for backward compatibility.
+                // Going forward, use "admin" as the standard role for organization admins.
                 isAdmin = (role == "admin" || role == "owner" || role == "trainer")
+                
+                print("🔐 AdminService.checkAdminStatus: role = \(role), isAdmin = \(isAdmin)")
                 
                 // Load organization data if admin
                 if isAdmin, let orgId = data["orgId"] as? String {
@@ -378,7 +382,7 @@ final class AdminService: ObservableObject {
                 .getDocuments()
             let staffUserIds = Set(orgMembersSnapshot.documents.compactMap { doc -> String? in
                 let role = doc.data()["role"] as? String ?? "client"
-                if role == "trainer" || role == "admin" || role == "owner" {
+                if role == "owner" || role == "admin" || role == "trainer" {
                     return doc.data()["userId"] as? String
                 }
                 return nil
@@ -516,25 +520,9 @@ final class AdminService: ObservableObject {
         print("   Package ID: \(packageId)")
         print("   \(passData)")
         
-        // Write to BOTH locations for compatibility (using same ID):
+        // Write to STANDARD path: organizations/{orgId}/users/{userId}/packages
         do {
-            // 1. Old path (backward compatibility for users not in orgs or old client apps)
-            print("📂 Writing to OLD path: users/\(clientId)/lessonPackages/\(packageId)")
-            try await db.collection("users")
-                .document(clientId)
-                .collection("lessonPackages")
-                .document(packageId)
-                .setData(passData)
-            print("✅ OLD path write successful!")
-        } catch {
-            print("❌ OLD path write FAILED: \(error.localizedDescription)")
-            print("   Error details: \(error)")
-            throw error
-        }
-        
-        do {
-            // 2. New path (organizations/{orgId}/users/{userId}/packages) - where modern client apps read
-            print("📂 Writing to NEW path: organizations/\(orgId)/users/\(clientId)/packages/\(packageId)")
+            print("📂 Writing to STANDARD path: organizations/\(orgId)/users/\(clientId)/packages/\(packageId)")
             try await db.collection("organizations")
                 .document(orgId)
                 .collection("users")
@@ -542,14 +530,14 @@ final class AdminService: ObservableObject {
                 .collection("packages")
                 .document(packageId)
                 .setData(passData)
-            print("✅ NEW path write successful!")
+            print("✅ Pass write successful!")
         } catch {
-            print("❌ NEW path write FAILED: \(error.localizedDescription)")
+            print("❌ Pass write FAILED: \(error.localizedDescription)")
             print("   Error details: \(error)")
             throw error
         }
         
-        print("🎉 Both writes completed successfully!")
+        print("🎉 Pass successfully added!")
     }
     
     // Remove pass from client (admin only)
@@ -570,13 +558,25 @@ final class AdminService: ObservableObject {
             throw AdminServiceError.invalidInput("Lessons to remove must be greater than 0")
         }
         
-        // Get all packages for this client and pass type
-        let packagesSnapshot = try await db.collection("users")
+        // Query user document to get orgId
+        print("🔍 removePassFromClient: Fetching user document for clientId: \(clientId)")
+        let userDoc = try await db.collection("users").document(clientId).getDocument()
+        guard let orgId = userDoc.data()?["orgId"] as? String else {
+            throw AdminServiceError.operationFailed("Could not find organization ID for client")
+        }
+        print("✅ Found orgId: \(orgId)")
+        
+        // Query STANDARD path: organizations/{orgId}/users/{clientId}/packages
+        print("🔍 Querying packages at: organizations/\(orgId)/users/\(clientId)/packages")
+        let packagesSnapshot = try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(clientId)
-            .collection("lessonPackages")
+            .collection("packages")
             .whereField("packageType", isEqualTo: passType)
             .getDocuments()
         
+        print("📦 Found \(packagesSnapshot.documents.count) packages of type: \(passType)")
         guard !packagesSnapshot.documents.isEmpty else {
             throw AdminServiceError.operationFailed("No passes of this type found for client")
         }

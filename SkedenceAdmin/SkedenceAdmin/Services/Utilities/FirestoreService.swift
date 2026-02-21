@@ -451,20 +451,20 @@ final class FirestoreService {
 
         let snapshot = try await query.getDocuments()
         
-        // Fetch all trainer/admin/owner IDs in this org to exclude them from clients list
+        // Fetch all trainer/admin IDs in this org to exclude them from clients list
         let trainersSnapshot = try await db.collection("trainers")
             .whereField("orgId", isEqualTo: orgId)
             .getDocuments()
         let trainerIds = Set(trainersSnapshot.documents.map { $0.documentID })
         
-        // Also check orgMembers for staff roles (trainer, admin, owner)
+        // Also check orgMembers for staff roles (trainer, admin)
         let orgMembersSnapshot = try await db.collection("orgMembers")
             .whereField("orgId", isEqualTo: orgId)
             .getDocuments()
         let staffUserIds = Set(orgMembersSnapshot.documents.compactMap { doc -> String? in
             let role = doc.data()["role"] as? String ?? "client"
             // Exclude trainers, admins, and owners from clients list
-            if role == "trainer" || role == "admin" || role == "owner" {
+            if role == "owner" || role == "admin" || role == "trainer" {
                 return doc.data()["userId"] as? String
             }
             return nil
@@ -662,22 +662,10 @@ final class FirestoreService {
                 .collection("packages")
                 .order(by: "purchaseDate", descending: true)
                 .getDocuments()
-            
-            // If no packages found in new path, fall back to old path
-            if snapshot.documents.isEmpty {
-                snapshot = try await db.collection("users")
-                    .document(clientId)
-                    .collection("lessonPackages")
-                    .order(by: "purchaseDate", descending: true)
-                    .getDocuments()
-            }
         } else {
-            // No orgId, use old path
-            snapshot = try await db.collection("users")
-                .document(clientId)
-                .collection("lessonPackages")
-                .order(by: "purchaseDate", descending: true)
-                .getDocuments()
+            // No orgId provided - cannot query packages without organization context
+            print("⚠️ Warning: Cannot load packages without orgId for user \(clientId)")
+            return []
         }
         
         let packages: [LessonPackage] = snapshot.documents.compactMap { doc in
@@ -774,22 +762,14 @@ final class FirestoreService {
         }
         
         // 3a. Validate package - ensure it's not a class pass
-        var packageRef = db.collection("organizations")
+        let packageRef = db.collection("organizations")
             .document(safeOrgId)
             .collection("users")
             .document(safeClientId)
             .collection("packages")
             .document(safePackageId)
         
-        var packageSnap = try await packageRef.getDocument()
-        if packageSnap.data() == nil {
-            // Fallback to old path for legacy packages
-            packageRef = db.collection("users")
-                .document(safeClientId)
-                .collection("lessonPackages")
-                .document(safePackageId)
-            packageSnap = try await packageRef.getDocument()
-        }
+        let packageSnap = try await packageRef.getDocument()
         
         guard let packageData = packageSnap.data() else {
             throw FirestoreServiceError.notAvailable
@@ -941,9 +921,11 @@ final class FirestoreService {
                     var packageType: String? = nil
                     if let pkgId = packageId, !pkgId.isEmpty, !clientId.isEmpty {
                         do {
-                            let packageDoc = try await db.collection("users")
+                            let packageDoc = try await db.collection("organizations")
+                                .document(orgId)
+                                .collection("users")
                                 .document(clientId)
-                                .collection("lessonPackages")
+                                .collection("packages")
                                 .document(pkgId)
                                 .getDocument()
                             packageType = packageDoc.data()?["packageType"] as? String

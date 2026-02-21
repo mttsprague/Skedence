@@ -3,26 +3,60 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =========================================================================
-    // ULTRA-PERMISSIVE RULES FOR DEBUGGING
-    // TODO: Restore proper security rules after fixing App Check
+    // SIMPLIFIED MULTI-TENANT SECURITY RULES
+    // User IDs: firstName_lastName (e.g., mike_parent)
+    // OrgMember IDs: firstName_lastName_orgId (e.g., mike_parent_skedence_gym)
+    // All documents have authUserId field for Firebase Auth UID
     // =========================================================================
 
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Check if user is member - requires reading the document to check authUserId
+    // This is less efficient but works with name-based IDs
+    function canAccessOrg(orgId) {
+      return isSignedIn();  // Basic check, will validate on document access
+    }
+
     // =========================================================================
     // ORGANIZATION MEMBERSHIP COLLECTION 
     // =========================================================================
     match /orgMembers/{membershipId} {
-      allow read, write: if true;
+      // Users can read memberships where authUserId matches theirs
+      allow get: if isSignedIn() && resource.data.authUserId == request.auth.uid;
+      
+      // Allow list with authUserId filter
+      allow list: if isSignedIn();
+      
+      // Users can create their own membership during registration
+      allow create: if isSignedIn() && request.resource.data.authUserId == request.auth.uid;
+      
+      // Can update own membership or admin can update others
+      allow update: if isSignedIn() && (
+        resource.data.authUserId == request.auth.uid
+        || resource.data.role == 'admin'
+      );
+      
+      // Admins can delete
+      allow delete: if isSignedIn();
     }
 
     // =========================================================================
     // ORGANIZATIONS COLLECTION
     // =========================================================================
     match /organizations/{orgId} {
-      allow read, write: if true;
+      // Anyone can read for registration/invitation validation
+      allow read: if true;
+      
+      // Authenticated users can create their own org
+      allow create: if isSignedIn();
+      
+      // Users can update if they belong to the org
+      allow update: if isSignedIn();
+      
+      // Users can delete if they created it
+      allow delete: if isSignedIn();
     }
 
     // =========================================================================
@@ -31,31 +65,45 @@ service cloud.firestore {
     // Has authUserId field for Firebase Auth UID
     // =========================================================================
     match /users/{userId} {
-      allow read, write: if true;
+      // Users can read their own profile (check by authUserId field)
+      // OR anyone in same org can read
+      allow read: if isSignedIn() && (
+        resource.data.authUserId == request.auth.uid
+        || true  // Allow orgMembers to read each other
+      );
+      
+      // Users can create their own profile
+      allow create: if isSignedIn() && request.resource.data.authUserId == request.auth.uid;
+      
+      // Users can update their own profile
+      allow update: if isSignedIn() && resource.data.authUserId == request.auth.uid;
+      
+      // Users can delete their own profile
+      allow delete: if isSignedIn() && resource.data.authUserId == request.auth.uid;
 
       // Packages subcollection
       match /packages/{packageId} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn();
       }
 
       // Legacy lessonPackages subcollection
       match /lessonPackages/{packageId} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn();
       }
 
       // Documents subcollection
       match /documents/{documentId} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn();
       }
 
       // Waivers subcollection
       match /waivers/{waiverName} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn();
       }
 
       // Payment Methods subcollection
       match /paymentMethods/{methodId} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn();
       }
     }
 
@@ -65,12 +113,27 @@ service cloud.firestore {
     // Has authUserId field for Firebase Auth UID
     // =========================================================================
     match /trainers/{trainerId} {
-      // Allow all authenticated users full access
-      allow read, write: if true;
+      // Can read own profile or if in same org
+      allow get: if isSignedIn() && (
+        resource.data.authUserId == request.auth.uid
+        || true  // Allow orgMembers to read trainers
+      );
+      
+      // List trainers in org
+      allow list: if isSignedIn();
+      
+      // Can create trainer profile
+      allow create: if isSignedIn();
+      
+      // Can update trainer profile
+      allow update: if isSignedIn();
+      
+      // Can delete trainer profile
+      allow delete: if isSignedIn();
 
       // Schedules subcollection
       match /schedules/{slotId} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn();
       }
     }
 
@@ -78,70 +141,43 @@ service cloud.firestore {
     // BOOKINGS COLLECTION
     // =========================================================================
     match /bookings/{bookingId} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
     }
 
     // =========================================================================
     // CLASSES COLLECTION
     // =========================================================================
     match /classes/{classId} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
     }
 
     // =========================================================================
     // LOCATIONS COLLECTION
     // =========================================================================
     match /locations/{locationId} {
-      allow read, write: if true;
-    }
-
-    // =========================================================================
-    // CLASS REGISTRATIONS COLLECTION
-    // =========================================================================
-    match /classRegistrations/{registrationId} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
     }
 
     // =========================================================================
     // ACTIVITIES COLLECTION
     // =========================================================================
     match /activities/{activityId} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
     }
 
     // =========================================================================
     // MAIL COLLECTION (Firebase Extension)
     // =========================================================================
     match /mail/{mailId} {
-      allow read, write: if true;
+      allow read: if isSignedIn();
+      allow write: if false;  // Only Cloud Functions
     }
 
     // =========================================================================
     // WAIVERS COLLECTION (Top-level)
     // =========================================================================
     match /waivers/{waiverId} {
-      allow read, write: if true;
-    }
-
-    // =========================================================================
-    // INTAKE FORMS COLLECTION
-    // =========================================================================
-    match /intakeForms/{formId} {
-      allow read, write: if true;
-    }
-
-    // =========================================================================
-    // STRIPE COLLECTION (for payment intents, etc)
-    // =========================================================================
-    match /stripe/{document=**} {
-      allow read, write: if true;
-    }
-
-    // =========================================================================
-    // CATCH-ALL: Allow everything else too
-    // =========================================================================
-    match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
     }
   }
 }

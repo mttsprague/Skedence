@@ -95,6 +95,25 @@ struct AdminClassCard: View {
                 
                 HStack(spacing: Spacing.sm) {
                     Button {
+                        onTap()
+                    } label: {
+                        HStack(spacing: Spacing.xxs) {
+                            Image(systemName: "pencil.circle")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Edit")
+                                .font(.labelMedium)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
+                        .background(
+                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                .fill(AppTheme.primary)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
                         onToggleRegistration(!classItem.isOpenForRegistration)
                     } label: {
                         HStack(spacing: Spacing.xxs) {

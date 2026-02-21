@@ -122,7 +122,7 @@ final class ClassesService: ObservableObject {
     }
     
     // Register for a class using a class pass (calls backend function)
-    func registerForClassWithPass(classId: String, classPassPackageId: String, athleteName: String?, secondAthleteName: String?, orgId: String) async throws {
+    func registerForClassWithPass(userId: String, classId: String, classPassPackageId: String, athleteName: String?, secondAthleteName: String?, orgId: String) async throws {
         var data: [String: Any] = [
             "classId": classId,
             "classPassPackageId": classPassPackageId
@@ -142,7 +142,7 @@ final class ClassesService: ObservableObject {
         registrationChangeToken = UUID()
         
         // Reload registered classes
-        await loadMyRegisteredClasses(orgId: orgId)
+        await loadMyRegisteredClasses(userId: userId, orgId: orgId)
     }
     
     // Register for a class (old direct method - deprecated)
@@ -215,19 +215,13 @@ final class ClassesService: ObservableObject {
     }
     
     /// Load only classes the current user is registered for
-    func loadMyRegisteredClasses(orgId: String) async {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            myRegisteredClasses = []
-            print("⚠️ No user ID for loading registered classes")
-            return
-        }
-        
+    func loadMyRegisteredClasses(userId: String, orgId: String) async {
         print("🔍 Loading registered classes for user: \(userId), org: \(orgId)")
         error = nil
         currentOrgId = orgId
         
         do {
-            let registeredClasses = try await repository.fetchUserRegistrations(orgId: orgId)
+            let registeredClasses = try await repository.fetchUserRegistrations(userId: userId, orgId: orgId)
             myRegisteredClasses = registeredClasses
             print("✅ Loaded \(registeredClasses.count) registered classes")
             for cls in registeredClasses {

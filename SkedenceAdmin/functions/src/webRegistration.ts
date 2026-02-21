@@ -175,7 +175,7 @@ export const createOrganizationFromWeb = onCall(
           orgId: orgId,
           userId: trainerId,
           authUserId: authUserId,
-          role: 'owner',
+          role: 'admin',
           isActive: true,
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         };

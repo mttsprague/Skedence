@@ -455,21 +455,13 @@ struct ManualRegistrationSheet: View {
         do {
             let db = Firestore.firestore()
             
-            // Try new path first
-            var snapshot = try await db.collection("organizations")
+            // Query STANDARD path only
+            let snapshot = try await db.collection("organizations")
                 .document(orgId)
                 .collection("users")
                 .document(client.id)
                 .collection("packages")
                 .getDocuments()
-            
-            // Fallback to old path if no packages found
-            if snapshot.documents.isEmpty {
-                snapshot = try await db.collection("users")
-                    .document(client.id)
-                    .collection("lessonPackages")
-                    .getDocuments()
-            }
             
             clientPackages = snapshot.documents.compactMap { doc in
                 let data = doc.data()

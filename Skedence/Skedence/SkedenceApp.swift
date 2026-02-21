@@ -18,16 +18,19 @@ struct SkedenceApp: App {
     @StateObject private var deepLinkManager = DeepLinkManager()
 
     init() {
-        // CRITICAL: Set App Check provider BEFORE Firebase configuration
+        // Set App Check provider BEFORE Firebase configuration
         #if DEBUG
-        // Use debug provider in development
+        // Use debug provider in development (requires debug token in Firebase Console)
+        // Debug token: 8A00467A-7CFE-4B16-9F4E-BAD0B9B7C35F
         AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
+        print("🔧 App Check: Using DEBUG provider")
         #else
-        // Use DeviceCheck provider in production (more reliable for App Store)
+        // Use DeviceCheck provider in production (requires valid provisioning)
         AppCheck.setAppCheckProviderFactory(DeviceCheckProviderFactory())
+        print("🔧 App Check: Using DeviceCheck provider")
         #endif
         
-        // Configure Firebase AFTER setting App Check provider
+        // Configure Firebase
         FirebaseApp.configure()
         
         // Initialize Analytics and Crashlytics services

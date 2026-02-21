@@ -22,8 +22,9 @@ struct ProfileView: View {
     @State private var authMode: AuthMode = .createAccount
     enum AuthMode: String, CaseIterable { case createAccount = "Create Account", signIn = "Sign In" }
 
-    // Consider FirebaseAuth session as "signed in" for UI
-    private var isSignedIn: Bool { Auth.auth().currentUser != nil }
+    // Use AuthManager's isAuthenticated instead of directly checking Firebase Auth
+    // This ensures we're in sync with the app's auth state
+    private var isSignedIn: Bool { auth.isAuthenticated }
 
     var body: some View {
         NavigationStack {
@@ -123,7 +124,7 @@ private struct SignedInProfileScreen: View {
             AnalyticsService.shared.logScreenView(screenName: "Profile", screenClass: "ProfileView")
         }
         .task {
-            guard let orgId = auth.currentOrgId else { return }
+            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
             if trainersService.trainers.isEmpty {
                 await trainersService.loadAll(orgId: orgId)
             }
@@ -131,7 +132,7 @@ private struct SignedInProfileScreen: View {
                 await bookingsService.loadMyBookings(orgId: orgId)
             }
             if classesService.myRegisteredClasses.isEmpty {
-                await classesService.loadMyRegisteredClasses(orgId: orgId)
+                await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
             }
             if customerService.paymentMethods.isEmpty {
                 await customerService.loadPaymentMethods(orgId: orgId)
@@ -140,11 +141,11 @@ private struct SignedInProfileScreen: View {
             await pricingService.loadPricingStructure(for: orgId)
         }
         .refreshable {
-            guard let orgId = auth.currentOrgId else { return }
+            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
             await usersService.loadCurrentUserIfAvailable()
             await packagesService.loadMyPackages(orgId: auth.currentOrgId)
             await bookingsService.loadMyBookings(orgId: orgId)
-            await classesService.loadMyRegisteredClasses(orgId: orgId)
+            await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
             await customerService.loadPaymentMethods(orgId: orgId)
             await pricingService.loadPricingStructure(for: orgId)
         }
@@ -725,19 +726,37 @@ private struct SignedInProfileScreen: View {
     }
     
     private func mapPackageTypeToCategory(_ packageType: String) -> String {
-        // Use pattern matching to handle variations like "5_pack_for_one_athlete_", "one_athlete_lesson", etc.
+        // Use pattern matching to handle ALL variations of package types
         let lowercased = packageType.lowercased()
         
-        if lowercased.contains("one_athlete") || lowercased == "1_athlete" || lowercased == "private" {
+        // Check for one athlete patterns (1_athlete, one_athlete, private)
+        if lowercased.contains("one_athlete") || 
+           lowercased.contains("1_athlete") || 
+           lowercased == "private" {
             return "oneAthlete"
-        } else if lowercased.contains("two_athlete") || lowercased == "2_athlete" {
+        } 
+        // Check for two athlete patterns
+        else if lowercased.contains("two_athlete") || 
+                lowercased.contains("2_athlete") {
             return "twoAthlete"
-        } else if lowercased.contains("three_athlete") || lowercased == "3_athlete" {
+        } 
+        // Check for three athlete patterns
+        else if lowercased.contains("three_athlete") || 
+                lowercased.contains("3_athlete") {
             return "threeAthlete"
-        } else if lowercased.contains("four_athlete") || lowercased == "4_athlete" {
+        } 
+        // Check for four athlete patterns
+        else if lowercased.contains("four_athlete") || 
+                lowercased.contains("4_athlete") {
             return "fourAthlete"
-        } else {
-            // For classes or other types, use the package type itself
+        } 
+        // Check for class patterns - all should map to classPass
+        else if lowercased.contains("class") {
+            return "classPass"
+        }
+        else {
+            // Unknown type - try to infer from packageCategory if available
+            // For now, default to the package type itself
             return packageType
         }
     }
@@ -747,6 +766,21 @@ private struct SignedInProfileScreen: View {
         case "oneAthlete":
             return "One Athlete"
         case "twoAthlete":
+            return "Two Athletes"
+        case "threeAthlete":
+            return "Three Athletes"
+        case "fourAthlete":
+            return "Four Athletes"
+        case "classPass":
+            return "Class Passes"
+        default:
+            // Format unknown categories nicely (replace underscores with spaces, capitalize)
+            return categoryId.replacingOccurrences(of: "_", with: " ")
+                .split(separator: " ")
+                .map { $0.capitalized }
+                .joined(separator: " ")
+        }
+    }
             return "Two Athletes"
         case "threeAthlete":
             return "Three Athletes"

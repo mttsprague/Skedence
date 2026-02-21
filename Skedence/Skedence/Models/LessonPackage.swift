@@ -8,7 +8,7 @@
 
 import Foundation
 
-// /users/{uid}/lessonPackages/{packageId}
+// STANDARD PATH: organizations/{orgId}/users/{userId}/packages/{packageId}
 struct LessonPackage: Identifiable, Equatable {
     var id: String?
     let packageType: String

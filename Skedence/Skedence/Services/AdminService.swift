@@ -383,9 +383,12 @@ final class AdminService: ObservableObject {
             "orgId": orgId
         ]
         
-        try await db.collection("users")
+        // Write to STANDARD path only
+        try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(clientId)
-            .collection("lessonPackages")
+            .collection("packages")
             .document(packageId)
             .setData(passData)
     }
@@ -396,10 +399,18 @@ final class AdminService: ObservableObject {
             throw ServiceError.unauthorized
         }
         
-        // Get all packages for this client and pass type
-        let packagesSnapshot = try await db.collection("users")
+        // Get user's orgId
+        let userDoc = try await db.collection("users").document(clientId).getDocument()
+        guard let orgId = userDoc.data()?["orgId"] as? String else {
+            throw ServiceError.invalidData("User organization not found")
+        }
+        
+        // Get all packages for this client and pass type from STANDARD path
+        let packagesSnapshot = try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(clientId)
-            .collection("lessonPackages")
+            .collection("packages")
             .whereField("packageType", isEqualTo: passType)
             .getDocuments()
         

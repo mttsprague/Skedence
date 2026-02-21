@@ -313,9 +313,6 @@ struct BookView: View {
             .task { await loadInitialData() }
             .onAppear {
                 setupInitialMode()
-                if mode == .classes, let orgId = auth.currentOrgId {
-                    Task { await classesService.loadOpenClasses(orgId: orgId) }
-                }
             }
             .onChangeCompat(of: initialMode) { _, newValue in
                 mode = newValue == 1 ? .classes : .lessons
@@ -569,6 +566,11 @@ struct BookView: View {
             await loadDayIfPossible()
         }
         await packagesService.loadMyPackages()
+        
+        // Load classes if in classes mode
+        if mode == .classes {
+            await classesService.loadOpenClasses(orgId: orgId)
+        }
     }
     
     private func setupInitialMode() {

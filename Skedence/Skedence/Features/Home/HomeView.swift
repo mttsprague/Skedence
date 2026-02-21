@@ -22,6 +22,8 @@ struct HomeView: View {
     @Binding var selectedTab: Int
     @Binding var bookViewMode: Int
     @Binding var profileTab: String?
+    
+    @State private var hasLoadedInitialData = false
 
     private var isAuthenticated: Bool {
         Auth.auth().currentUser != nil
@@ -33,14 +35,6 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     // Hero Header
                     HeroHeader(displayName: usersService.currentUser?.displayName ?? "Athlete")
-                        .onAppear {
-                            AnalyticsService.shared.logScreenView(screenName: "Home", screenClass: "HomeView")
-                            
-                            // Load locations
-                            if let orgId = auth.currentOrgId {
-                                locationsService.loadLocations(orgId: orgId)
-                            }
-                        }
 
                     // Getting Started Instructions
                     GettingStartedSection(
@@ -92,27 +86,57 @@ struct HomeView: View {
         }
         .navigationViewStyle(.stack)
         .task {
+            // Log screen view
+            AnalyticsService.shared.logScreenView(screenName: "Home", screenClass: "HomeView")
+            
             // Keep user info fresh if signed in; do not load schedule here.
             if isAuthenticated {
                 await usersService.loadCurrentUserIfAvailable()
             }
-            // Load upcoming classes
+            // Load data once org is available
             if let orgId = auth.currentOrgId {
+                // Load locations (listener-based; no await needed)
+                locationsService.loadLocations(orgId: orgId)
+                // Load upcoming classes
                 await classesService.loadUpcomingClasses(orgId: orgId)
                 // Check admin status for showing admin-only placeholder
                 await adminService.checkAdminStatus()
                 // Load billboard settings
                 await billboardService.loadBillboard(orgId: orgId)
+                
+                // Mark initial data as loaded
+                hasLoadedInitialData = true
             }
         }
         .onAppear {
-            // Reload classes when view appears (e.g., after creating a class in admin)
-            if let orgId = auth.currentOrgId {
+            // Only refresh if we've already loaded initial data (i.e., returning to view)
+            guard hasLoadedInitialData else { return }
+            
+            // Reload data when view reappears
+            if let orgId = auth.currentOrgId, isAuthenticated {
                 Task {
-                    await classesService.loadUpcomingClasses(orgId: orgId)
+                    await refreshDataOnAppear(orgId: orgId)
                 }
             }
         }
+    }
+    
+    // Refresh data when returning to HomeView
+    private func refreshDataOnAppear(orgId: String) async {
+        // Force refresh auth token to prevent "insufficient permissions" errors
+        if let currentUser = Auth.auth().currentUser {
+            do {
+                _ = try await currentUser.getIDTokenResult(forcingRefresh: true)
+                print("HomeView: Refreshed auth token successfully")
+            } catch {
+                print("HomeView: Failed to refresh token: \(error.localizedDescription)")
+                return
+            }
+        }
+        
+        // Now safely reload data
+        await classesService.loadUpcomingClasses(orgId: orgId)
+        locationsService.loadLocations(orgId: orgId)
     }
 
     private func openInMaps(address: String) {

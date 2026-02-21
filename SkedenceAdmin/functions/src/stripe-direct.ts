@@ -511,14 +511,16 @@ export const createAndConfirmPaymentDirect = onCall(
           }
         }
 
-        // Create the lesson package in the correct location: users/{userId}/lessonPackages
+        // Create the lesson package in the STANDARD location: organizations/{orgId}/users/{userId}/packages
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + expirationDays);
 
         await db
+          .collection("organizations")
+          .doc(orgId)
           .collection("users")
           .doc(userId)
-          .collection("lessonPackages")
+          .collection("packages")
           .add({
             packageType: packageType,
             packageName: packageName,
@@ -532,7 +534,7 @@ export const createAndConfirmPaymentDirect = onCall(
           });
 
         console.log(
-          `✅ Payment confirmed and package created at users/${userId}/lessonPackages: ${paymentIntent.id} for ${amount / 100} USD, ${totalLessons} lessons`
+          `✅ Payment confirmed and package created at organizations/${orgId}/users/${userId}/packages: ${paymentIntent.id} for ${amount / 100} USD, ${totalLessons} lessons`
         );
 
         return {
@@ -765,11 +767,13 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + expirationDays);
 
-      // Store package in users/{userId}/lessonPackages to match existing structure
+      // Store package in STANDARD location: organizations/{orgId}/users/{userId}/packages
       await db
+        .collection("organizations")
+        .doc(orgId)
         .collection("users")
         .doc(userId)
-        .collection("lessonPackages")
+        .collection("packages")
         .add({
           packageType: packageType,
           packageName: packageName,
@@ -783,7 +787,7 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
         });
 
       console.log(
-        `✅ Package created for payment: ${paymentIntent.id} for ${paymentIntent.amount / 100} USD at users/${userId}/lessonPackages`
+        `✅ Package created for payment: ${paymentIntent.id} for ${paymentIntent.amount / 100} USD at organizations/${orgId}/users/${userId}/packages`
       );
 
       return {success: true, packageId: paymentIntent.id};

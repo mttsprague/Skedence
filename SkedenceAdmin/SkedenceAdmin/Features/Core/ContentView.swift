@@ -45,8 +45,8 @@ struct ContentView: View {
                 }
                 .tag(2)
 
-            // Only show Business tab for owners and admins
-            if auth.currentOrgRole == "owner" || auth.currentOrgRole == "admin" {
+            // Only show Business tab for admins (includes legacy 'owner' role)
+            if auth.currentOrgRole == "admin" || auth.currentOrgRole == "owner" {
                 BusinessView()
                     .tabItem {
                         Label("Business", systemImage: selectedTab == 3 ? "briefcase.fill" : "briefcase")
@@ -110,9 +110,6 @@ struct MoreView: View {
     @State private var editEmail = ""
     @State private var isSavingProfile = false
     @State private var profileError: String?
-    @State private var showTrainersSection = false
-    @State private var selectedTrainer: Trainer?
-    @State private var showTrainerBio = false
     
     // Convenience accessors
     private var auth: AuthManager { dependencies.auth }
@@ -159,10 +156,8 @@ struct MoreView: View {
                                     .foregroundStyle(AppTheme.textSecondary)
                             }
                             
-                            // Show role badge with priority: owner > admin > trainer
-                            if auth.currentOrgRole == "owner" {
-                                BadgeView(text: "Owner", color: .purple)
-                            } else if auth.currentOrgRole == "admin" {
+                            // Show role badge (prioritize admin status over trainer)
+                            if auth.currentOrgRole == "admin" || auth.currentOrgRole == "owner" {
                                 BadgeView(text: "Admin", color: .blue)
                             } else if auth.isTrainer {
                                 BadgeView(text: "Trainer", color: AppTheme.success)
@@ -198,9 +193,7 @@ struct MoreView: View {
                                     InfoRow(label: "Email", value: auth.userEmail ?? "Unknown")
                                     Divider()
                                     InfoRow(label: "Role", value: {
-                                        if auth.currentOrgRole == "owner" {
-                                            return "Owner"
-                                        } else if auth.currentOrgRole == "admin" {
+                                        if auth.currentOrgRole == "admin" || auth.currentOrgRole == "owner" {
                                             return "Admin"
                                         } else if auth.isTrainer {
                                             return "Trainer"
@@ -222,10 +215,6 @@ struct MoreView: View {
                             ShareAppLinkCard(orgId: orgId)
                                 .padding(.horizontal, Spacing.lg)
                         }
-                        
-                        // Trainers Section
-                        trainersSection
-                            .padding(.horizontal, Spacing.lg)
                         
                         // Sign Out Button
                         Button {
@@ -411,128 +400,9 @@ struct MoreView: View {
             }
         }
         .navigationViewStyle(.stack)
-        .sheet(isPresented: $showTrainerBio) {
-            if let trainer = selectedTrainer {
-                TrainerBioSheet(trainer: trainer)
-            }
-        }
-        .task {
-            // Load trainers when view appears
-            if auth.isAuthenticated, let orgId = auth.currentOrgId {
-                await trainersService.loadAll(orgId: orgId)
-            }
-        }
     }
     
     // MARK: - Trainers Section
-    
-    private var trainersSection: some View {
-        VStack(spacing: 0) {
-            // Header Button
-            Button {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showTrainersSection.toggle()
-                }
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "person.2.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppTheme.primary)
-                    
-                    Text("Meet Our Trainers")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-                    
-                    if !trainersService.trainers.isEmpty {
-                        Text("(\(trainersService.trainers.filter { $0.active }.count))")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: showTrainersSection ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color.platformBackground)
-            }
-            .buttonStyle(.plain)
-            
-            // Expanded Trainer List
-            if showTrainersSection {
-                VStack(spacing: 8) {
-                    ForEach(trainersService.trainers.filter { $0.active }, id: \.id) { trainer in
-                        Button {
-                            selectedTrainer = trainer
-                            showTrainerBio = true
-                        } label: {
-                            HStack(spacing: 12) {
-                                TrainerAvatarView(trainer: trainer, size: 44)
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(trainer.displayName)
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(.primary)
-                                    
-                                    if let hasDescription = trainer.trainerDescription, !hasDescription.isEmpty {
-                                        Text("Tap to view bio")
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(.secondary)
-                                    } else {
-                                        Text("No bio available")
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(.tertiary)
-                                            .italic()
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(Color.platformBackground)
-                        }
-                        .buttonStyle(.plain)
-                        
-                        if trainer.id != trainersService.trainers.filter({ $0.active }).last?.id {
-                            Divider()
-                                .padding(.leading, 76)
-                        }
-                    }
-                    
-                    // Empty State
-                    if trainersService.trainers.filter({ $0.active }).isEmpty {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: Spacing.sm) {
-                                Image(systemName: "person.2.slash")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(AppTheme.textTertiary)
-                                
-                                Text("No trainers available")
-                                    .font(.bodyMedium)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                            }
-                            .padding(.vertical, Spacing.lg)
-                            Spacer()
-                        }
-                        .background(Color.platformBackground)
-                    }
-                }
-                .background(Color.platformBackground)
-            }
-        }
-        .background(Color.platformBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
-    }
     
     private func saveProfile() async {
         isSavingProfile = true

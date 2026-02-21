@@ -463,7 +463,9 @@ export const bookLesson = onCall(
 
         // Log activity for the booking
         if (orgId) {
-          const activityRef = db.collection("activities").doc();
+          const activityTimestamp = Math.floor(Date.now() / 1000);
+          const activityId = `${userId}_${ActivityTypes.LESSON_BOOKED}_${activityTimestamp}`;
+          const activityRef = db.collection("activities").doc(activityId);
           transaction.set(activityRef, {
             type: ActivityTypes.LESSON_BOOKED,
             actorId: userId,
@@ -706,7 +708,9 @@ export const registerForClass = onCall(
         // athleteCount already declared above
         const athleteNames = secondAthleteName ? `${primaryAthleteName} and ${secondAthleteName}` : primaryAthleteName;
 
-        const activityRef = db.collection("activities").doc();
+        const activityTimestamp = Math.floor(Date.now() / 1000);
+        const activityId = `${userId}_${ActivityTypes.CLASS_REGISTERED}_${activityTimestamp}`;
+        const activityRef = db.collection("activities").doc(activityId);
         transaction.set(activityRef, {
           type: ActivityTypes.CLASS_REGISTERED,
           actorId: userId,
@@ -914,7 +918,9 @@ export const cancelLesson = onCall(
         transaction.delete(bookingRef);
 
         // Log activity
-        const activityRef = db.collection("activities").doc();
+        const activityTimestamp = Math.floor(Date.now() / 1000);
+        const activityId = `${userId}_${ActivityTypes.LESSON_CANCELLED}_${activityTimestamp}`;
+        const activityRef = db.collection("activities").doc(activityId);
         transaction.set(activityRef, {
           type: ActivityTypes.LESSON_CANCELLED,
           actorId: userId,
@@ -1194,7 +1200,9 @@ export const adminCancelLesson = onCall(
         transaction.delete(bookingRef);
 
         // Log activity
-        const activityRef = db.collection("activities").doc();
+        const activityTimestamp = Math.floor(Date.now() / 1000);
+        const activityId = `${adminUid}_${ActivityTypes.LESSON_CANCELLED}_${activityTimestamp}`;
+        const activityRef = db.collection("activities").doc(activityId);
         transaction.set(activityRef, {
             type: ActivityTypes.LESSON_CANCELLED,
             actorId: adminUid,
@@ -1347,7 +1355,9 @@ export const cancelClassRegistration = onCall(
         const className = classData?.title || "Unknown Class";
         const athleteName = participantData.athleteName || clientFullName;
 
-        const activityRef = db.collection("activities").doc();
+        const activityTimestamp = Math.floor(Date.now() / 1000);
+        const activityId = `${userId}_${ActivityTypes.CLASS_CANCELLED}_${activityTimestamp}`;
+        const activityRef = db.collection("activities").doc(activityId);
         transaction.set(activityRef, {
           type: ActivityTypes.CLASS_CANCELLED,
           actorId: userId,

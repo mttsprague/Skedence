@@ -78,7 +78,11 @@ struct ActivityLogger {
             activityData["metadata"] = metadata
         }
         
-        try await db.collection("activities").addDocument(data: activityData)
+        // Generate activity ID: {actorId}_{activityType}_{timestamp}
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let activityId = "\(actorId)_\(type.rawValue)_\(timestamp)"
+        
+        try await db.collection("activities").document(activityId).setData(activityData)
     }
     
     // Helper function to format dates consistently

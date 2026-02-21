@@ -290,37 +290,47 @@ struct CreateBusinessView: View {
                 try await orgRef.setData(orgData)
                 let orgId = orgRef.documentID
                 
-                // 3. Create user document
+                // 3. Generate name-based user ID (e.g., john_doe)
+                let nameBasedUserId = try await IDGenerator.generateUserId(
+                    firstName: ownerFirstName,
+                    lastName: ownerLastName
+                )
+                
+                // 4. Create user document with name-based ID
                 let userData: [String: Any] = [
+                    "authUserId": userId,  // Firebase Auth UID
                     "email": ownerEmail.lowercased(),
                     "emailAddress": ownerEmail.lowercased(),
                     "firstName": ownerFirstName,
                     "lastName": ownerLastName,
                     "orgId": orgId,
+                    "role": "owner",
                     "needsPasswordSetup": false,
-                    "authId": userId,
+                    "active": true,
                     "createdAt": Timestamp(date: Date()),
                     "registeredAt": Timestamp(date: Date())
                 ]
                 
                 try await db.collection("users")
-                    .document(userId)
+                    .document(nameBasedUserId)  // Use name-based ID
                     .setData(userData)
                 
-                // 4. Create orgMember (owner)
+                // 5. Create orgMember document (SINGLE pattern: firstName_lastName_orgId)
                 let memberData: [String: Any] = [
                     "orgId": orgId,
-                    "userId": userId,
-                    "role": "owner",
+                    "userId": nameBasedUserId,  // Name-based user ID
+                    "authUserId": userId,        // Firebase Auth UID
+                    "role": "admin",             // Admin role (no owner)
                     "isActive": true,
                     "createdAt": Timestamp(date: Date())
                 ]
                 
+                // Single pattern: {nameBasedUserId}_{orgId}
                 try await db.collection("orgMembers")
-                    .document("\(userId)_\(orgId)")
+                    .document("\(nameBasedUserId)_\(orgId)")
                     .setData(memberData)
                 
-                // 5. Create trainer profile
+                // 6. Create trainer profile
                 let trainerData: [String: Any] = [
                     "orgId": orgId,
                     "firstName": ownerFirstName,

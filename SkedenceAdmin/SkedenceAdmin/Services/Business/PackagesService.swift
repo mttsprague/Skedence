@@ -58,8 +58,22 @@ final class PackagesService: ObservableObject {
         errorMessage = nil
         
         do {
-            let snap = try await db.collection("users").document(uid)
-                .collection("lessonPackages")
+            // Get user's document to find their orgId
+            let userDoc = try await db.collection("users").document(uid).getDocument()
+            guard let userData = userDoc.data(),
+                  let orgId = userData["orgId"] as? String ?? userData["organizationId"] as? String else {
+                errorMessage = "User organization not found"
+                packages = []
+                isLoading = false
+                return
+            }
+            
+            // Query STANDARD path only
+            let snap = try await db.collection("organizations")
+                .document(orgId)
+                .collection("users")
+                .document(uid)
+                .collection("packages")
                 .order(by: "purchaseDate", descending: true)
                 .getDocuments()
             
@@ -127,9 +141,19 @@ final class PackagesService: ObservableObject {
         let data = payload.compactMapValues { $0 }
 
         do {
-            try await db.collection("users")
+            // Get user's orgId first
+            let userDoc = try await db.collection("users").document(uid).getDocument()
+            guard let userData = userDoc.data(),
+                  let orgId = userData["orgId"] as? String ?? userData["organizationId"] as? String else {
+                throw PackagesServiceError.createFailed("User organization not found")
+            }
+            
+            // Write to STANDARD path only
+            try await db.collection("organizations")
+                .document(orgId)
+                .collection("users")
                 .document(uid)
-                .collection("lessonPackages")
+                .collection("packages")
                 .addDocument(data: data)
         } catch {
             throw PackagesServiceError.createFailed(error.localizedDescription)

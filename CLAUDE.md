@@ -414,57 +414,52 @@ let orgId = data["orgId"] as? String
 ```
 
 ### Package Storage Paths
-**PRIMARY:** `organizations/{orgId}/users/{userId}/packages/{packageId}`  
-**LEGACY:** `users/{userId}/lessonPackages/{packageId}`
+**STANDARD PATH (ONLY):** `organizations/{orgId}/users/{userId}/packages/{packageId}`
+
+**IMPORTANT:** As of the package consolidation (February 2026), all packages are stored ONLY in the standard path. The old path (`users/{userId}/lessonPackages/{packageId}`) is deprecated and no longer used by any system.
 
 **Reading Pattern:**
 ```typescript
-// Try new path first
-let packageDoc = await db.collection("organizations")
+// Cloud Functions - Query standard path only
+const packageDoc = await db.collection("organizations")
   .doc(orgId).collection("users").doc(userId)
   .collection("packages").doc(packageId).get();
-
-// Fallback to old path
-if (!packageDoc.exists) {
-  packageDoc = await db.collection("users")
-    .doc(userId).collection("lessonPackages")
-    .doc(packageId).get();
-}
 ```
 
 ```swift
-// iOS - PackagesService uses dual-path query
-if let orgId = orgId {
-    // Try new path first
-    let newPath = db.collection("organizations")
-        .document(orgId)
-        .collection("users")
-        .document(uid)
-        .collection("packages")
-    let snapshot = try await newPath.getDocuments()
-    
-    if !snapshot.isEmpty {
-        return snapshot.documents // Found in new path
-    }
-}
-
-// Fallback to legacy path
-let oldPath = db.collection("users")
-    .document(uid)
-    .collection("lessonPackages")
-let snapshot = try await oldPath.getDocuments()
+// iOS - Query standard path only
+let packageRef = db.collection("organizations")
+    .document(orgId)
+    .collection("users")
+    .document(userId)
+    .collection("packages")
+    .document(packageId)
+let snapshot = try await packageRef.getDocument()
 ```
 
-**Writing Pattern (Admin Functions):**
+**Writing Pattern (All Systems):**
 ```swift
-// Write to BOTH paths for compatibility
-try await db.collection("users").document(userId)
-  .collection("lessonPackages").addDocument(data: passData)
-  
-try await db.collection("organizations").document(orgId)
-  .collection("users").document(userId)
-  .collection("packages").addDocument(data: passData)
+// Write to STANDARD path only
+try await db.collection("organizations")
+  .document(orgId)
+  .collection("users")
+  .document(userId)
+  .collection("packages")
+  .addDocument(data: passData)
 ```
+
+```typescript
+// Web admin - Write to standard path only
+await addDoc(
+  collection(db, 'organizations', orgId, 'users', userId, 'packages'),
+  passData
+);
+```
+
+**Migration:**
+- All existing packages were migrated from old path to new path using `migrate-packages-to-new-path.js`
+- Old packages remain as backup but are not queried by any app
+- All new purchases and admin-added packages go to standard path only
 
 ### Package Schema
 ```typescript

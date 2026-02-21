@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hasCompletedInitialCheck.current = true;
             validatedUserId.current = firebaseUser.uid;
           } else {
-            console.error('Auth: User is not an owner. Admin portal access denied (owner role required).');
+            console.error('Auth: User is not an admin. Admin portal access denied (admin role required).');
             setUserData(null);
             setOrgId(null);
             

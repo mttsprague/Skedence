@@ -37,8 +37,9 @@ class SuperAdminViewModel: ObservableObject {
             }
             
             // Query orgMembers to find user's organization
+            // Use authUserId field (Firebase Auth UID) instead of userId (name-based)
             let memberSnapshot = try await db.collection("orgMembers")
-                .whereField("userId", isEqualTo: userId)
+                .whereField("authUserId", isEqualTo: userId)
                 .limit(to: 1)
                 .getDocuments()
             
@@ -133,9 +134,10 @@ class SuperAdminViewModel: ObservableObject {
             }
             
             // Query orgMembers to find user's org if not already loaded
+            // Use authUserId field (Firebase Auth UID) instead of userId (name-based)
             if currentOrgId == nil {
                 let memberSnapshot = try await db.collection("orgMembers")
-                    .whereField("userId", isEqualTo: userId)
+                    .whereField("authUserId", isEqualTo: userId)
                     .limit(to: 1)
                     .getDocuments()
                 

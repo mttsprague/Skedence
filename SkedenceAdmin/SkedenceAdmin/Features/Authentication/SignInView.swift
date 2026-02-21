@@ -69,7 +69,7 @@ struct SignInView: View {
                             .font(.system(size: 36, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
                         
-                        Text("Owners and Trainers")
+                        Text("Admins and Trainers")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.secondary)
                     }
@@ -202,7 +202,7 @@ struct SignInView: View {
                     
                     // Footer
                     VStack(spacing: 12) {
-                        Text("For Owners & Trainers")
+                        Text("For Admins & Trainers")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.secondary)
                         

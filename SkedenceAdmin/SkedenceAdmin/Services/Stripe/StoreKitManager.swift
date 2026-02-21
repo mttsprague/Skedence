@@ -333,7 +333,7 @@ class StoreKitManager: ObservableObject {
         
         do {
             let snapshot = try await db.collection("orgMembers")
-                .whereField("userId", isEqualTo: currentUser.uid)
+                .whereField("authUserId", isEqualTo: currentUser.uid)  // Fixed: Use authUserId field, not userId
                 .whereField("isActive", isEqualTo: true)
                 .limit(to: 1)
                 .getDocuments()

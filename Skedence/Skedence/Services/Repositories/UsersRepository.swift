@@ -24,10 +24,13 @@ final class UsersRepository: RepositoryProtocol {
     func fetchById(id: String, orgId: String) async throws -> UserProfile? {
         let snapshot = try await db.collection("users").document(id).getDocument()
         
-        guard snapshot.exists, let data = snapshot.data() else {
+        guard snapshot.exists else {
             return nil
         }
         
+        guard let data = snapshot.data() else {
+            return nil
+        }
         return decodeUserProfile(id: snapshot.documentID, data: data)
     }
     
@@ -61,13 +64,18 @@ final class UsersRepository: RepositoryProtocol {
     
     /// Fetch current authenticated user's profile
     func fetchCurrentUser(uid: String) async throws -> UserProfile {
-        let snapshot = try await db.collection("users").document(uid).getDocument()
+        // Query by authUserId field since document IDs are name-based
+        let snapshot = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: uid)
+            .limit(to: 1)
+            .getDocuments()
         
-        guard snapshot.exists, let data = snapshot.data() else {
+        guard let document = snapshot.documents.first else {
             throw RepositoryError.notFound
         }
         
-        return decodeUserProfile(id: snapshot.documentID, data: data)
+        let data = document.data()
+        return decodeUserProfile(id: document.documentID, data: data)
     }
     
     /// Update specific fields for a user

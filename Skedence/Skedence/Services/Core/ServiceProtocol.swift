@@ -52,6 +52,7 @@ enum ServiceError: LocalizedError {
     case notFound
     case unauthorized
     case serverError(String)
+    case invalidOperation(String)
     
     var errorDescription: String? {
         switch self {
@@ -69,6 +70,8 @@ enum ServiceError: LocalizedError {
             return "You don't have permission to access this resource"
         case .serverError(let message):
             return "Server error: \(message)"
+        case .invalidOperation(let message):
+            return "Invalid operation: \(message)"
         }
     }
 }

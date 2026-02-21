@@ -14,7 +14,11 @@ const getDb = () => admin.firestore();
 export async function logActivity(activity: BaseActivity): Promise<void> {
   try {
     const db = getDb();
-    const activityRef = db.collection("activities").doc();
+    
+    // Generate activity ID: {actorId}_{activityType}_{timestamp}
+    const timestamp = Math.floor(Date.now() / 1000);
+    const activityId = `${activity.actorId}_${activity.type}_${timestamp}`;
+    const activityRef = db.collection("activities").doc(activityId);
     
     await activityRef.set({
       ...activity,

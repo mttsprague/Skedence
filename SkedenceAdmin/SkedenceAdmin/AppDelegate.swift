@@ -14,18 +14,20 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // CRITICAL: Set App Check provider BEFORE Firebase configuration
-        #if DEBUG
-        // Use debug provider in development
-        AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
-        #else
-        // Use DeviceCheck provider in production (more reliable for App Store)
-        AppCheck.setAppCheckProviderFactory(DeviceCheckProviderFactory())
-        #endif
+        // TEMPORARILY DISABLED: App Check to fix permission issues
+        // TODO: Register debug token in Firebase Console after getting from logs
+        // #if DEBUG
+        // AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
+        // print("🔧 App Check: Using DEBUG provider")
+        // #else
+        // AppCheck.setAppCheckProviderFactory(DeviceCheckProviderFactory())
+        // print("🔧 App Check: Using DeviceCheck provider")
+        // #endif
         
-        // Configure Firebase AFTER setting App Check provider
+        // Configure Firebase
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
+            print("🔧 Firebase: Configured")
         }
         
         return true

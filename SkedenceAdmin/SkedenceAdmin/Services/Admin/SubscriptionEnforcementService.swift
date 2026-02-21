@@ -58,7 +58,7 @@ class SubscriptionEnforcementService: ObservableObject {
     private func checkOwnerStatus(organizationId: String, userId: String) async {
         do {
             let snapshot = try await db.collection("orgMembers")
-                .whereField("userId", isEqualTo: userId)
+                .whereField("authUserId", isEqualTo: userId)  // Fixed: Use authUserId field, not userId
                 .whereField("orgId", isEqualTo: organizationId)
                 .whereField("isActive", isEqualTo: true)
                 .limit(to: 1)
@@ -67,7 +67,7 @@ class SubscriptionEnforcementService: ObservableObject {
             if let doc = snapshot.documents.first,
                let role = doc.data()["role"] as? String {
                 await MainActor.run {
-                    self.isOwner = (role == "owner")
+                    self.isOwner = (role == "owner" || role == "admin")
                 }
             } else {
                 await MainActor.run {

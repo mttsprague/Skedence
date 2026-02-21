@@ -20,12 +20,26 @@ final class PackagesRepository: QueryableRepositoryProtocol {
     // MARK: - RepositoryProtocol Methods
     
     func fetchAll(orgId: String) async throws -> [LessonPackage] {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
-        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
-        let newSnapshot = try await db.collection("organizations")
+        // Query users collection by authUserId to find document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            print("❌ PackagesRepository: User document not found for authUserId: \(authUserId)")
+            return []
+        }
+        
+        let userId = userDoc.documentID  // This is the name-based document ID
+        print("✅ PackagesRepository: Found userId: \(userId) for authUserId: \(authUserId)")
+        
+        // Query STANDARD path: organizations/{orgId}/users/{userId}/packages
+        let snapshot = try await db.collection("organizations")
             .document(orgId)
             .collection("users")
             .document(userId)
@@ -33,38 +47,34 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             .order(by: "purchaseDate", descending: true)
             .getDocuments()
         
-        if !newSnapshot.documents.isEmpty {
-            print("✅ PackagesRepository: Loaded \(newSnapshot.documents.count) packages from NEW path")
-            return newSnapshot.documents.compactMap { doc in
-                decodePackage(id: doc.documentID, data: doc.data())
-            }
-        }
-        
-        // Fallback to OLD path: users/{userId}/lessonPackages
-        print("⚠️ PackagesRepository: Falling back to OLD path")
-        let oldSnapshot = try await db.collection("users")
-            .document(userId)
-            .collection("lessonPackages")
-            .whereField("orgId", isEqualTo: orgId)
-            .order(by: "purchaseDate", descending: true)
-            .getDocuments()
-        
-        print("✅ PackagesRepository: Loaded \(oldSnapshot.documents.count) packages from OLD path")
-        let packages = oldSnapshot.documents.compactMap { doc in
+        print("✅ PackagesRepository: Loaded \(snapshot.documents.count) packages")
+        return snapshot.documents.compactMap { doc in
             decodePackage(id: doc.documentID, data: doc.data())
         }
-        
-        return packages
     }
     
     func fetchById(id: String, orgId: String) async throws -> LessonPackage? {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
-        let doc = try await db.collection("users")
+        // Query users collection by authUserId to find document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            throw RepositoryError.notFound
+        }
+        
+        let userId = userDoc.documentID
+        
+        let doc = try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(userId)
-            .collection("lessonPackages")
+            .collection("packages")
             .document(id)
             .getDocument()
         
@@ -76,9 +86,21 @@ final class PackagesRepository: QueryableRepositoryProtocol {
     }
     
     func create(_ item: LessonPackage, orgId: String) async throws -> String {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
+        
+        // Query users collection by authUserId to find document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            throw RepositoryError.unauthorized
+        }
+        
+        let userId = userDoc.documentID
         
         let packageData = encodePackage(item, orgId: orgId)
         
@@ -89,9 +111,11 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             purchaseDate: item.purchaseDate
         )
         
-        try await db.collection("users")
+        try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(userId)
-            .collection("lessonPackages")
+            .collection("packages")
             .document(packageId)
             .setData(packageData)
         
@@ -99,25 +123,53 @@ final class PackagesRepository: QueryableRepositoryProtocol {
     }
     
     func update(id: String, data: [String: Any], orgId: String) async throws {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
-        try await db.collection("users")
+        // Query users collection by authUserId to find document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            throw RepositoryError.unauthorized
+        }
+        
+        let userId = userDoc.documentID
+        
+        try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(userId)
-            .collection("lessonPackages")
+            .collection("packages")
             .document(id)
             .updateData(data)
     }
     
     func delete(id: String, orgId: String) async throws {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
-        try await db.collection("users")
+        // Query users collection by authUserId to find document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            throw RepositoryError.unauthorized
+        }
+        
+        let userId = userDoc.documentID
+        
+        try await db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(userId)
-            .collection("lessonPackages")
+            .collection("packages")
             .document(id)
             .delete()
     }
@@ -125,33 +177,58 @@ final class PackagesRepository: QueryableRepositoryProtocol {
     // MARK: - QueryableRepositoryProtocol Methods
     
     func fetch(where conditions: [String: Any], orgId: String) async throws -> [LessonPackage] {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
-        var query: Query = db.collection("users")
+        // Query users collection by authUserId to find document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            return []
+        }
+        
+        let userId = userDoc.documentID
+        
+        var query: Query = db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(userId)
-            .collection("lessonPackages")
+            .collection("packages")
         
         for (field, value) in conditions {
             query = query.whereField(field, isEqualTo: value)
         }
-        
-        query = query.whereField("orgId", isEqualTo: orgId)
         
         let snapshot = try await query.getDocuments()
         return snapshot.documents.compactMap { decodePackage(id: $0.documentID, data: $0.data()) }
     }
     
     func fetch(orderedBy field: String, descending: Bool, limit: Int?, orgId: String) async throws -> [LessonPackage] {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
-        var query: Query = db.collection("users")
+        // Query users collection by authUserId to find document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            return []
+        }
+        
+        let userId = userDoc.documentID
+        
+        var query: Query = db.collection("organizations")
+            .document(orgId)
+            .collection("users")
             .document(userId)
-            .collection("lessonPackages")
-            .whereField("orgId", isEqualTo: orgId)
+            .collection("packages")
             .order(by: field, descending: descending)
         
         if let limit = limit {
@@ -166,14 +243,26 @@ final class PackagesRepository: QueryableRepositoryProtocol {
     
     /// Fetch active packages with remaining lessons
     func fetchActivePackages(orgId: String) async throws -> [LessonPackage] {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
+        // Query users collection by authUserId to find document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            return []
+        }
+        
+        let userId = userDoc.documentID
+        
         let now = Timestamp(date: Date())
         
-        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
-        let newSnapshot = try await db.collection("organizations")
+        // Query STANDARD path: organizations/{orgId}/users/{userId}/packages
+        let snapshot = try await db.collection("organizations")
             .document(orgId)
             .collection("users")
             .document(userId)
@@ -182,24 +271,7 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             .order(by: "expirationDate", descending: false)
             .getDocuments()
         
-        if !newSnapshot.documents.isEmpty {
-            return newSnapshot.documents.compactMap { doc in
-                let pkg = decodePackage(id: doc.documentID, data: doc.data())
-                // Filter to only packages with remaining lessons
-                return (pkg?.lessonsRemaining ?? 0) > 0 ? pkg : nil
-            }
-        }
-        
-        // Fallback to OLD path: users/{userId}/lessonPackages
-        let oldSnapshot = try await db.collection("users")
-            .document(userId)
-            .collection("lessonPackages")
-            .whereField("orgId", isEqualTo: orgId)
-            .whereField("expirationDate", isGreaterThan: now)
-            .order(by: "expirationDate", descending: false)
-            .getDocuments()
-        
-        return oldSnapshot.documents.compactMap { doc in
+        return snapshot.documents.compactMap { doc in
             let pkg = decodePackage(id: doc.documentID, data: doc.data())
             // Filter to only packages with remaining lessons
             return (pkg?.lessonsRemaining ?? 0) > 0 ? pkg : nil

@@ -223,9 +223,12 @@ final class AuthManager: ObservableObject {
             return
         }
         do {
-            let ref = Firestore.firestore().collection("trainers").document(uid)
-            let snap = try await ref.getDocument()
-            self.isTrainer = snap.exists
+            // Query trainers by authUserId field (not document ID)
+            let snapshot = try await Firestore.firestore().collection("trainers")
+                .whereField("authUserId", isEqualTo: uid)
+                .limit(to: 1)
+                .getDocuments()
+            self.isTrainer = !snapshot.documents.isEmpty
         } catch {
             self.isTrainer = false
         }
@@ -239,20 +242,26 @@ final class AuthManager: ObservableObject {
         guard isTrainer, let uid = Auth.auth().currentUser?.uid, !uid.isEmpty else {
             self.trainerDisplayName = nil
             self.trainerPhotoURLString = nil
-            self.isAdmin = false
+            // Don't reset isAdmin here - it's set by loadOrgId based on orgMembers role
             return
         }
         do {
-            let ref = Firestore.firestore().collection("trainers").document(uid)
-            let snap = try await ref.getDocument()
-            if let data = snap.data() {
+            // Query trainers by authUserId field (not document ID)
+            let snapshot = try await Firestore.firestore().collection("trainers")
+                .whereField("authUserId", isEqualTo: uid)
+                .limit(to: 1)
+                .getDocuments()
+            
+            if let snap = snapshot.documents.first {
+                let data = snap.data()
                 self.trainerDisplayName = (data["name"] as? String) ?? self.trainerDisplayName
-                // Check both "isAdmin" and "admin" for backwards compatibility
-                self.isAdmin = (data["isAdmin"] as? Bool) ?? (data["admin"] as? Bool) ?? false
                 
                 // Load firstName and lastName
                 self.userFirstName = data["firstName"] as? String
                 self.userLastName = data["lastName"] as? String
+                
+                // Store the actual trainer document ID for later use
+                self.trainerId = snap.documentID
                 
                 if let url = data["photoURL"] as? String, !url.isEmpty {
                     self.trainerPhotoURLString = url
@@ -285,15 +294,31 @@ final class AuthManager: ObservableObject {
                 self.currentOrgId = orgId
                 self.currentOrgRole = doc.data()["role"] as? String
                 
-                // Set isAdmin based on role (owner or admin)
-                self.isAdmin = (self.currentOrgRole == "owner" || self.currentOrgRole == "admin")
+                // Admin role has full access. Owner role kept for backward compatibility.
+                // Going forward, use "admin" as the standard role for organization admins.
+                self.isAdmin = (self.currentOrgRole == "admin" || self.currentOrgRole == "owner")
+                print("🔐 Role: \(self.currentOrgRole ?? "nil"), isAdmin: \(self.isAdmin)")
                 
-                // If user is a trainer, find their trainer document ID
-                if currentOrgRole == "trainer" {
-                    // Use the name-based userId from orgMembers as trainerId
+                // Try to find trainer document by authUserId (works for both admins and trainers)
+                do {
+                    let trainersSnapshot = try await db.collection("trainers")
+                        .whereField("authUserId", isEqualTo: authUserId)
+                        .whereField("orgId", isEqualTo: orgId)
+                        .limit(to: 1)
+                        .getDocuments()
+                    
+                    if let trainerDoc = trainersSnapshot.documents.first {
+                        self.trainerId = trainerDoc.documentID
+                        print("✅ Found trainerId: \(trainerDoc.documentID) for role: \(self.currentOrgRole ?? "nil")")
+                    } else {
+                        // Fallback to userId from orgMembers
+                        self.trainerId = userIdFromDoc
+                        print("⚠️ No trainer doc found by authUserId, using userId: \(userIdFromDoc)")
+                    }
+                } catch {
+                    // Fallback to userId from orgMembers
                     self.trainerId = userIdFromDoc
-                } else {
-                    self.trainerId = nil
+                    print("⚠️ Error finding trainer doc: \(error.localizedDescription)")
                 }
                 
                 // Load organization branding
@@ -423,7 +448,7 @@ final class AuthManager: ObservableObject {
             // Load user profile data (firstName, lastName)
             if let uid = userId, !uid.isEmpty {
                 // For trainers, load from trainers collection
-                // For admins/owners, try trainers first, then fall back to users
+                // For admins, try trainers first, then fall back to users
                 var userData: [String: Any]?
                 
                 // Try trainers collection first (most common case)
@@ -431,7 +456,7 @@ final class AuthManager: ObservableObject {
                 if trainerDoc.exists {
                     userData = trainerDoc.data()
                 } else {
-                    // Fall back to users collection for admins/owners
+                    // Fall back to users collection for admins
                     let userDoc = try await db.collection("users").document(uid).getDocument()
                     if userDoc.exists {
                         userData = userDoc.data()

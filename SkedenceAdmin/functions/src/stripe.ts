@@ -179,6 +179,15 @@ export const confirmPaymentAndCreatePackage = onCall(
       const expirationDate = new Date();
       expirationDate.setMonth(expirationDate.getMonth() + 12);
 
+      // Get orgId from payment intent metadata
+      const orgId = paymentIntent.metadata.org_id as string;
+      if (!orgId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Payment intent missing organization ID"
+        );
+      }
+
       const packageData = {
         packageType,
         totalLessons,
@@ -186,13 +195,19 @@ export const confirmPaymentAndCreatePackage = onCall(
         purchaseDate: now,
         expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
         transactionId: paymentIntentId,
+        orgId: orgId,
       };
 
+      // Write to STANDARD location: organizations/{orgId}/users/{userId}/packages
       await db
+        .collection("organizations")
+        .doc(orgId)
         .collection("users")
         .doc(userId)
-        .collection("lessonPackages")
+        .collection("packages")
         .add(packageData);
+
+      console.log(`✅ Package created at organizations/${orgId}/users/${userId}/packages`);
 
       return {success: true, packageId: paymentIntentId};
     } catch (error: unknown) {
