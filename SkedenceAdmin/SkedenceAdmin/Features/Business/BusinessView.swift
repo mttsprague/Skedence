@@ -240,12 +240,7 @@ struct BusinessView: View {
                             trainerLimit: trainerLimit,
                             trainerCount: superAdminViewModel.trainers.count,
                             onShowAvatarUpload: { },
-                            onShowAddTrainer: { showingAddTrainer = true },
-                            onShowPricing: {
-                                // Navigate to Pricing tab to upgrade plan
-                                selectedSection = .operations
-                                selectedSubTab = .pricing
-                            }
+                            onShowAddTrainer: { showingAddTrainer = true }
                         )
                         .environmentObject(dependencies)
                         

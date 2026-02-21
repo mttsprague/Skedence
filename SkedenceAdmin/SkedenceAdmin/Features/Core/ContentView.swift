@@ -18,7 +18,6 @@ import FirebaseAuth
 struct ContentView: View {
     @EnvironmentObject private var dependencies: AdminAppDependencies
     @State private var selectedTab = 0
-    @State private var showingPricing = false
     @Environment(\.openURL) private var openURL
     
     // Convenience accessors
@@ -61,12 +60,6 @@ struct ContentView: View {
                     billing: billing,
                     isOwner: enforcement.isOwner,
                     estimatedLostRevenue: enforcement.estimatedLostRevenue,
-                    onUpgrade: {
-                        showingPricing = true
-                    },
-                    onManageBilling: {
-                        showingPricing = true
-                    },
                     onContactSupport: {
                         if let url = URL(string: "mailto:support@skedence.com?subject=Billing%20Help") {
                             openURL(url)
@@ -77,12 +70,6 @@ struct ContentView: View {
                         enforcement.billing = nil
                     }
                 )
-            }
-        }
-        .sheet(isPresented: $showingPricing) {
-            if let orgId = auth.currentOrgId {
-                InAppSubscriptionView(orgId: orgId)
-                    .environmentObject(dependencies)
             }
         }
         .onAppear {

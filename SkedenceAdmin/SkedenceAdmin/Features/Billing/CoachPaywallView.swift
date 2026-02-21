@@ -4,8 +4,6 @@ struct CoachPaywallView: View {
     let billing: OrganizationBilling
     let isOwner: Bool
     let estimatedLostRevenue: Double
-    let onUpgrade: () -> Void
-    let onManageBilling: () -> Void
     let onContactSupport: () -> Void
     let onDismiss: (() -> Void)?
     
@@ -15,15 +13,14 @@ struct CoachPaywallView: View {
             case .none:
                 EmptyView()
             case .trialBanner(let daysLeft):
-                TrialBannerView(daysLeft: daysLeft, isOwner: isOwner, onUpgrade: onUpgrade)
+                TrialBannerView(daysLeft: daysLeft, isOwner: isOwner)
             case .graceBanner(let daysLeft):
-                GraceBannerView(daysLeft: daysLeft, isOwner: isOwner, onManageBilling: onManageBilling)
+                GraceBannerView(daysLeft: daysLeft, isOwner: isOwner)
             case .fullBlock:
                 ExpiredModalView(
                     billing: billing,
                     isOwner: isOwner,
                     estimatedLostRevenue: estimatedLostRevenue,
-                    onReactivate: onManageBilling,
                     onContactSupport: onContactSupport,
                     onViewSchedule: onDismiss
                 )
@@ -36,7 +33,6 @@ struct CoachPaywallView: View {
 struct TrialBannerView: View {
     let daysLeft: Int
     let isOwner: Bool
-    let onUpgrade: () -> Void
     @State private var isDismissed = false
     
     var body: some View {
@@ -52,11 +48,11 @@ struct TrialBannerView: View {
                             .font(.headline)
                         
                         if isOwner {
-                            Text("Add Stripe keys + publish your booking link to go live")
+                            Text("Visit skedence.com to manage your subscription and upgrade")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         } else {
-                            Text("Ask your owner to upgrade to keep bookings enabled")
+                            Text("Ask your owner to visit skedence.com to manage the subscription")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -68,21 +64,6 @@ struct TrialBannerView: View {
                         Image(systemName: "xmark")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                    }
-                }
-                
-                if isOwner {
-                    HStack(spacing: 12) {
-                        Button("Upgrade Now") {
-                            onUpgrade()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        
-                        Button("Later") {
-                            isDismissed = true
-                        }
-                        .buttonStyle(.bordered)
-                        .font(.caption)
                     }
                 }
             }
@@ -98,7 +79,6 @@ struct TrialBannerView: View {
 struct GraceBannerView: View {
     let daysLeft: Int
     let isOwner: Bool
-    let onManageBilling: () -> Void
     
     var body: some View {
         VStack(spacing: 12) {
@@ -112,32 +92,17 @@ struct GraceBannerView: View {
                         .font(.headline)
                     
                     if isOwner {
-                        Text("Update your payment method to keep accepting bookings")
+                        Text("Visit skedence.com to update your payment method")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     } else {
-                        Text("Account is in billing grace period. Please contact owner.")
+                        Text("Account is in billing grace period. Ask owner to visit skedence.com")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
                 }
                 
                 Spacer()
-            }
-            
-            if isOwner {
-                HStack(spacing: 12) {
-                    Button("Fix Payment") {
-                        onManageBilling()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-                    
-                    Button("Contact Support") {
-                        // Open support
-                    }
-                    .buttonStyle(.bordered)
-                }
             }
         }
         .padding()
@@ -152,7 +117,6 @@ struct ExpiredModalView: View {
     let billing: OrganizationBilling
     let isOwner: Bool
     let estimatedLostRevenue: Double
-    let onReactivate: () -> Void
     let onContactSupport: () -> Void
     let onViewSchedule: (() -> Void)?
     
@@ -174,12 +138,12 @@ struct ExpiredModalView: View {
                         .fontWeight(.bold)
                     
                     if isOwner {
-                        Text("Your Skedence subscription has ended.\nClients can no longer book sessions until you reactivate.")
+                        Text("Your Skedence subscription has ended.\nVisit skedence.com to reactivate and restore bookings.")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                     } else {
-                        Text("Your organization's subscription is inactive.\nYou can view your schedule, but booking is disabled.\nContact your owner to reactivate.")
+                        Text("Your organization's subscription is inactive.\nYou can view your schedule, but booking is disabled.\nAsk your owner to visit skedence.com to reactivate.")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -204,36 +168,14 @@ struct ExpiredModalView: View {
                 
                 // CTAs
                 VStack(spacing: 12) {
-                    if isOwner {
-                        Button(action: onReactivate) {
-                            Text("Reactivate Subscription")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(12)
-                        }
-                        
-                        Button(action: onContactSupport) {
-                            Text("Contact Support")
-                                .font(.subheadline)
-                                .foregroundColor(.blue)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(12)
-                        }
-                    } else {
-                        Button(action: { /* Message owner */ }) {
-                            Text("Contact Owner")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(12)
-                        }
+                    Button(action: onContactSupport) {
+                        Text("Contact Support")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(12)
                     }
                     
                     if let onViewSchedule = onViewSchedule {
@@ -246,9 +188,14 @@ struct ExpiredModalView: View {
                 }
                 
                 // Footer
-                Text("You can still view your schedule in read-only mode")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                VStack(spacing: 4) {
+                    Text("Visit skedence.com to manage your subscription")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("You can still view your schedule in read-only mode")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             .padding(32)
             .background(Color(.systemBackground))
@@ -265,8 +212,6 @@ struct ExpiredModalView: View {
             billing: .mockTrial,
             isOwner: true,
             estimatedLostRevenue: 0,
-            onUpgrade: {},
-            onManageBilling: {},
             onContactSupport: {},
             onDismiss: {}
         )
@@ -280,8 +225,6 @@ struct ExpiredModalView: View {
             billing: .mockPastDue,
             isOwner: true,
             estimatedLostRevenue: 0,
-            onUpgrade: {},
-            onManageBilling: {},
             onContactSupport: {},
             onDismiss: {}
         )
@@ -294,8 +237,6 @@ struct ExpiredModalView: View {
         billing: .mockExpired,
         isOwner: true,
         estimatedLostRevenue: 450,
-        onUpgrade: {},
-        onManageBilling: {},
         onContactSupport: {},
         onDismiss: {}
     )

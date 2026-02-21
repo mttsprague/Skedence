@@ -15,7 +15,6 @@ struct TrainersSection: View {
     let trainerCount: Int
     let onShowAvatarUpload: () -> Void
     let onShowAddTrainer: () -> Void
-    let onShowPricing: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -61,22 +60,12 @@ struct TrainersSection: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Trainer Limit Reached")
                                 .font(.headline)
-                            Text("You have \(trainerCount) of \(trainerLimit) trainers. Upgrade to add more trainers.")
+                            Text("You have \(trainerCount) of \(trainerLimit) trainers. Visit skedence.com to upgrade your plan and add more trainers.")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
                     }
-                    
-                    Button {
-                        onShowPricing()
-                    } label: {
-                        Text("View Plans")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.borderedProminent)
                 }
                 .padding()
                 .background(Color.orange.opacity(0.1))

@@ -21,7 +21,6 @@ struct SuperAdminView: View {
     // Convenience accessors
     private var auth: AuthManager { dependencies.auth }
     private var enforcement: SubscriptionEnforcementService { dependencies.enforcement }
-    @State private var showingPricing = false
     @State private var showingAvatarUpload = false
     @State private var alertItem: AlertItem?
     @State private var showingDeleteConfirmation = false
@@ -90,8 +89,7 @@ struct SuperAdminView: View {
                             trainerLimit: trainerLimit,
                             trainerCount: viewModel.trainers.count,
                             onShowAvatarUpload: { showingAvatarUpload = true },
-                            onShowAddTrainer: { showingAddTrainer = true },
-                            onShowPricing: { showingPricing = true }
+                            onShowAddTrainer: { showingAddTrainer = true }
                         )
                         .environmentObject(dependencies)
                     case .users:
@@ -170,34 +168,6 @@ struct SuperAdminView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text("Your account has been successfully deleted. You will now be signed out.")
-            }
-            .sheet(isPresented: $showingPricing) {
-                NavigationStack {
-                    PricingView(onPlanSelected: { selectedPlan in
-                        Task { [enforcement] in
-                            guard let orgId = auth.currentOrgId else { return }
-                            guard let priceId = selectedPlan.stripePriceId else {
-                                return
-                            }
-                            
-                            // Create Stripe Checkout session
-                            if let checkoutUrl = await enforcement.createCheckoutSession(
-                                organizationId: orgId,
-                                priceId: priceId
-                            ) {
-                                await MainActor.run {
-                                    showingPricing = false
-                                    openURL(checkoutUrl)
-                                }
-                            }
-                        }
-                    })
-                    .navigationBarItems(
-                        trailing: Button("Cancel") {
-                            showingPricing = false
-                        }
-                    )
-                }
             }
         }
         .navigationViewStyle(.stack)
