@@ -149,8 +149,8 @@ export default function SchedulePage() {
       }
     }
 
-    // Only load trainers if user is owner
-    if (userData.role === 'owner') {
+    // Load trainers for admins (same access as owners)
+    if (userData.role === 'owner' || userData.role === 'admin') {
       loadTrainers();
     }
   }, [orgId, userData?.role]);
@@ -503,7 +503,8 @@ export default function SchedulePage() {
     );
   }
 
-  const isAdmin = userData?.role === 'owner';
+  // Admins have same permissions as owners
+  const isAdmin = userData?.role === 'owner' || userData?.role === 'admin';
 
   return (
     <>

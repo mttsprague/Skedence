@@ -11,6 +11,25 @@ const stripe = new Stripe(stripeSecretKey, {
 const db = admin.firestore();
 
 /**
+ * Helper function to check if user is an admin of the organization
+ * Checks orgMembers collection for admin role
+ */
+async function isUserAdmin(userId: string, orgId: string): Promise<boolean> {
+  try {
+    // Check auth-based orgMember doc
+    const memberDoc = await db.collection('orgMembers').doc(`${userId}_${orgId}`).get();
+    if (memberDoc.exists) {
+      const memberData = memberDoc.data();
+      return memberData?.role === 'admin' && memberData?.isActive === true;
+    }
+    return false;
+  } catch (error) {
+    logger.error(`Error checking admin status for user ${userId} in org ${orgId}:`, error);
+    return false;
+  }
+}
+
+/**
  * STEP 8: Stripe Connect Functions
  *
  * These functions enable multi-tenant payment routing in LIVE MODE:
@@ -67,14 +86,23 @@ export const createConnectAccount = onCall(
     }
 
     try {
-      // Verify user is owner of this organization
+      // Verify user is admin of this organization
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
-      if (!orgData || orgData.ownerUserId !== request.auth.uid) {
+      if (!orgData) {
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      // Check if user is an admin via orgMembers
+      const userIsAdmin = await isUserAdmin(request.auth.uid, orgId);
+      if (!userIsAdmin) {
         throw new HttpsError(
           "permission-denied",
-          "You must be the organization owner"
+          "You must be an admin of this organization"
         );
       }
 
@@ -163,10 +191,19 @@ export const createConnectAccountLink = onCall(
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
-      if (!orgData || orgData.ownerUserId !== request.auth.uid) {
+      if (!orgData) {
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      // Check if user is an admin via orgMembers
+      const userIsAdmin = await isUserAdmin(request.auth.uid, orgId);
+      if (!userIsAdmin) {
         throw new HttpsError(
           "permission-denied",
-          "You must be the organization owner"
+          "You must be an admin of this organization"
         );
       }
 
@@ -232,10 +269,19 @@ export const refreshConnectAccountStatus = onCall(
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
-      if (!orgData || orgData.ownerUserId !== request.auth.uid) {
+      if (!orgData) {
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      // Check if user is an admin via orgMembers
+      const userIsAdmin = await isUserAdmin(request.auth.uid, orgId);
+      if (!userIsAdmin) {
         throw new HttpsError(
           "permission-denied",
-          "You must be the organization owner"
+          "You must be an admin of this organization"
         );
       }
 

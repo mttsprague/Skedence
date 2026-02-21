@@ -335,7 +335,7 @@ export default function TrainersPage() {
           orgId: orgId,
           actorId: user.uid,
           actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-          actorRole: 'owner', // Assuming only owner/admin can add trainers
+          actorRole: 'admin', // Admins can add trainers
           trainerId: trainerId,
           trainerName: `${newTrainer.firstName} ${newTrainer.lastName}`,
           trainerEmail: newTrainer.email,

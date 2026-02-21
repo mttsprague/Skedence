@@ -26,7 +26,8 @@ export default function StripeSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const isOwner = userData?.role === 'owner';
+  // Admins have same access as owners
+  const isOwner = userData?.role === 'owner' || userData?.role === 'admin';
 
   useEffect(() => {
     loadStripeKeys();

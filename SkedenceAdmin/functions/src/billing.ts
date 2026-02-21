@@ -11,6 +11,25 @@ const stripe = new Stripe(stripeSecretKey, {
 const db = admin.firestore();
 
 /**
+ * Helper function to check if user is an admin of the organization
+ * Checks orgMembers collection for admin role
+ */
+async function isUserAdmin(userId: string, orgId: string): Promise<boolean> {
+  try {
+    // Check auth-based orgMember doc
+    const memberDoc = await db.collection('orgMembers').doc(`${userId}_${orgId}`).get();
+    if (memberDoc.exists) {
+      const memberData = memberDoc.data();
+      return memberData?.role === 'admin' && memberData?.isActive === true;
+    }
+    return false;
+  } catch (error) {
+    logger.error(`Error checking admin status for user ${userId} in org ${orgId}:`, error);
+    return false;
+  }
+}
+
+/**
  * STEP 10: Platform Billing Functions
  *
  * Subscription tiers:
@@ -64,14 +83,22 @@ export const createSubscription = onCall(
     }
 
     try {
-      // Verify user is org owner
+      // Verify user is org admin
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
-      if (!orgData || orgData.ownerUserId !== request.auth.uid) {
+      if (!orgData) {
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      const userIsAdmin = await isUserAdmin(request.auth.uid, orgId);
+      if (!userIsAdmin) {
         throw new HttpsError(
           "permission-denied",
-          "You must be the organization owner"
+          "You must be an admin of this organization"
         );
       }
 
@@ -173,10 +200,18 @@ export const syncBillingFromStripe = onCall(
 
     const orgDoc = await db.collection("organizations").doc(orgId).get();
     const orgData = orgDoc.data();
-    if (!orgData || orgData.ownerUserId !== request.auth.uid) {
+    if (!orgData) {
+      throw new HttpsError(
+        "not-found",
+        "Organization not found"
+      );
+    }
+
+    const userIsAdmin = await isUserAdmin(request.auth.uid, orgId);
+    if (!userIsAdmin) {
       throw new HttpsError(
         "permission-denied",
-        "You must be the organization owner"
+        "You must be an admin of this organization"
       );
     }
 
@@ -279,15 +314,24 @@ export const cancelSubscription = onCall(
 
     try {
       console.log(`✅ Authenticated as ${request.auth.uid}, checking org ${orgId}`);
-      // Verify user is org owner
+      // Verify user is org admin
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
-      if (!orgData || orgData.ownerUserId !== request.auth.uid) {
-        console.log(`❌ Permission denied: ownerUserId=${orgData?.ownerUserId}, requestUid=${request.auth.uid}`);
+      if (!orgData) {
+        console.log(`❌ Organization not found: ${orgId}`);
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      const userIsAdmin = await isUserAdmin(request.auth.uid, orgId);
+      if (!userIsAdmin) {
+        console.log(`❌ Permission denied: user ${request.auth.uid} is not admin of org ${orgId}`);
         throw new HttpsError(
           "permission-denied",
-          "You must be the organization owner"
+          "You must be an admin of this organization"
         );
       }
 
@@ -370,15 +414,24 @@ export const restoreSubscription = onCall(
 
     try {
       console.log(`✅ Authenticated as ${request.auth.uid}, checking org ${orgId}`);
-      // Verify user is org owner
+      // Verify user is org admin
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
-      if (!orgData || orgData.ownerUserId !== request.auth.uid) {
-        console.log(`❌ Permission denied: ownerUserId=${orgData?.ownerUserId}, requestUid=${request.auth.uid}`);
+      if (!orgData) {
+        console.log(`❌ Organization not found: ${orgId}`);
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      const userIsAdmin = await isUserAdmin(request.auth.uid, orgId);
+      if (!userIsAdmin) {
+        console.log(`❌ Permission denied: user ${request.auth.uid} is not admin of org ${orgId}`);
         throw new HttpsError(
           "permission-denied",
-          "You must be the organization owner"
+          "You must be an admin of this organization"
         );
       }
 
@@ -454,14 +507,22 @@ export const updateSubscription = onCall(
     }
 
     try {
-      // Verify user is org owner
+      // Verify user is org admin
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
-      if (!orgData || orgData.ownerUserId !== request.auth.uid) {
+      if (!orgData) {
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      const userIsAdmin = await isUserAdmin(request.auth.uid, orgId);
+      if (!userIsAdmin) {
         throw new HttpsError(
           "permission-denied",
-          "You must be the organization owner"
+          "You must be an admin of this organization"
         );
       }
 
@@ -1153,10 +1214,11 @@ export const removePaymentMethod = onCall(
         );
       }
 
-      if (orgData.ownerUserId !== request.auth.uid) {
+      const userIsAdmin = await isUserAdmin(request.auth.uid, organizationId);
+      if (!userIsAdmin) {
         throw new HttpsError(
           "permission-denied",
-          "Only the organization owner can remove payment methods"
+          "You must be an admin of this organization to remove payment methods"
         );
       }
 

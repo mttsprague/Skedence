@@ -17,7 +17,7 @@ export interface User {
   lastName?: string;
   phoneNumber?: string;
   phone?: string; // Alternative field name used in some contexts
-  role?: 'owner' | 'trainer' | 'client';
+  role?: 'owner' | 'admin' | 'trainer' | 'client';
   photoURL?: string;
   avatarUrl?: string;
   orgId?: string;
