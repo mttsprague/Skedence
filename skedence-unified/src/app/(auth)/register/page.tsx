@@ -153,10 +153,10 @@ export default function RegisterPage() {
   };
 
   const handleComplete = async () => {
-    // Wait 3 seconds for Cloud Function transaction to fully commit
+    // Wait 5 seconds for Cloud Function transaction to fully commit
     // This ensures orgMembers docs are available when useAuth queries them
     console.log('⏳ Waiting for database sync before navigating...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     // Force auth to reload to pick up new orgMembers
     console.log('🔄 Reloading auth state...');
@@ -164,7 +164,8 @@ export default function RegisterPage() {
     
     // Clean up
     sessionStorage.removeItem('newOrgId');
-    console.log('✅ Navigating to dashboard');
+    console.log('✅ Navigating to activity page...');
+    console.log('ℹ️  Note: If activity page shows loading spinner, check console logs from useAuth for retry status');
 
     // Navigate to activity feed
     router.push("/activity");

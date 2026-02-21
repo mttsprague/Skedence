@@ -100,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           console.log('Auth: User role from orgMembers:', role);
           
-          // Only allow owner role to access admin portal
-          if (role === 'owner') {
+          // Allow owner and admin roles to access admin portal
+          if (role === 'owner' || role === 'admin') {
             // Get user data from users collection
             let userName = firebaseUser.email?.split('@')[0] || '';
             
@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hasCompletedInitialCheck.current = true;
             validatedUserId.current = firebaseUser.uid;
           } else {
-            console.error('Auth: User is not an admin. Admin portal access denied (admin role required).');
+            console.error('Auth: User is not an owner or admin. Admin portal access denied.');
             setUserData(null);
             setOrgId(null);
             
@@ -138,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
         } else {
-          console.error('Auth: User not found in orgMembers. Admin portal access denied.');
+          console.error('Auth: User not found in orgMembers after retries. Admin portal access denied.');
           setUserData(null);
           setOrgId(null);
           
