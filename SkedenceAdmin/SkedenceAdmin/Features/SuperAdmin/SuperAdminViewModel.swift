@@ -165,6 +165,11 @@ class SuperAdminViewModel: ObservableObject {
                     continue
                 }
                 
+                // Get authUserId for orgMembers document ID construction
+                guard let authUserId = memberData["authUserId"] as? String else {
+                    continue
+                }
+                
                 // Members tab should only show staff: trainers, admins, owners (NOT clients)
                 // NOTE: Staff are stored in trainers collection, clients in users collection
                 let role = memberData["role"] as? String ?? "client"
@@ -232,6 +237,7 @@ class SuperAdminViewModel: ObservableObject {
                 
                 users.append(AdminUser(
                     id: memberId,
+                    authUserId: authUserId,
                     firstName: firstName,
                     lastName: lastName,
                     emailAddress: email,
@@ -256,7 +262,14 @@ class SuperAdminViewModel: ObservableObject {
         }
         
         do {
-            let memberDocId = "\(userId)_\(orgId)"
+            // Find the user to get their authUserId
+            guard let user = allUsers.first(where: { $0.id == userId }) else {
+                errorMessage = "User not found"
+                return
+            }
+            
+            // Use auth-based pattern: {authUserId}_{orgId}
+            let memberDocId = "\(user.authUserId)_\(orgId)"
             try await db.collection("orgMembers").document(memberDocId).updateData([
                 "role": newRole
             ])
@@ -555,6 +568,7 @@ struct AdminTrainer: Identifiable {
 
 struct AdminUser: Identifiable {
     let id: String
+    let authUserId: String // Firebase Auth UID for orgMembers queries
     let firstName: String
     let lastName: String
     let emailAddress: String?

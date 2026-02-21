@@ -111,8 +111,9 @@ final class AdminRepository: RepositoryProtocol {
     
     /// Update user role in organization
     func updateUserRole(userId: String, orgId: String, role: String) async throws {
+        // Query by authUserId field (Firebase Auth UID) instead of userId (name-based ID)
         let snapshot = try await db.collection("orgMembers")
-            .whereField("userId", isEqualTo: userId)
+            .whereField("authUserId", isEqualTo: userId)
             .whereField("orgId", isEqualTo: orgId)
             .limit(to: 1)
             .getDocuments()

@@ -49,7 +49,7 @@ export const createWebCheckoutSession = onCall(
     try {
       // Verify user is owner
       const memberQuery = await db.collection("orgMembers")
-        .where("userId", "==", request.auth.uid)
+        .where("authUserId", "==", request.auth.uid)
         .where("orgId", "==", organizationId)
         .where("role", "==", "owner")
         .limit(1)
@@ -189,7 +189,7 @@ export const createCustomerPortalSession = onCall(
     try {
       // Verify user is owner
       const memberQuery = await db.collection("orgMembers")
-        .where("userId", "==", request.auth.uid)
+        .where("authUserId", "==", request.auth.uid)
         .where("orgId", "==", organizationId)
         .where("role", "==", "owner")
         .limit(1)
