@@ -44,9 +44,15 @@ final class TrainersRepository: QueryableRepositoryProtocol {
     }
     
     func create(_ item: Trainer, orgId: String) async throws -> String {
+        // Generate name-based trainer ID (e.g., john_doe)
+        let trainerId = try await IDGenerator.generateTrainerId(
+            firstName: item.firstName,
+            lastName: item.lastName
+        )
+        
         let trainerData = encodeTrainer(item, orgId: orgId)
-        let ref = try await db.collection("trainers").addDocument(data: trainerData)
-        return ref.documentID
+        try await db.collection("trainers").document(trainerId).setData(trainerData)
+        return trainerId
     }
     
     func update(id: String, data: [String: Any], orgId: String) async throws {

@@ -252,8 +252,13 @@ struct CreateBusinessView: View {
                 
                 // Standard flow: Create new business owner account
                 
-                // 2. Create organization document
-                let orgRef = db.collection("organizations").document()
+                // 2. Generate name-based organization ID (e.g., skedence_gym)
+                let orgId = try await IDGenerator.generateOrganizationId(name: businessName)
+                
+                // 3. Create organization document with name-based ID
+                let orgRef = db.collection("organizations").document(orgId)
+                
+                let trialEndsAt = Date().addingTimeInterval(14 * 24 * 60 * 60) // 14 days
                 
                 let orgData: [String: Any] = [
                     "name": businessName,
@@ -274,12 +279,10 @@ struct CreateBusinessView: View {
                     ],
                     "billing": [
                         "plan": "free",
-                        "status": "active",
-                        "subscriptionId": NSNull(),
-                        "customerId": NSNull(),
-                        "currentPeriodEnd": NSNull(),
-                        "cancelAtPeriodEnd": false,
-                        "lastPaymentDate": NSNull()
+                        "status": "trialing",
+                        "isActive": true,
+                        "isInGrace": false,
+                        "trialEndsAt": Timestamp(date: trialEndsAt)
                     ],
                     "settings": [
                         "timezone": timezone,
@@ -288,15 +291,20 @@ struct CreateBusinessView: View {
                 ]
                 
                 try await orgRef.setData(orgData)
-                let orgId = orgRef.documentID
                 
-                // 3. Generate name-based user ID (e.g., john_doe)
+                // 4. Generate name-based user ID (e.g., john_doe)
                 let nameBasedUserId = try await IDGenerator.generateUserId(
                     firstName: ownerFirstName,
                     lastName: ownerLastName
                 )
                 
-                // 4. Create user document with name-based ID
+                // 5. Generate name-based trainer ID (e.g., john_doe)
+                let trainerId = try await IDGenerator.generateTrainerId(
+                    firstName: ownerFirstName,
+                    lastName: ownerLastName
+                )
+                
+                // 6. Create user document with name-based ID
                 let userData: [String: Any] = [
                     "authUserId": userId,  // Firebase Auth UID
                     "email": ownerEmail.lowercased(),
@@ -304,7 +312,7 @@ struct CreateBusinessView: View {
                     "firstName": ownerFirstName,
                     "lastName": ownerLastName,
                     "orgId": orgId,
-                    "role": "owner",
+                    "role": "admin",  // Admin role (primary)
                     "needsPasswordSetup": false,
                     "active": true,
                     "createdAt": Timestamp(date: Date()),
@@ -315,40 +323,53 @@ struct CreateBusinessView: View {
                     .document(nameBasedUserId)  // Use name-based ID
                     .setData(userData)
                 
-                // 5. Create orgMember document (SINGLE pattern: firstName_lastName_orgId)
-                let memberData: [String: Any] = [
-                    "orgId": orgId,
-                    "userId": nameBasedUserId,  // Name-based user ID
-                    "authUserId": userId,        // Firebase Auth UID
-                    "role": "admin",             // Admin role (no owner)
-                    "isActive": true,
-                    "createdAt": Timestamp(date: Date())
-                ]
-                
-                // Single pattern: {nameBasedUserId}_{orgId}
-                try await db.collection("orgMembers")
-                    .document("\(nameBasedUserId)_\(orgId)")
-                    .setData(memberData)
-                
-                // 6. Create trainer profile
+                // 7. Create trainer profile with name-based ID
                 let trainerData: [String: Any] = [
                     "orgId": orgId,
+                    "authUserId": userId,  // Link to Firebase Auth UID
                     "firstName": ownerFirstName,
                     "lastName": ownerLastName,
-                    "email": ownerEmail,
+                    "email": ownerEmail.lowercased(),
                     "active": true,
-                    "isAdmin": true,
+                    "isAdmin": true,  // Admin takes precedence
                     "createdAt": Timestamp(date: Date())
                 ]
                 
                 try await db.collection("trainers")
-                    .document(userId)
+                    .document(trainerId)  // Use name-based trainer ID
                     .setData(trainerData)
                 
-                // 6. Load org data into AuthManager
+                // 8. Create DUAL orgMember documents (match web pattern)
+                let memberData: [String: Any] = [
+                    "orgId": orgId,
+                    "userId": trainerId,         // Name-based trainer ID
+                    "authUserId": userId,        // Firebase Auth UID
+                    "role": "admin",             // Admin role (primary)
+                    "isActive": true,
+                    "createdAt": Timestamp(date: Date())
+                ]
+                
+                // Pattern 1: {trainerId}_{orgId} (name-based)
+                try await db.collection("orgMembers")
+                    .document("\(trainerId)_\(orgId)")
+                    .setData(memberData)
+                
+                // Pattern 2: {authUserId}_{orgId} (auth-based, for useAuth queries)
+                try await db.collection("orgMembers")
+                    .document("\(userId)_\(orgId)")
+                    .setData(memberData)
+                
+                print("✅ CreateBusinessView: Created organization with name-based IDs")
+                print("   - Organization ID: \(orgId)")
+                print("   - Trainer ID: \(trainerId)")
+                print("   - User ID: \(nameBasedUserId)")
+                print("   - orgMembers: \(trainerId)_\(orgId) and \(userId)_\(orgId)")
+                print("   - Role: admin (also trainer with isAdmin=true)")
+                
+                // 9. Load org data into AuthManager
                 await auth.loadOrgId(for: userId)
                 
-                // 7. Show Stripe onboarding
+                // 10. Show Stripe onboarding
                 createdOrgId = orgId
                 showingStripeOnboarding = true
                 isCreating = false
