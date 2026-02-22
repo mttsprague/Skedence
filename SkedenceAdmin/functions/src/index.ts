@@ -157,8 +157,27 @@ export const bookLesson = onCall(
       );
     }
 
-    // If clientId is provided (admin booking), use it; otherwise use authenticated user
-    const userId = clientId || authUserId;
+    // Determine the user document ID:
+    // - If clientId is provided (admin booking), use it directly as document ID
+    // - Otherwise, query users collection by authUserId field to find document ID
+    let userId: string;
+    if (clientId) {
+      userId = clientId;
+    } else {
+      // Query users collection to find document ID by authUserId field
+      const userQuery = await db.collection("users")
+        .where("authUserId", "==", authUserId)
+        .limit(1)
+        .get();
+      
+      if (userQuery.empty) {
+        throw new HttpsError(
+          "not-found",
+          "User profile not found. Please ensure your profile is set up correctly."
+        );
+      }
+      userId = userQuery.docs[0].id;
+    }
 
     const userRef = db.collection("users").doc(userId);
     const trainerRef = db.collection("trainers").doc(trainerId);
@@ -436,7 +455,8 @@ export const bookLesson = onCall(
         const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
 
         transaction.set(newBookingRef, {
-          clientUID: userId,
+          clientUID: userId, // User document ID (firstName_lastName)
+          clientAuthUID: authUserId, // Firebase Auth UID for permission checks
           clientId: userId, // Add for backward compatibility with queries
           trainerId: trainerId,
           slotId: slotId, // deterministic schedule slot id
@@ -530,7 +550,7 @@ export const registerForClass = onCall(
         "The function must be called while authenticated."
       );
     }
-    const userId = request.auth.uid;
+    const authUserId = request.auth.uid;
 
     const {classId, classPassPackageId, athleteName, secondAthleteName} = request.data;
     if (!classId || !classPassPackageId) {
@@ -539,6 +559,20 @@ export const registerForClass = onCall(
         "Missing classId or classPassPackageId in request data."
       );
     }
+
+    // Query users collection to find document ID by authUserId field
+    const userQuery = await db.collection("users")
+      .where("authUserId", "==", authUserId)
+      .limit(1)
+      .get();
+    
+    if (userQuery.empty) {
+      throw new HttpsError(
+        "not-found",
+        "User profile not found. Please ensure your profile is set up correctly."
+      );
+    }
+    const userId = userQuery.docs[0].id;
 
     const userRef = db.collection("users").doc(userId);
     const classPassRef = userRef
@@ -665,7 +699,8 @@ export const registerForClass = onCall(
         const primaryParticipantRef = classRef.collection("participants").doc(primaryParticipantId);
 
         transaction.set(primaryParticipantRef, {
-          userId: userId,
+          userId: userId, // User document ID
+          authUserId: authUserId, // Firebase Auth UID for permission checks
           firstName: userData.firstName || "Unknown",
           lastName: userData.lastName || "User",
           athleteName: primaryAthleteName,
@@ -679,7 +714,8 @@ export const registerForClass = onCall(
           const secondParticipantRef = classRef.collection("participants").doc(secondParticipantId);
 
           transaction.set(secondParticipantRef, {
-            userId: userId,
+            userId: userId, // User document ID
+            authUserId: authUserId, // Firebase Auth UID for permission checks
             firstName: userData.firstName || "Unknown",
             lastName: userData.lastName || "User",
             athleteName: secondAthleteName,
@@ -824,9 +860,9 @@ export const cancelLesson = onCall(
           );
         }
 
-        // Verify user owns this booking - check both clientUID and clientId for compatibility
-        const bookingClientId = bookingData.clientUID || bookingData.clientId;
-        if (!bookingClientId || bookingClientId !== userId) {
+        // Verify user owns this booking - check clientAuthUID first, fallback to clientUID/clientId for legacy bookings
+        const bookingClientAuthId = bookingData.clientAuthUID || bookingData.clientUID || bookingData.clientId;
+        if (!bookingClientAuthId || bookingClientAuthId !== userId) {
           throw new HttpsError(
             "permission-denied",
             "You can only cancel your own bookings."
@@ -1281,7 +1317,7 @@ export const cancelClassRegistration = onCall(
         "You must be signed in to cancel a registration."
       );
     }
-    const userId = request.auth.uid;
+    const authUserId = request.auth.uid;
     const {classId} = request.data;
 
     if (!classId) {
@@ -1291,13 +1327,37 @@ export const cancelClassRegistration = onCall(
       );
     }
 
+    // Query users collection to find document ID by authUserId field
+    const userQuery = await db.collection("users")
+      .where("authUserId", "==", authUserId)
+      .limit(1)
+      .get();
+    
+    if (userQuery.empty) {
+      throw new HttpsError(
+        "not-found",
+        "User profile not found. Please ensure your profile is set up correctly."
+      );
+    }
+    const userId = userQuery.docs[0].id;
+
     try {
       const classRef = db.collection("classes").doc(classId);
-      const participantRef = classRef.collection("participants").doc(userId);
+
+      // Query all participants for this user (by authUserId) in this class
+      const participantsQuery = await classRef.collection("participants")
+        .where("authUserId", "==", authUserId)
+        .get();
+
+      if (participantsQuery.empty) {
+        throw new HttpsError(
+          "not-found",
+          "You are not registered for this class."
+        );
+      }
 
       await db.runTransaction(async (transaction) => {
         const classDoc = await transaction.get(classRef);
-        const participantDoc = await transaction.get(participantRef);
 
         if (!classDoc.exists) {
           throw new HttpsError(
@@ -1306,14 +1366,9 @@ export const cancelClassRegistration = onCall(
           );
         }
 
-        if (!participantDoc.exists) {
-          throw new HttpsError(
-            "not-found",
-            "You are not registered for this class."
-          );
-        }
-
-        const participantData = participantDoc.data();
+        // Get first participant's data for class pass reference
+        const firstParticipant = participantsQuery.docs[0];
+        const participantData = firstParticipant.data();
         if (!participantData) {
           throw new HttpsError(
             "internal",
@@ -1321,7 +1376,8 @@ export const cancelClassRegistration = onCall(
           );
         }
 
-        // Get the class pass package and decrement lessonsUsed
+        // Get the class pass package and decrement lessonsUsed by number of participants
+        const athleteCount = participantsQuery.size;
         const classPassRef = db
           .collection("users")
           .doc(userId)
@@ -1331,17 +1387,19 @@ export const cancelClassRegistration = onCall(
         const classPassDoc = await transaction.get(classPassRef);
         if (classPassDoc.exists) {
           transaction.update(classPassRef, {
-            lessonsUsed: admin.firestore.FieldValue.increment(-1),
+            lessonsUsed: admin.firestore.FieldValue.increment(-athleteCount),
           });
         }
 
-        // Decrement class participants count
+        // Decrement class participants count by number of athletes
         transaction.update(classRef, {
-          currentParticipants: admin.firestore.FieldValue.increment(-1),
+          currentParticipants: admin.firestore.FieldValue.increment(-athleteCount),
         });
 
-        // Remove participant from class
-        transaction.delete(participantRef);
+        // Remove all participants for this user from class
+        for (const participantDoc of participantsQuery.docs) {
+          transaction.delete(participantDoc.ref);
+        }
         
         // Delete classRegistration document
         const registrationId = `${userId}_${classId}`;
@@ -1792,7 +1850,21 @@ export const updateClassLocations = onCall(
       );
     }
 
-    const userId = request.auth.uid;
+    const authUserId = request.auth.uid;
+    
+    // Query users collection to find document ID by authUserId field
+    const userQuery = await db.collection("users")
+      .where("authUserId", "==", authUserId)
+      .limit(1)
+      .get();
+    
+    if (userQuery.empty) {
+      throw new HttpsError(
+        "not-found",
+        "User profile not found. Please ensure your profile is set up correctly."
+      );
+    }
+    const userId = userQuery.docs[0].id;
     const userDoc = await db.collection("users").doc(userId).get();
 
     if (!userDoc.exists || !userDoc.data()?.isAdmin) {
