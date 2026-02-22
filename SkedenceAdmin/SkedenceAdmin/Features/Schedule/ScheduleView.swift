@@ -595,40 +595,39 @@ private func findTrainerDocument(forUserId userId: String, orgId: String) async 
 #if canImport(FirebaseFirestore)
     let db = Firestore.firestore()
     
+    // Query trainers by authUserId field (userId here is Auth UID)
+    let trainerQuery = try? await db.collection("trainers")
+        .whereField("authUserId", isEqualTo: userId)
+        .whereField("orgId", isEqualTo: orgId)
+        .limit(to: 1)
+        .getDocuments()
     
-    // First try: check if trainer document ID equals the userId
-    let directDoc = try? await db.collection("trainers").document(userId).getDocument()
-    if let directDoc = directDoc, directDoc.exists {
-    }
-    
-    if let directDoc = directDoc, directDoc.exists,
-       let data = directDoc.data(),
-       let trainerOrgId = data["orgId"] as? String,
-       trainerOrgId == orgId {
+    if let doc = trainerQuery?.documents.first {
+        let data = doc.data()
         return Trainer(
-            id: directDoc.documentID,
+            id: doc.documentID,
             firstName: data["firstName"] as? String,
             lastName: data["lastName"] as? String,
             email: data["email"] as? String,
-            orgId: trainerOrgId
+            orgId: data["orgId"] as? String
         )
     }
     
-    // Second try: query trainers where email matches the user's email or another UID field
-    // This handles cases where trainer doc ID doesn't match auth UID
-    let userDoc = try? await db.collection("users").document(userId).getDocument()
-    if userDoc?.data() != nil {
-    }
+    // Fallback: Query users by authUserId to get email, then query trainers by email
+    let userQuery = try? await db.collection("users")
+        .whereField("authUserId", isEqualTo: userId)
+        .limit(to: 1)
+        .getDocuments()
     
-    if let userEmail = userDoc?.data()?["email"] as? String ?? userDoc?.data()?["emailAddress"] as? String {
-        let querySnapshot = try? await db.collection("trainers")
+    if let userEmail = userQuery?.documents.first?.data()["email"] as? String 
+        ?? userQuery?.documents.first?.data()["emailAddress"] as? String {
+        let trainerByEmailQuery = try? await db.collection("trainers")
             .whereField("orgId", isEqualTo: orgId)
             .whereField("email", isEqualTo: userEmail)
             .limit(to: 1)
             .getDocuments()
         
-        
-        if let doc = querySnapshot?.documents.first {
+        if let doc = trainerByEmailQuery?.documents.first {
             let data = doc.data()
             return Trainer(
                 id: doc.documentID,

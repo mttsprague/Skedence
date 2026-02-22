@@ -84,28 +84,33 @@ final class AdminService: ObservableObject {
             }
             
             // Fallback 1: Check trainers collection (for trainers who don't have orgMembers doc)
-            let trainerDoc = try await db.collection("trainers").document(uid).getDocument()
-            if trainerDoc.exists {
-                let data = trainerDoc.data() ?? [:]
-                let isActive = data["isActive"] as? Bool ?? true
-                if isActive {
-                    isAdmin = true
-                    
-                    // Load organization data if orgId exists
-                    if let orgId = data["orgId"] as? String {
-                        await loadOrganizationData(orgId: orgId)
-                    }
-                    
-                    isLoading = false
-                    return
+            let trainerQuery = try await db.collection("trainers")
+                .whereField("authUserId", isEqualTo: uid)
+                .whereField("active", isEqualTo: true)
+                .limit(to: 1)
+                .getDocuments()
+            
+            if let trainerDoc = trainerQuery.documents.first {
+                let data = trainerDoc.data()
+                isAdmin = true
+                
+                // Load organization data if orgId exists
+                if let orgId = data["orgId"] as? String {
+                    await loadOrganizationData(orgId: orgId)
                 }
+                
+                isLoading = false
+                return
             }
             
             // Fallback 2: Check isAdmin field in user document
-            let userDoc = try await db.collection("users").document(uid).getDocument()
+            let userQuery = try await db.collection("users")
+                .whereField("authUserId", isEqualTo: uid)
+                .limit(to: 1)
+                .getDocuments()
             
-            if userDoc.exists {
-                let data = userDoc.data() ?? [:]
+            if let userDoc = userQuery.documents.first {
+                let data = userDoc.data()
                 isAdmin = data["isAdmin"] as? Bool ?? false
                 
                 // Load organization data if admin and orgId exists

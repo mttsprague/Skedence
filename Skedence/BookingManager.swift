@@ -157,13 +157,25 @@ final class BookingManager: ObservableObject {
         }
         
         // Try NEW path first: organizations/{orgId}/users/{userId}/packages
-        // Get orgId from user document
-        let userDoc = try await db.collection("users").document(uid).getDocument()
-        if let orgId = userDoc.data()?["orgId"] as? String {
+        // Query users by authUserId to find actual user document ID
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: uid)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            print("⚠️ BookingManager: No user document found for authUserId: \(uid)")
+            return nil
+        }
+        
+        let userId = userDoc.documentID
+        let userData = userDoc.data()
+        
+        if let orgId = userData["orgId"] as? String {
             let newPathSnap = try await db.collection("organizations")
                 .document(orgId)
                 .collection("users")
-                .document(uid)
+                .document(userId)
                 .collection("packages")
                 .order(by: "expirationDate", descending: false)
                 .getDocuments()
@@ -179,9 +191,9 @@ final class BookingManager: ObservableObject {
             }
         }
         
-        // Fallback to OLD path: users/{uid}/lessonPackages
+        // Fallback to OLD path: users/{userId}/lessonPackages
         let oldPathSnap = try await db.collection("users")
-            .document(uid)
+            .document(userId)
             .collection("lessonPackages")
             .order(by: "expirationDate", descending: false)
             .getDocuments()
@@ -201,8 +213,17 @@ final class BookingManager: ObservableObject {
     // MARK: - Decode booking helper
 
     private func getOrgIdForUser(_ uid: String) async throws -> String? {
-        let userDoc = try await db.collection("users").document(uid).getDocument()
-        return userDoc.data()?["orgId"] as? String
+        // Query users by authUserId to find actual document
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: uid)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            return nil
+        }
+        
+        return userDoc.data()["orgId"] as? String
     }
 
     private func decodeBooking(from dict: [String: Any]) throws -> Booking {

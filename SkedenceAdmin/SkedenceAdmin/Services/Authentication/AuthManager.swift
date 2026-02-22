@@ -449,19 +449,26 @@ final class AuthManager: ObservableObject {
             print("✅ loadOrgBranding: Complete")
             
             // Load user profile data (firstName, lastName)
-            if let uid = userId, !uid.isEmpty {
-                // For trainers, load from trainers collection
-                // For admins, try trainers first, then fall back to users
+            if let authUserId = userId, !authUserId.isEmpty {
+                // Query by authUserId to find trainer or user document
                 var userData: [String: Any]?
                 
                 // Try trainers collection first (most common case)
-                let trainerDoc = try await db.collection("trainers").document(uid).getDocument()
-                if trainerDoc.exists {
+                let trainerQuery = try await db.collection("trainers")
+                    .whereField("authUserId", isEqualTo: authUserId)
+                    .limit(to: 1)
+                    .getDocuments()
+                
+                if let trainerDoc = trainerQuery.documents.first {
                     userData = trainerDoc.data()
                 } else {
-                    // Fall back to users collection for admins
-                    let userDoc = try await db.collection("users").document(uid).getDocument()
-                    if userDoc.exists {
+                    // Fall back to users collection for admins/clients
+                    let userQuery = try await db.collection("users")
+                        .whereField("authUserId", isEqualTo: authUserId)
+                        .limit(to: 1)
+                        .getDocuments()
+                    
+                    if let userDoc = userQuery.documents.first {
                         userData = userDoc.data()
                     }
                 }
