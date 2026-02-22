@@ -97,10 +97,12 @@ struct MoreView: View {
     @State private var editEmail = ""
     @State private var isSavingProfile = false
     @State private var profileError: String?
+    @State private var showMyPasses = false
     
     // Convenience accessors
     private var auth: AuthManager { dependencies.auth }
     private var trainersService: TrainersService { dependencies.trainers }
+    private var packagesService: PackagesService { dependencies.packages }
 
     var body: some View {
         NavigationView {
@@ -191,6 +193,81 @@ struct MoreView: View {
                                     if let orgName = auth.organizationName {
                                         Divider()
                                         InfoRow(label: "Organization", value: orgName)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, Spacing.lg)
+                        
+                        // My Passes Section
+                        CardView {
+                            VStack(alignment: .leading, spacing: Spacing.md) {
+                                Button {
+                                    withAnimation {
+                                        showMyPasses.toggle()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text("My Passes")
+                                            .font(.headingSmall)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: showMyPasses ? "chevron.up" : "chevron.down")
+                                            .font(.bodySmall)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                
+                                if showMyPasses {
+                                    Divider()
+                                    
+                                    if packagesService.isLoading {
+                                        HStack {
+                                            Spacer()
+                                            ProgressView()
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, Spacing.md)
+                                    } else if packagesService.packages.isEmpty {
+                                        Text("No passes found")
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                            .frame(maxWidth: .infinity, alignment: .center)
+                                            .padding(.vertical, Spacing.md)
+                                    } else {
+                                        VStack(spacing: Spacing.sm) {
+                                            ForEach(packagesService.packages) { package in
+                                                VStack(spacing: Spacing.xs) {
+                                                    HStack {
+                                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                                            Text(package.packageName ?? package.packageType.capitalized)
+                                                                .font(.bodyMedium)
+                                                                .foregroundStyle(AppTheme.textPrimary)
+                                                            
+                                                            Text("\(package.lessonsRemaining) of \(package.totalLessons) remaining")
+                                                                .font(.bodySmall)
+                                                                .foregroundStyle(AppTheme.textSecondary)
+                                                        }
+                                                        
+                                                        Spacer()
+                                                        
+                                                        // Show expiration if available
+                                                        if let expiration = package.expirationDate {
+                                                            Text(expiration > Date() ? "Expires \(expiration.formatted(date: .abbreviated, time: .omitted))" : "Expired")
+                                                                .font(.caption)
+                                                                .foregroundStyle(expiration > Date() ? AppTheme.textSecondary : AppTheme.error)
+                                                        }
+                                                    }
+                                                    
+                                                    if package != packagesService.packages.last {
+                                                        Divider()
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -387,6 +464,12 @@ struct MoreView: View {
             }
         }
         .navigationViewStyle(.stack)
+        .task {
+            // Load trainer's own packages
+            if auth.isAuthenticated {
+                await packagesService.loadMyPackages()
+            }
+        }
     }
     
     // MARK: - Trainers Section

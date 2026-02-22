@@ -41,9 +41,12 @@ export const bookingSchemas = {
     trainerId: Joi.string().pattern(patterns.firestoreId).required(),
     slotId: Joi.string().pattern(patterns.slotId).required(),
     lessonPackageId: Joi.string().pattern(patterns.firestoreId).required(),
+    clientId: Joi.string().pattern(patterns.firestoreId).optional().allow(''),
     athleteName: Joi.string().max(100).optional().allow(''),
+    secondAthleteName: Joi.string().max(100).optional().allow(''),
+    athleteNames: Joi.array().items(Joi.string().max(100)).optional(),
     lessonNotes: Joi.string().max(500).optional().allow(''),
-    orgId: Joi.string().pattern(patterns.firestoreId).required(),
+    orgId: Joi.string().pattern(patterns.firestoreId).optional(),
   }),
 
   cancelLesson: Joi.object({

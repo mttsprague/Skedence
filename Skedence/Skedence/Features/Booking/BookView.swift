@@ -944,7 +944,12 @@ struct BookView: View {
                     pricingStructure: pricingService.pricingStructure,
                     onSelect: { package in
                         selectedPackage = package
-                        selectedAthletes = []
+                        // Initialize selectedAthletes array immediately with correct count
+                        if let category = getPackageCategory(package), category.isPrivateLesson {
+                            selectedAthletes = Array(repeating: nil, count: category.athleteCount)
+                        } else {
+                            selectedAthletes = []
+                        }
                     }
                 )
             }

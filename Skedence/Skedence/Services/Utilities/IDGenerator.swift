@@ -72,8 +72,17 @@ class IDGenerator {
     /// Generate a schedule ID based on trainer and start time
     /// Format: trainerId_timestamp (e.g., jeff_wilson_1740045600)
     static func generateScheduleId(trainerId: String, startTime: Date) -> String {
-        let timestamp = Int(startTime.timeIntervalSince1970)
-        return "\(trainerId)_\(timestamp)"
+        // Use deterministic format to match Cloud Function: YYYY-MM-DDTHH
+        let calendar = Calendar(identifier: .gregorian)
+        var utcCalendar = calendar
+        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        
+        let comps = utcCalendar.dateComponents([.year, .month, .day, .hour], from: startTime)
+        let y = comps.year ?? 1970
+        let m = comps.month ?? 1
+        let d = comps.day ?? 1
+        let h = comps.hour ?? 0
+        return String(format: "%04d-%02d-%02dT%02d", y, m, d, h)
     }
     
     /// Generate a waiver/document ID based on user, type, and date

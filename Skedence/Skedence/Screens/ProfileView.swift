@@ -79,6 +79,18 @@ struct ProfileView: View {
                     }
                 }
             }
+            .onChange(of: isSignedIn) { oldValue, newValue in
+                // When user signs in or registers, reload all profile data
+                if newValue == true && oldValue == false {
+                    Task {
+                        await usersService.loadCurrentUserIfAvailable()
+                        await packagesService.loadMyPackages(orgId: auth.currentOrgId)
+                        if let orgId = auth.currentOrgId {
+                            await bookingsService.loadMyBookings(orgId: orgId)
+                        }
+                    }
+                }
+            }
         }
     }
 }

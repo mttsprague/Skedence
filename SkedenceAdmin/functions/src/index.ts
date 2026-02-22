@@ -147,15 +147,18 @@ export const bookLesson = onCall(
         "The function must be called while authenticated."
       );
     }
-    const userId = request.auth.uid;
+    const authUserId = request.auth.uid;
 
-    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, athleteNames, lessonNotes} = request.data;
+    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, athleteNames, lessonNotes, clientId} = request.data;
     if (!trainerId || !slotId || !lessonPackageId) {
       throw new HttpsError(
         "invalid-argument",
         "Missing trainerId, slotId, or lessonPackageId in request data."
       );
     }
+
+    // If clientId is provided (admin booking), use it; otherwise use authenticated user
+    const userId = clientId || authUserId;
 
     const userRef = db.collection("users").doc(userId);
     const trainerRef = db.collection("trainers").doc(trainerId);
