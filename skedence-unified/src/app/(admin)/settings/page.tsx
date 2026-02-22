@@ -25,7 +25,7 @@ export default function SettingsPage() {
     maxBookingsPerLocation: 10,
     defaultSessionLength: 60,
     allowSameDayBooking: false,
-    requireWaiver: true,
+    requireWaiver: false,
   });
   const [loading, setLoading] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -46,7 +46,7 @@ export default function SettingsPage() {
             maxBookingsPerLocation: data.maxBookingsPerLocation || 10,
             defaultSessionLength: data.defaultSessionLength || 60,
             allowSameDayBooking: data.allowSameDayBooking || false,
-            requireWaiver: data.requireWaiver !== false,
+            requireWaiver: data.requireWaiver === true,
           });
         }
       } catch (error) {
@@ -199,7 +199,7 @@ export default function SettingsPage() {
                     <span className="text-sm font-medium text-foreground">Require Waiver Agreement</span>
                   </label>
                   <p className="text-sm text-muted-foreground mt-1 ml-8">
-                    Clients must agree to waiver before first booking
+                    When enabled, clients must agree to waiver after their first booking
                   </p>
                 </div>
               </CardContent>

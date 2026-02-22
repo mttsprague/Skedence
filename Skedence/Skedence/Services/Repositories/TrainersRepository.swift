@@ -44,10 +44,18 @@ final class TrainersRepository: QueryableRepositoryProtocol {
     }
     
     func create(_ item: Trainer, orgId: String) async throws -> String {
+        // Validate and unwrap required fields for ID generation
+        guard
+            let rawFirst = item.firstName?.trimmingCharacters(in: .whitespacesAndNewlines), !rawFirst.isEmpty,
+            let rawLast = item.lastName?.trimmingCharacters(in: .whitespacesAndNewlines), !rawLast.isEmpty
+        else {
+            throw RepositoryError.invalidData("First and last name are required to create a trainer ID")
+        }
+        
         // Generate name-based trainer ID (e.g., john_doe)
         let trainerId = try await IDGenerator.generateTrainerId(
-            firstName: item.firstName,
-            lastName: item.lastName
+            firstName: rawFirst,
+            lastName: rawLast
         )
         
         let trainerData = encodeTrainer(item, orgId: orgId)

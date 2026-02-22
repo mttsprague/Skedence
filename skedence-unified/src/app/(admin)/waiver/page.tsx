@@ -30,7 +30,7 @@ export default function WaiverPage() {
         if (orgDoc.exists()) {
           const data = orgDoc.data();
           setSettings({
-            requireWaiver: data.requireWaiver !== false,
+            requireWaiver: data.requireWaiver === true,
             waiverText: data.waiverText || '',
           });
         }
