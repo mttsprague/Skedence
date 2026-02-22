@@ -151,7 +151,8 @@ struct ClientCardView: View {
             await viewModel.loadClientData(
                 clientId: client.id,
                 selectedBooking: selectedBooking,
-                orgId: auth.currentOrgId
+                orgId: auth.currentOrgId,
+                userEmail: auth.userEmail
             )
         }
         .alert("Cancel Lesson", isPresented: $showCancelConfirmation, presenting: bookingToCancel) { bookingId in
@@ -360,10 +361,10 @@ class ClientCardViewModel: ObservableObject {
     @Published var isLoadingPaymentMethod = false
     @Published var isLoadingProfile = false
     
-    func loadClientData(clientId: String, selectedBooking: ClientBooking?, orgId: String?) async {
+    func loadClientData(clientId: String, selectedBooking: ClientBooking?, orgId: String?, userEmail: String? = nil) async {
         // Check admin status
         #if canImport(FirebaseFirestore)
-        await checkAdminStatus()
+        await checkAdminStatus(userEmail: userEmail, orgId: orgId)
         #endif
         
         // Load data in parallel (packages, documents, profile always; bookings only if orgId available)
@@ -468,17 +469,32 @@ class ClientCardViewModel: ObservableObject {
         }
     }
     
-    private func checkAdminStatus() async {
+    private func checkAdminStatus(userEmail: String?, orgId: String?) async {
         #if canImport(FirebaseAuth) && canImport(FirebaseFirestore)
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let email = userEmail ?? Auth.auth().currentUser?.email else {
             isAdmin = false
             return
         }
         
         do {
-            let trainerDoc = try await Firestore.firestore().collection("trainers").document(userId).getDocument()
-            isAdmin = trainerDoc.data()?["isAdmin"] as? Bool ?? false
+            // Query trainers by email (and optionally orgId) to find the actual trainer document
+            let db = Firestore.firestore()
+            var query = db.collection("trainers").whereField("email", isEqualTo: email)
+            
+            if let orgId = orgId {
+                query = query.whereField("orgId", isEqualTo: orgId)
+            }
+            
+            let snapshot = try await query.limit(to: 1).getDocuments()
+            
+            if let trainerDoc = snapshot.documents.first {
+                // Check the 'admin' field on the trainer document
+                isAdmin = trainerDoc.data()["admin"] as? Bool ?? false
+            } else {
+                isAdmin = false
+            }
         } catch {
+            print("❌ Error checking admin status: \(error)")
             isAdmin = false
         }
         #else
