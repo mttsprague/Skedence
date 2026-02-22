@@ -25,7 +25,6 @@ export default function RegisterPage() {
   
   // Step 2: Business Contact Details
   const [phone, setPhone] = useState("");
-  const [website, setWebsite] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
@@ -109,7 +108,6 @@ export default function RegisterPage() {
           phone,
           timezone,
           currency,
-          website,
           addressLine1,
           addressLine2,
           city,
@@ -380,20 +378,6 @@ export default function RegisterPage() {
                   onChange={(e) => setContactEmail(e.target.value)}
                   className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="contact@yourbusiness.com"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="website" className="block text-sm font-medium text-foreground mb-1">
-                  Website <span className="text-gray-400 text-xs">(optional)</span>
-                </label>
-                <input
-                  id="website"
-                  type="url"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://yourbusiness.com"
                 />
               </div>
 
