@@ -1440,6 +1440,26 @@ export const processTrainerAvailability = onCall(
       );
     }
     const trainerId = targetTrainerId;
+    const orgId = trainerData.orgId;
+
+    // Fetch organization to get timezone
+    if (!orgId) {
+      throw new HttpsError(
+        "internal",
+        "Trainer has no organization ID."
+      );
+    }
+
+    const orgDoc = await db.collection("organizations").doc(orgId).get();
+    if (!orgDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "Organization not found."
+      );
+    }
+
+    const orgData = orgDoc.data();
+    const orgTimezone = orgData?.settings?.timezone || "America/New_York"; // default to ET
 
     const {
       startDate: rawStartDate,
@@ -1448,17 +1468,21 @@ export const processTrainerAvailability = onCall(
       dailyEndHour = 17,
       slotDurationMinutes = 60,
       daysOfWeek, // optional filter 0..6 (Sun..Sat), interpreted in LOCAL time
-      timezoneOffsetMinutes, // required for local interpretation (JS getTimezoneOffset)
+      timezoneOffsetMinutes, // DEPRECATED - now using org timezone
       status = "open", // default to "open" if not specified
       location, // optional location name
     } = request.data;
 
-    if (typeof timezoneOffsetMinutes !== "number" || !isFinite(timezoneOffsetMinutes)) {
-      throw new HttpsError(
-        "invalid-argument",
-        "timezoneOffsetMinutes (from Date.getTimezoneOffset()) is required."
-      );
-    }
+    // Map timezone identifiers to standard UTC offsets (before DST)
+    const timezoneOffsets: Record<string, number> = {
+      "America/New_York": 300,    // UTC-5 (EST becomes UTC-4 EDT in DST)
+      "America/Chicago": 360,      // UTC-6 (CST becomes UTC-5 CDT in DST)
+      "America/Denver": 420,       // UTC-7 (MST becomes UTC-6 MDT in DST)
+      "America/Los_Angeles": 480,  // UTC-8 (PST becomes UTC-7 PDT in DST)
+    };
+
+    // Get base offset for this timezone (JavaScript semantics: minutes to add to LOCAL to get UTC)
+    const baseTimezoneOffset = timezoneOffsets[orgTimezone] || timezoneOffsetMinutes || 300;
 
     // Establish UTC start-of-day defaults
     const todayUTC = new Date();
@@ -1480,10 +1504,55 @@ export const processTrainerAvailability = onCall(
     };
 
     // Convert a local date (y-m-d at local midnight) to the UTC instant that corresponds to that local midnight.
-    // JS getTimezoneOffset(): minutes to add to LOCAL to get UTC (positive west of UTC).
-    // Therefore, UTC instant for local midnight = Date.UTC(y,m,d,0) + offsetMinutes.
+    // Uses the organization's timezone for calculations.
     const localMidnightToUTC = (y: number, m: number, d: number): Date => {
-      const utcMs = Date.UTC(y, m - 1, d, 0, 0, 0, 0) + timezoneOffsetMinutes * 60_000;
+      // Create a date at midnight UTC for this calendar date
+      const utcMs = Date.UTC(y, m - 1, d, 0, 0, 0, 0);
+      // Apply the timezone offset to get local midnight in UTC
+      return new Date(utcMs + baseTimezoneOffset * 60_000);
+    };
+    
+    // Helper to detect if a date falls within DST period (US rules)
+    // DST starts: Second Sunday of March at 2am
+    // DST ends: First Sunday of November at 2am
+    const isDST = (year: number, month: number, day: number): boolean => {
+      // Find second Sunday of March
+      const marchFirst = new Date(Date.UTC(year, 2, 1)); // March 1
+      const marchFirstDay = marchFirst.getUTCDay(); // 0=Sun, 1=Mon, etc.
+      const daysUntilFirstSunday = marchFirstDay === 0 ? 0 : (7 - marchFirstDay);
+      const secondSundayOfMarch = 1 + daysUntilFirstSunday + 7; // Second Sunday
+      
+      // Find first Sunday of November
+      const novFirst = new Date(Date.UTC(year, 10, 1)); // November 1
+      const novFirstDay = novFirst.getUTCDay();
+      const firstSundayOfNov = novFirstDay === 0 ? 1 : (1 + (7 - novFirstDay));
+      
+      // Create date for comparison
+      const currentDate = year * 10000 + month * 100 + day;
+      const dstStart = year * 10000 + 3 * 100 + secondSundayOfMarch;
+      const dstEnd = year * 10000 + 11 * 100 + firstSundayOfNov;
+      
+      return currentDate >= dstStart && currentDate < dstEnd;
+    };
+    
+    // Helper to create a UTC timestamp for a specific local date/time in the org's timezone
+    // This accounts for DST by adjusting the offset based on the date
+    const createLocalDateTime = (y: number, m: number, d: number, hour: number, minute: number): Date => {
+      // Date.UTC gives us midnight on this date in UTC
+      const utcBase = Date.UTC(y, m - 1, d, 0, 0, 0, 0);
+      const localMinutes = hour * 60 + minute;
+      
+      // Adjust offset for DST if needed
+      // During DST, clocks "spring forward" by 1 hour, so offset decreases by 60 minutes
+      let adjustedOffset = baseTimezoneOffset;
+      const targetDST = isDST(y, m, d);
+      
+      if (targetDST) {
+        // Target date IS in DST - offset decreases by 60
+        adjustedOffset -= 60;
+      }
+      
+      const utcMs = utcBase + (localMinutes * 60_000) + (adjustedOffset * 60_000);
       return new Date(utcMs);
     };
 
@@ -1539,18 +1608,43 @@ export const processTrainerAvailability = onCall(
     const trainerScheduleCollection = trainerRef.collection("schedules");
     const batch = db.batch();
     let slotsAddedCount = 0;
+    let daysProcessed = 0;
+    let slotsSkipped = 0;
 
     try {
-      // Walk LOCAL days by moving the "local midnight in UTC" anchor forward
-      const currentLocalMidnightUTC = new Date(startDateUTC);
-      while (currentLocalMidnightUTC <= endDateUTC) {
-        // local weekday: getUTCDay() on the local-midnight-in-UTC anchor
-        const localWeekday = currentLocalMidnightUTC.getUTCDay(); // 0..6 (Sun..Sat)
+      // Walk through calendar dates (not UTC dates) to properly handle DST
+      // Parse start date to get initial calendar values
+      const startParts = rawStartDate ? parseDateOnly(rawStartDate) : {
+        y: new Date().getFullYear(),
+        m: new Date().getMonth() + 1,
+        d: new Date().getDate()
+      };
+      const endParts = rawEndDate ? parseDateOnly(rawEndDate) : {
+        y: startParts.y,
+        m: startParts.m,
+        d: startParts.d + 7
+      };
+      
+      // Create a date for iteration - we'll increment by day
+      let currentDate = new Date(Date.UTC(startParts.y, startParts.m - 1, startParts.d));
+      const endDate = new Date(Date.UTC(endParts.y, endParts.m - 1, endParts.d));
+      
+      while (currentDate <= endDate) {
+        daysProcessed++;
+        
+        // Extract calendar date components for this iteration
+        const year = currentDate.getUTCFullYear();
+        const month = currentDate.getUTCMonth() + 1; // 1-12
+        const day = currentDate.getUTCDate();
+        
+        // Calculate weekday for this calendar date (using a temp date in user's timezone)
+        const tempLocalDate = createLocalDateTime(year, month, day, 12, 0); // noon to avoid edge cases
+        const localWeekday = tempLocalDate.getUTCDay(); // 0..6 (Sun..Sat)
 
         // Filter by selected weekdays (LOCAL)
         if (Array.isArray(daysOfWeek) && daysOfWeek.length > 0) {
           if (!daysOfWeek.includes(localWeekday)) {
-            currentLocalMidnightUTC.setUTCDate(currentLocalMidnightUTC.getUTCDate() + 1);
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
             continue;
           }
         }
@@ -1567,18 +1661,10 @@ export const processTrainerAvailability = onCall(
           const startHour = Math.floor(minuteOfDay / 60);
           const startMinute = minuteOfDay % 60;
 
-          // Build UTC instants for local times on this day
-          const slotStartTime = new Date(currentLocalMidnightUTC);
-          // FIX: add the local hour to the UTC hour of the local-midnight anchor
-          slotStartTime.setUTCHours(
-            slotStartTime.getUTCHours() + startHour,
-            startMinute,
-            0,
-            0
-          );
-
-          const slotEndTime = new Date(slotStartTime);
-          slotEndTime.setUTCMinutes(slotEndTime.getUTCMinutes() + slotDurationMinutes);
+          // Create slot times using the calendar date + time
+          // This ensures DST is handled correctly for each specific date
+          const slotStartTime = createLocalDateTime(year, month, day, startHour, startMinute);
+          const slotEndTime = new Date(slotStartTime.getTime() + slotDurationMinutes * 60_000);
 
           // Deterministic ID for this slot (UTC hour)
           const slotDocId = generateScheduleDocId(slotStartTime);
@@ -1588,7 +1674,6 @@ export const processTrainerAvailability = onCall(
           const trainerFirstName = trainerData.firstName || "";
           const trainerLastName = trainerData.lastName || "";
           const trainerFullName = `${trainerFirstName} ${trainerLastName}`.trim() || "Unknown Trainer";
-          const orgId = trainerData.orgId || null;
 
           const slotData: Record<string, any> = {
             status: status,
@@ -1597,12 +1682,8 @@ export const processTrainerAvailability = onCall(
             clientId: null,
             clientName: null,
             trainerName: trainerFullName,
+            orgId: orgId, // Use orgId from function scope
           };
-
-          // Add orgId if available from trainer data
-          if (orgId) {
-            slotData.orgId = orgId;
-          }
 
           // Add location if provided
           if (location) {
@@ -1625,23 +1706,14 @@ export const processTrainerAvailability = onCall(
               // Only update if not booked and status is changing
               batch.update(slotRef, slotData);
               slotsAddedCount++;
-              logger.debug(
-                `Slot ${slotDocId} updated from ${existingStatus} to ${status} for trainer ${trainerId}.`
-              );
-            } else if (isBooked) {
-              logger.debug(
-                `Slot ${slotDocId} is booked for trainer ${trainerId}, skipping.`
-              );
             } else {
-              logger.debug(
-                `Slot ${slotDocId} already has status ${status} for trainer ${trainerId}, skipping.`
-              );
+              slotsSkipped++;
             }
           }
         }
 
-        // Next LOCAL day
-        currentLocalMidnightUTC.setUTCDate(currentLocalMidnightUTC.getUTCDate() + 1);
+        // Next calendar day
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       }
 
       if (slotsAddedCount > 0) {
@@ -1681,9 +1753,6 @@ export const processTrainerAvailability = onCall(
         });
       }
 
-      logger.info(
-        `Trainer ${trainerId} availability processed. Added ${slotsAddedCount} new slots.`
-      );
       return {
         message: `Availability processed successfully! Added ${slotsAddedCount} new slots.`,
         slotsAdded: slotsAddedCount,
@@ -1693,7 +1762,7 @@ export const processTrainerAvailability = onCall(
         throw error;
       }
       logger.error(
-        "Error processing trainer availability:",
+        "❌ Error processing trainer availability:",
         error
       );
       throw new HttpsError(

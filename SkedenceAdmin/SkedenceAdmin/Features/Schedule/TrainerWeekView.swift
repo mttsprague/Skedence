@@ -210,6 +210,21 @@ struct TrainerWeekView: View {
                 await trainerViewModel.loadWeek(weekDays: viewModel.weekDays, trainerId: trainerId, orgId: orgId)
             }
         }
+        .onAppear {
+            // Reload schedule data whenever view appears (e.g., after switching tabs)
+            Task {
+                if let orgId = auth.currentOrgId {
+                    await trainerViewModel.loadWeek(weekDays: viewModel.weekDays, trainerId: trainerId, orgId: orgId)
+                }
+            }
+        }
+        .refreshable {
+            // Pull to refresh
+            await trainerViewModel.loadTrainer(trainerId: trainerId)
+            if let orgId = auth.currentOrgId {
+                await trainerViewModel.loadWeek(weekDays: viewModel.weekDays, trainerId: trainerId, orgId: orgId)
+            }
+        }
         .onChange(of: viewModel.selectedDate) { oldValue, newValue in
             Task {
                 if let orgId = auth.currentOrgId {

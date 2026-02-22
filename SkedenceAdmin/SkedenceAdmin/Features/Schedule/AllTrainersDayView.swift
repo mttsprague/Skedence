@@ -176,6 +176,20 @@ struct AllTrainersDayView: View {
                 )
             }
         }
+        .onAppear {
+            // Reload schedule data whenever view appears (e.g., after switching tabs)
+            Task {
+                if let orgId = auth.currentOrgId {
+                    await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
+                }
+            }
+        }
+        .refreshable {
+            // Pull to refresh
+            if let orgId = auth.currentOrgId {
+                await viewModel.reload(for: scheduleViewModel.selectedDate, orgId: orgId)
+            }
+        }
         .onChange(of: scheduleViewModel.selectedDate) { _, newValue in
             Task {
                 if let orgId = auth.currentOrgId {

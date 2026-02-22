@@ -60,7 +60,7 @@ struct TrainersSection: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Trainer Limit Reached")
                                 .font(.headline)
-                            Text("You have \(trainerCount) of \(trainerLimit) trainers. Visit skedence.com to upgrade your plan and add more trainers.")
+                            Text("You have \(trainerCount) of \(trainerLimit) trainers. Contact support to upgrade your plan and add more trainers.")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }

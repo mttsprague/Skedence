@@ -48,11 +48,11 @@ struct TrialBannerView: View {
                             .font(.headline)
                         
                         if isOwner {
-                            Text("Visit skedence.com to manage your subscription and upgrade")
+                            Text("Contact support to manage your subscription and upgrade")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         } else {
-                            Text("Ask your owner to visit skedence.com to manage the subscription")
+                            Text("Ask your owner to manage subscription settings")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -189,7 +189,7 @@ struct ExpiredModalView: View {
                 
                 // Footer
                 VStack(spacing: 4) {
-                    Text("Visit skedence.com to manage your subscription")
+                    Text("Contact your organization owner for subscription support")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Text("You can still view your schedule in read-only mode")

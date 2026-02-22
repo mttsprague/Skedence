@@ -70,11 +70,10 @@ final class AuthManager: ObservableObject {
                 self.isAuthenticated = (user != nil)
                 self.userId = user?.uid
                 self.userEmail = user?.email
-                self.isReady = true
                 
                 print("🔐 Auth state changed: isAuthenticated = \(user != nil), uid = \(user?.uid ?? "nil")")
                 
-                // Load org data
+                // Load org data before marking as ready
                 if let uid = user?.uid {
                     await self.loadOrgId(for: uid)
                     
@@ -86,6 +85,9 @@ final class AuthManager: ObservableObject {
                     
                     print("🎯 Org data loaded: orgId = \(self.currentOrgId ?? "nil"), onboarding = \(self.onboardingComplete)")
                 }
+                
+                // Now that all auth data is loaded, mark as ready
+                self.isReady = true
             }
         }
         #else
@@ -94,6 +96,7 @@ final class AuthManager: ObservableObject {
         self.userId = nil
         self.userEmail = nil
         self.isTrainer = false
+        self.isReady = true
         #endif
     }
 

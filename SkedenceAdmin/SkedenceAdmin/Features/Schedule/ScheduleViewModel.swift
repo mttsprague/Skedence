@@ -45,7 +45,7 @@ final class ScheduleViewModel: ObservableObject {
             }
         }
     }
-    @Published var visibleHours: [Int] = Array(6...23) // 6am - 11pm (with 12am/midnight as last slot)
+    @Published var visibleHours: [Int] = Array(6...23) // 6am - 11pm (last slot ends at 12am)
     @Published var slotsByDay: [DateOnly: [TrainerScheduleSlot]] = [:]
 
     // Client cache for instant presentation
@@ -195,10 +195,10 @@ final class ScheduleViewModel: ObservableObject {
         let cal = Calendar.current
         let startOfWeek = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedDate)) ?? selectedDate
         let endOfWeek = cal.date(byAdding: .day, value: 7, to: startOfWeek) ?? selectedDate
-
         
         do {
             let slots = try await scheduleRepo.fetchScheduleSlots(trainerId: trainerId, from: startOfWeek, to: endOfWeek, orgId: orgId)
+            
             var grouped: [DateOnly: [TrainerScheduleSlot]] = [:]
             for slot in slots {
                 let key = DateOnly(slot.startTime)
@@ -207,6 +207,7 @@ final class ScheduleViewModel: ObservableObject {
             for key in grouped.keys {
                 grouped[key]?.sort { $0.startTime < $1.startTime }
             }
+            
             self.slotsByDay = grouped
 
             // Prefetch clients for all booked slots in this week
@@ -429,8 +430,8 @@ final class ScheduleViewModel: ObservableObject {
         let startStr = start.map { fmt.string(from: $0) }
         let endStr = end.map { fmt.string(from: $0) }
         
-        // Use editingTrainerId if set (admin editing another trainer), otherwise nil (uses authenticated user)
-        let targetTrainerId = editingTrainerId != myTrainerId ? editingTrainerId : nil
+        // ALWAYS pass the trainerId - use editingTrainerId if set (admin editing another trainer), otherwise use myTrainerId
+        let targetTrainerId = editingTrainerId ?? myTrainerId
 
         do {
             let result = try await FunctionsService.shared.processTrainerAvailability(
@@ -452,6 +453,7 @@ final class ScheduleViewModel: ObservableObject {
             
             await loadWeek()
         } catch {
+            // Error is already logged by FunctionsService
         }
     }
     

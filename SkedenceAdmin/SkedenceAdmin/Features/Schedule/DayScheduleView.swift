@@ -191,6 +191,18 @@ struct DayScheduleView: View {
                     .environmentObject(dependencies)
                 }
             }
+            .onAppear {
+                // Reload schedule data whenever view appears (e.g., after switching tabs)
+                Task {
+                    if auth.userId != nil && auth.currentOrgId != nil {
+                        await viewModel.loadWeek()
+                    }
+                }
+            }
+            .refreshable {
+                // Pull to refresh
+                await viewModel.loadWeek()
+            }
         }
         .navigationViewStyle(.stack)
     }

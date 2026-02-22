@@ -68,10 +68,6 @@ struct SignInView: View {
                         Text("Skedence")
                             .font(.system(size: 36, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
-                        
-                        Text("Admins and Trainers")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.secondary)
                     }
                     .padding(.bottom, 50)
                     
@@ -82,7 +78,7 @@ struct SignInView: View {
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(.primary)
                             
-                            Text("Sign in to manage your business")
+                            Text("Sign in to view and manage your schedule")
                                 .font(.system(size: 16))
                                 .foregroundColor(.secondary)
                         }
@@ -202,10 +198,6 @@ struct SignInView: View {
                     
                     // Footer
                     VStack(spacing: 12) {
-                        Text("For Admins & Trainers")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
                         HStack(spacing: 4) {
                             Text("Need help?")
                                 .font(.system(size: 14))

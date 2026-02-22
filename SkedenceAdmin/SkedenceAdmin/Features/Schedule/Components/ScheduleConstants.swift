@@ -30,6 +30,6 @@ enum ScheduleConstants {
     /// Horizontal padding per cell
     static let horizontalPaddingPerCell: CGFloat = 2
     
-    /// Visible hours range (6am - 11pm)
+    /// Visible hours range (6am - 11pm, last slot ends at 12am)
     static let visibleHours: [Int] = Array(6...23)
 }

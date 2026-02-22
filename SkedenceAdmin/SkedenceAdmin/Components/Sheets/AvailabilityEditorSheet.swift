@@ -94,7 +94,7 @@ struct AvailabilityEditorSheet: View {
         _singleEnd = State(initialValue: end)
 
         _recurringStartHour = State(initialValue: defaultHour)
-        _recurringEndHour = State(initialValue: min(defaultHour + 1, 23))
+        _recurringEndHour = State(initialValue: min(defaultHour + 1, 24))
     }
 
     var body: some View {
@@ -362,6 +362,10 @@ struct AvailabilityEditorSheet: View {
                 Text("💡 Location not required when using recurring")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            } else {
+                Text("ℹ️ Schedule hours: 6:00 AM - 12:00 AM (midnight)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -386,16 +390,26 @@ struct AvailabilityEditorSheet: View {
                         .frame(maxWidth: .infinity, alignment: .center)
 
                         // Common daily window (hour precision)
-                        HourPickerRow(title: "Daily Start", hour: $recurringStartHour)
-                        HourPickerRow(title: "Daily End", hour: $recurringEndHour)
+                        HourPickerRow(title: "Daily Start", hour: $recurringStartHour, range: 6...23)
+                        HourPickerRow(title: "Daily End", hour: $recurringEndHour, range: 7...24)
                             .onChange(of: recurringEndHour) { _, newValue in
+                                // Ensure end hour is after start and within 6am-12am range
                                 if newValue <= recurringStartHour {
-                                    recurringEndHour = min(recurringStartHour + 1, 23)
+                                    recurringEndHour = min(recurringStartHour + 1, 24)
+                                } else if newValue > 24 {
+                                    recurringEndHour = 24
                                 }
                             }
                             .onChange(of: recurringStartHour) { _, newValue in
+                                // Ensure start is within 6am-11pm range
+                                if newValue < 6 {
+                                    recurringStartHour = 6
+                                } else if newValue > 23 {
+                                    recurringStartHour = 23
+                                }
+                                // Adjust end if needed
                                 if recurringEndHour <= newValue {
-                                    recurringEndHour = min(newValue + 1, 23)
+                                    recurringEndHour = min(newValue + 1, 24)
                                 }
                             }
 
@@ -451,6 +465,10 @@ struct AvailabilityEditorSheet: View {
                     Text("⚠️ Location is required for recurring availability")
                         .font(.footnote)
                         .foregroundStyle(.red)
+                } else if recurringEnabled {
+                    Text("ℹ️ Recurring hours: 6:00 AM - 12:00 AM (midnight)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -598,7 +616,22 @@ struct AvailabilityEditorSheet: View {
     private var singleSaveDisabled: Bool {
         // Location IS required for single slots ONLY if recurring is not enabled
         if !recurringEnabled && selectedLocation == nil { return true }
-        return singleEnd <= singleStart
+        if singleEnd <= singleStart { return true }
+        
+        // Enforce 6am-12am range for single slots
+        let cal = Calendar.current
+        let startHour = cal.component(.hour, from: singleStart)
+        let endHour = cal.component(.hour, from: singleEnd)
+        
+        // Start must be between 6am and 11pm
+        if startHour < 6 || startHour > 23 { return true }
+        // End must be after 6am and up to 12am (hour 0 of next day is ok if it's the next day)
+        if endHour < 6 && !cal.isDate(singleEnd, inSameDayAs: singleStart.addingTimeInterval(86400)) {
+            // If end hour is < 6 and it's not the next day, invalid
+            return true
+        }
+        
+        return false
     }
 
     private var recurringDisabled: Bool {
@@ -609,6 +642,9 @@ struct AvailabilityEditorSheet: View {
         if selectedWeekdays.isEmpty { return true }
         // Validate daily window
         if recurringEndHour <= recurringStartHour { return true }
+        // Enforce 6am-12am range
+        if recurringStartHour < 6 || recurringStartHour > 23 { return true }
+        if recurringEndHour < 7 || recurringEndHour > 24 { return true }
         // Validate date range - use default end date if not set (matching DatePicker behavior)
         let start = bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay)
         let end = bulkEndDate ?? Calendar.current.date(byAdding: .month, value: 1, to: start) ?? start
@@ -650,9 +686,10 @@ struct AvailabilityEditorSheet: View {
         let endDateToUse = bulkEndDate ?? Calendar.current.date(byAdding: .month, value: 1, to: startDateToUse) ?? startDateToUse
         
         let daysArray = selectedWeekdays.isEmpty ? nil : Array(selectedWeekdays).sorted()
-
+        
         // Pass the recurring location
         onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, recurringLocation?.name)
+        
         dismiss()
     }
 
@@ -750,13 +787,14 @@ private struct FlexibleWeekdayChips: View {
 private struct HourPickerRow: View {
     let title: String
     @Binding var hour: Int
+    var range: ClosedRange<Int> = 0...23 // Default range, can be customized
 
     var body: some View {
         HStack {
             Text(title)
             Spacer()
             Picker("", selection: $hour) {
-                ForEach(0..<24, id: \.self) { h in
+                ForEach(Array(range), id: \.self) { h in
                     Text(hourLabel(h)).tag(h)
                 }
             }
@@ -765,6 +803,10 @@ private struct HourPickerRow: View {
     }
 
     private func hourLabel(_ hour: Int) -> String {
+        // Handle hour 24 as "12:00 AM (midnight)"
+        if hour == 24 {
+            return "12:00 AM"
+        }
         let comps = DateComponents(calendar: Calendar.current, hour: hour)
         let date = comps.date ?? Date()
         return date.formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)))

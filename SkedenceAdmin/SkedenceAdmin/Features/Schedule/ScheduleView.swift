@@ -671,6 +671,21 @@ private struct ViewLifecycleModifiers: ViewModifier {
                     await viewModel.loadAllTrainers()
                 }
             }
+            .onAppear {
+                // Reload schedule data whenever view appears (e.g., after switching tabs)
+                Task {
+                    if auth.userId != nil && auth.currentOrgId != nil {
+                        await viewModel.loadWeek()
+                    }
+                }
+            }
+            .refreshable {
+                // Pull to refresh
+                await viewModel.loadWeek()
+                if auth.isAdmin {
+                    await viewModel.loadAllTrainers()
+                }
+            }
             .onChange(of: auth.trainerId) { _, newValue in
                 if let trainerId = newValue {
                     viewModel.setTrainerId(trainerId)

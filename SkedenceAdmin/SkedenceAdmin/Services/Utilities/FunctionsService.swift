@@ -101,7 +101,9 @@ final class FunctionsService {
         location: String? = nil
     ) async throws -> ProcessAvailabilityResult {
         #if canImport(FirebaseFunctions)
-        guard Auth.auth().currentUser != nil else { throw FunctionsServiceError.unauthenticated }
+        guard Auth.auth().currentUser != nil else { 
+            throw FunctionsServiceError.unauthenticated 
+        }
 
         // Compute timezoneOffsetMinutes with JavaScript semantics (minutes to add to LOCAL to get UTC, positive west of UTC).
         // Use the start date's local offset if provided, so DST is respected for the intended range.
@@ -136,6 +138,7 @@ final class FunctionsService {
 
         do {
             let result = try await functions.httpsCallable("processTrainerAvailability").call(payload)
+            
             guard let dict = result.data as? [String: Any],
                   let message = dict["message"] as? String else {
                 throw FunctionsServiceError.invalidResponse
@@ -143,6 +146,12 @@ final class FunctionsService {
             let slotsAdded = dict["slotsAdded"] as? Int
             return ProcessAvailabilityResult(message: message, slotsAdded: slotsAdded)
         } catch let error as NSError {
+            print("❌ Cloud Function Error")
+            print("   Domain: \(error.domain)")
+            print("   Code: \(error.code)")
+            print("   Description: \(error.localizedDescription)")
+            print("   User Info: \(error.userInfo)")
+            
             if error.domain == FunctionsErrorDomain {
                 let code = error.code
                 let message = error.localizedDescription
