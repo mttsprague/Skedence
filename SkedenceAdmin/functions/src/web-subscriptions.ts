@@ -28,7 +28,6 @@ interface CreateWebCheckoutData {
  * Returns checkout URL for redirecting user to Stripe payment page
  */
 export const createWebCheckoutSession = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -168,7 +167,6 @@ export const createWebCheckoutSession = onCall(
  * Returns portal URL for customer to manage their subscription, payment methods, billing history
  */
 export const createCustomerPortalSession = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
