@@ -330,7 +330,7 @@ export default function HomePage() {
             {/* Studio */}
             <div className="premium-card p-10 space-y-8 flex flex-col relative border-2 border-primary shadow-[0_0_40px_rgba(255,107,53,0.3)]">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                <span className="bg-primary text-black px-5 py-2 rounded-full text-xs font-black uppercase tracking-wider shadow-xl shadow-primary/50">Most Popular</span>
+                <span className="bg-primary text-black px-5 py-2 rounded-full text-xs font-black uppercase tracking-wider shadow-xl shadow-primary/50 whitespace-nowrap">Most Popular</span>
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-foreground mb-3 uppercase tracking-wide">Studio</h3>
