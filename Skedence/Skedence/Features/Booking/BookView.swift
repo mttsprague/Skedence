@@ -486,11 +486,22 @@ struct BookView: View {
     }
     
     private func saveNewAthleteToProfile(firstName: String, lastName: String) async {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let authUserId = Auth.auth().currentUser?.uid else { return }
         guard let profile = usersService.currentUser else { return }
         
         let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
+        
+        // Query to find user document ID by authUserId field
+        guard let userQuery = try? await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments(),
+              let userDoc = userQuery.documents.first else {
+            print("⚠️ User profile not found for saving new athlete")
+            return
+        }
+        
+        let userRef = db.collection("users").document(userDoc.documentID)
         
         // Extract values from dynamic form data
         let birthday = newAthleteIntakeData.fieldValues["athleteBirthday"] as? String ?? ""
