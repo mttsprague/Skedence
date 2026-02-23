@@ -12,12 +12,14 @@ import {
   Megaphone,
   MapPin,
   Package,
-  DollarSign
+  DollarSign,
+  Crown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const submenuItems = [
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Subscription', href: '/settings/subscription', icon: Crown },
   { name: 'Billboard', href: '/settings/billboard', icon: Megaphone },
   { name: 'Waiver', href: '/waiver', icon: FileText },
   { name: 'Intake Forms', href: '/settings/intake-forms', icon: FileText },

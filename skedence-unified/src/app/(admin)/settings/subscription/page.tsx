@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Functions, httpsCallable } from 'firebase/functions';
 import { getFunctions } from 'firebase/functions';
-import { CreditCard, CheckCircle2, AlertCircle, Crown, Zap, Building2, Rocket, Check } from 'lucide-react';
+import { CreditCard, CheckCircle2, AlertCircle, Crown, Zap, Building2, Rocket, Check, ArrowRight } from 'lucide-react';
+import { PlanComparison } from '@/components/admin/plan-comparison';
 
 interface SubscriptionStatus {
   hasSubscription: boolean;
@@ -302,6 +303,31 @@ function SubscriptionContent() {
         </Card>
       )}
 
+      {/* Plan Comparison Info */}
+      {subscriptionStatus?.hasSubscription && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <h3 className="font-semibold text-lg">💡 Upgrade or Downgrade Anytime</h3>
+              <ul className="space-y-2 text-sm text-foreground/80">
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <span><strong>Upgrade:</strong> Changes take effect immediately. You'll be charged the prorated difference for the remainder of your billing period.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <span><strong>Downgrade:</strong> Changes take effect at the end of your current billing period. You'll keep your current features until then.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <span><strong>Cancel:</strong> Use the "Manage Subscription" button above to cancel or pause your subscription anytime in the Stripe customer portal.</span>
+                </li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Pricing Plans */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {plans.map((plan) => {
@@ -360,12 +386,28 @@ function SubscriptionContent() {
                   variant={plan.popular ? 'default' : 'outline'}
                   className="w-full"
                 >
-                  {isCurrent ? 'Current Plan' : isPurchasing && selectedPlan === plan.name ? 'Loading...' : 'Select Plan'}
+                  {isCurrent 
+                    ? 'Current Plan' 
+                    : isPurchasing && selectedPlan === plan.name 
+                    ? 'Loading...' 
+                    : subscriptionStatus?.hasSubscription
+                    ? 'Switch to This Plan'
+                    : 'Start Free Trial'
+                  }
                 </Button>
               </CardContent>
             </Card>
           );
         })}
+      </div>
+
+      {/* Detailed Plan Comparison */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold">Compare Plans</h2>
+          <p className="text-foreground/70 mt-1">See exactly what's included in each plan</p>
+        </div>
+        <PlanComparison />
       </div>
 
       {/* Additional Info */}
