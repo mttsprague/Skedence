@@ -1370,14 +1370,14 @@ struct BookView: View {
                         
                         guard !firstName.isEmpty && !lastName.isEmpty else {
                             bookingAlert = .init(
-                                title: \"Incomplete Information\",
-                                message: \"Please enter the athlete's first and last name.\"
+                                title: "Incomplete Information",
+                                message: "Please enter the athlete's first and last name."
                             )
                             return
                         }
                         
                         // Save new athlete with their real name
-                        let fullName = \"\\(firstName) \\(lastName)\"
+                        let fullName = "\(firstName) \(lastName)"
                         try await saveNewAthleteToProfile(firstName: firstName, lastName: lastName, formData: athleteForm)
                         
                         // Update the selected athlete to use their real name
