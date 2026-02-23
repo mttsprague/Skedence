@@ -61,16 +61,12 @@ struct BookView: View {
     @State private var pendingBookingSuccess = false
     @State private var currentWaiverAthleteIndex: Int? = nil  // Track which athlete is signing waiver
     
-    // Add New Athlete state
-    @State private var showAddAthleteSheet = false
-    @State private var addAthleteForIndex: Int? = nil
-    @State private var newAthleteFirstName = ""
-    @State private var newAthleteLastName = ""
-    
     // Waiver status tracking for each athlete dropdown
     @State private var athleteWaiverStatus: [Int: Bool] = [:] // index -> hasWaiver
     @State private var isNewAthlete: [Int: Bool] = [:] // index -> isNew
     @State private var athleteInfoExpanded: [Int: Bool] = [:] // index -> isExpanded
+    @State private var athleteFirstNames: [Int: String] = [:] // index -> firstName (for new athletes)
+    @State private var athleteLastNames: [Int: String] = [:] // index -> lastName (for new athletes)
     
     // Trainer filter state
     @State private var showTrainerFilter = false
@@ -365,9 +361,7 @@ struct BookView: View {
                         }
                     )
                 }
-                .sheet(isPresented: $showAddAthleteSheet) {
-                    addNewAthleteSheet
-                }
+
                 .confirmationDialog("Confirm Booking", isPresented: $showBookingConfirmation, titleVisibility: .visible) {
                     Button("Confirm Booking") {
                         Task {
@@ -418,96 +412,29 @@ struct BookView: View {
     }
     
     
-    // MARK: - Add New Athlete Sheet
-    
-    private var addNewAthleteSheet: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Athlete Name")) {
-                    TextField("First Name *", text: $newAthleteFirstName)
-                        .autocapitalization(.words)
-                    TextField("Last Name *", text: $newAthleteLastName)
-                        .autocapitalization(.words)
-                }
-                
-                // Show dynamic intake form fields for athlete information
-                DynamicIntakeFormSection(
-                    formData: newAthleteIntakeData,
-                    fields: intakeFormService.fields,
-                    sectionType: .athlete,
-                    sectionTitle: "Athlete Information"
-                )
-            }
-            .navigationTitle("Add New Athlete")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        showAddAthleteSheet = false
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveNewAthlete()
-                    }
-                    .disabled(newAthleteFirstName.isEmpty || newAthleteLastName.isEmpty)
-                }
-            }
-        }
-    }
-    
-    private func saveNewAthlete() {
-        guard !newAthleteFirstName.isEmpty, !newAthleteLastName.isEmpty else { return }
-        guard let index = addAthleteForIndex else { return }
-        
-        let athleteName = "\(newAthleteFirstName.trimmingCharacters(in: .whitespacesAndNewlines)) \(newAthleteLastName.trimmingCharacters(in: .whitespacesAndNewlines))"
-        
-        // Create new athlete and add to user profile
-        Task {
-            await saveNewAthleteToProfile(firstName: newAthleteFirstName, lastName: newAthleteLastName)
-            
-            // Select the new athlete in the dropdown
-            selectedAthletes[index] = athleteName
-            
-            // Mark as new athlete (will need waiver)
-            isNewAthlete[index] = true
-            athleteWaiverStatus[index] = false
-            
-            // Copy data from newAthleteIntakeData to this athlete's form
-            if let athleteForm = athleteIntakeForms[index] {
-                for (key, value) in newAthleteIntakeData.fieldValues {
-                    athleteForm.setValue(value, forField: key)
-                }
-            }
-            
-            // Close sheet
-            showAddAthleteSheet = false
-        }
-    }
-    
-    private func saveNewAthleteToProfile(firstName: String, lastName: String) async {
+    private func saveNewAthleteToProfile(firstName: String, lastName: String, formData: IntakeFormData) async throws {
         guard let authUserId = Auth.auth().currentUser?.uid else { return }
         guard let profile = usersService.currentUser else { return }
         
         let db = Firestore.firestore()
         
         // Query to find user document ID by authUserId field
-        guard let userQuery = try? await db.collection("users")
+        let userQuery = try await db.collection("users")
             .whereField("authUserId", isEqualTo: authUserId)
             .limit(to: 1)
-            .getDocuments(),
-              let userDoc = userQuery.documents.first else {
-            print("⚠️ User profile not found for saving new athlete")
-            return
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            throw NSError(domain: "BookView", code: 404, userInfo: [NSLocalizedDescriptionKey: "User profile not found"])
         }
         
         let userRef = db.collection("users").document(userDoc.documentID)
         
         // Extract values from dynamic form data
-        let birthday = newAthleteIntakeData.fieldValues["athleteBirthday"] as? String ?? ""
-        let schoolTeam = newAthleteIntakeData.fieldValues["schoolTeam"] as? String ?? ""
-        let experienceLevel = newAthleteIntakeData.fieldValues["experienceLevel"] as? String ?? ""
-        let position = newAthleteIntakeData.fieldValues["position"] as? String ?? ""
+        let birthday = formData.fieldValues["athleteBirthday"] as? String ?? ""
+        let schoolTeam = formData.fieldValues["schoolTeam"] as? String ?? ""
+        let experienceLevel = formData.fieldValues["experienceLevel"] as? String ?? ""
+        let position = formData.fieldValues["position"] as? String ?? ""
         
         // Create new athlete
         let newAthlete = AthleteInfo(
@@ -523,25 +450,21 @@ struct BookView: View {
         var athletes = profile.athletes ?? []
         athletes.append(newAthlete)
         
-        do {
-            try await userRef.updateData([
-                "athletes": athletes.map { athlete in
-                    [
-                        "firstName": athlete.firstName ?? "",
-                        "lastName": athlete.lastName ?? "",
-                        "birthday": athlete.birthday ?? "",
-                        "schoolClubTeam": athlete.schoolClubTeam ?? "",
-                        "experienceLevel": athlete.experienceLevel ?? "",
-                        "position": athlete.position ?? ""
-                    ] as [String: Any]
-                }
-            ])
-            
-            // Reload user profile to reflect changes
-            await usersService.loadCurrentUserIfAvailable()
-        } catch {
-            // Error saving athlete info
-        }
+        try await userRef.updateData([
+            "athletes": athletes.map { athlete in
+                [
+                    "firstName": athlete.firstName ?? "",
+                    "lastName": athlete.lastName ?? "",
+                    "birthday": athlete.birthday ?? "",
+                    "schoolClubTeam": athlete.schoolClubTeam ?? "",
+                    "experienceLevel": athlete.experienceLevel ?? "",
+                    "position": athlete.position ?? ""
+                ] as [String: Any]
+            }
+        ])
+        
+        // Reload user profile to reflect changes
+        await usersService.loadCurrentUserIfAvailable()
     }
     
     private func classRegistrationSheet(for classItem: GroupClass) -> some View {
@@ -1024,11 +947,19 @@ struct BookView: View {
                 }
             },
             onAddNew: {
-                addAthleteForIndex = index
-                newAthleteFirstName = ""
-                newAthleteLastName = ""
-                newAthleteIntakeData.fieldValues.removeAll()
-                showAddAthleteSheet = true
+                // Select "New Athlete" as a placeholder - form will show inline
+                selectedAthletes[index] = "New Athlete \(index + 1)"
+                isNewAthlete[index] = true
+                athleteWaiverStatus[index] = false
+                
+                // Ensure intake form exists for this athlete
+                if athleteIntakeForms[index] == nil {
+                    let newForm = IntakeFormData()
+                    newForm.onUpdate = {
+                        formUpdateTrigger.toggle()
+                    }
+                    athleteIntakeForms[index] = newForm
+                }
             }
         )
     }
@@ -1057,14 +988,41 @@ struct BookView: View {
                         }
                         .padding(.horizontal, Spacing.lg)
                         
-                        if athleteInfoExpanded[index] ?? true,
-                           let athleteForm = athleteIntakeForms[index] {
+                        if athleteInfoExpanded[index] ?? true {
                             CardView(padding: Spacing.md) {
-                                // Use dynamic intake form fields for this athlete
-                                DynamicIntakeFormView(
-                                    formData: athleteForm,
-                                    fields: intakeFormService.fields
-                                )
+                                VStack(alignment: .leading, spacing: Spacing.md) {
+                                    // Show name fields if this is a new athlete
+                                    if isNewAthlete[index] == true {
+                                        VStack(alignment: .leading, spacing: Spacing.sm) {
+                                            Text("Athlete Name")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                            HStack(spacing: Spacing.sm) {
+                                                TextField("First Name", text: Binding(
+                                                    get: { athleteFirstNames[index] ?? "" },
+                                                    set: { athleteFirstNames[index] = $0 }
+                                                ))
+                                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                                .autocapitalization(.words)
+                                                
+                                                TextField("Last Name", text: Binding(
+                                                    get: { athleteLastNames[index] ?? "" },
+                                                    set: { athleteLastNames[index] = $0 }
+                                                ))
+                                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                                .autocapitalization(.words)
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Show dynamic intake form fields
+                                    if let athleteForm = athleteIntakeForms[index] {
+                                        DynamicIntakeFormView(
+                                            formData: athleteForm,
+                                            fields: intakeFormService.fields
+                                        )
+                                    }
+                                }
                             }
                             .padding(.horizontal, Spacing.lg)
                         }
@@ -1403,8 +1361,33 @@ struct BookView: View {
         do {
             // Save all athlete information to profile
             for (index, athleteName) in selectedAthletes.enumerated() {
-                if let name = athleteName, let athleteForm = athleteIntakeForms[index] {
-                    try await saveAthleteInfoToProfile(athleteName: name, formData: athleteForm)
+                if let _ = athleteName, let athleteForm = athleteIntakeForms[index] {
+                    // Check if this is a new athlete
+                    if isNewAthlete[index] == true {
+                        // Get the actual name from the form fields
+                        let firstName = athleteFirstNames[index] ?? ""
+                        let lastName = athleteLastNames[index] ?? ""
+                        
+                        guard !firstName.isEmpty && !lastName.isEmpty else {
+                            bookingAlert = .init(
+                                title: \"Incomplete Information\",
+                                message: \"Please enter the athlete's first and last name.\"
+                            )
+                            return
+                        }
+                        
+                        // Save new athlete with their real name
+                        let fullName = \"\\(firstName) \\(lastName)\"
+                        try await saveNewAthleteToProfile(firstName: firstName, lastName: lastName, formData: athleteForm)
+                        
+                        // Update the selected athlete to use their real name
+                        selectedAthletes[index] = fullName
+                    } else {
+                        // Existing athlete - just update their info
+                        if let name = athleteName {
+                            try await saveAthleteInfoToProfile(athleteName: name, formData: athleteForm)
+                        }
+                    }
                 }
             }
             
