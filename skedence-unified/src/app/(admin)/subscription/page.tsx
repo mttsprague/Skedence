@@ -71,12 +71,12 @@ function SubscriptionContent() {
     
     try {
       const functions = getFunctions();
-      const getStatus = httpsCallable<{ orgId: string }, SubscriptionStatus>(
+      const getStatus = httpsCallable<{ organizationId: string }, SubscriptionStatus>(
         functions,
         'getWebSubscriptionStatus'
       );
       
-      const result = await getStatus({ orgId });
+      const result = await getStatus({ organizationId: orgId });
       setSubscriptionStatus(result.data);
     } catch (error) {
       console.error('Error loading subscription:', error);
@@ -98,13 +98,13 @@ function SubscriptionContent() {
     try {
       const functions = getFunctions();
       const createCheckout = httpsCallable<
-        { priceId: string; orgId: string },
+        { organizationId: string; priceId: string },
         { url: string }
       >(functions, 'createWebCheckoutSession');
       
       const result = await createCheckout({
+        organizationId: orgId,
         priceId,
-        orgId,
       });
       
       // Redirect to Stripe Checkout
