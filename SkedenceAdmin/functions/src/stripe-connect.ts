@@ -428,8 +428,8 @@ export const createPaymentIntentConnect = onCall(
         );
       }
 
-      // Calculate platform application fee (5% of payment)
-      const applicationFeeAmount = Math.round(amount * 0.05);
+      // Calculate platform application fee (3% of payment)
+      const applicationFeeAmount = Math.round(amount * 0.03);
 
       // Check if user has a Stripe customer ID
       const userDoc = await db.collection("users").doc(userId).get();
