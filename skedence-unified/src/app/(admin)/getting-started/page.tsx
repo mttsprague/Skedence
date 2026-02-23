@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { DashboardLayout } from '@/components/admin/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -1067,8 +1066,7 @@ export default function GettingStartedPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
         {/* Header */}
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -1342,6 +1340,5 @@ export default function GettingStartedPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }

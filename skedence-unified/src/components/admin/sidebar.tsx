@@ -21,12 +21,6 @@ import { cn } from '@/lib/utils';
 
 const navigation = [
   { 
-    name: 'Getting Started', 
-    href: '/getting-started', 
-    icon: BookOpen,
-    description: 'Setup guides and FAQs'
-  },
-  { 
     name: 'Activity Feed', 
     href: '/activity', 
     icon: Activity,
@@ -58,6 +52,12 @@ const navigation = [
     href: '/subscription', 
     icon: Crown,
     description: 'Manage your billing and subscription'
+  },
+  { 
+    name: 'Getting Started', 
+    href: '/getting-started', 
+    icon: BookOpen,
+    description: 'Setup guides and FAQs'
   },
 ];
 
