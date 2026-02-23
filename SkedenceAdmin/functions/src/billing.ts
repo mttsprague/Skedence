@@ -607,7 +607,7 @@ export const stripeWebhook = onRequest(
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const subscriptionId = session.subscription as string;
-        const orgId = session.metadata?.orgId;
+        const orgId = session.metadata?.organizationId;
 
         if (orgId && subscriptionId) {
           // Fetch full subscription details
@@ -675,7 +675,7 @@ export const stripeWebhook = onRequest(
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
-        const orgId = subscription.metadata.orgId;
+        const orgId = subscription.metadata.organizationId;
 
         if (orgId) {
           // Map price ID to plan name
