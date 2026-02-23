@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
 import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
@@ -26,16 +26,25 @@ function SearchParamsHandler({ onMessage, onReload }: {
   onReload: () => void;
 }) {
   const searchParams = useSearchParams();
+  const hasProcessed = useRef(false);
   
   useEffect(() => {
+    if (hasProcessed.current) return;
+    
     const success = searchParams.get('success');
     const canceled = searchParams.get('canceled');
     
     if (success === 'true') {
+      hasProcessed.current = true;
       onMessage({ type: 'success', text: 'Subscription activated successfully! Welcome to Skedence.' });
       onReload();
+      // Clear URL params
+      window.history.replaceState({}, '', '/settings/subscription');
     } else if (canceled === 'true') {
+      hasProcessed.current = true;
       onMessage({ type: 'error', text: 'Subscription checkout was canceled.' });
+      // Clear URL params
+      window.history.replaceState({}, '', '/settings/subscription');
     }
   }, [searchParams, onMessage, onReload]);
   
@@ -50,12 +59,7 @@ function SubscriptionContent() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    if (!orgId) return;
-    loadSubscriptionStatus();
-  }, [orgId]);
-
-  async function loadSubscriptionStatus() {
+  const loadSubscriptionStatus = useCallback(async () => {
     if (!orgId) return;
     
     setIsLoading(true);
@@ -76,7 +80,12 @@ function SubscriptionContent() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId) return;
+    loadSubscriptionStatus();
+  }, [orgId, loadSubscriptionStatus]);
 
   async function handleSelectPlan(planName: string, priceId: string) {
     if (!orgId) return;

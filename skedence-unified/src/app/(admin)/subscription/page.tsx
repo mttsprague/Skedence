@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
 import { SubscriptionStatusCard } from '@/components/admin/subscription-status-card';
@@ -30,12 +30,16 @@ function SearchParamsHandler({
   onReload: () => void;
 }) {
   const searchParams = useSearchParams();
+  const hasProcessed = useRef(false);
   
   useEffect(() => {
+    if (hasProcessed.current) return;
+    
     const success = searchParams.get('success');
     const canceled = searchParams.get('canceled');
     
     if (success === 'true') {
+      hasProcessed.current = true;
       onMessage({
         type: 'success',
         text: 'Subscription activated! Welcome to your new plan.'
@@ -45,6 +49,7 @@ function SearchParamsHandler({
       // Clear URL params
       window.history.replaceState({}, '', '/subscription');
     } else if (canceled === 'true') {
+      hasProcessed.current = true;
       onMessage({
         type: 'error',
         text: 'Subscription setup was canceled. No charges were made.'
@@ -66,7 +71,7 @@ function SubscriptionContent() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const loadSubscriptionStatus = async () => {
+  const loadSubscriptionStatus = useCallback(async () => {
     if (!orgId) return;
     
     try {
@@ -83,11 +88,11 @@ function SubscriptionContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [orgId]);
 
   useEffect(() => {
     loadSubscriptionStatus();
-  }, [orgId]);
+  }, [orgId, loadSubscriptionStatus]);
 
   const handleSelectPlan = async (planName: string, priceId: string) => {
     if (!orgId) return;
