@@ -53,7 +53,7 @@ const guideSections: GuideSection[] = [
       {
         id: 'stripe-overview',
         title: 'Why Connect Stripe?',
-        content: 'Stripe is your payment processor. When clients purchase lesson packages through the Skedence app, the money goes directly into your Stripe account (minus a small 5% platform fee). You\'ll need a Stripe account to accept payments and run your business.',
+        content: 'Stripe is your payment processor. When clients purchase lesson packages through the Skedence app, the money goes directly into your Stripe account (minus a small 3% platform fee). You\'ll need a Stripe account to accept payments and run your business.',
         tips: [
           'Stripe is free to set up - you only pay per transaction (2.9% + 30¢)',
           'Money typically arrives in your bank account within 2 business days',
@@ -91,7 +91,7 @@ const guideSections: GuideSection[] = [
           },
           {
             q: 'How much does Stripe charge?',
-            a: 'Stripe charges 2.9% + 30¢ per transaction. Skedence charges an additional 5% platform fee. For example, if a client pays $100, Stripe takes $3.20, Skedence takes $5, and you receive $91.80.'
+            a: 'Stripe charges 2.9% + 30¢ per transaction. Skedence charges an additional 3% platform fee. For example, if a client pays $100, Stripe takes $3.20, Skedence takes $3, and you receive $93.80.'
           },
           {
             q: 'When will I receive payments?',
