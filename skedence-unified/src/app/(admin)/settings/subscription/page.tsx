@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
+import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Functions, httpsCallable } from 'firebase/functions';
@@ -207,7 +208,7 @@ function SubscriptionContent() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <div className="text-lg">Loading subscription...</div>
       </div>
     );
@@ -447,12 +448,14 @@ function SubscriptionContent() {
 // Main page component with Suspense boundary
 export default function SubscriptionPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    }>
-      <SubscriptionContent />
-    </Suspense>
+    <BusinessSettingsSubmenu>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      }>
+        <SubscriptionContent />
+      </Suspense>
+    </BusinessSettingsSubmenu>
   );
 }
