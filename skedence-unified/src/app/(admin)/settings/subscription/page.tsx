@@ -63,12 +63,12 @@ function SubscriptionContent() {
     
     try {
       const functions = getFunctions();
-      const getStatus = httpsCallable<{ organizationId: string }, SubscriptionStatus>(
+      const getStatus = httpsCallable<{ orgId: string }, SubscriptionStatus>(
         functions,
         'getWebSubscriptionStatus'
       );
       
-      const result = await getStatus({ organizationId: orgId });
+      const result = await getStatus({ orgId });
       setSubscriptionStatus(result.data);
     } catch (error) {
       console.error('Error loading subscription:', error);
@@ -88,12 +88,12 @@ function SubscriptionContent() {
     try {
       const functions = getFunctions();
       const createCheckout = httpsCallable<
-        { organizationId: string; priceId: string },
+        { orgId: string; priceId: string },
         { url: string; sessionId: string }
       >(functions, 'createWebCheckoutSession');
       
       const result = await createCheckout({
-        organizationId: orgId,
+        orgId,
         priceId: priceId,
       });
       
@@ -119,11 +119,11 @@ function SubscriptionContent() {
     try {
       const functions = getFunctions();
       const createPortal = httpsCallable<
-        { organizationId: string },
+        { orgId: string },
         { url: string }
       >(functions, 'createCustomerPortalSession');
       
-      const result = await createPortal({ organizationId: orgId });
+      const result = await createPortal({ orgId });
       
       // Redirect to Stripe Customer Portal
       window.location.href = result.data.url;
