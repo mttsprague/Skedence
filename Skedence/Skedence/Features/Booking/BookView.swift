@@ -1443,11 +1443,22 @@ struct BookView: View {
     
     // Save new athlete to user profile
     private func saveNewAthleteToProfile() async throws {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let authUserId = Auth.auth().currentUser?.uid else { return }
         guard let profile = usersService.currentUser else { return }
         
         let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
+        
+        // Query to find user document ID by authUserId field
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            throw NSError(domain: "BookView", code: 404, userInfo: [NSLocalizedDescriptionKey: "User profile not found"])
+        }
+        
+        let userRef = db.collection("users").document(userDoc.documentID)
         
         // Determine next athlete number
         let athletes = profile.athletes ?? []
@@ -1529,11 +1540,22 @@ struct BookView: View {
     
     // Save athlete info provided during booking to user profile
     private func saveAthleteInfoToProfile(athleteName: String, formData: IntakeFormData) async throws {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let authUserId = Auth.auth().currentUser?.uid else { return }
         guard let profile = usersService.currentUser else { return }
         
         let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
+        
+        // Query to find user document ID by authUserId field
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            throw NSError(domain: "BookView", code: 404, userInfo: [NSLocalizedDescriptionKey: "User profile not found"])
+        }
+        
+        let userRef = db.collection("users").document(userDoc.documentID)
         
         // Extract values from the athlete's form data
         let birthday = formData.fieldValues["athleteBirthday"] as? String ?? ""
