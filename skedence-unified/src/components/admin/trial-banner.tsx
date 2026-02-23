@@ -10,9 +10,9 @@ interface SubscriptionStatus {
   hasSubscription: boolean;
   plan: string;
   status: string;
-  currentPeriodEnd?: { seconds: number };
+  currentPeriodEnd?: { seconds?: number; _seconds?: number };
   cancelAtPeriodEnd?: boolean;
-  trialEnd?: { seconds: number } | null;
+  trialEnd?: { seconds?: number; _seconds?: number } | null;
 }
 
 interface TrialBannerProps {
@@ -56,7 +56,9 @@ export function TrialBanner({ orgId }: TrialBannerProps) {
     if (subscriptionStatus.trialEnd && subscriptionStatus.status === 'trialing') {
       const calculateDays = () => {
         const now = new Date().getTime();
-        const trialEndDate = new Date(subscriptionStatus.trialEnd!.seconds * 1000).getTime();
+        // Handle both formats: { seconds } or { _seconds }
+        const timestampSeconds = subscriptionStatus.trialEnd!.seconds || subscriptionStatus.trialEnd!._seconds || 0;
+        const trialEndDate = new Date(timestampSeconds * 1000).getTime();
         const days = Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24));
         setDaysRemaining(Math.max(0, days));
       };

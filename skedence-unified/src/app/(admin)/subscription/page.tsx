@@ -15,8 +15,8 @@ interface SubscriptionStatus {
   hasSubscription: boolean;
   status?: 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'unpaid';
   plan?: string;
-  currentPeriodEnd?: any;
-  trialEnd?: any;
+  currentPeriodEnd?: { seconds?: number; _seconds?: number };
+  trialEnd?: { seconds?: number; _seconds?: number } | null;
   cancelAtPeriodEnd?: boolean;
   subscriptionId?: string;
 }

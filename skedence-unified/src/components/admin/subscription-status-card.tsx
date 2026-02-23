@@ -17,9 +17,9 @@ interface SubscriptionStatus {
   hasSubscription: boolean;
   plan: string;
   status: string;
-  currentPeriodEnd?: { seconds: number };
+  currentPeriodEnd?: { seconds?: number; _seconds?: number };
   cancelAtPeriodEnd?: boolean;
-  trialEnd?: { seconds: number } | null;
+  trialEnd?: { seconds?: number; _seconds?: number } | null;
 }
 
 interface SubscriptionStatusCardProps {
@@ -64,13 +64,15 @@ export function SubscriptionStatusCard({ orgId }: SubscriptionStatusCardProps) {
       const result: { trial?: number; renewal?: number } = {};
 
       if (subscriptionStatus.trialEnd && subscriptionStatus.status === 'trialing') {
-        const trialEndDate = new Date(subscriptionStatus.trialEnd.seconds * 1000).getTime();
+        const timestampSeconds = subscriptionStatus.trialEnd.seconds || subscriptionStatus.trialEnd._seconds || 0;
+        const trialEndDate = new Date(timestampSeconds * 1000).getTime();
         const days = Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24));
         result.trial = Math.max(0, days);
       }
 
       if (subscriptionStatus.currentPeriodEnd && subscriptionStatus.status === 'active') {
-        const renewalDate = new Date(subscriptionStatus.currentPeriodEnd.seconds * 1000).getTime();
+        const timestampSeconds = subscriptionStatus.currentPeriodEnd.seconds || subscriptionStatus.currentPeriodEnd._seconds || 0;
+        const renewalDate = new Date(timestampSeconds * 1000).getTime();
         const days = Math.ceil((renewalDate - now) / (1000 * 60 * 60 * 24));
         result.renewal = Math.max(0, days);
       }
@@ -218,7 +220,7 @@ export function SubscriptionStatusCard({ orgId }: SubscriptionStatusCardProps) {
                     <div className="flex-1">
                       <div className="text-xs text-muted-foreground mb-1">Trial Ends</div>
                       <div className="font-semibold">
-                        {new Date(subscriptionStatus.trialEnd.seconds * 1000).toLocaleDateString('en-US', {
+                        {new Date((subscriptionStatus.trialEnd.seconds || subscriptionStatus.trialEnd._seconds || 0) * 1000).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric'
@@ -250,7 +252,7 @@ export function SubscriptionStatusCard({ orgId }: SubscriptionStatusCardProps) {
                         {subscriptionStatus.cancelAtPeriodEnd ? 'Expires On' : 'Next Billing'}
                       </div>
                       <div className="font-semibold">
-                        {new Date(subscriptionStatus.currentPeriodEnd.seconds * 1000).toLocaleDateString('en-US', {
+                        {new Date((subscriptionStatus.currentPeriodEnd.seconds || subscriptionStatus.currentPeriodEnd._seconds || 0) * 1000).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric'
@@ -291,7 +293,7 @@ export function SubscriptionStatusCard({ orgId }: SubscriptionStatusCardProps) {
                       <div className="font-semibold text-orange-900">Subscription Canceling</div>
                       <div className="text-sm text-orange-700 mt-1">
                         Your subscription will end on{' '}
-                        {new Date(subscriptionStatus.currentPeriodEnd!.seconds * 1000).toLocaleDateString()}.
+                        {new Date((subscriptionStatus.currentPeriodEnd!.seconds || subscriptionStatus.currentPeriodEnd!._seconds || 0) * 1000).toLocaleDateString()}.
                         You can reactivate anytime before then.
                       </div>
                     </div>

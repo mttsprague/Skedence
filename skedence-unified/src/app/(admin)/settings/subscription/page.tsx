@@ -15,9 +15,9 @@ interface SubscriptionStatus {
   hasSubscription: boolean;
   plan: string;
   status: string;
-  currentPeriodEnd?: { seconds: number };
+  currentPeriodEnd?: { seconds?: number; _seconds?: number };
   cancelAtPeriodEnd?: boolean;
-  trialEnd?: { seconds: number } | null;
+  trialEnd?: { seconds?: number; _seconds?: number } | null;
 }
 
 // Separate component for handling search params
@@ -265,13 +265,13 @@ function SubscriptionContent() {
                 <div className="text-sm text-muted-foreground mt-1">
                   {isTrialing && subscriptionStatus.trialEnd && (
                     <span className="text-green-600 font-medium">
-                      Free trial until {new Date(subscriptionStatus.trialEnd.seconds * 1000).toLocaleDateString()}
+                      Free trial until {new Date((subscriptionStatus.trialEnd.seconds || subscriptionStatus.trialEnd._seconds || 0) * 1000).toLocaleDateString()}
                     </span>
                   )}
                   {isActive && !isTrialing && subscriptionStatus.currentPeriodEnd && (
                     <span>
                       {subscriptionStatus.cancelAtPeriodEnd ? 'Expires' : 'Renews'} on{' '}
-                      {new Date(subscriptionStatus.currentPeriodEnd.seconds * 1000).toLocaleDateString()}
+                      {new Date((subscriptionStatus.currentPeriodEnd.seconds || subscriptionStatus.currentPeriodEnd._seconds || 0) * 1000).toLocaleDateString()}
                     </span>
                   )}
                   {!isActive && (
