@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscriptionEnforcement } from '@/hooks/useSubscriptionEnforcement';
+import { SubscriptionPaywall } from '@/components/admin/subscription-paywall';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -50,6 +52,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function RevenueReportPage() {
   const { orgId } = useAuth();
+  const { subscription, isLoading: subLoading, canAccessFeature, getBlockReason } = useSubscriptionEnforcement(orgId);
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState<PackageRevenue[]>([]);
   const [filteredPackages, setFilteredPackages] = useState<PackageRevenue[]>([]);
@@ -68,6 +71,19 @@ export default function RevenueReportPage() {
   // Sorting
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Check subscription access
+  if (!subLoading && !canAccessFeature('canAccessReports')) {
+    const reason = getBlockReason('canAccessReports');
+    return (
+      <SubscriptionPaywall
+        feature="Revenue Reports"
+        reason={reason || undefined}
+        currentPlan={subscription?.plan}
+        suggestedPlan="starter"
+      />
+    );
+  }
   
   // Month options: 4 future + current + 24 past
   const monthOptions = (() => {

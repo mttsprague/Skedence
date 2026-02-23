@@ -1,9 +1,11 @@
 /**
  * Environment-aware logging utility
  * 
- * In production, logs are suppressed or sent to monitoring services.
+ * In production, logs are suppressed or sent to monitoring services (Sentry).
  * In development, full logging is enabled.
  */
+
+import { Sentry } from './sentry';
 
 type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
@@ -28,6 +30,11 @@ class Logger {
     } else {
       // In production, still log warnings but without details
       console.warn('A warning occurred');
+      
+      // Send to Sentry in production
+      if (typeof Sentry !== 'undefined') {
+        Sentry.captureMessage(args[0]?.toString() || 'Warning', 'warning');
+      }
     }
   }
 
@@ -36,10 +43,18 @@ class Logger {
     if (this.isDevelopment) {
       console.error(...args);
     } else {
-      // Log generic error message, send details to monitoring service
+      // Log generic error message, send details to Sentry
       console.error('An error occurred');
-      // TODO: Send to Sentry, LogRocket, or other error tracking service
-      // Example: Sentry.captureException(args[0]);
+      
+      // Send to Sentry
+      if (typeof Sentry !== 'undefined') {
+        const error = args[0];
+        if (error instanceof Error) {
+          Sentry.captureException(error);
+        } else {
+          Sentry.captureMessage(String(error), 'error');
+        }
+      }
     }
   }
 

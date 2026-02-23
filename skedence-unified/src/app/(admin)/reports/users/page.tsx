@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscriptionEnforcement } from '@/hooks/useSubscriptionEnforcement';
+import { SubscriptionPaywall } from '@/components/admin/subscription-paywall';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc as firestoreDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -44,6 +46,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function UsersReportPage() {
   const { orgId } = useAuth();
+  const { subscription, isLoading: subLoading, canAccessFeature, getBlockReason } = useSubscriptionEnforcement(orgId);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -57,6 +60,19 @@ export default function UsersReportPage() {
   const [nameSearch, setNameSearch] = useState('');
   const [emailSearch, setEmailSearch] = useState('');
   const [athleteFilter, setAthleteFilter] = useState<'all' | 'has' | 'none'>('all');
+  
+  // Check subscription access
+  if (!subLoading && !canAccessFeature('canAccessReports')) {
+    const reason = getBlockReason('canAccessReports');
+    return (
+      <SubscriptionPaywall
+        feature="User Analytics"
+        reason={reason || undefined}
+        currentPlan={subscription?.plan}
+        suggestedPlan="starter"
+      />
+    );
+  }
   
   // Sorting
   const [sortField, setSortField] = useState<SortField>('createdAt');
