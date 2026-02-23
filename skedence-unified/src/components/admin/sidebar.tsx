@@ -13,12 +13,19 @@ import {
   FileText,
   Activity,
   ChevronRight,
-  Crown
+  Crown,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 const navigation = [
+  { 
+    name: 'Getting Started', 
+    href: '/getting-started', 
+    icon: BookOpen,
+    description: 'Setup guides and FAQs'
+  },
   { 
     name: 'Activity Feed', 
     href: '/activity', 
