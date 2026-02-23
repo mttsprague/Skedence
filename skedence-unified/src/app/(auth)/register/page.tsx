@@ -502,7 +502,7 @@ export default function RegisterPage() {
                     <p className="text-sm font-medium text-foreground">Available on:</p>
                     <div className="flex gap-3">
                       <a 
-                        href="https://apps.apple.com" 
+                        href="https://apps.apple.com/us/app/skedence/id6757628635" 
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
