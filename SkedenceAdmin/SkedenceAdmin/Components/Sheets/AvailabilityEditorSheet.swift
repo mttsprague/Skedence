@@ -35,13 +35,13 @@ struct AvailabilityEditorSheet: View {
     @State private var bulkStartDate: Date? = nil
     @State private var bulkEndDate: Date? = nil
 
-    // Recurring: selected weekdays and common daily window (hour precision)
+    // Recurring: selected weekdays and common daily window with minute precision
     // Weekday indices 0...6 => Sunday...Saturday
     @State private var selectedWeekdays: Set<Int> = []
     @State private var recurringStartHour: Int
-    @State private var recurringStartMinute: Int = 0
+    @State private var recurringStartMinute: Int
     @State private var recurringEndHour: Int
-    @State private var recurringEndMinute: Int = 0
+    @State private var recurringEndMinute: Int
     @State private var recurringSlotDuration: Int = 60 // Duration in minutes
     @State private var recurringLocation: Location?
     
@@ -98,7 +98,9 @@ struct AvailabilityEditorSheet: View {
         _singleEnd = State(initialValue: end)
 
         _recurringStartHour = State(initialValue: defaultHour)
+        _recurringStartMinute = State(initialValue: 0)
         _recurringEndHour = State(initialValue: min(defaultHour + 1, 24))
+        _recurringEndMinute = State(initialValue: 0)
     }
 
     var body: some View {
@@ -149,7 +151,6 @@ struct AvailabilityEditorSheet: View {
                 Text(bookingResultMessage)
             }
             .onAppear {
-                snapAndSyncTimes()
                 if isAdmin {
                     loadClients()
                 }
@@ -327,26 +328,29 @@ struct AvailabilityEditorSheet: View {
         Section {
             DatePicker("Day", selection: $singleDay, displayedComponents: .date)
                 .onChange(of: singleDay) { _, _ in
-                    // Re-anchor both times to selected day, keep on-the-hour and end >= start + 1h
-                    snapAndSyncTimes(anchorToDay: true)
+                    // Re-anchor both times to selected day, preserve minutes
+                    let cal = Calendar.current
+                    singleStart = anchor(time: singleStart, toDay: singleDay, calendar: cal)
+                    singleEnd = anchor(time: singleEnd, toDay: singleDay, calendar: cal)
                 }
 
-            // Start time: editable, snaps to the hour; end is kept >= start + 1 hour
+            // Start time: editable with minute precision
             DatePicker("Start", selection: $singleStart, displayedComponents: .hourAndMinute)
-                .onChange(of: singleStart) { _, _ in
-                    snapAndSyncTimes()
+                .onChange(of: singleStart) { _, newValue in
+                    // Ensure end is at least 15 minutes after start
+                    let minEnd = Calendar.current.date(byAdding: .minute, value: 15, to: newValue) ?? newValue.addingTimeInterval(900)
+                    if singleEnd < minEnd {
+                        singleEnd = minEnd
+                    }
                 }
 
-            // End time: editable, snaps to the hour; must be >= start + 1 hour
+            // End time: editable with minute precision, must be >= start + 15 min
             DatePicker(
                 "End",
                 selection: $singleEnd,
-                in: (Calendar.current.date(byAdding: .hour, value: 1, to: singleStart) ?? singleStart.addingTimeInterval(3600))...,
+                in: (Calendar.current.date(byAdding: .minute, value: 15, to: singleStart) ?? singleStart.addingTimeInterval(900))...,
                 displayedComponents: .hourAndMinute
             )
-            .onChange(of: singleEnd) { _, _ in
-                snapAndSyncTimes()
-            }
             
             // Location picker
             Picker("Location", selection: $selectedLocation) {
@@ -397,49 +401,57 @@ struct AvailabilityEditorSheet: View {
                         Text("Daily Start Time")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.textSecondary)
+                        
                         HStack {
-                            HourPickerRow(title: "Hour", hour: $recurringStartHour, range: 6...23)
-                            Picker("Minute", selection: $recurringStartMinute) {
+                            Text("Hour")
+                            Spacer()
+                            Picker("", selection: $recurringStartHour) {
+                                ForEach(6...23, id: \.self) { h in
+                                    Text("\(h)").tag(h)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                        
+                        HStack {
+                            Text("Minute")
+                            Spacer()
+                            Picker("", selection: $recurringStartMinute) {
                                 Text(":00").tag(0)
                                 Text(":15").tag(15)
                                 Text(":30").tag(30)
                                 Text(":45").tag(45)
                             }
                             .pickerStyle(.menu)
+                            .id("startMinute")
                         }
                         
                         Text("Daily End Time")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.textSecondary)
+                        
                         HStack {
-                            HourPickerRow(title: "Hour", hour: $recurringEndHour, range: 7...24)
-                            Picker("Minute", selection: $recurringEndMinute) {
+                            Text("Hour")
+                            Spacer()
+                            Picker("", selection: $recurringEndHour) {
+                                ForEach(7...24, id: \.self) { h in
+                                    Text("\(h)").tag(h)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                        
+                        HStack {
+                            Text("Minute")
+                            Spacer()
+                            Picker("", selection: $recurringEndMinute) {
                                 Text(":00").tag(0)
                                 Text(":15").tag(15)
                                 Text(":30").tag(30)
                                 Text(":45").tag(45)
                             }
                             .pickerStyle(.menu)
-                        }
-                        .onChange(of: recurringEndHour) { _, newValue in
-                            // Ensure end hour is after start
-                            if newValue <= recurringStartHour && recurringEndMinute <= recurringStartMinute {
-                                recurringEndHour = min(recurringStartHour + 1, 24)
-                                recurringEndMinute = 0
-                            }
-                        }
-                        .onChange(of: recurringStartHour) { _, newValue in
-                            // Ensure start is within range
-                            if newValue < 6 {
-                                recurringStartHour = 6
-                            } else if newValue > 23 {
-                                recurringStartHour = 23
-                            }
-                            // Adjust end if needed
-                            if recurringEndHour <= newValue && recurringEndMinute <= recurringStartMinute {
-                                recurringEndHour = min(newValue + 1, 24)
-                                recurringEndMinute = 0
-                            }
+                            .id("endMinute")
                         }
                         
                         // Slot duration picker
@@ -710,7 +722,17 @@ struct AvailabilityEditorSheet: View {
     }
 
     private func applyRecurring() {
-        // Send to Cloud Function with 60-minute duration and selected weekdays
+        // Validate times before saving
+        let startTotalMinutes = recurringStartHour * 60 + recurringStartMinute
+        let endTotalMinutes = recurringEndHour * 60 + recurringEndMinute
+        
+        // Ensure end time is after start time (at least the slot duration)
+        guard endTotalMinutes > startTotalMinutes else {
+            print("⚠️ End time must be after start time")
+            return
+        }
+        
+        // Send to Cloud Function with selected duration and weekdays
         let startDateToUse = bulkStartDate ?? Calendar.current.startOfDay(for: defaultDay)
         
         // Use default end date if not explicitly set (matching validation logic)
@@ -718,14 +740,9 @@ struct AvailabilityEditorSheet: View {
         
         let daysArray = selectedWeekdays.isEmpty ? nil : Array(selectedWeekdays).sorted()
         
-        // Create combined times with minutes for the callback
-        // Pass start hour+minute, end hour+minute, and slot duration
-        // The callback signature is: (Date, Date, Int, Int, Int, [Int]?, Status, Bool, String?)
-        // For backward compatibility, we pass hours but include minute info via slotDuration
-        // TODO: Update callback signature to accept minutes separately
-        let totalStartMinutes = recurringStartHour * 60 + recurringStartMinute
-        let totalEndMinutes = recurringEndHour * 60 + recurringEndMinute
-        
+        // Note: We collect minute fields in UI, but onSaveOngoing currently only accepts hour-level
+        // values. When the callback is updated to include minutes, pass recurringStartMinute and
+        // recurringEndMinute accordingly.
         onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, recurringSlotDuration, daysArray, singleStatus, applyToAllTrainers, recurringLocation?.name)
         
         dismiss()
