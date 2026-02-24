@@ -791,26 +791,17 @@ private struct ScrollableGridContent: View {
                                 HStack(spacing: columnSpacing) {
                                     ForEach(trainers, id: \.id) { trainer in
                                         ZStack(alignment: .topLeading) {
-                                            // Background grid cells for visual reference and tap targets
+                                            // Background grid cells for visual reference (purely visual - no tap handling)
                                             VStack(spacing: 0) {
                                                 ForEach(visibleHours, id: \.self) { hour in
                                                     RoundedRectangle(cornerRadius: 12)
                                                         .fill(Color(UIColor.systemGray5))
                                                         .frame(width: dynamicTrainerWidth, height: rowHeight)
                                                         .padding(.vertical, rowVerticalPadding)
-                                                        .contentShape(Rectangle())
-                                                        .onTapGesture {
-                                                            if let trainerId = trainer.id {
-                                                                // Check if there's a slot at this exact hour (for empty tap detection)
-                                                                let hasSlotAtHour = slotFor(trainerId, hour) != nil
-                                                                if !hasSlotAtHour {
-                                                                    onEmptyCellTap(trainerId, hour)
-                                                                }
-                                                            }
-                                                        }
                                                 }
                                             }
                                             .padding(.horizontal, horizontalPaddingPerCell)
+                                            .allowsHitTesting(false) // Purely visual background
                                             
                                             // Absolutely positioned slots overlay
                                             if let trainerId = trainer.id {
@@ -829,6 +820,40 @@ private struct ScrollableGridContent: View {
                                                         .offset(y: yOffset)
                                                     }
                                                 }
+                                                
+                                                // Empty area tap detection (on top layer)
+                                                GeometryReader { geometry in
+                                                    Color.clear
+                                                        .contentShape(Rectangle())
+                                                        .onTapGesture { location in
+                                                            // Check if tap hit any slot - if so, handle it
+                                                            var hitSlot: TrainerScheduleSlot? = nil
+                                                            for slot in slots {
+                                                                if let yOffset = slotYOffset(for: slot),
+                                                                   let height = slotHeight(for: slot) {
+                                                                    let slotFrame = CGRect(x: horizontalPaddingPerCell, y: yOffset,
+                                                                                           width: dynamicTrainerWidth - (horizontalPaddingPerCell * 2), height: height)
+                                                                    if slotFrame.contains(location) {
+                                                                        hitSlot = slot
+                                                                        break
+                                                                    }
+                                                                }
+                                                            }
+                                                            
+                                                            if let slot = hitSlot {
+                                                                onSlotTap(slot)
+                                                            } else {
+                                                                // Calculate which hour was tapped
+                                                                let hourHeight = rowHeight + (rowVerticalPadding * 2)
+                                                                let hourIndex = Int(location.y / hourHeight)
+                                                                if hourIndex >= 0 && hourIndex < visibleHours.count {
+                                                                    let hour = visibleHours[hourIndex]
+                                                                    onEmptyCellTap(trainerId, hour)
+                                                                }
+                                                            }
+                                                        }
+                                                }
+                                                .allowsHitTesting(true)
                                             }
                                         }
                                         .frame(width: dynamicTrainerWidth)

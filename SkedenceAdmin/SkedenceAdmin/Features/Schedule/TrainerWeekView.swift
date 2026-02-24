@@ -580,39 +580,28 @@ private struct ScheduleGridView: View {
                                 let slotsForDay = slotsByDay[DateOnly(day)] ?? []
                                 
                                 ZStack(alignment: .topLeading) {
-                                    // Background grid cells (for visual reference and tap targets)
+                                    // Background grid cells (for visual reference - no tap handling)
                                     VStack(spacing: 0) {
                                         ForEach(visibleHours, id: \.self) { hour in
                                             HourDayCell(
                                                 day: day,
                                                 hour: hour,
-                                                slotsForDay: slotsForDay, // Pass actual slots for empty tap detection
+                                                slotsForDay: [], // Empty - using overlay for taps
                                                 dayColumnWidth: dayColumnWidth,
                                                 rowHeight: rowHeight,
                                                 horizontalPadding: 2,
                                                 isToday: isToday,
                                                 viewingTrainerId: viewingTrainerId,
-                                                onEmptyTap: {
-                                                    onEmptyTap(day, hour)
-                                                },
-                                                onSlotTap: { slot in
-                                                    onSlotTap(slot, day, hour)
-                                                },
-                                                onSetStatus: { status in
-                                                    if isAdmin {
-                                                        onSetStatus(day, hour, status)
-                                                    }
-                                                },
-                                                onClear: {
-                                                    if isAdmin {
-                                                        onClear(day, hour)
-                                                    }
-                                                },
-                                                isBackground: true  // Using absolute positioning mode
+                                                onEmptyTap: { }, // No-op
+                                                onSlotTap: { _ in }, // No-op
+                                                onSetStatus: { _ in }, // Keep for context menu
+                                                onClear: { }, // No-op
+                                                isBackground: true
                                             )
                                             .padding(.vertical, rowVerticalPadding)
                                         }
                                     }
+                                    .allowsHitTesting(false) // Purely visual background
                                     
                                     // Absolutely positioned slots overlay
                                     ForEach(slotsForDay) { slot in
@@ -641,6 +630,40 @@ private struct ScheduleGridView: View {
                                                 }
                                         }
                                     }
+                                    
+                                    // Empty area tap detection (on top layer)
+                                    GeometryReader { geometry in
+                                        Color.clear
+                                            .contentShape(Rectangle())
+                                            .onTapGesture { location in
+                                                // Check if tap hit any slot - if so, handle it
+                                                var hitSlot: TrainerScheduleSlot? = nil
+                                                for slot in slotsForDay {
+                                                    if let yOffset = slotYOffset(for: slot),
+                                                       let height = slotHeight(for: slot) {
+                                                        let slotFrame = CGRect(x: 2, y: yOffset,
+                                                                               width: dayColumnWidth - 4, height: height)
+                                                        if slotFrame.contains(location) {
+                                                            hitSlot = slot
+                                                            break
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                if let slot = hitSlot {
+                                                    onSlotTap(slot, day, hourFromSlot(slot))
+                                                } else {
+                                                    // Calculate which hour was tapped
+                                                    let hourHeight = rowHeight + (rowVerticalPadding * 2)
+                                                    let hourIndex = Int(location.y / hourHeight)
+                                                    if hourIndex >= 0 && hourIndex < visibleHours.count {
+                                                        let hour = visibleHours[hourIndex]
+                                                        onEmptyTap(day, hour)
+                                                    }
+                                                }
+                                            }
+                                    }
+                                    .allowsHitTesting(true)
                                 }
                                 .background(isToday ? Color.blue.opacity(0.08) : Color.clear)
                             }
