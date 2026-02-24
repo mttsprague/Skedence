@@ -818,14 +818,15 @@ private struct ScrollableGridContent: View {
                                                 ForEach(slots) { slot in
                                                     if let yOffset = slotYOffset(for: slot),
                                                        let height = slotHeight(for: slot) {
-                                                        EventCell(slot: slot, viewingTrainerId: trainerId)
-                                                            .frame(width: dynamicTrainerWidth, height: height)
-                                                            .padding(.horizontal, horizontalPaddingPerCell)
-                                                            .offset(y: yOffset)
-                                                            .contentShape(Rectangle())
-                                                            .onTapGesture {
-                                                                onSlotTap(slot)
-                                                            }
+                                                        Button(action: {
+                                                            onSlotTap(slot)
+                                                        }) {
+                                                            EventCell(slot: slot, viewingTrainerId: trainerId)
+                                                                .frame(width: dynamicTrainerWidth, height: height)
+                                                                .padding(.horizontal, horizontalPaddingPerCell)
+                                                        }
+                                                        .buttonStyle(PlainButtonStyle())
+                                                        .offset(y: yOffset)
                                                     }
                                                 }
                                             }

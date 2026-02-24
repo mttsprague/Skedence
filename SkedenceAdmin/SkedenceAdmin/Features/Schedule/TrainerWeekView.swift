@@ -618,14 +618,15 @@ private struct ScheduleGridView: View {
                                     ForEach(slotsForDay) { slot in
                                         if let yOffset = slotYOffset(for: slot),
                                            let height = slotHeight(for: slot) {
-                                            EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
-                                                .frame(width: dayColumnWidth, height: height)
-                                                .padding(.horizontal, 2)
-                                                .offset(y: yOffset)
-                                                .contentShape(Rectangle())
-                                                .onTapGesture {
-                                                    onSlotTap(slot, day, hourFromSlot(slot))
-                                                }
+                                            Button(action: {
+                                                onSlotTap(slot, day, hourFromSlot(slot))
+                                            }) {
+                                                EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
+                                                    .frame(width: dayColumnWidth, height: height)
+                                                    .padding(.horizontal, 2)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                            .offset(y: yOffset)
                                                 .contextMenu {
                                                     // Only show delete option for open slots
                                                     if slot.status == .open {
