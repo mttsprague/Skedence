@@ -19,11 +19,12 @@ struct TrainersSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             // Upload Trainer Avatar Card
-            Button {
-                print("🔵 Upload Avatar button tapped")
+            Button(action: {
+                print("🔵 Upload Avatar button tapped - START")
+                print("🔵 Calling onShowAvatarUpload closure...")
                 onShowAvatarUpload()
-                print("🔵 onShowAvatarUpload() called")
-            } label: {
+                print("🔵 onShowAvatarUpload() returned")
+            }) {
                 HStack {
                     Image(systemName: "person.crop.circle.badge.plus")
                         .font(.title2)

@@ -54,6 +54,12 @@ struct SuperAdminView: View {
         "You have \(viewModel.trainers.count) of \(trainerLimit) trainers. Upgrade to add more."
     }
     
+    private func showAvatarUpload() {
+        print("🟢 showAvatarUpload() function called")
+        showingAvatarUpload = true
+        print("🟢 showingAvatarUpload = \(showingAvatarUpload)")
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -88,11 +94,7 @@ struct SuperAdminView: View {
                             canAddTrainer: canAddTrainer,
                             trainerLimit: trainerLimit,
                             trainerCount: viewModel.trainers.count,
-                            onShowAvatarUpload: {
-                                print("🟢 onShowAvatarUpload closure called")
-                                showingAvatarUpload = true
-                                print("🟢 showingAvatarUpload set to true")
-                            },
+                            onShowAvatarUpload: showAvatarUpload,
                             onShowAddTrainer: { showingAddTrainer = true }
                         )
                         .environmentObject(dependencies)
