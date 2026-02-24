@@ -312,8 +312,14 @@ struct ScheduleView: View {
     }
 
     private func handleSlotTap(_ slot: TrainerScheduleSlot, defaultDay: Date, defaultHour: Int) {
+        print("🟢 HANDLE SLOT TAP CALLED")
+        print("   Slot: \(slot.displayTitle)")
+        print("   isClass: \(slot.isClass), isBooked: \(slot.isBooked)")
+        print("   clientId: \(slot.clientId ?? "nil"), classId: \(slot.classId ?? "nil")")
+        
         // Check if this is a class booking
         if slot.isClass, let classId = slot.classId {
+            print("   → Handling as CLASS")
             // Use cached participants if available
             if let cached = viewModel.participantsByClassId[classId] {
                 // Present sheet with context item
@@ -353,6 +359,7 @@ struct ScheduleView: View {
         
         // Handle regular client booking
         if slot.isBooked, let clientId = slot.clientId {
+            print("   → Handling as BOOKED lesson for client: \(clientId)")
             // Fetch the actual booking document to get complete information
             Task {
                 // First, try to get the booking from the bookings collection
@@ -551,7 +558,7 @@ struct ScheduleView: View {
                                 rowHeight: ScheduleConstants.rowHeight,
                                 horizontalPadding: 2,
                                 isToday: isToday,
-                                viewingTrainerId: viewModel.editing TrainerId ?? auth.userId,
+                                viewingTrainerId: viewModel.editingTrainerId ?? auth.userId,
                                 onEmptyTap: { },  // No-op
                                 onSlotTap: { _ in }, // No-op
                                 onSetStatus: { _ in }, // Keep context menu for Set Available/Unavailable
@@ -567,7 +574,10 @@ struct ScheduleView: View {
                     ForEach(slotsForDay) { slot in
                         if let yOffset = slotYOffset(for: slot),
                            let height = slotHeight(for: slot) {
+                            let _ = print("📍 Rendering slot: '\(slot.displayTitle)' yOffset=\(yOffset) height=\(height) width=\(calculatedDayWidth)")
                             Button(action: {
+                                print("🔵 BUTTON TAPPED: \(slot.displayTitle) at y=\(yOffset) h=\(height)")
+                                print("   Slot status: \(slot.status), isBooked: \(slot.isBooked), clientId: \(slot.clientId ?? "nil")")
                                 handleSlotTap(slot, defaultDay: day, defaultHour: self.hourFromSlot(slot))
                             }) {
                                 EventCell(slot: slot, viewingTrainerId: viewModel.editingTrainerId ?? auth.userId)
@@ -599,6 +609,10 @@ struct ScheduleView: View {
                         Color.clear
                             .contentShape(Rectangle())
                             .onTapGesture { location in
+                                print("🟡 EMPTY AREA TAP at location: \(location)")
+                                print("   Geometry size: \(geometry.size)")
+                                print("   Checking \(slotsForDay.count) slots...")
+                                
                                 // Check if tap hit any slot
                                 var hitSlot = false
                                 for slot in slotsForDay {
@@ -606,14 +620,18 @@ struct ScheduleView: View {
                                        let height = slotHeight(for: slot) {
                                         let slotFrame = CGRect(x: 2, y: yOffset, 
                                                                width: calculatedDayWidth - 4, height: height)
+                                        print("   Slot '\(slot.displayTitle)' frame: \(slotFrame)")
                                         if slotFrame.contains(location) {
+                                            print("   ✅ HIT SLOT: \(slot.displayTitle)")
                                             hitSlot = true
                                             break
                                         }
                                     }
                                 }
                                 
+                                print("   hitSlot result: \(hitSlot)")
                                 if !hitSlot && subscriptionStatus.canPerformAction(.createAvailability) {
+                                    print("   → Opening availability creator")
                                     // Calculate which hour was tapped
                                     let hourHeight = ScheduleConstants.rowHeight + (ScheduleConstants.rowVerticalPadding * 2)
                                     let hourIndex = Int(location.y / hourHeight)
