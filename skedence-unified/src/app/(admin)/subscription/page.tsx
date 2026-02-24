@@ -112,7 +112,14 @@ function SubscriptionContent() {
         priceId,
       });
       
+      console.log('Checkout result:', result.data);
+      
+      if (!result.data.url) {
+        throw new Error('No checkout URL returned from server');
+      }
+      
       // Redirect to Stripe Checkout
+      console.log('Redirecting to:', result.data.url);
       window.location.href = result.data.url;
     } catch (error: any) {
       console.error('Error creating checkout:', error);

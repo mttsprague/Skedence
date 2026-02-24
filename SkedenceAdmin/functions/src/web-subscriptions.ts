@@ -46,18 +46,18 @@ export const createWebCheckoutSession = onCall(
     }
 
     try {
-      // Verify user is owner
+      // Verify user is owner or admin
       const memberQuery = await db.collection("orgMembers")
         .where("authUserId", "==", request.auth.uid)
         .where("orgId", "==", organizationId)
-        .where("role", "==", "owner")
+        .where("role", "in", ["owner", "admin"])
         .limit(1)
         .get();
 
       if (memberQuery.empty) {
         throw new HttpsError(
           "permission-denied",
-          "Only organization owners can manage subscriptions"
+          "Only organization owners and admins can manage subscriptions"
         );
       }
 
@@ -146,6 +146,14 @@ export const createWebCheckoutSession = onCall(
       });
 
       console.log(`✅ Created web checkout session ${session.id} for org ${organizationId}`);
+      console.log(`Session URL: ${session.url}`);
+
+      if (!session.url) {
+        throw new HttpsError(
+          "internal",
+          "Stripe did not return a checkout URL"
+        );
+      }
 
       return {
         url: session.url,
@@ -185,18 +193,18 @@ export const createCustomerPortalSession = onCall(
     }
 
     try {
-      // Verify user is owner
+      // Verify user is owner or admin
       const memberQuery = await db.collection("orgMembers")
         .where("authUserId", "==", request.auth.uid)
         .where("orgId", "==", organizationId)
-        .where("role", "==", "owner")
+        .where("role", "in", ["owner", "admin"])
         .limit(1)
         .get();
 
       if (memberQuery.empty) {
         throw new HttpsError(
           "permission-denied",
-          "Only organization owners can manage subscriptions"
+          "Only organization owners and admins can manage subscriptions"
         );
       }
 
