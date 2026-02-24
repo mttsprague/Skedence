@@ -695,6 +695,45 @@ private struct ScrollableGridContent: View {
     let slotFor: (_ trainerId: String, _ hour: Int) -> TrainerScheduleSlot?
     let onSlotTap: (_ slot: TrainerScheduleSlot) -> Void
     let onEmptyCellTap: (_ trainerId: String, _ hour: Int) -> Void
+    
+    // Helper: Get all slots for a trainer across all visible hours
+    private func getAllSlots(for trainerId: String) -> [TrainerScheduleSlot] {
+        var slots: [TrainerScheduleSlot] = []
+        var seenSlotIds = Set<String>()
+        
+        for hour in visibleHours {
+            if let slot = slotFor(trainerId, hour), !seenSlotIds.contains(slot.id) {
+                slots.append(slot)
+                seenSlotIds.insert(slot.id)
+            }
+        }
+        
+        return slots
+    }
+    
+    // Helper: Calculate Y offset for absolute positioning
+    private func slotYOffset(for slot: TrainerScheduleSlot) -> CGFloat? {
+        guard let firstHour = visibleHours.first else { return nil }
+        
+        let cal = Calendar.current
+        let components = cal.dateComponents([.hour, .minute], from: slot.startTime)
+        guard let hour = components.hour, let minute = components.minute else { return nil }
+        
+        let hourOffset = hour - firstHour
+        let minuteFraction = CGFloat(minute) / 60.0
+        let perHourHeight = rowHeight + (rowVerticalPadding * 2)
+        let offset = CGFloat(hourOffset) * perHourHeight + minuteFraction * rowHeight + rowVerticalPadding
+        
+        return offset
+    }
+    
+    // Helper: Calculate height based on duration
+    private func slotHeight(for slot: TrainerScheduleSlot) -> CGFloat? {
+        let duration = slot.endTime.timeIntervalSince(slot.startTime)
+        let durationInMinutes = duration / 60.0
+        let height = (CGFloat(durationInMinutes) / 60.0) * rowHeight
+        return max(height, 20)
+    }
 
     var body: some View {
         ScrollViewReader { verticalScrollProxy in
@@ -750,7 +789,7 @@ private struct ScrollableGridContent: View {
                             // Right: horizontally scrollable grid cells
                             ScrollView(.horizontal, showsIndicators: true) {
                                 HStack(spacing: columnSpacing) {
-                                    ForEach(trainers) { trainer in
+                                    ForEach(trainers, id: \.id) { trainer in
                                         ZStack(alignment: .topLeading) {
                                             // Background grid cells for visual reference and tap targets
                                             VStack(spacing: 0) {
@@ -774,11 +813,11 @@ private struct ScrollableGridContent: View {
                                             .padding(.horizontal, horizontalPaddingPerCell)
                                             
                                             // Absolutely positioned slots overlay
-                                            if let trainerId = trainer.id,
-                                               let slots = slotsByTrainer[trainerId] {
+                                            if let trainerId = trainer.id {
+                                                let slots = getAllSlots(for: trainerId)
                                                 ForEach(slots) { slot in
-                                                    if let yOffset = viewModel.slotYOffset(for: slot, firstHour: visibleHours.first ?? 6, rowHeight: rowHeight, rowVerticalPadding: rowVerticalPadding),
-                                                       let height = viewModel.slotHeight(for: slot, rowHeight: rowHeight) {
+                                                    if let yOffset = slotYOffset(for: slot),
+                                                       let height = slotHeight(for: slot) {
                                                         EventCell(slot: slot, viewingTrainerId: trainerId)
                                                             .frame(width: dynamicTrainerWidth, height: height)
                                                             .padding(.horizontal, horizontalPaddingPerCell)

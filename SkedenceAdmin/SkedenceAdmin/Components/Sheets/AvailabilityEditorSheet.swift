@@ -759,7 +759,7 @@ struct AvailabilityEditorSheet: View {
     }
     
     private func checkForOverlap(start: Date, end: Date) async -> Bool {
-        guard let trainerId = editingTrainerId, let orgId = orgId else { return false }
+        guard let trainerId = editingTrainerId, let _ = orgId else { return false }
         
         // Query existing slots for this trainer on this day
         do {
