@@ -47,6 +47,8 @@ struct TrainersSection: View {
                 .cornerRadius(CornerRadius.md)
                 .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
             }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
             
             Divider()
                 .padding(.vertical, Spacing.sm)
