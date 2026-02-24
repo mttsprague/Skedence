@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseFirestore
 
 struct AvailabilityEditorSheet: View {
     let defaultDay: Date
@@ -68,6 +69,11 @@ struct AvailabilityEditorSheet: View {
     @State private var showBookingSuccess: Bool = false
     @State private var showBookingError: Bool = false
     @State private var bookingResultMessage: String = ""
+    
+    // Overlap detection state
+    @State private var showOverlapWarning: Bool = false
+    @State private var overlapMessage: String = ""
+    @State private var pendingSaveAction: (() -> Void)? = nil
 
     init(
         defaultDay: Date,
@@ -149,6 +155,20 @@ struct AvailabilityEditorSheet: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(bookingResultMessage)
+            }
+            .alert("Time Slot Overlap", isPresented: $showOverlapWarning) {
+                Button("Cancel", role: .cancel) {
+                    pendingSaveAction = nil
+                }
+                Button("Create Anyway") {
+                    if let action = pendingSaveAction {
+                        action()
+                    }
+                    pendingSaveAction = nil
+                    dismiss()
+                }
+            } message: {
+                Text(overlapMessage)
             }
             .onAppear {
                 if isAdmin {
@@ -713,12 +733,67 @@ struct AvailabilityEditorSheet: View {
         // Calculate the duration in minutes between start and end
         let minutesBetween = cal.dateComponents([.minute], from: startOnDay, to: endOnDay).minute ?? 60
         
-        // Allow any duration - no need to split into hourly chunks
-        // Just create a single slot with the exact times selected
-        if minutesBetween >= 15 { // Minimum 15 minutes
-            onSaveSingle(singleDay, startOnDay, endOnDay, singleStatus, applyToAllTrainers, selectedLocation?.name)
+        // Check for overlaps before saving
+        guard minutesBetween >= 15 else { return } // Minimum 15 minutes
+        
+        Task {
+            if await checkForOverlap(start: startOnDay, end: endOnDay) {
+                // Show warning and store the save action
+                await MainActor.run {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "h:mm a"
+                    overlapMessage = "This time slot (\(formatter.string(from: startOnDay)) - \(formatter.string(from: endOnDay))) overlaps with an existing slot. Do you want to create it anyway?"
+                    pendingSaveAction = {
+                        self.onSaveSingle(self.singleDay, startOnDay, endOnDay, self.singleStatus, self.applyToAllTrainers, self.selectedLocation?.name)
+                    }
+                    showOverlapWarning = true
+                }
+            } else {
+                // No overlap, save directly
+                await MainActor.run {
+                    onSaveSingle(singleDay, startOnDay, endOnDay, singleStatus, applyToAllTrainers, selectedLocation?.name)
+                    dismiss()
+                }
+            }
         }
-        dismiss()
+    }
+    
+    private func checkForOverlap(start: Date, end: Date) async -> Bool {
+        guard let trainerId = editingTrainerId, let orgId = orgId else { return false }
+        
+        // Query existing slots for this trainer on this day
+        do {
+            let db = Firestore.firestore()
+            let cal = Calendar.current
+            let dayStart = cal.startOfDay(for: start)
+            let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart.addingTimeInterval(86400)
+            
+            let snapshot = try await db.collection("trainers")
+                .document(trainerId)
+                .collection("schedules")
+                .whereField("startTime", isGreaterThanOrEqualTo: Timestamp(date: dayStart))
+                .whereField("startTime", isLessThan: Timestamp(date: dayEnd))
+                .getDocuments()
+            
+            // Check if any existing slot overlaps with the new slot
+            for doc in snapshot.documents {
+                let data = doc.data()
+                guard let existingStart = (data["startTime"] as? Timestamp)?.dateValue(),
+                      let existingEnd = (data["endTime"] as? Timestamp)?.dateValue() else {
+                    continue
+                }
+                
+                // Check for overlap: new slot overlaps if it starts before existing ends AND ends after existing starts
+                if start < existingEnd && end > existingStart {
+                    return true // Overlap detected
+                }
+            }
+            
+            return false // No overlap
+        } catch {
+            print("Error checking for overlap: \(error)")
+            return false // On error, allow creation (fail open)
+        }
     }
 
     private func applyRecurring() {

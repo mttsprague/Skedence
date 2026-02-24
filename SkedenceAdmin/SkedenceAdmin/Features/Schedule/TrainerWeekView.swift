@@ -577,35 +577,67 @@ private struct ScheduleGridView: View {
                         HStack(spacing: columnSpacing) {
                             ForEach(weekDays, id: \.self) { day in
                                 let isToday = Calendar.current.isDateInToday(day)
-                                VStack(spacing: 0) {
-                                    ForEach(visibleHours, id: \.self) { hour in
-                                        HourDayCell(
-                                            day: day,
-                                            hour: hour,
-                                            slotsForDay: slotsByDay[DateOnly(day)] ?? [],
-                                            dayColumnWidth: dayColumnWidth,
-                                            rowHeight: rowHeight,
-                                            horizontalPadding: 2,
-                                            isToday: isToday,
-                                            viewingTrainerId: viewingTrainerId,
-                                            onEmptyTap: {
-                                                onEmptyTap(day, hour)
-                                            },
-                                            onSlotTap: { slot in
-                                                onSlotTap(slot, day, hour)
-                                            },
-                                            onSetStatus: { status in
-                                                if isAdmin {
-                                                    onSetStatus(day, hour, status)
+                                let slotsForDay = slotsByDay[DateOnly(day)] ?? []
+                                
+                                ZStack(alignment: .topLeading) {
+                                    // Background grid cells (for visual reference and tap targets)
+                                    VStack(spacing: 0) {
+                                        ForEach(visibleHours, id: \.self) { hour in
+                                            HourDayCell(
+                                                day: day,
+                                                hour: hour,
+                                                slotsForDay: [], // Don't render slots in cells anymore
+                                                dayColumnWidth: dayColumnWidth,
+                                                rowHeight: rowHeight,
+                                                horizontalPadding: 2,
+                                                isToday: isToday,
+                                                viewingTrainerId: viewingTrainerId,
+                                                onEmptyTap: {
+                                                    onEmptyTap(day, hour)
+                                                },
+                                                onSlotTap: { slot in
+                                                    onSlotTap(slot, day, hour)
+                                                },
+                                                onSetStatus: { status in
+                                                    if isAdmin {
+                                                        onSetStatus(day, hour, status)
+                                                    }
+                                                },
+                                                onClear: {
+                                                    if isAdmin {
+                                                        onClear(day, hour)
+                                                    }
                                                 }
-                                            },
-                                            onClear: {
-                                                if isAdmin {
-                                                    onClear(day, hour)
+                                            )
+                                            .padding(.vertical, rowVerticalPadding)
+                                        }
+                                    }
+                                    
+                                    // Absolutely positioned slots overlay
+                                    ForEach(slotsForDay) { slot in
+                                        if let yOffset = slotYOffset(for: slot),
+                                           let height = slotHeight(for: slot) {
+                                            EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
+                                                .frame(width: dayColumnWidth, height: height)
+                                                .padding(.horizontal, 2)
+                                                .offset(y: yOffset)
+                                                .contentShape(Rectangle())
+                                                .onTapGesture {
+                                                    onSlotTap(slot, day, hourFromSlot(slot))
                                                 }
-                                            }
-                                        )
-                                        .padding(.vertical, rowVerticalPadding)
+                                                .contextMenu {
+                                                    // Only show delete option for open slots
+                                                    if slot.status == .open {
+                                                        Button(role: .destructive) {
+                                                            if isAdmin {
+                                                                onClear(day, hourFromSlot(slot))
+                                                            }
+                                                        } label: {
+                                                            Label("Delete Availability", systemImage: "trash")
+                                                        }
+                                                    }
+                                                }
+                                        }
                                     }
                                 }
                                 .background(isToday ? Color.blue.opacity(0.08) : Color.clear)
@@ -671,6 +703,45 @@ private struct ScheduleGridView: View {
         let totalRowHeight = rowHeight + rowVerticalPadding * 2
         let fractionOfHour = CGFloat(minute) / 60.0
         return CGFloat(hoursFromStart) * totalRowHeight + fractionOfHour * totalRowHeight
+    }
+    
+    // MARK: - Slot Positioning Helpers
+    
+    /// Calculate Y offset for a slot based on its actual start time
+    private func slotYOffset(for slot: TrainerScheduleSlot) -> CGFloat? {
+        guard let firstHour = visibleHours.first else { return nil }
+        
+        let cal = Calendar.current
+        let components = cal.dateComponents([.hour, .minute], from: slot.startTime)
+        guard let hour = components.hour, let minute = components.minute else { return nil }
+        
+        // Calculate offset from first visible hour
+        let hourOffset = hour - firstHour
+        let minuteFraction = CGFloat(minute) / 60.0
+        
+        // Each hour has: rowHeight + (2 * rowVerticalPadding)
+        let perHourHeight = rowHeight + (rowVerticalPadding * 2)
+        
+        // Include the initial top padding
+        let offset = CGFloat(hourOffset) * perHourHeight + minuteFraction * rowHeight + rowVerticalPadding
+        
+        return offset
+    }
+    
+    /// Calculate height for a slot based on its actual duration
+    private func slotHeight(for slot: TrainerScheduleSlot) -> CGFloat? {
+        let duration = slot.endTime.timeIntervalSince(slot.startTime)
+        let durationInMinutes = duration / 60.0
+        
+        // Height proportional to duration (56px per hour)
+        let height = (CGFloat(durationInMinutes) / 60.0) * rowHeight
+        
+        return max(height, 20) // Minimum height for visibility
+    }
+    
+    /// Extract hour from slot start time
+    private func hourFromSlot(_ slot: TrainerScheduleSlot) -> Int {
+        return Calendar.current.component(.hour, from: slot.startTime)
     }
 }
 

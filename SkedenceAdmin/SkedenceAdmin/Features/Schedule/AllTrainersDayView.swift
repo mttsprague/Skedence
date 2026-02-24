@@ -66,6 +66,38 @@ final class AllTrainersDayViewModel: ObservableObject {
             slot.startTime < cellEnd && slot.endTime > cellStart
         })
     }
+    
+    // MARK: - Slot Positioning Helpers
+    
+    /// Calculate Y offset for a slot based on its actual start time
+    func slotYOffset(for slot: TrainerScheduleSlot, firstHour: Int, rowHeight: CGFloat, rowVerticalPadding: CGFloat) -> CGFloat? {
+        let cal = Calendar.current
+        let components = cal.dateComponents([.hour, .minute], from: slot.startTime)
+        guard let hour = components.hour, let minute = components.minute else { return nil }
+        
+        // Calculate offset from first visible hour
+        let hourOffset = hour - firstHour
+        let minuteFraction = CGFloat(minute) / 60.0
+        
+        // Each hour has: rowHeight + (2 * rowVerticalPadding)
+        let perHourHeight = rowHeight + (rowVerticalPadding * 2)
+        
+        // Include the initial top padding
+        let offset = CGFloat(hourOffset) * perHourHeight + minuteFraction * rowHeight + rowVerticalPadding
+        
+        return offset
+    }
+    
+    /// Calculate height for a slot based on its actual duration
+    func slotHeight(for slot: TrainerScheduleSlot, rowHeight: CGFloat) -> CGFloat? {
+        let duration = slot.endTime.timeIntervalSince(slot.startTime)
+        let durationInMinutes = duration / 60.0
+        
+        // Height proportional to duration (56px per hour)
+        let height = (CGFloat(durationInMinutes) / 60.0) * rowHeight
+        
+        return max(height, 20) // Minimum height for visibility
+    }
 }
 
 struct AllTrainersDayView: View {
@@ -717,41 +749,52 @@ private struct ScrollableGridContent: View {
 
                             // Right: horizontally scrollable grid cells
                             ScrollView(.horizontal, showsIndicators: true) {
-                                VStack(spacing: 0) {
-
-                                    ForEach(visibleHours, id: \.self) { hour in
-                                        HStack(spacing: columnSpacing) {
-                                            ForEach(trainers) { trainer in
-                                                ZStack(alignment: .topLeading) {
-                                                // Empty cell background
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color(UIColor.systemGray5))
-
-                                                if let trainerId = trainer.id,
-                                                   let slot = slotFor(trainerId, hour) {
-                                                    EventCell(slot: slot, viewingTrainerId: trainerId)
+                                HStack(spacing: columnSpacing) {
+                                    ForEach(trainers) { trainer in
+                                        ZStack(alignment: .topLeading) {
+                                            // Background grid cells for visual reference and tap targets
+                                            VStack(spacing: 0) {
+                                                ForEach(visibleHours, id: \.self) { hour in
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color(UIColor.systemGray5))
+                                                        .frame(width: dynamicTrainerWidth, height: rowHeight)
+                                                        .padding(.vertical, rowVerticalPadding)
                                                         .contentShape(Rectangle())
                                                         .onTapGesture {
-                                                            onSlotTap(slot)
+                                                            if let trainerId = trainer.id {
+                                                                // Check if there's a slot at this exact hour (for empty tap detection)
+                                                                let hasSlotAtHour = slotFor(trainerId, hour) != nil
+                                                                if !hasSlotAtHour {
+                                                                    onEmptyCellTap(trainerId, hour)
+                                                                }
+                                                            }
                                                         }
                                                 }
                                             }
-                                            .frame(width: dynamicTrainerWidth, height: rowHeight)
                                             .padding(.horizontal, horizontalPaddingPerCell)
-                                            .contentShape(Rectangle())
-                                            .onTapGesture {
-                                                if let trainerId = trainer.id {
-                                                    if slotFor(trainerId, hour) == nil {
-                                                        onEmptyCellTap(trainerId, hour)
+                                            
+                                            // Absolutely positioned slots overlay
+                                            if let trainerId = trainer.id,
+                                               let slots = slotsByTrainer[trainerId] {
+                                                ForEach(slots) { slot in
+                                                    if let yOffset = viewModel.slotYOffset(for: slot, firstHour: visibleHours.first ?? 6, rowHeight: rowHeight, rowVerticalPadding: rowVerticalPadding),
+                                                       let height = viewModel.slotHeight(for: slot, rowHeight: rowHeight) {
+                                                        EventCell(slot: slot, viewingTrainerId: trainerId)
+                                                            .frame(width: dynamicTrainerWidth, height: height)
+                                                            .padding(.horizontal, horizontalPaddingPerCell)
+                                                            .offset(y: yOffset)
+                                                            .contentShape(Rectangle())
+                                                            .onTapGesture {
+                                                                onSlotTap(slot)
+                                                            }
                                                     }
                                                 }
                                             }
                                         }
+                                        .frame(width: dynamicTrainerWidth)
                                     }
-                                    .padding(.vertical, rowVerticalPadding)
                                 }
-                            }
-                            .padding(.bottom, 8)
+                                .padding(.bottom, 8)
                             } // Close ScrollView horizontal
                         } // Close HStack
                     
