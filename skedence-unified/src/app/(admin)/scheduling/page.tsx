@@ -688,6 +688,39 @@ export default function SchedulingPage() {
   // Time slots (6 AM to 10 PM)
   const timeSlots = Array.from({ length: 17 }, (_, i) => i + 6);
 
+  // Helper: Calculate Y offset for absolute positioning
+  const getItemYOffset = (startTime: Date): number => {
+    const hour = startTime.getHours();
+    const minute = startTime.getMinutes();
+    const scheduleStartHour = 6;
+    const hourOffset = hour - scheduleStartHour;
+    const minuteFraction = minute / 60;
+    const rowHeight = 70; // h-[70px]
+    const borderHeight = 1; // border between rows
+    return (hourOffset * (rowHeight + borderHeight)) + (minuteFraction * rowHeight);
+  };
+
+  // Helper: Calculate height based on duration
+  const getItemHeight = (startTime: Date, endTime: Date): number => {
+    const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+    const rowHeight = 70; // h-[70px] per hour
+    return (durationMinutes / 60) * rowHeight;
+  };
+
+  // Helper: Check if item overlaps with a specific hour
+  const itemOverlapsHour = (item: ScheduleItem, hour: number): boolean => {
+    const itemHour = item.startTime.getHours();
+    const itemMinute = item.startTime.getMinutes();
+    const itemEndHour = item.endTime.getHours();
+    const itemEndMinute = item.endTime.getMinutes();
+    
+    // Item starts before or during this hour AND ends after hour start
+    const itemStart = itemHour + (itemMinute / 60);
+    const itemEnd = itemEndHour + (itemEndMinute / 60);
+    
+    return itemStart < (hour + 1) && itemEnd > hour;
+  };
+
   // Calculate timeline position (percentage from top of schedule)
   const calculateTimelinePosition = () => {
     if (!currentTime) return null; // Don't calculate until client-side mount
@@ -863,18 +896,25 @@ export default function SchedulingPage() {
                           {hourLabel}
                         </div>
                         {weekDays.map(day => {
-                          const dayItems = getItemsForDay(day).filter(item => 
-                            item.startTime.getHours() === hour
-                          );
+                          const dayItems = getItemsForDay(day);
+                          const hasItemsInThisHour = dayItems.some(item => itemOverlapsHour(item, hour));
                           
                           return (
                             <div
                               key={`${day.toISOString()}-${hour}`}
-                              className="h-[70px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
-                              onClick={() => dayItems.length === 0 && handleEmptySlotClick(day, hour)}
+                              className="h-[70px] border-l border-gray-200 hover:bg-gray-50 relative"
                             >
-                              {dayItems.map(item => {
+                              {/* Background cell for empty area clicks */}
+                              <div 
+                                className="absolute inset-0 cursor-pointer"
+                                onClick={() => !hasItemsInThisHour && handleEmptySlotClick(day, hour)}
+                              />
+                              {/* Absolutely positioned items (only render on first hour) */}
+                              {hour === 6 && dayItems.map(item => {
                                 const isCompleted = currentTime && item.type === 'lesson' && item.endTime < currentTime;
+                                const yOffset = getItemYOffset(item.startTime);
+                                const height = getItemHeight(item.startTime, item.endTime);
+                                
                                 return (
                                   <button
                                     key={item.id}
@@ -887,13 +927,17 @@ export default function SchedulingPage() {
                                       }
                                     }}
                                     className={cn(
-                                      'w-full text-left text-xs p-1.5 rounded mb-1 transition-all hover:shadow-md h-[60px] flex flex-col justify-center',
+                                      'absolute left-0 right-0 mx-1 text-left text-xs p-1.5 rounded transition-all hover:shadow-md flex flex-col justify-center pointer-events-auto z-10',
                                       item.type === 'class' && 'bg-orange-100 border border-orange-300 hover:bg-orange-200',
                                       item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                       item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
                                       item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
                                       item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
                                     )}
+                                    style={{
+                                      top: `${yOffset}px`,
+                                      height: `${Math.max(height - 2, 30)}px` // Min height 30px, subtract 2px for margin
+                                    }}
                                   >
                                     <div className="font-semibold truncate">
                                       {format(item.startTime, 'h:mm a')}
@@ -904,7 +948,7 @@ export default function SchedulingPage() {
                                     <div className="text-gray-600 truncate">
                                       {item.trainerName}
                                     </div>
-                                    {item.location && (
+                                    {item.location && height > 50 && (
                                       <div className="text-gray-400 text-[10px] truncate">
                                         {item.location}
                                       </div>
@@ -975,18 +1019,25 @@ export default function SchedulingPage() {
                             {hourLabel}
                           </div>
                           {trainers.map(trainer => {
-                            const trainerItems = (allTrainersSchedule.get(trainer.id) || []).filter(item => 
-                              item.startTime.getHours() === hour
-                            );
+                            const trainerItems = allTrainersSchedule.get(trainer.id) || [];
+                            const hasItemsInThisHour = trainerItems.some(item => itemOverlapsHour(item, hour));
                             
                             return (
                               <div
                                 key={`${trainer.id}-${hour}`}
-                                className="w-[240px] flex-shrink-0 h-[70px] p-1 border-l border-gray-200 hover:bg-gray-50 relative cursor-pointer overflow-y-auto"
-                                onClick={() => trainerItems.length === 0 && handleEmptySlotClick(allTrainersDate!, hour)}
+                                className="w-[240px] flex-shrink-0 h-[70px] border-l border-gray-200 hover:bg-gray-50 relative"
                               >
-                                {trainerItems.map(item => {
+                                {/* Background cell for empty area clicks */}
+                                <div 
+                                  className="absolute inset-0 cursor-pointer"
+                                  onClick={() => !hasItemsInThisHour && handleEmptySlotClick(allTrainersDate!, hour)}
+                                />
+                                {/* Absolutely positioned items (only render on first hour) */}
+                                {hour === 6 && trainerItems.map(item => {
                                   const isCompleted = currentTime && item.type === 'lesson' && item.endTime < currentTime;
+                                  const yOffset = getItemYOffset(item.startTime);
+                                  const height = getItemHeight(item.startTime, item.endTime);
+                                  
                                   return (
                                     <button
                                       key={item.id}
@@ -999,13 +1050,17 @@ export default function SchedulingPage() {
                                         }
                                       }}
                                       className={cn(
-                                        'w-full text-left text-xs p-1.5 rounded mb-1 transition-all hover:shadow-md h-[60px] flex flex-col justify-center',
+                                        'absolute left-0 right-0 mx-1 text-left text-xs p-1.5 rounded transition-all hover:shadow-md flex flex-col justify-center pointer-events-auto z-10',
                                         item.type === 'class' && 'bg-orange-100 border border-orange-300 hover:bg-orange-200',
                                         item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                         item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
                                         item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
                                         item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
                                       )}
+                                      style={{
+                                        top: `${yOffset}px`,
+                                        height: `${Math.max(height - 2, 30)}px`
+                                      }}
                                     >
                                       <div className="font-semibold truncate">
                                         {format(item.startTime, 'h:mm a')}
@@ -1013,7 +1068,7 @@ export default function SchedulingPage() {
                                       <div className="truncate text-foreground">
                                         {item.type === 'class' ? item.className : item.type === 'lesson' ? item.clientName : item.status === 'open' ? 'Available' : 'Unavailable'}
                                       </div>
-                                      {item.location && (
+                                      {item.location && height > 50 && (
                                         <div className="text-gray-400 text-[10px] truncate">
                                           {item.location}
                                         </div>
