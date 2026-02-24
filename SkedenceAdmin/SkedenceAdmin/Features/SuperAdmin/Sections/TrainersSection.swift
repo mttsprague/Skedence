@@ -13,7 +13,7 @@ struct TrainersSection: View {
     let canAddTrainer: Bool
     let trainerLimit: Int
     let trainerCount: Int
-    let onShowAvatarUpload: () -> Void
+    @Binding var showingAvatarUpload: Bool
     let onShowAddTrainer: () -> Void
     
     var body: some View {
@@ -21,9 +21,9 @@ struct TrainersSection: View {
             // Upload Trainer Avatar Card
             Button(action: {
                 print("🔵 Upload Avatar button tapped - START")
-                print("🔵 Calling onShowAvatarUpload closure...")
-                onShowAvatarUpload()
-                print("🔵 onShowAvatarUpload() returned")
+                print("🔵 Setting showingAvatarUpload binding to true...")
+                showingAvatarUpload = true
+                print("🔵 showingAvatarUpload binding set, value is now: \(showingAvatarUpload)")
             }) {
                 HStack {
                     Image(systemName: "person.crop.circle.badge.plus")

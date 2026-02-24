@@ -54,12 +54,6 @@ struct SuperAdminView: View {
         "You have \(viewModel.trainers.count) of \(trainerLimit) trainers. Upgrade to add more."
     }
     
-    private func showAvatarUpload() {
-        print("🟢 showAvatarUpload() function called")
-        showingAvatarUpload = true
-        print("🟢 showingAvatarUpload = \(showingAvatarUpload)")
-    }
-    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -94,11 +88,7 @@ struct SuperAdminView: View {
                             canAddTrainer: canAddTrainer,
                             trainerLimit: trainerLimit,
                             trainerCount: viewModel.trainers.count,
-                            onShowAvatarUpload: {
-                                print("🟢 INLINE closure called in SuperAdminView")
-                                self.showingAvatarUpload = true
-                                print("🟢 showingAvatarUpload is now: \(self.showingAvatarUpload)")
-                            },
+                            showingAvatarUpload: $showingAvatarUpload,
                             onShowAddTrainer: { showingAddTrainer = true }
                         )
                         .environmentObject(dependencies)
@@ -165,6 +155,9 @@ struct SuperAdminView: View {
                     .onAppear {
                         print("🟡 Sheet appeared - TrainerAvatarUploadView presented")
                     }
+            }
+            .onChange(of: showingAvatarUpload) { oldValue, newValue in
+                print("🟢 showingAvatarUpload changed from \(oldValue) to \(newValue)")
             }
             .alert(item: $alertItem) { item in
                 Alert(title: Text(item.title), message: Text(item.message))
