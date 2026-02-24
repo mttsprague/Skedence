@@ -125,33 +125,82 @@ export function AllTrainersDayGrid({
     }
   }, [hasScrolledToCurrentTime, selectedDate]);
 
-  // Get events for a specific hour/trainer cell
-  const getEventsForCell = (trainerId: string, hour: number) => {
+  // Get events for a specific trainer on the selected day
+  const getEventsForTrainer = (trainerId: string) => {
+    const dayStart = setMinutes(setHours(selectedDate, 0), 0);
+    const dayEnd = setMinutes(setHours(selectedDate, 23), 59);
+
+    const trainerBookings = bookings.filter(b => 
+      b.trainerId === trainerId &&
+      isBefore(new Date(b.startTime), dayEnd) &&
+      isAfter(new Date(b.endTime), dayStart)
+    );
+
+    const trainerClasses = classes.filter(c => {
+      const classTrainerId = (c as any).trainerId;
+      return classTrainerId === trainerId &&
+        isBefore(new Date(c.startTime), dayEnd) &&
+        isAfter(new Date(c.endTime), dayStart);
+    });
+
+    const trainerAvailability = availabilitySlots.filter(s => 
+      s.trainerId === trainerId &&
+      isBefore(new Date(s.startTime), dayEnd) &&
+      isAfter(new Date(s.endTime), dayStart)
+    );
+
+    return { trainerBookings, trainerClasses, trainerAvailability };
+  };
+
+  // Helper functions for absolute positioning
+  const getSlotYOffset = (startTime: Date): number => {
+    const hour = getHours(startTime);
+    const minute = getMinutes(startTime);
+    
+    const firstHour = 6; // 6 AM
+    const rowHeight = 28; // 28px per half hour (56px per hour / 2)
+    
+    const hourOffset = hour - firstHour;
+    const minuteFraction = minute / 60;
+    
+    // Calculate offset: (hour offset * 2 rows per hour) + (minute fraction * 2 rows per hour)
+    return (hourOffset * 2 + minuteFraction * 2) * rowHeight;
+  };
+
+  const getSlotHeight = (startTime: Date, endTime: Date): number => {
+    const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+    const durationMinutes = durationMs / (1000 * 60);
+    
+    const rowHeight = 28; // 28px per half hour
+    // Calculate height: (duration in minutes / 30 minutes per row) * row height
+    return (durationMinutes / 30) * rowHeight;
+  };
+
+  // Get events for a specific hour/trainer cell (for tap detection on empty cells)
+  const hasEventsInHour = (trainerId: string, hour: number): boolean => {
     const cellStart = setMinutes(setHours(selectedDate, hour), 0);
     const cellEnd = setMinutes(setHours(selectedDate, hour + 1), 0);
 
-    const cellBookings = bookings.filter(b => 
+    const hasBooking = bookings.some(b => 
       b.trainerId === trainerId &&
       isBefore(new Date(b.startTime), cellEnd) &&
       isAfter(new Date(b.endTime), cellStart)
     );
 
-    const cellClasses = classes.filter(c => {
+    const hasClass = classes.some(c => {
       const classTrainerId = (c as any).trainerId;
       return classTrainerId === trainerId &&
         isBefore(new Date(c.startTime), cellEnd) &&
         isAfter(new Date(c.endTime), cellStart);
     });
 
-    const cellAvailability = availabilitySlots.filter(s => {
-      const slotStart = new Date(s.startTime);
-      const slotEnd = new Date(s.endTime);
-      return s.trainerId === trainerId &&
-        isBefore(slotStart, cellEnd) && 
-        isAfter(slotEnd, cellStart);
-    });
+    const hasAvailability = availabilitySlots.some(s => 
+      s.trainerId === trainerId &&
+      isBefore(new Date(s.startTime), cellEnd) &&
+      isAfter(new Date(s.endTime), cellStart)
+    );
 
-    return { cellBookings, cellClasses, cellAvailability };
+    return hasBooking || hasClass || hasAvailability;
   };
 
   const formatTimeSlot = (hour: number, minute: number) => {
@@ -233,88 +282,108 @@ export function AllTrainersDayGrid({
 
           {/* Trainers columns */}
           <div className="flex-1 flex relative">
-            {trainers.map((trainer, trainerIndex) => (
-              <div
-                key={trainer.id}
-                className="flex-1 min-w-[100px] border-l relative"
-              >
-                {timeSlots.map((slot, idx) => {
-                  const { cellBookings, cellClasses, cellAvailability } = getEventsForCell(trainer.id, slot.hour);
-                  const hasEvents = cellBookings.length > 0 || cellClasses.length > 0 || cellAvailability.length > 0;
+            {trainers.map((trainer) => {
+              const { trainerBookings, trainerClasses, trainerAvailability } = getEventsForTrainer(trainer.id);
+              
+              return (
+                <div
+                  key={trainer.id}
+                  className="flex-1 min-w-[100px] border-l relative"
+                >
+                  {/* Background grid cells */}
+                  {timeSlots.map((slot, idx) => {
+                    const hasEvents = slot.minute === 0 && hasEventsInHour(trainer.id, slot.hour);
+                    
+                    return (
+                      <div
+                        key={idx}
+                        className={`h-7 relative ${
+                          slot.minute === 0 ? 'border-b border-gray-300' : 'border-b border-gray-100'
+                        } ${
+                          !hasEvents && slot.minute === 0 ? 'cursor-pointer hover:bg-background' : ''
+                        }`}
+                        onClick={() => !hasEvents && slot.minute === 0 && onAddAvailability(trainer.id, selectedDate, slot.hour)}
+                      />
+                    );
+                  })}
 
-                  return (
-                    <div
-                      key={idx}
-                      className={`h-7 relative ${
-                        slot.minute === 0 ? 'border-b border-gray-300' : 'border-b border-gray-100'
-                      } ${
-                        !hasEvents && slot.minute === 0 ? 'cursor-pointer hover:bg-background' : ''
-                      }`}
-                      onClick={() => !hasEvents && slot.minute === 0 && onAddAvailability(trainer.id, selectedDate, slot.hour)}
-                    >
-                      {/* Availability slots */}
-                      {cellAvailability.map((slot) => (
+                  {/* Absolutely positioned events overlay */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {/* Availability slots */}
+                    {trainerAvailability.map((slot) => {
+                      const yOffset = getSlotYOffset(new Date(slot.startTime));
+                      const height = getSlotHeight(new Date(slot.startTime), new Date(slot.endTime));
+                      
+                      return (
                         <div
                           key={slot.id}
                           onClick={(e) => {
                             e.stopPropagation();
                             onAvailabilityClick(slot);
                           }}
-                          className={`absolute inset-x-1 rounded cursor-pointer transition-colors ${
+                          className={`absolute inset-x-1 rounded cursor-pointer transition-colors pointer-events-auto ${
                             slot.status === 'open'
                               ? 'bg-gray-200 hover:bg-gray-300'
-                              : 'bg-gray-400 hover:bg-background0'
+                              : 'bg-gray-400 hover:bg-gray-500'
                           }`}
                           style={{
-                            top: '2px',
-                            bottom: '2px',
+                            top: `${yOffset}px`,
+                            height: `${Math.max(height, 20)}px`,
                           }}
                         >
                           <div className="text-[9px] sm:text-[10px] text-foreground font-medium text-center py-1 truncate px-1">
                             {slot.status === 'open' ? 'Open' : 'Unavailable'}
                           </div>
                         </div>
-                      ))}
+                      );
+                    })}
 
-                      {/* Bookings */}
-                      {cellBookings.map((booking) => {
-                        const isCompleted = new Date(booking.endTime) < new Date();
-                        return (
-                          <div
-                            key={booking.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onBookingClick(booking);
-                            }}
-                            className={`absolute inset-x-1 text-white rounded cursor-pointer transition-colors ${
-                              isCompleted 
-                                ? 'bg-purple-500 hover:bg-purple-600' 
-                                : 'bg-blue-500 hover:bg-blue-600'
-                            }`}
-                            style={{
-                              top: '2px',
-                              bottom: '2px',
-                            }}
-                          >
-                            <div className="text-[9px] sm:text-[10px] font-medium text-center py-1 truncate px-1">
-                              {booking.clientName || 'Booking'}
-                            </div>
+                    {/* Bookings */}
+                    {trainerBookings.map((booking) => {
+                      const yOffset = getSlotYOffset(new Date(booking.startTime));
+                      const height = getSlotHeight(new Date(booking.startTime), new Date(booking.endTime));
+                      const isCompleted = new Date(booking.endTime) < new Date();
+                      
+                      return (
+                        <div
+                          key={booking.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onBookingClick(booking);
+                          }}
+                          className={`absolute inset-x-1 text-white rounded cursor-pointer transition-colors pointer-events-auto ${
+                            isCompleted 
+                              ? 'bg-purple-500 hover:bg-purple-600' 
+                              : 'bg-blue-500 hover:bg-blue-600'
+                          }`}
+                          style={{
+                            top: `${yOffset}px`,
+                            height: `${Math.max(height, 20)}px`,
+                          }}
+                        >
+                          <div className="text-[9px] sm:text-[10px] font-medium text-center py-1 truncate px-1">
+                            {booking.clientName || 'Booking'}
                           </div>
-                        );
-                      })}
+                        </div>
+                      );
+                    })}
 
-                      {/* Classes */}
-                      {cellClasses.map((classItem) => (
+                    {/* Classes */}
+                    {trainerClasses.map((classItem) => {
+                      const yOffset = getSlotYOffset(new Date(classItem.startTime));
+                      const height = getSlotHeight(new Date(classItem.startTime), new Date(classItem.endTime));
+                      
+                      return (
                         <div
                           key={classItem.id}
                           onClick={(e) => {
                             e.stopPropagation();
                             onClassClick(classItem);
                           }}
-                          className="absolute inset-x-1 bg-purple-500 hover:bg-purple-600 text-white rounded cursor-pointer transition-colors"
+                          className="absolute inset-x-1 bg-purple-500 hover:bg-purple-600 text-white rounded cursor-pointer transition-colors pointer-events-auto"
                           style={{
-                            top: '2px',
-                            bottom: '2px',
+                            top: `${yOffset}px`,
+                            height: `${Math.max(height, 20)}px`,
                           }}
                         >
                           <div className="text-[9px] sm:text-[10px] font-medium text-center py-1 truncate px-1">
@@ -324,12 +393,12 @@ export function AllTrainersDayGrid({
                             {classItem.currentParticipants}/{classItem.maxParticipants}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
 
             {/* Current time indicator (red line) */}
             {currentTimeY !== null && isToday && (
