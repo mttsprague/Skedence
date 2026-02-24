@@ -249,11 +249,20 @@ final class AuthManager: ObservableObject {
             return
         }
         do {
-            // Query trainers by authUserId field (not document ID)
-            let snapshot = try await Firestore.firestore().collection("trainers")
-                .whereField("authUserId", isEqualTo: uid)
+            // First try to find trainer by userId field (set after password setup)
+            var snapshot = try await Firestore.firestore().collection("trainers")
+                .whereField("userId", isEqualTo: uid)
                 .limit(to: 1)
                 .getDocuments()
+            
+            // If not found, try finding by email and orgId
+            if snapshot.documents.isEmpty, let email = Auth.auth().currentUser?.email, let orgId = currentOrgId {
+                snapshot = try await Firestore.firestore().collection("trainers")
+                    .whereField("email", isEqualTo: email)
+                    .whereField("orgId", isEqualTo: orgId)
+                    .limit(to: 1)
+                    .getDocuments()
+            }
             
             if let snap = snapshot.documents.first {
                 let data = snap.data()
@@ -269,6 +278,8 @@ final class AuthManager: ObservableObject {
                 if let url = data["photoURL"] as? String, !url.isEmpty {
                     self.trainerPhotoURLString = url
                 } else if let url = data["avatarUrl"] as? String, !url.isEmpty {
+                    self.trainerPhotoURLString = url
+                } else if let url = data["imageUrl"] as? String, !url.isEmpty {
                     self.trainerPhotoURLString = url
                 }
             }

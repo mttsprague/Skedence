@@ -977,8 +977,22 @@ final class FirestoreService {
         
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
+        
+        // First, get the user document to check for authUserId
+        // Documents may be stored under authUserId rather than the document ID
+        let userDoc = try await db.collection("users").document(clientId).getDocument()
+        let actualUserId: String
+        
+        if let authUserId = userDoc.data()?["authUserId"] as? String, !authUserId.isEmpty {
+            // Documents are stored under the Firebase Auth UID
+            actualUserId = authUserId
+        } else {
+            // Fall back to using the document ID
+            actualUserId = clientId
+        }
+        
         let snapshot = try await db.collection("users")
-            .document(clientId)
+            .document(actualUserId)
             .collection("documents")
             .order(by: "uploadedAt", descending: true)
             .getDocuments()
