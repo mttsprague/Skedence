@@ -94,7 +94,11 @@ struct SuperAdminView: View {
                             canAddTrainer: canAddTrainer,
                             trainerLimit: trainerLimit,
                             trainerCount: viewModel.trainers.count,
-                            onShowAvatarUpload: showAvatarUpload,
+                            onShowAvatarUpload: {
+                                print("🟢 INLINE closure called in SuperAdminView")
+                                self.showingAvatarUpload = true
+                                print("🟢 showingAvatarUpload is now: \(self.showingAvatarUpload)")
+                            },
                             onShowAddTrainer: { showingAddTrainer = true }
                         )
                         .environmentObject(dependencies)
