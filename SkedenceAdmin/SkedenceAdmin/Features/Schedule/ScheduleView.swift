@@ -613,8 +613,8 @@ struct ScheduleView: View {
                                 print("   Geometry size: \(geometry.size)")
                                 print("   Checking \(slotsForDay.count) slots...")
                                 
-                                // Check if tap hit any slot
-                                var hitSlot = false
+                                // Check if tap hit any slot - if so, handle it
+                                var hitSlot: TrainerScheduleSlot? = nil
                                 for slot in slotsForDay {
                                     if let yOffset = slotYOffset(for: slot),
                                        let height = slotHeight(for: slot) {
@@ -623,14 +623,16 @@ struct ScheduleView: View {
                                         print("   Slot '\(slot.displayTitle)' frame: \(slotFrame)")
                                         if slotFrame.contains(location) {
                                             print("   ✅ HIT SLOT: \(slot.displayTitle)")
-                                            hitSlot = true
+                                            hitSlot = slot
                                             break
                                         }
                                     }
                                 }
                                 
-                                print("   hitSlot result: \(hitSlot)")
-                                if !hitSlot && subscriptionStatus.canPerformAction(.createAvailability) {
+                                if let slot = hitSlot {
+                                    print("   → Manually triggered slot tap")
+                                    handleSlotTap(slot, defaultDay: day, defaultHour: self.hourFromSlot(slot))
+                                } else if subscriptionStatus.canPerformAction(.createAvailability) {
                                     print("   → Opening availability creator")
                                     // Calculate which hour was tapped
                                     let hourHeight = ScheduleConstants.rowHeight + (ScheduleConstants.rowVerticalPadding * 2)
