@@ -30,6 +30,7 @@ struct BusinessView: View {
     @State private var alertItem: AlertItem?
     @State private var showingCreateOrganization = false
     @State private var showingAddTrainer = false
+    @State private var showingAvatarUpload = false
     @State private var showingAddLocation = false
     @State private var locationToEdit: Location?
     @State private var organizationBilling: OrganizationBilling?
@@ -103,6 +104,10 @@ struct BusinessView: View {
                     await superAdminViewModel.loadTrainers(orgId: auth.currentOrgId)
                 }
             }
+        }
+        .sheet(isPresented: $showingAvatarUpload) {
+            TrainerAvatarUploadView()
+                .environmentObject(dependencies)
         }
         .sheet(isPresented: $showingCreateClass) {
             CreateClassView(adminService: adminService, trainersService: trainersService) {
@@ -239,7 +244,7 @@ struct BusinessView: View {
                             canAddTrainer: canAddTrainer,
                             trainerLimit: trainerLimit,
                             trainerCount: superAdminViewModel.trainers.count,
-                            onShowAvatarUpload: { },
+                            showingAvatarUpload: $showingAvatarUpload,
                             onShowAddTrainer: { showingAddTrainer = true }
                         )
                         .environmentObject(dependencies)
