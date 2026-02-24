@@ -154,9 +154,11 @@ struct SuperAdminView: View {
                 }
             }
             .sheet(isPresented: $showingAvatarUpload) {
-                print("🟡 Sheet presenting: showingAvatarUpload = \(showingAvatarUpload)")
                 TrainerAvatarUploadView()
                     .environmentObject(dependencies)
+                    .onAppear {
+                        print("🟡 Sheet appeared - TrainerAvatarUploadView presented")
+                    }
             }
             .alert(item: $alertItem) { item in
                 Alert(title: Text(item.title), message: Text(item.message))
