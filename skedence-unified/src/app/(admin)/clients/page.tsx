@@ -11,6 +11,7 @@ import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
 import { Save, X, User as UserIcon, Search, Calendar, Package, FileText, CreditCard, Receipt, History, Download, Smartphone, QrCode, Key } from 'lucide-react';
 import { logClientProfileUpdated } from '@/lib/activity-logger';
+import { trackPageView } from '@/lib/analytics';
 
 interface Booking {
   id: string;
@@ -101,6 +102,11 @@ export default function ClientsPage() {
   const [receipts, setReceipts] = useState<Transaction[]>([]);
   const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>([]);
   const [inviteCode, setInviteCode] = useState<string>('');
+
+  // Track page view
+  useEffect(() => {
+    trackPageView('/clients', 'Clients');
+  }, []);
 
   // Load organization data including invite code
   useEffect(() => {

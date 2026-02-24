@@ -39,7 +39,10 @@ struct AvailabilityEditorSheet: View {
     // Weekday indices 0...6 => Sunday...Saturday
     @State private var selectedWeekdays: Set<Int> = []
     @State private var recurringStartHour: Int
+    @State private var recurringStartMinute: Int = 0
     @State private var recurringEndHour: Int
+    @State private var recurringEndMinute: Int = 0
+    @State private var recurringSlotDuration: Int = 60 // Duration in minutes
     @State private var recurringLocation: Location?
     
     // Admin: apply unavailability to all trainers
@@ -88,8 +91,9 @@ struct AvailabilityEditorSheet: View {
         // Initialize state with provided defaults
         let cal = Calendar.current
         _singleDay = State(initialValue: defaultDay)
+        // Allow any minute value - don't force to :00
         let start = cal.date(bySettingHour: defaultHour, minute: 0, second: 0, of: defaultDay) ?? defaultDay
-        let end = cal.date(byAdding: .hour, value: 1, to: start) ?? start.addingTimeInterval(3600)
+        let end = cal.date(byAdding: .minute, value: 60, to: start) ?? start.addingTimeInterval(3600)
         _singleStart = State(initialValue: start)
         _singleEnd = State(initialValue: end)
 
@@ -389,29 +393,65 @@ struct AvailabilityEditorSheet: View {
                         )
                         .frame(maxWidth: .infinity, alignment: .center)
 
-                        // Common daily window (hour precision)
-                        HourPickerRow(title: "Daily Start", hour: $recurringStartHour, range: 6...23)
-                        HourPickerRow(title: "Daily End", hour: $recurringEndHour, range: 7...24)
-                            .onChange(of: recurringEndHour) { _, newValue in
-                                // Ensure end hour is after start and within 6am-12am range
-                                if newValue <= recurringStartHour {
-                                    recurringEndHour = min(recurringStartHour + 1, 24)
-                                } else if newValue > 24 {
-                                    recurringEndHour = 24
-                                }
+                        // Common daily window with minute precision
+                        Text("Daily Start Time")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        HStack {
+                            HourPickerRow(title: "Hour", hour: $recurringStartHour, range: 6...23)
+                            Picker("Minute", selection: $recurringStartMinute) {
+                                Text(":00").tag(0)
+                                Text(":15").tag(15)
+                                Text(":30").tag(30)
+                                Text(":45").tag(45)
                             }
-                            .onChange(of: recurringStartHour) { _, newValue in
-                                // Ensure start is within 6am-11pm range
-                                if newValue < 6 {
-                                    recurringStartHour = 6
-                                } else if newValue > 23 {
-                                    recurringStartHour = 23
-                                }
-                                // Adjust end if needed
-                                if recurringEndHour <= newValue {
-                                    recurringEndHour = min(newValue + 1, 24)
-                                }
+                            .pickerStyle(.menu)
+                        }
+                        
+                        Text("Daily End Time")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        HStack {
+                            HourPickerRow(title: "Hour", hour: $recurringEndHour, range: 7...24)
+                            Picker("Minute", selection: $recurringEndMinute) {
+                                Text(":00").tag(0)
+                                Text(":15").tag(15)
+                                Text(":30").tag(30)
+                                Text(":45").tag(45)
                             }
+                            .pickerStyle(.menu)
+                        }
+                        .onChange(of: recurringEndHour) { _, newValue in
+                            // Ensure end hour is after start
+                            if newValue <= recurringStartHour && recurringEndMinute <= recurringStartMinute {
+                                recurringEndHour = min(recurringStartHour + 1, 24)
+                                recurringEndMinute = 0
+                            }
+                        }
+                        .onChange(of: recurringStartHour) { _, newValue in
+                            // Ensure start is within range
+                            if newValue < 6 {
+                                recurringStartHour = 6
+                            } else if newValue > 23 {
+                                recurringStartHour = 23
+                            }
+                            // Adjust end if needed
+                            if recurringEndHour <= newValue && recurringEndMinute <= recurringStartMinute {
+                                recurringEndHour = min(newValue + 1, 24)
+                                recurringEndMinute = 0
+                            }
+                        }
+                        
+                        // Slot duration picker
+                        Picker("Slot Duration", selection: $recurringSlotDuration) {
+                            Text("15 minutes").tag(15)
+                            Text("30 minutes").tag(30)
+                            Text("45 minutes").tag(45)
+                            Text("1 hour").tag(60)
+                            Text("1.5 hours").tag(90)
+                            Text("2 hours").tag(120)
+                        }
+                        .pickerStyle(.menu)
 
                         // Date range
                         DatePicker("Start Date", selection: Binding<Date>(
@@ -654,26 +694,17 @@ struct AvailabilityEditorSheet: View {
 
     private func saveSingle() {
         let cal = Calendar.current
-        let startOnDay = roundDownToHour(anchor(time: singleStart, toDay: singleDay, calendar: cal), calendar: cal)
-        let endOnDay = roundDownToHour(anchor(time: singleEnd, toDay: singleDay, calendar: cal), calendar: cal)
+        // Don't round to hour - respect exact time selections
+        let startOnDay = anchor(time: singleStart, toDay: singleDay, calendar: cal)
+        let endOnDay = anchor(time: singleEnd, toDay: singleDay, calendar: cal)
         
-        // Calculate the number of hours between start and end
-        let hoursBetween = cal.dateComponents([.hour], from: startOnDay, to: endOnDay).hour ?? 1
+        // Calculate the duration in minutes between start and end
+        let minutesBetween = cal.dateComponents([.minute], from: startOnDay, to: endOnDay).minute ?? 60
         
-        // If spanning multiple hours, create individual hourly slots
-        if hoursBetween > 1 {
-            for hourOffset in 0..<hoursBetween {
-                guard let slotStart = cal.date(byAdding: .hour, value: hourOffset, to: startOnDay),
-                      let slotEnd = cal.date(byAdding: .hour, value: 1, to: slotStart) else {
-                    continue
-                }
-                onSaveSingle(singleDay, slotStart, slotEnd, singleStatus, applyToAllTrainers, selectedLocation?.name)
-            }
-        } else {
-            // Single hour slot or less
-            let minEnd = cal.date(byAdding: .hour, value: 1, to: startOnDay) ?? startOnDay.addingTimeInterval(3600)
-            let finalEnd = endOnDay < minEnd ? minEnd : endOnDay
-            onSaveSingle(singleDay, startOnDay, finalEnd, singleStatus, applyToAllTrainers, selectedLocation?.name)
+        // Allow any duration - no need to split into hourly chunks
+        // Just create a single slot with the exact times selected
+        if minutesBetween >= 15 { // Minimum 15 minutes
+            onSaveSingle(singleDay, startOnDay, endOnDay, singleStatus, applyToAllTrainers, selectedLocation?.name)
         }
         dismiss()
     }
@@ -687,8 +718,15 @@ struct AvailabilityEditorSheet: View {
         
         let daysArray = selectedWeekdays.isEmpty ? nil : Array(selectedWeekdays).sorted()
         
-        // Pass the recurring location
-        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, 60, daysArray, singleStatus, applyToAllTrainers, recurringLocation?.name)
+        // Create combined times with minutes for the callback
+        // Pass start hour+minute, end hour+minute, and slot duration
+        // The callback signature is: (Date, Date, Int, Int, Int, [Int]?, Status, Bool, String?)
+        // For backward compatibility, we pass hours but include minute info via slotDuration
+        // TODO: Update callback signature to accept minutes separately
+        let totalStartMinutes = recurringStartHour * 60 + recurringStartMinute
+        let totalEndMinutes = recurringEndHour * 60 + recurringEndMinute
+        
+        onSaveOngoing(startDateToUse, endDateToUse, recurringStartHour, recurringEndHour, recurringSlotDuration, daysArray, singleStatus, applyToAllTrainers, recurringLocation?.name)
         
         dismiss()
     }

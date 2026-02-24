@@ -68,8 +68,13 @@ export function AllTrainersDayGrid({
   const scrollRef = useRef<HTMLDivElement>(null);
   const currentTimeRef = useRef<HTMLDivElement>(null);
   
-  // Hours to display (6 AM to 11 PM)
-  const hours = Array.from({ length: 18 }, (_, i) => i + 6);
+  // Half-hour time slots (6 AM to 11:30 PM)
+  const timeSlots = Array.from({ length: 36 }, (_, i) => {
+    const totalMinutes = (6 * 60) + (i * 30);
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    return { hour, minute };
+  });
 
   // Day navigation
   const goToPreviousDay = () => {
@@ -149,9 +154,9 @@ export function AllTrainersDayGrid({
     return { cellBookings, cellClasses, cellAvailability };
   };
 
-  const formatHour = (hour: number) => {
-    const date = setHours(new Date(), hour);
-    return format(date, 'ha');
+  const formatTimeSlot = (hour: number, minute: number) => {
+    const date = setMinutes(setHours(new Date(), hour), minute);
+    return minute === 0 ? format(date, 'ha') : format(date, 'h:mm');
   };
 
   const currentTimeY = getCurrentTimePosition();
@@ -214,12 +219,14 @@ export function AllTrainersDayGrid({
         <div className="flex min-w-full">
           {/* Time column */}
           <div className="w-12 sm:w-16 flex-shrink-0 bg-gray-100 border-r">
-            {hours.map((hour) => (
+            {timeSlots.map((slot, idx) => (
               <div
-                key={hour}
-                className="h-14 flex items-center justify-center text-[10px] sm:text-xs text-foreground/80 border-b"
+                key={idx}
+                className="h-7 flex items-center justify-center text-[10px] sm:text-xs text-foreground/80 border-b"
               >
-                {formatHour(hour)}
+                {slot.minute === 0 ? formatTimeSlot(slot.hour, slot.minute) : (
+                  <span className="text-foreground/50">{formatTimeSlot(slot.hour, slot.minute)}</span>
+                )}
               </div>
             ))}
           </div>
@@ -231,18 +238,19 @@ export function AllTrainersDayGrid({
                 key={trainer.id}
                 className="flex-1 min-w-[100px] border-l relative"
               >
-                {hours.map((hour, hourIndex) => {
-                  const { cellBookings, cellClasses, cellAvailability } = getEventsForCell(trainer.id, hour);
+                {timeSlots.map((slot, idx) => {
+                  const { cellBookings, cellClasses, cellAvailability } = getEventsForCell(trainer.id, slot.hour);
                   const hasEvents = cellBookings.length > 0 || cellClasses.length > 0 || cellAvailability.length > 0;
 
                   return (
                     <div
-                      key={hour}
-                      className={`h-14 border-b relative ${
-                        !hasEvents ? 'cursor-pointer hover:bg-background' : ''
+                      key={idx}
+                      className={`h-7 relative ${
+                        slot.minute === 0 ? 'border-b border-gray-300' : 'border-b border-gray-100'
+                      } ${
+                        !hasEvents && slot.minute === 0 ? 'cursor-pointer hover:bg-background' : ''
                       }`}
-                      onClick={() => !hasEvents && onAddAvailability(trainer.id, selectedDate, hour)}
-                      ref={isToday && hour === getHours(new Date()) ? currentTimeRef : null}
+                      onClick={() => !hasEvents && slot.minute === 0 && onAddAvailability(trainer.id, selectedDate, slot.hour)}
                     >
                       {/* Availability slots */}
                       {cellAvailability.map((slot) => (

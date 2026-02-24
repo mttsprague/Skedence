@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Functions, httpsCallable } from 'firebase/functions';
 import { getFunctions } from 'firebase/functions';
+import { trackClick, trackSubscription } from '@/lib/analytics';
 import { CreditCard, CheckCircle2, AlertCircle, Crown, Zap, Building2, Rocket, Check, ArrowRight } from 'lucide-react';
 import { PlanComparison } from '@/components/admin/plan-comparison';
 
@@ -36,12 +37,24 @@ function SearchParamsHandler({ onMessage, onReload }: {
     
     if (success === 'true') {
       hasProcessed.current = true;
+      
+      // Track successful subscription completion
+      trackSubscription.started(
+        'Unknown', // Plan name will be updated by webhook
+        true,
+        0 // Price will be updated by webhook
+      );
+      
       onMessage({ type: 'success', text: 'Subscription activated successfully! Welcome to Skedence.' });
       onReload();
       // Clear URL params
       window.history.replaceState({}, '', '/settings/subscription');
     } else if (canceled === 'true') {
       hasProcessed.current = true;
+      
+      // Track checkout cancellation
+      trackClick('cancel_checkout', 'stripe_checkout', { reason: 'user_abandoned' });
+      
       onMessage({ type: 'error', text: 'Subscription checkout was canceled.' });
       // Clear URL params
       window.history.replaceState({}, '', '/settings/subscription');
@@ -128,6 +141,9 @@ function SubscriptionContent() {
 
   async function handleManageSubscription() {
     if (!orgId) return;
+    
+    // Track opening customer portal
+    trackClick('manage_subscription', 'settings_subscription');
     
     setIsPurchasing(true);
     setMessage(null);

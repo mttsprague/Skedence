@@ -17,6 +17,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { trackAuth } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
 const navigation = [
@@ -196,6 +197,7 @@ export function Sidebar() {
         <div className="p-4 border-t border-sidebar-border">
           <button
             onClick={() => {
+              trackAuth.logout();
               signOut();
               closeMobileMenu();
             }}

@@ -12,6 +12,7 @@ import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X,
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { logTrainerCreated, logTrainerActivated, logTrainerDeactivated } from '@/lib/activity-logger';
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
+import { trackPageView } from '@/lib/analytics';
 
 export default function TrainersPage() {
   const { orgId, user, userData } = useAuthHook();
@@ -24,6 +25,11 @@ export default function TrainersPage() {
   const [addError, setAddError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
   const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+
+  // Track page view
+  useEffect(() => {
+    trackPageView('/trainers', 'Trainers');
+  }, []);
   
   // Edit trainer sheet state
   const [showEditSheet, setShowEditSheet] = useState(false);

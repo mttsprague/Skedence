@@ -8,6 +8,7 @@ import { db } from '@/lib/firebase';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, addMonths, differenceInMinutes } from 'date-fns';
 import { Download, Calendar, Filter, ChevronDown, ArrowUpDown, Users, Clock, TrendingUp } from 'lucide-react';
+import { trackPageView, trackFeature } from '@/lib/analytics';
 
 interface Appointment {
   id: string;
@@ -68,6 +69,11 @@ export default function AppointmentsReportPage() {
   // Table Sorting
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  // Track page view
+  useEffect(() => {
+    trackPageView('/reports/appointments', 'Appointments Report');
+  }, []);
   
   // Month options: 4 future + current + 24 past
   const monthOptions = (() => {
@@ -414,6 +420,9 @@ export default function AppointmentsReportPage() {
   });
 
   function exportToCSV() {
+    // Track export feature usage
+    trackFeature.export('appointments_csv', sortedAppointments.length);
+
     const headers = ['Date', 'Time', 'Client', 'Email', 'Trainer', 'Type', 'Duration (min)', 'Status', 'Location', 'Athletes'];
     const rows = sortedAppointments.map(apt => [
       format(apt.startTime, 'yyyy-MM-dd'),

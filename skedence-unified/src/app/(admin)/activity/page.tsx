@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { collection, query, where, getDocs, limit, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { trackPageView } from '@/lib/analytics';
 import { 
   Calendar, 
   XCircle, 
@@ -112,6 +113,11 @@ export default function ActivityPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+
+  // Track page view
+  useEffect(() => {
+    trackPageView('/activity', 'Activity Feed');
+  }, []);
   
   // Advanced filters
   const [selectedActivityType, setSelectedActivityType] = useState<string>('all');

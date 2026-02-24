@@ -64,8 +64,14 @@ export function WeekScheduleGrid({
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 }); // Sunday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   
-  // Hours to display (6 AM to 11 PM, ending at midnight)
-  const hours = Array.from({ length: 18 }, (_, i) => i + 6);
+  // Half-hour time slots (6 AM to 11:30 PM)
+  // Generate 30-minute intervals for better granularity
+  const timeSlots = Array.from({ length: 36 }, (_, i) => {
+    const totalMinutes = (6 * 60) + (i * 30); // Start at 6 AM, 30-min intervals
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    return { hour, minute };
+  });
 
   // Week navigation
   const goToPreviousWeek = () => setSelectedDate(subWeeks(selectedDate, 1));
@@ -126,9 +132,9 @@ export function WeekScheduleGrid({
     return { cellBookings, cellClasses, cellAvailability };
   };
 
-  const formatHour = (hour: number) => {
-    const date = setHours(new Date(), hour);
-    return format(date, 'ha');
+  const formatTimeSlot = (hour: number, minute: number) => {
+    const date = setMinutes(setHours(new Date(), hour), minute);
+    return minute === 0 ? format(date, 'ha') : format(date, 'h:mm');
   };
 
   const currentTimeY = getCurrentTimePosition();
@@ -199,14 +205,14 @@ export function WeekScheduleGrid({
         <div className="flex min-w-full">
           {/* Time column */}
           <div className="w-12 sm:w-16 flex-shrink-0 bg-background sticky left-0 z-10">
-            {hours.map((hour) => (
+            {timeSlots.map((slot, idx) => (
               <div
-                key={hour}
-                id={hour === currentHour ? 'current-hour' : undefined}
-                ref={hour === currentHour ? currentTimeRef : null}
-                className="h-14 sm:h-16 flex items-start justify-center pt-1 text-[10px] sm:text-xs text-muted-foreground"
+                key={idx}
+                className="h-7 sm:h-8 flex items-start justify-center pt-1 text-[10px] sm:text-xs text-muted-foreground"
               >
-                {formatHour(hour)}
+                {slot.minute === 0 ? formatTimeSlot(slot.hour, slot.minute) : (
+                  <span className="text-muted-foreground/60">{formatTimeSlot(slot.hour, slot.minute)}</span>
+                )}
               </div>
             ))}
           </div>
@@ -222,95 +228,6 @@ export function WeekScheduleGrid({
                 <div className="absolute left-0 -top-1 w-2 h-2 bg-red-500 rounded-full" />
               </div>
             )}
-
-            <div className="flex">
-              {weekDays.map((day, dayIndex) => (
-                <div
-                  key={dayIndex}
-                  className={`flex-1 border-l ${
-                    isToday(day) ? 'bg-blue-50/30' : ''
-                  }`}
-                >
-                  {hours.map((hour) => {
-                    const { cellBookings, cellClasses, cellAvailability } = getEventsForCell(day, hour);
-                    const isEmpty = cellBookings.length === 0 && cellClasses.length === 0 && cellAvailability.length === 0;
-
-                    return (
-                      <div
-                        key={hour}
-                        className="h-14 sm:h-16 border-b border-gray-200 p-0.5 relative group cursor-pointer touch-manipulation"
-                        onClick={() => isEmpty && onAddAvailability(day, hour)}
-                      >
-                        {/* Empty cell hover state */}
-                        {isEmpty && (
-                          <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors rounded" />
-                        )}
-
-                        {/* Availability slots */}
-                        {cellAvailability.map((slot) => (
-                          <div
-                            key={slot.id}
-                            className={`absolute inset-0.5 rounded text-xs flex items-center justify-center cursor-pointer ${
-                              slot.status === 'open'
-                                ? 'bg-green-100 text-green-800 border border-green-300'
-                                : 'bg-gray-100 text-foreground/80 border border-input'
-                            }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAvailabilityClick(slot);
-                            }}
-                          >
-                            {slot.status === 'open' ? 'Available' : 'Unavailable'}
-                          </div>
-                        ))}
-
-                        {/* Bookings */}
-                        {cellBookings.map((booking) => {
-                          const isCompleted = new Date(booking.endTime) < new Date();
-                          return (
-                            <div
-                              key={booking.id}
-                              className={`absolute inset-0.5 text-white rounded text-xs p-1 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                                isCompleted 
-                                  ? 'bg-purple-500 hover:bg-purple-600' 
-                                  : 'bg-blue-500 hover:bg-blue-600'
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onBookingClick(booking);
-                              }}
-                            >
-                              <div className="font-medium truncate w-full text-center">
-                                {booking.clientName || 'Booked'}
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {/* Group Classes */}
-                        {cellClasses.map((classItem) => (
-                          <div
-                            key={classItem.id}
-                            className="absolute inset-0.5 bg-purple-500 text-white rounded text-xs p-1 flex flex-col items-center justify-center cursor-pointer hover:bg-purple-600 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onClassClick(classItem);
-                            }}
-                          >
-                            <div className="font-medium truncate w-full text-center">
-                              {classItem.title}
-                            </div>
-                            <div className="text-[10px] opacity-90">
-                              {classItem.currentParticipants}/{classItem.maxParticipants}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>

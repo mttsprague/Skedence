@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { trackAuth } from "@/lib/analytics";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,6 +21,10 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      
+      // Track successful login
+      trackAuth.login(email);
+      
       router.push("/activity");
     } catch (err: any) {
       setError(err.message || "Failed to login");

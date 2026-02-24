@@ -82,9 +82,10 @@ export default function SchedulePage() {
   
   // Availability editor
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
-  const [editingSlot, setEditingSlot] = useState<{ day: Date; hour: number; existingSlot?: AvailabilitySlot; targetTrainerId?: string } | null>(null);
-  const [slotDuration, setSlotDuration] = useState<number>(1);
+  const [editingSlot, setEditingSlot] = useState<{ day: Date; hour: number; minute: number; existingSlot?: AvailabilitySlot; targetTrainerId?: string } | null>(null);
+  const [slotDuration, setSlotDuration] = useState<number>(60); // Duration in minutes
   const [slotStatus, setSlotStatus] = useState<'open' | 'unavailable'>('open');
+  const [slotMinute, setSlotMinute] = useState<number>(0); // Minute within the hour (0, 15, 30, 45)
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState<number>(4);
 
@@ -332,22 +333,26 @@ export default function SchedulePage() {
   }, [orgId, selectedTrainerId, viewMode]);
 
   const handleAddAvailability = (day: Date, hour: number, trainerId?: string) => {
-    setEditingSlot({ day, hour, targetTrainerId: trainerId });
-    setSlotDuration(1);
+    setEditingSlot({ day, hour, minute: 0, targetTrainerId: trainerId });
+    setSlotDuration(60); // Default 60 minutes
     setSlotStatus('open');
+    setSlotMinute(0); // Default to :00
     setShowAvailabilityDialog(true);
   };
 
   const handleAvailabilityClick = (slot: AvailabilitySlot) => {
     const startDate = new Date(slot.startTime);
+    const slotMinuteValue = startDate.getMinutes();
     setEditingSlot({
       day: startDate,
       hour: startDate.getHours(),
+      minute: slotMinuteValue,
       existingSlot: slot,
       targetTrainerId: slot.trainerId,
     });
-    setSlotDuration(Math.round((slot.endTime.getTime() - slot.startTime.getTime()) / (1000 * 60 * 60)));
+    setSlotDuration(Math.round((slot.endTime.getTime() - slot.startTime.getTime()) / (1000 * 60))); // Duration in minutes
     setSlotStatus(slot.status);
+    setSlotMinute(slotMinuteValue);
     setShowAvailabilityDialog(true);
   };
 
@@ -356,23 +361,25 @@ export default function SchedulePage() {
     if (!editingSlot || !targetTrainerId) return;
 
     try {
-      const startTime = setMinutes(setHours(editingSlot.day, editingSlot.hour), 0);
-      const endTime = new Date(startTime.getTime() + slotDuration * 60 * 60 * 1000);
+      // Use minute from slotMinute state
+      const startTime = setMinutes(setHours(editingSlot.day, editingSlot.hour), slotMinute);
+      const endTime = new Date(startTime.getTime() + slotDuration * 60 * 1000); // Duration in minutes
 
       console.log('Schedule: Creating slot for trainer:', targetTrainerId);
       console.log('Schedule: Start time:', startTime);
       console.log('Schedule: End time:', endTime);
       console.log('Schedule: Status:', slotStatus);
 
-      // Helper function to generate deterministic slot ID (matches iOS/Cloud Functions)
+      // Helper function to generate deterministic slot ID with minutes (matches iOS/Cloud Functions)
       const generateScheduleDocId = (date: Date): string => {
         const utcDate = new Date(date);
-        utcDate.setUTCMinutes(0, 0, 0); // normalize to top of the hour
+        // Don't normalize - keep the actual minutes
         const year = utcDate.getUTCFullYear();
         const month = (utcDate.getUTCMonth() + 1).toString().padStart(2, '0');
         const day = utcDate.getUTCDate().toString().padStart(2, '0');
         const hour = utcDate.getUTCHours().toString().padStart(2, '0');
-        return `${year}-${month}-${day}T${hour}`;
+        const minute = utcDate.getUTCMinutes().toString().padStart(2, '0');
+        return `${year}-${month}-${day}T${hour}:${minute}`;
       };
 
       // Get trainer name
@@ -593,18 +600,47 @@ export default function SchedulePage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Start Time</Label>
+                <div className="text-sm text-muted-foreground">
+                  {editingSlot?.day.toLocaleDateString()} at {editingSlot?.hour.toString().padStart(2, '0')}:{slotMinute.toString().padStart(2, '0')}
+                </div>
+              </div>
+              <div>
+                <Label>Minute</Label>
+                <Select value={slotMinute.toString()} onValueChange={(v) => setSlotMinute(parseInt(v))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">:00</SelectItem>
+                    <SelectItem value="15">:15</SelectItem>
+                    <SelectItem value="30">:30</SelectItem>
+                    <SelectItem value="45">:45</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div>
-              <Label>Duration (hours)</Label>
+              <Label>Duration</Label>
               <Select value={slotDuration.toString()} onValueChange={(v) => setSlotDuration(parseInt(v))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5, 6].map((h) => (
-                    <SelectItem key={h} value={h.toString()}>
-                      {h} hour{h > 1 ? 's' : ''}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="15">15 minutes</SelectItem>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="45">45 minutes</SelectItem>
+                  <SelectItem value="60">1 hour</SelectItem>
+                  <SelectItem value="90">1.5 hours</SelectItem>
+                  <SelectItem value="120">2 hours</SelectItem>
+                  <SelectItem value="150">2.5 hours</SelectItem>
+                  <SelectItem value="180">3 hours</SelectItem>
+                  <SelectItem value="240">4 hours</SelectItem>
+                  <SelectItem value="300">5 hours</SelectItem>
+                  <SelectItem value="360">6 hours</SelectItem>
                 </SelectContent>
               </Select>
             </div>

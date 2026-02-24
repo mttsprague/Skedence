@@ -13,6 +13,7 @@ import { db } from '@/lib/firebase';
 import { Plus, Minus, Package, User, Search, Calendar, Clock, Mail, Phone, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { logPassIssued } from '@/lib/activity-logger';
+import { trackBusiness, trackPageView } from '@/lib/analytics';
 
 interface Client {
   id: string;
@@ -302,6 +303,9 @@ export default function PassesPage() {
         }
 
         console.log('🎉 Pass successfully added!');
+
+        // Track pass creation (admin-added, so amount is 0)
+        trackBusiness.packageCreated(selectedPackage.packageType, 0);
 
         // Try to log activity (but don't fail if it doesn't work - activities are write-protected)
         if (orgId && user && userData) {

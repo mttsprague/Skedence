@@ -10,6 +10,7 @@ import { Functions, httpsCallable } from 'firebase/functions';
 import { getFunctions } from 'firebase/functions';
 import { CheckCircle2, AlertCircle, Crown, Zap, Building2, Rocket, Check, ArrowRight } from 'lucide-react';
 import { PlanComparison } from '@/components/admin/plan-comparison';
+import { trackClick, trackSubscription, trackPageView } from '@/lib/analytics';
 
 interface SubscriptionStatus {
   hasSubscription: boolean;
@@ -97,6 +98,19 @@ function SubscriptionContent() {
   const handleSelectPlan = async (planName: string, priceId: string) => {
     if (!orgId) return;
     
+    // Track plan selection
+    const planPrices: Record<string, number> = {
+      'Starter': 29,
+      'Studio': 99,
+      'Academy': 249,
+      'Enterprise': 499,
+    };
+    
+    trackClick('select_plan', 'subscription_page', { 
+      plan: planName,
+      price: planPrices[planName] || 0
+    });
+    
     setIsPurchasing(true);
     setSelectedPlan(planName);
     
@@ -117,6 +131,13 @@ function SubscriptionContent() {
       if (!result.data.url) {
         throw new Error('No checkout URL returned from server');
       }
+      
+      // Track checkout initiated
+      trackSubscription.started(
+        planName, 
+        true, // is trial
+        planPrices[planName] || 0
+      );
       
       // Redirect to Stripe Checkout
       console.log('Redirecting to:', result.data.url);

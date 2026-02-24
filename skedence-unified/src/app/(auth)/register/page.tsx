@@ -8,6 +8,7 @@ import { httpsCallable } from "firebase/functions";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { generateOrganizationId, generateTrainerId } from "@/lib/id-generator";
+import { trackAuth, setUserProperties } from "@/lib/analytics";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -125,6 +126,14 @@ export default function RegisterPage() {
 
       // Store orgId for step 3
       sessionStorage.setItem('newOrgId', orgId);
+
+      // Track successful sign up
+      trackAuth.signUp(email, orgId);
+      setUserProperties({
+        userId: authUserId,
+        orgId: orgId,
+        role: 'owner'
+      });
 
       // Move to mobile app notification step
       setStep(3);
