@@ -20,6 +20,7 @@ struct HourDayCell: View {
     let onSlotTap: (TrainerScheduleSlot) -> Void
     let onSetStatus: (TrainerScheduleSlot.Status) -> Void
     let onClear: () -> Void
+    let isBackground: Bool  // When true, don't handle taps (used for absolute positioning mode)
 
     // Computed values to avoid local lets in body builder
     private var cellStart: Date {
@@ -41,28 +42,33 @@ struct HourDayCell: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color(UIColor.systemGray3), lineWidth: 0.5)
 
-            ForEach(matching) { slot in
-                EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        onSlotTap(slot)
-                    }
-                    .contextMenu {
-                        // Only show delete option for open slots
-                        if slot.status == .open {
-                            Button(role: .destructive) {
-                                onClear()
-                            } label: {
-                                Label("Delete Availability", systemImage: "trash")
+            // Only render slots when NOT in background mode (old cell-based architecture)
+            // In absolute positioning mode, slots are rendered separately as an overlay
+            if !isBackground {
+                ForEach(matching) { slot in
+                    EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onSlotTap(slot)
+                        }
+                        .contextMenu {
+                            // Only show delete option for open slots
+                            if slot.status == .open {
+                                Button(role: .destructive) {
+                                    onClear()
+                                } label: {
+                                    Label("Delete Availability", systemImage: "trash")
+                                }
                             }
                         }
-                    }
+                }
             }
         }
         .frame(width: dayColumnWidth, height: rowHeight)
         .padding(.horizontal, horizontalPadding)
         .contentShape(Rectangle())
         .onTapGesture {
+            // Always handle empty area taps (use matching to detect if truly empty)
             if matching.isEmpty {
                 onEmptyTap()
             }
@@ -84,6 +90,19 @@ struct HourDayCell: View {
             } label: {
                 Label("Clear", systemImage: "trash")
             }
+        }
+    }
+}
+
+// MARK: - View Extension for Conditional Modifiers
+extension View {
+    /// Applies a modifier conditionally
+    @ViewBuilder
+    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
         }
     }
 }

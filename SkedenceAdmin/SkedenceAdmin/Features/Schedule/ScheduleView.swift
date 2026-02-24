@@ -546,7 +546,7 @@ struct ScheduleView: View {
                             HourDayCell(
                                 day: day,
                                 hour: hour,
-                                slotsForDay: [], // Don't render slots in cells anymore
+                                slotsForDay: slotsForDay, // Pass actual slots for empty tap detection
                                 dayColumnWidth: calculatedDayWidth,
                                 rowHeight: ScheduleConstants.rowHeight,
                                 horizontalPadding: 2,
@@ -566,7 +566,8 @@ struct ScheduleView: View {
                                 },
                                 onClear: {
                                     Task { await viewModel.clearSlot(on: day, hour: hour) }
-                                }
+                                },
+                                isBackground: true  // Using absolute positioning mode
                             )
                             .padding(.vertical, ScheduleConstants.rowVerticalPadding)
                         }

@@ -586,7 +586,7 @@ private struct ScheduleGridView: View {
                                             HourDayCell(
                                                 day: day,
                                                 hour: hour,
-                                                slotsForDay: [], // Don't render slots in cells anymore
+                                                slotsForDay: slotsForDay, // Pass actual slots for empty tap detection
                                                 dayColumnWidth: dayColumnWidth,
                                                 rowHeight: rowHeight,
                                                 horizontalPadding: 2,
@@ -607,7 +607,8 @@ private struct ScheduleGridView: View {
                                                     if isAdmin {
                                                         onClear(day, hour)
                                                     }
-                                                }
+                                                },
+                                                isBackground: true  // Using absolute positioning mode
                                             )
                                             .padding(.vertical, rowVerticalPadding)
                                         }
