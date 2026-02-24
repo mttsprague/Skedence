@@ -66,12 +66,13 @@ struct HourDayCell: View {
         }
         .frame(width: dayColumnWidth, height: rowHeight)
         .padding(.horizontal, horizontalPadding)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            // Always handle empty area taps (use matching to detect if truly empty)
-            if matching.isEmpty {
-                onEmptyTap()
-            }
+        .if(matching.isEmpty) { view in
+            // Only capture taps when area is truly empty
+            // This allows overlay slots to receive taps when matching is not empty
+            view.contentShape(Rectangle())
+                .onTapGesture {
+                    onEmptyTap()
+                }
         }
         .contextMenu {
             Button {
