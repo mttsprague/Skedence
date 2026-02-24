@@ -20,7 +20,9 @@ struct TrainersSection: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             // Upload Trainer Avatar Card
             Button {
+                print("🔵 Upload Avatar button tapped")
                 onShowAvatarUpload()
+                print("🔵 onShowAvatarUpload() called")
             } label: {
                 HStack {
                     Image(systemName: "person.crop.circle.badge.plus")

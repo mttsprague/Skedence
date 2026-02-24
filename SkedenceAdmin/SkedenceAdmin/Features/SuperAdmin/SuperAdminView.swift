@@ -88,7 +88,11 @@ struct SuperAdminView: View {
                             canAddTrainer: canAddTrainer,
                             trainerLimit: trainerLimit,
                             trainerCount: viewModel.trainers.count,
-                            onShowAvatarUpload: { showingAvatarUpload = true },
+                            onShowAvatarUpload: {
+                                print("🟢 onShowAvatarUpload closure called")
+                                showingAvatarUpload = true
+                                print("🟢 showingAvatarUpload set to true")
+                            },
                             onShowAddTrainer: { showingAddTrainer = true }
                         )
                         .environmentObject(dependencies)
@@ -150,6 +154,7 @@ struct SuperAdminView: View {
                 }
             }
             .sheet(isPresented: $showingAvatarUpload) {
+                print("🟡 Sheet presenting: showingAvatarUpload = \(showingAvatarUpload)")
                 TrainerAvatarUploadView()
                     .environmentObject(dependencies)
             }
