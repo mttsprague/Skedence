@@ -540,68 +540,91 @@ struct ScheduleView: View {
                 let slotsForDay = viewModel.slotsByDay[DateOnly(day)] ?? []
                 
                 ZStack(alignment: .topLeading) {
-                    // Background grid cells (for visual reference and tap targets)
+                    // Background grid cells (purely visual - no tap handling)
                     VStack(spacing: 0) {
                         ForEach(viewModel.visibleHours, id: \.self) { hour in
                             HourDayCell(
                                 day: day,
                                 hour: hour,
-                                slotsForDay: slotsForDay, // Pass actual slots for empty tap detection
+                                slotsForDay: [], // Empty - background cells don't need slot data for visuals
                                 dayColumnWidth: calculatedDayWidth,
                                 rowHeight: ScheduleConstants.rowHeight,
                                 horizontalPadding: 2,
                                 isToday: isToday,
-                                viewingTrainerId: viewModel.editingTrainerId ?? auth.userId,
-                                onEmptyTap: {
-                                    // Check subscription status before allowing slot creation
-                                    if subscriptionStatus.canPerformAction(.createAvailability) {
-                                        editorContext = ScheduleEditorContext(day: day, hour: hour)
-                                    }
-                                },
-                                onSlotTap: { slot in
-                                    handleSlotTap(slot, defaultDay: day, defaultHour: hour)
-                                },
-                                onSetStatus: { status in
-                                    Task { await viewModel.setSlotStatus(on: day, hour: hour, status: status) }
-                                },
-                                onClear: {
-                                    Task { await viewModel.clearSlot(on: day, hour: hour) }
-                                },
-                                isBackground: true  // Using absolute positioning mode
+                                viewingTrainerId: viewModel.editing TrainerId ?? auth.userId,
+                                onEmptyTap: { },  // No-op
+                                onSlotTap: { _ in }, // No-op
+                                onSetStatus: { _ in }, // Keep context menu for Set Available/Unavailable
+                                onClear: { }, // No-op
+                                isBackground: true
                             )
                             .padding(.vertical, ScheduleConstants.rowVerticalPadding)
                         }
                     }
+                    .allowsHitTesting(false) // Purely visual background
                     
-                    // Absolutely positioned slots overlay
+                    // Absolutely positioned slots overlay (receives taps)
                     ForEach(slotsForDay) { slot in
                         if let yOffset = slotYOffset(for: slot),
                            let height = slotHeight(for: slot) {
-                            EventCell(slot: slot, viewingTrainerId: viewModel.editingTrainerId ?? auth.userId)
-                                .frame(width: calculatedDayWidth, height: height)
-                                .padding(.horizontal, 2)
-                                .offset(y: yOffset)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    handleSlotTap(slot, defaultDay: day, defaultHour: self.hourFromSlot(slot))
+                            Button(action: {
+                                handleSlotTap(slot, defaultDay: day, defaultHour: self.hourFromSlot(slot))
+                            }) {
+                                EventCell(slot: slot, viewingTrainerId: viewModel.editingTrainerId ?? auth.userId)
+                                    .frame(width: calculatedDayWidth, height: height)
+                                    .padding(.horizontal, 2)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .offset(y: yOffset)
+                            .contextMenu {
+                                // Only show delete option for open slots
+                                if slot.status == .open {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            await viewModel.clearSlot(
+                                                on: day,
+                                                hour: self.hourFromSlot(slot)
+                                            )
+                                        }
+                                    } label: {
+                                        Label("Delete Availability", systemImage: "trash")
+                                    }
                                 }
-                                .contextMenu {
-                                    // Only show delete option for open slots
-                                    if slot.status == .open {
-                                        Button(role: .destructive) {
-                                            Task {
-                                                await viewModel.clearSlot(
-                                                    on: day,
-                                                    hour: self.hourFromSlot(slot)
-                                                )
-                                            }
-                                        } label: {
-                                            Label("Delete Availability", systemImage: "trash")
+                            }
+                        }
+                    }
+                    
+                    // Empty area tap detection (on top layer)
+                    GeometryReader { geometry in
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { location in
+                                // Check if tap hit any slot
+                                var hitSlot = false
+                                for slot in slotsForDay {
+                                    if let yOffset = slotYOffset(for: slot),
+                                       let height = slotHeight(for: slot) {
+                                        let slotFrame = CGRect(x: 2, y: yOffset, 
+                                                               width: calculatedDayWidth - 4, height: height)
+                                        if slotFrame.contains(location) {
+                                            hitSlot = true
+                                            break
                                         }
                                     }
                                 }
-                        }
+                                
+                                if !hitSlot && subscriptionStatus.canPerformAction(.createAvailability) {
+                                    // Calculate which hour was tapped
+                                    let hourHeight = ScheduleConstants.rowHeight + (ScheduleConstants.rowVerticalPadding * 2)
+                                    let hourIndex = Int(location.y / hourHeight)
+                                    if hourIndex >= 0 && hourIndex < viewModel.visibleHours.count {
+                                        let hour = viewModel.visibleHours[hourIndex]
+                                        editorContext = ScheduleEditorContext(day: day, hour: hour)
+                                    }
+                                }
+                            }
                     }
+                    .allowsHitTesting(true)
                 }
                 .background(isToday ? Color.blue.opacity(0.08) : Color.clear)
             }
