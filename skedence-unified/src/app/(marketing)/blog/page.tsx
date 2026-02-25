@@ -135,10 +135,10 @@ export default function BlogPage() {
             <div className="flex flex-wrap gap-2 justify-center">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                   selectedCategory === 'all'
-                    ? 'bg-primary text-black'
-                    : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary border border-border'
+                    ? 'bg-primary text-black shadow-md'
+                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 border-gray-300 dark:border-gray-600 hover:border-primary hover:text-primary'
                 }`}
               >
                 All Posts
@@ -147,10 +147,10 @@ export default function BlogPage() {
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                     selectedCategory === category
-                      ? 'bg-primary text-black'
-                      : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary border border-border'
+                      ? 'bg-primary text-black shadow-md'
+                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 border-gray-300 dark:border-gray-600 hover:border-primary hover:text-primary'
                   }`}
                 >
                   {BLOG_CATEGORIES[category].icon} {BLOG_CATEGORIES[category].title}
@@ -162,13 +162,13 @@ export default function BlogPage() {
           {/* Sport Filter */}
           {availableSports.length > 1 && (
             <div className="flex flex-wrap gap-2 justify-center items-center">
-              <span className="text-sm font-medium text-foreground/60 uppercase tracking-wider">Filter by Sport:</span>
+              <span className="text-sm font-medium text-foreground uppercase tracking-wider">Filter by Sport:</span>
               <button
                 onClick={() => setSelectedSport('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                   selectedSport === 'all'
-                    ? 'bg-primary text-black'
-                    : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary border border-border'
+                    ? 'bg-primary text-black shadow-md'
+                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 border-gray-300 dark:border-gray-600 hover:border-primary hover:text-primary'
                 }`}
               >
                 All Sports
@@ -177,10 +177,10 @@ export default function BlogPage() {
                 <button
                   key={sport}
                   onClick={() => setSelectedSport(sport)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
                     selectedSport === sport
-                      ? 'bg-primary text-black'
-                      : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary border border-border'
+                      ? 'bg-primary text-black shadow-md'
+                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 border-gray-300 dark:border-gray-600 hover:border-primary hover:text-primary'
                   }`}
                 >
                   {sport === 'volleyball' && '🏐'}
