@@ -247,7 +247,7 @@ function BlogEditorContent() {
                 <img src={featuredImage} alt={featuredImageAlt} className="w-full h-96 object-cover rounded-lg mb-8" />
               )}
               <div className="text-xs font-bold text-primary uppercase tracking-wider mb-4">
-                {categories.map(cat => BLOG_CATEGORIES[cat].icon).join(' ')} {categories.map(cat => BLOG_CATEGORIES[cat].title).join(', ')}
+                {categories.filter(cat => BLOG_CATEGORIES[cat]).map(cat => BLOG_CATEGORIES[cat].icon).join(' ')} {categories.filter(cat => BLOG_CATEGORIES[cat]).map(cat => BLOG_CATEGORIES[cat].title).join(', ')}
               </div>
               <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4 leading-tight">{title}</h1>
               <p className="text-xl text-foreground/60 mb-8">{excerpt}</p>

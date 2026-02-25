@@ -232,7 +232,7 @@ export default function BlogPage() {
 
                   {/* Category & Sport Badges */}
                   <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    {post.categories && post.categories.map(cat => (
+                    {post.categories && post.categories.filter(cat => BLOG_CATEGORIES[cat]).map(cat => (
                       <span key={cat} className="text-xs font-bold text-primary uppercase tracking-wider">
                         {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
                       </span>

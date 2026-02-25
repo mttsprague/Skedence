@@ -133,7 +133,7 @@ function BlogPostContent() {
         <div className="container mx-auto max-w-4xl">
           {/* Category & Meta */}
           <div className="flex flex-wrap items-center gap-4 mb-6">
-            {post.categories && post.categories.map(cat => (
+            {post.categories && post.categories.filter(cat => BLOG_CATEGORIES[cat]).map(cat => (
               <span key={cat} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-xs font-bold text-primary uppercase tracking-wider">
                 {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
               </span>

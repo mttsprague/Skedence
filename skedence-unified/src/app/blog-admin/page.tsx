@@ -274,7 +274,7 @@ export default function BlogAdminListPage() {
                     <div className="flex items-center gap-3 mb-2">
                       {getStatusBadge(post.status)}
                       <span className="text-xs text-foreground/40 flex items-center gap-1 flex-wrap">
-                        {post.categories && post.categories.map(cat => (
+                        {post.categories && post.categories.filter(cat => BLOG_CATEGORIES[cat]).map(cat => (
                           <span key={cat}>
                             {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
                           </span>
