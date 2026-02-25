@@ -8,7 +8,10 @@ export type BlogCategory =
   | 'operations'              // Scheduling, payments, no-shows
   | 'getting-started'         // How to start a coaching business
   | 'tools'                   // Software comparisons, best apps
-  | 'sport-specific'          // Volleyball, basketball, soccer, baseball
+  | 'volleyball'              // Volleyball coaching tips
+  | 'basketball'              // Basketball coaching tips
+  | 'soccer'                  // Soccer coaching tips
+  | 'baseball'                // Baseball coaching tips
   | 'business-tips';          // General coaching business advice
 
 export type BlogStatus = 
@@ -31,7 +34,7 @@ export interface BlogPost {
   keywords: string[];                 // Target keywords
   
   // Organization
-  category: BlogCategory;
+  categories: BlogCategory[];         // Multiple categories per post
   tags: string[];                     // Additional tags (volleyball, pricing, scheduling, etc.)
   
   // Media
@@ -93,10 +96,25 @@ export const BLOG_CATEGORIES: Record<BlogCategory, { title: string; description:
     description: 'Compare coaching software and find the best tools',
     icon: '🛠️'
   },
-  'sport-specific': {
-    title: 'Sport-Specific',
-    description: 'Tailored advice for volleyball, basketball, soccer, and baseball coaches',
+  'volleyball': {
+    title: 'Volleyball',
+    description: 'Tips and strategies for volleyball coaches',
     icon: '🏐'
+  },
+  'basketball': {
+    title: 'Basketball',
+    description: 'Tips and strategies for basketball coaches',
+    icon: '🏀'
+  },
+  'soccer': {
+    title: 'Soccer',
+    description: 'Tips and strategies for soccer coaches',
+    icon: '⚽'
+  },
+  'baseball': {
+    title: 'Baseball',
+    description: 'Tips and strategies for baseball coaches',
+    icon: '⚾'
   },
   'business-tips': {
     title: 'Business Tips',

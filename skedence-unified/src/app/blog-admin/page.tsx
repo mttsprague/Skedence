@@ -79,7 +79,9 @@ export default function BlogAdminListPage() {
     }
 
     if (categoryFilter !== 'all') {
-      filtered = filtered.filter(post => post.category === categoryFilter);
+      filtered = filtered.filter(post => 
+        post.categories && post.categories.includes(categoryFilter)
+      );
     }
 
     if (searchQuery.trim()) {
@@ -271,8 +273,12 @@ export default function BlogAdminListPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       {getStatusBadge(post.status)}
-                      <span className="text-xs text-foreground/40">
-                        {BLOG_CATEGORIES[post.category].icon} {BLOG_CATEGORIES[post.category].title}
+                      <span className="text-xs text-foreground/40 flex items-center gap-1 flex-wrap">
+                        {post.categories && post.categories.map(cat => (
+                          <span key={cat}>
+                            {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
+                          </span>
+                        ))}
                       </span>
                       <span className="text-xs text-foreground/40">
                         {format(post.publishedAt || post.createdAt, 'MMM d, yyyy')}

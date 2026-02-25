@@ -14,6 +14,7 @@ export default function BlogPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BlogCategory | 'all'>('all');
+  const [selectedSport, setSelectedSport] = useState<string>('all');
 
   useEffect(() => {
     loadPosts();
@@ -23,7 +24,7 @@ export default function BlogPage() {
 
   useEffect(() => {
     filterPosts();
-  }, [posts, searchQuery, selectedCategory]);
+  }, [posts, searchQuery, selectedCategory, selectedSport]);
 
   async function loadPosts() {
     setLoading(true);
@@ -40,9 +41,20 @@ export default function BlogPage() {
   function filterPosts() {
     let filtered = [...posts];
 
+    // Filter by sport
+    if (selectedSport !== 'all') {
+      filtered = filtered.filter(post => post.sport === selectedSport);
+      trackEvent('blog_filter_sport', {
+        sport: selectedSport,
+        result_count: filtered.length
+      });
+    }
+
     // Filter by category
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(post => post.category === selectedCategory);
+      filtered = filtered.filter(post => 
+        post.categories && post.categories.includes(selectedCategory)
+      );
       // Track category filter usage
       trackEvent('blog_filter_category', {
         category: selectedCategory,
@@ -67,6 +79,11 @@ export default function BlogPage() {
 
     setFilteredPosts(filtered);
   }
+
+  // Get unique sports from posts
+  const availableSports = Array.from(new Set(posts.map(post => post.sport || 'all')))
+    .filter(sport => sport !== 'all')
+    .sort();
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,21 +117,7 @@ export default function BlogPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-background"></div>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/30 via-transparent to-transparent"></div>
         
-        <div className="container mx-auto max-w-5xl relative z-10">
-          <div className="text-center space-y-6">
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-foreground uppercase leading-tight">
-              The Skedence <span className="text-primary">Blog</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-foreground/60 font-light max-w-3xl mx-auto">
-              Practical advice for building and growing your private coaching business
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Search & Filter */}
-      <section className="py-12 px-6 border-b border-border/50">
-        <div className="container mx-auto max-w-6xl">
+        <div className="container mx-auto max-w-5xl space-y-6">
           <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
             {/* Search */}
             <div className="relative w-full lg:w-96">
@@ -155,6 +158,40 @@ export default function BlogPage() {
               ))}
             </div>
           </div>
+
+          {/* Sport Filter */}
+          {availableSports.length > 1 && (
+            <div className="flex flex-wrap gap-2 justify-center items-center">
+              <span className="text-sm font-medium text-foreground/60 uppercase tracking-wider">Filter by Sport:</span>
+              <button
+                onClick={() => setSelectedSport('all')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedSport === 'all'
+                    ? 'bg-primary text-black'
+                    : 'bg-muted text-foreground/60 hover:bg-muted/80'
+                }`}
+              >
+                All Sports
+              </button>
+              {availableSports.map((sport) => (
+                <button
+                  key={sport}
+                  onClick={() => setSelectedSport(sport)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
+                    selectedSport === sport
+                      ? 'bg-primary text-black'
+                      : 'bg-muted text-foreground/60 hover:bg-muted/80'
+                  }`}
+                >
+                  {sport === 'volleyball' && '🏐'}
+                  {sport === 'basketball' && '🏀'}
+                  {sport === 'soccer' && '⚽'}
+                  {sport === 'baseball' && '⚾'}
+                  {' '}{sport.charAt(0).toUpperCase() + sport.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -169,7 +206,7 @@ export default function BlogPage() {
           ) : filteredPosts.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-xl text-foreground/60">
-                {searchQuery || selectedCategory !== 'all' 
+                {searchQuery || selectedCategory !== 'all' || selectedSport !== 'all'
                   ? 'No articles found matching your filters.' 
                   : 'No articles published yet. Check back soon!'}
               </p>
@@ -193,11 +230,22 @@ export default function BlogPage() {
                     </div>
                   )}
 
-                  {/* Category Badge */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xs font-bold text-primary uppercase tracking-wider">
-                      {BLOG_CATEGORIES[post.category].icon} {BLOG_CATEGORIES[post.category].title}
-                    </span>
+                  {/* Category & Sport Badges */}
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    {post.categories && post.categories.map(cat => (
+                      <span key={cat} className="text-xs font-bold text-primary uppercase tracking-wider">
+                        {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
+                      </span>
+                    ))}
+                    {post.sport && post.sport !== 'all' && (
+                      <span className="text-xs font-medium bg-muted text-foreground/70 px-2 py-1 rounded uppercase tracking-wider">
+                        {post.sport === 'volleyball' && '🏐'}
+                        {post.sport === 'basketball' && '🏀'}
+                        {post.sport === 'soccer' && '⚽'}
+                        {post.sport === 'baseball' && '⚾'}
+                        {' '}{post.sport}
+                      </span>
+                    )}
                   </div>
 
                   {/* Title */}

@@ -41,7 +41,7 @@ function BlogPostContent() {
         trackEvent('blog_post_view', {
           post_id: data.id,
           post_title: data.title,
-          category: data.category,
+          categories: data.categories?.join(', ') || 'none',
           sport: data.sport || 'all'
         });
         
@@ -49,7 +49,7 @@ function BlogPostContent() {
         incrementViews(data.id);
         
         // Load related posts
-        const related = await getRelatedPosts(data.id, data.category, 3);
+        const related = await getRelatedPosts(data.id, data.categories || [], 3);
         setRelatedPosts(related);
       } else {
         setNotFound(true);
@@ -133,9 +133,11 @@ function BlogPostContent() {
         <div className="container mx-auto max-w-4xl">
           {/* Category & Meta */}
           <div className="flex flex-wrap items-center gap-4 mb-6">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-xs font-bold text-primary uppercase tracking-wider">
-              {BLOG_CATEGORIES[post.category].icon} {BLOG_CATEGORIES[post.category].title}
-            </span>
+            {post.categories && post.categories.map(cat => (
+              <span key={cat} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-xs font-bold text-primary uppercase tracking-wider">
+                {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
+              </span>
+            ))}
             <div className="flex items-center gap-4 text-sm text-foreground/40">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />

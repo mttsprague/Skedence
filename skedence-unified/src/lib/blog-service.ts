@@ -301,23 +301,22 @@ export async function isSlugUnique(slug: string, excludeId?: string): Promise<bo
 }
 
 /**
- * Get related posts (same category, excluding current post)
+ * Get related posts based on shared categories
  */
-export async function getRelatedPosts(postId: string, category: BlogCategory, limitCount: number = 3): Promise<BlogPost[]> {
+export async function getRelatedPosts(postId: string, categories: BlogCategory[], limitCount: number = 3): Promise<BlogPost[]> {
   try {
     const postsRef = collection(db, COLLECTION_NAME);
+    
+    // Get all published posts
     const q = query(
       postsRef,
       where('status', '==', 'published'),
-      where('category', '==', category),
-      orderBy('publishedAt', 'desc'),
-      limit(limitCount + 1) // Get one extra to exclude current post
+      orderBy('publishedAt', 'desc')
     );
     
     const snapshot = await getDocs(q);
-    const posts = snapshot.docs
+    const allPosts = snapshot.docs
       .filter(doc => doc.id !== postId) // Exclude current post
-      .slice(0, limitCount) // Take only the limit count
       .map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -326,7 +325,14 @@ export async function getRelatedPosts(postId: string, category: BlogCategory, li
         publishedAt: doc.data().publishedAt?.toDate() || undefined,
       })) as BlogPost[];
     
-    return posts;
+    // Filter posts that share at least one category
+    const relatedPosts = allPosts.filter(post => {
+      if (!post.categories || post.categories.length === 0) return false;
+      return post.categories.some(cat => categories.includes(cat));
+    });
+    
+    // Return limited number of related posts
+    return relatedPosts.slice(0, limitCount);
   } catch (error) {
     console.error('Error fetching related posts:', error);
     return [];

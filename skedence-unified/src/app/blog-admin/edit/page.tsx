@@ -40,7 +40,7 @@ function BlogEditorContent() {
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
   const [keywords, setKeywords] = useState('');
-  const [category, setCategory] = useState<BlogCategory>('revenue-growth');
+  const [categories, setCategories] = useState<BlogCategory[]>(['revenue-growth']);
   const [tags, setTags] = useState('');
   const [status, setStatus] = useState<BlogStatus>('draft');
   const [sport, setSport] = useState<'volleyball' | 'basketball' | 'soccer' | 'baseball' | 'all'>('all');
@@ -106,7 +106,7 @@ function BlogEditorContent() {
         setMetaTitle(post.metaTitle);
         setMetaDescription(post.metaDescription);
         setKeywords(post.keywords.join(', '));
-        setCategory(post.category);
+        setCategories(post.categories || []);
         setTags(post.tags.join(', '));
         setStatus(post.status);
         setSport(post.sport || 'all');
@@ -148,7 +148,7 @@ function BlogEditorContent() {
         metaTitle: metaTitle.trim() || title.trim(),
         metaDescription: metaDescription.trim() || excerpt.trim(),
         keywords: keywords.split(',').map(k => k.trim()).filter(k => k),
-        category,
+        categories: categories.length > 0 ? categories : ['business-tips'],
         tags: tags.split(',').map(t => t.trim()).filter(t => t),
         status: newStatus || status,
         sport,
@@ -247,7 +247,7 @@ function BlogEditorContent() {
                 <img src={featuredImage} alt={featuredImageAlt} className="w-full h-96 object-cover rounded-lg mb-8" />
               )}
               <div className="text-xs font-bold text-primary uppercase tracking-wider mb-4">
-                {BLOG_CATEGORIES[category].icon} {BLOG_CATEGORIES[category].title}
+                {categories.map(cat => BLOG_CATEGORIES[cat].icon).join(' ')} {categories.map(cat => BLOG_CATEGORIES[cat].title).join(', ')}
               </div>
               <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4 leading-tight">{title}</h1>
               <p className="text-xl text-foreground/60 mb-8">{excerpt}</p>
@@ -340,18 +340,28 @@ function BlogEditorContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-foreground/60 mb-2">Category</label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value as BlogCategory)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
+                    <label className="block text-sm font-medium text-foreground/60 mb-2">Categories (Select Multiple)</label>
+                    <div className="space-y-2">
                       {(Object.keys(BLOG_CATEGORIES) as BlogCategory[]).map((cat) => (
-                        <option key={cat} value={cat}>
-                          {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
-                        </option>
+                        <label key={cat} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={categories.includes(cat)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setCategories([...categories, cat]);
+                              } else {
+                                setCategories(categories.filter(c => c !== cat));
+                              }
+                            }}
+                            className="w-4 h-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
+                          />
+                          <span className="text-sm">
+                            {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
+                          </span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                   </div>
 
                   <div>
