@@ -61,7 +61,28 @@ export const createPaymentIntentDirect = onCall(
     }
 
     try {
-      // Get organization data to check Stripe Connect setup
+      // Get organization's Stripe keys from stripe/config subcollection
+      const stripeDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("stripe")
+        .doc("config")
+        .get();
+
+      const stripeData = stripeDoc.data();
+      if (!stripeData || !stripeData.secretKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Organization has not configured Stripe keys"
+        );
+      }
+
+      // Initialize Stripe with organization's secret key
+      const stripe = new Stripe(stripeData.secretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
+
+      // Get organization data for pricing
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
@@ -71,26 +92,6 @@ export const createPaymentIntentDirect = onCall(
           "Organization not found"
         );
       }
-
-      const connectAccountId = orgData.stripe?.connectAccountId;
-      if (!connectAccountId) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Organization has not connected Stripe account"
-        );
-      }
-
-      if (!orgData.stripe?.chargesEnabled) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Organization's Stripe account is not ready to accept payments"
-        );
-      }
-
-      // Initialize Stripe with platform's secret key (Connect architecture)
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-        apiVersion: "2025-02-24.acacia",
-      });
 
       // Validate amount against organization's pricing
       const validPackages: { [key: string]: number } = {};
@@ -224,7 +225,7 @@ export const createPaymentIntentDirect = onCall(
 
       return {
         clientSecret: paymentIntent.client_secret,
-        publishableKey: orgData.stripe?.publishableKey || process.env.STRIPE_PUBLISHABLE_KEY,
+        publishableKey: stripeData.publishableKey,
       };
     } catch (error: unknown) {
       console.error("❌ Error creating payment intent:", error);
@@ -286,7 +287,28 @@ export const createAndConfirmPaymentDirect = onCall(
     }
 
     try {
-      // Get organization data to check Stripe Connect setup and pricing validation
+      // Get organization's Stripe keys from stripe/config subcollection
+      const stripeDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("stripe")
+        .doc("config")
+        .get();
+
+      const stripeData = stripeDoc.data();
+      if (!stripeData || !stripeData.secretKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Organization has not configured Stripe keys"
+        );
+      }
+
+      // Initialize Stripe with organization's secret key
+      const stripe = new Stripe(stripeData.secretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
+
+      // Get organization data for pricing validation
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
@@ -296,26 +318,6 @@ export const createAndConfirmPaymentDirect = onCall(
           "Organization not found"
         );
       }
-
-      const connectAccountId = orgData.stripe?.connectAccountId;
-      if (!connectAccountId) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Organization has not connected Stripe account"
-        );
-      }
-
-      if (!orgData.stripe?.chargesEnabled) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Organization's Stripe account is not ready to accept payments"
-        );
-      }
-
-      // Initialize Stripe with platform's secret key (Connect architecture)
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-        apiVersion: "2025-02-24.acacia",
-      });
 
       // Validate amount against organization's pricing
       const validPackages: { [key: string]: {price: number; lessons: number} } = {};
@@ -595,25 +597,44 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
       // We need to try different orgs to find which one created this payment intent
       const orgsSnapshot = await db.collection("organizations").get();
 
-      // Use platform Stripe to retrieve payment intent (Connect architecture)
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-        apiVersion: "2025-02-24.acacia",
-      });
+      let stripe: Stripe | null = null;
+      let paymentIntent: Stripe.PaymentIntent | null = null;
+      let orgId: string | null = null;
 
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      // Try to retrieve the payment intent from each organization's Stripe account
+      for (const orgDoc of orgsSnapshot.docs) {
+        try {
+          const stripeDoc = await db
+            .collection("organizations")
+            .doc(orgDoc.id)
+            .collection("stripe")
+            .doc("config")
+            .get();
 
-      if (!paymentIntent) {
-        throw new HttpsError(
-          "not-found",
-          "Payment intent not found"
-        );
+          const stripeData = stripeDoc.data();
+          if (!stripeData?.secretKey) continue;
+
+          const orgStripe = new Stripe(stripeData.secretKey, {
+            apiVersion: "2025-02-24.acacia",
+          });
+
+          const pi = await orgStripe.paymentIntents.retrieve(paymentIntentId);
+
+          // Found it!
+          stripe = orgStripe;
+          paymentIntent = pi;
+          orgId = orgDoc.id;
+          break;
+        } catch (err) {
+          // Payment intent not in this org's Stripe account, continue
+          continue;
+        }
       }
 
-      const orgId = paymentIntent.metadata?.orgId;
-      if (!orgId) {
+      if (!stripe || !paymentIntent || !orgId) {
         throw new HttpsError(
-          "invalid-argument",
-          "Payment intent missing orgId in metadata"
+          "not-found",
+          "Payment intent not found in any organization"
         );
       }
 
