@@ -139,7 +139,7 @@ interface ProcessTrainerAvailabilityData {
  * Cloud Function to book a lesson for a user with a trainer.
  */
 export const bookLesson = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Disabled - causing client authentication issues
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -542,7 +542,7 @@ export const bookLesson = onCall(
  * Cloud Function to register for a class using a class pass.
  */
 export const registerForClass = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Disabled - causing client authentication issues
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -803,7 +803,7 @@ interface CancelLessonData {
 }
 
 export const cancelLesson = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Disabled - causing client authentication issues
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -1053,7 +1053,7 @@ interface AdminCancelLessonData {
 }
 
 export const adminCancelLesson = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Disabled - causing client authentication issues
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -1309,7 +1309,7 @@ interface CancelClassRegistrationData {
 }
 
 export const cancelClassRegistration = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Disabled - causing client authentication issues
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(

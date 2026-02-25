@@ -59,7 +59,50 @@ final class BookingManager: ObservableObject {
             payload["lessonNotes"] = lessonNotes
         }
         
-        let result = try await functions.httpsCallable("bookLesson").call(payload)
+        // 2.1) Call Cloud Function with enhanced error diagnostics
+        let result: HTTPSCallableResult
+        do {
+            result = try await functions.httpsCallable("bookLesson").call(payload)
+        } catch let error as NSError {
+            print("❌ BookingManager.bookLesson → Cloud Function Error:")
+            print("   Domain: \(error.domain)")
+            print("   Code: \(error.code)")
+            print("   Description: \(error.localizedDescription)")
+            print("   User Info: \(error.userInfo)")
+            
+            // Check if it's an authentication error
+            if error.domain == "com.firebase.functions" {
+                switch error.code {
+                case 16: // UNAUTHENTICATED
+                    print("   ⚠️ UNAUTHENTICATED error detected")
+                    print("   This could be:")
+                    print("   1. App Check token invalid (most common)")
+                    print("   2. Firebase Auth token expired or invalid")
+                    print("   3. User not signed in properly")
+                    
+                    // Check if error message mentions App Check
+                    if let errorMessage = error.localizedDescription.lowercased(),
+                       errorMessage.contains("app check") || errorMessage.contains("blocked") {
+                        print("   ⚠️ App Check is blocking the request!")
+                        throw BookingCallError.server("App Check validation failed. Please contact support.")
+                    }
+                    throw BookingCallError.notAuthenticated
+                    
+                case 7: // PERMISSION_DENIED
+                    print("   ⚠️ PERMISSION_DENIED error")
+                    throw BookingCallError.server("Permission denied. Please contact support.")
+                    
+                case 5: // NOT_FOUND
+                    print("   ⚠️ NOT_FOUND error")
+                    throw BookingCallError.server("Resource not found. Please try again.")
+                    
+                default:
+                    break
+                }
+            }
+            
+            throw BookingCallError.server(error.localizedDescription)
+        }
 
         // 3) Decode server response
         guard let dict = result.data as? [String: Any] else {
