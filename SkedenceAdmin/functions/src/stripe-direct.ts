@@ -45,6 +45,13 @@ export const createPaymentIntentDirect = onCall(
       );
     }
 
+    console.log(`👉 createPaymentIntentDirect called:`, {
+      userId,
+      orgId,
+      packageType,
+      amount: `$${amount / 100}`,
+    });
+
     // Rate limiting: 10 payment attempts per minute per user
     const rateLimitKey = `payment_${request.auth.uid}`;
     const allowed = await checkRateLimit(
@@ -61,9 +68,25 @@ export const createPaymentIntentDirect = onCall(
     }
 
     try {
+      console.log(`🔍 Step 1: Fetching organization document for orgId: ${orgId}`);
       // Get organization data and Stripe keys
       const orgDoc = await db.collection("organizations").doc(orgId).get();
+      
+      if (!orgDoc.exists) {
+        console.error(`❌ Organization document does not exist: ${orgId}`);
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+      
       const orgData = orgDoc.data();
+      console.log(`✅ Organization found:`, {
+        orgId,
+        hasStripeConfig: !!orgData?.stripe,
+        hasSecretKey: !!orgData?.stripe?.secretKey,
+        hasPublishableKey: !!orgData?.stripe?.publishableKey,
+      });
 
       if (!orgData) {
         throw new HttpsError(
@@ -73,17 +96,21 @@ export const createPaymentIntentDirect = onCall(
       }
 
       if (!orgData.stripe?.secretKey) {
+        console.error(`❌ Stripe keys not configured for org: ${orgId}`);
         throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
         );
       }
 
+      console.log(`🔑 Step 2: Initializing Stripe with organization's key`);
       // Initialize Stripe with organization's secret key
       const stripe = new Stripe(orgData.stripe.secretKey, {
         apiVersion: "2025-02-24.acacia",
       });
+      console.log(`✅ Stripe initialized successfully`);
 
+      console.log(`💰 Step 3: Validating pricing for package: ${packageType}`);
       // Validate amount against organization's pricing
       const validPackages: { [key: string]: number } = {};
 
@@ -93,7 +120,9 @@ export const createPaymentIntentDirect = onCall(
             validPackages[pkg.packageType] = pkg.priceInCents;
           }
         }
+        console.log(`✅ Loaded ${Object.keys(validPackages).length} packages from pricing structure`);
       } else {
+        console.log(`⚠️ No pricing structure, checking packages collection`);
         // Fallback to default packages
         const packagesSnapshot = await db
           .collection("organizations")
@@ -105,9 +134,13 @@ export const createPaymentIntentDirect = onCall(
           const data = doc.data();
           validPackages[data.packageType] = data.priceInCents;
         });
+        console.log(`✅ Loaded ${Object.keys(validPackages).length} packages from collection`);
       }
 
+      console.log(`📋 Valid packages:`, validPackages);
+
       if (!validPackages[packageType]) {
+        console.error(`❌ Invalid package type: ${packageType}. Available: ${Object.keys(validPackages).join(", ")}`);
         throw new HttpsError(
           "invalid-argument",
           `Invalid package type: ${packageType}`
@@ -115,12 +148,16 @@ export const createPaymentIntentDirect = onCall(
       }
 
       if (amount !== validPackages[packageType]) {
+        console.error(`❌ Amount mismatch. Expected ${validPackages[packageType]}, got ${amount}`);
         throw new HttpsError(
           "invalid-argument",
           `Amount mismatch. Expected ${validPackages[packageType]}, got ${amount}`
         );
       }
+      
+      console.log(`✅ Price validation passed: $${amount / 100}`);
 
+      console.log(`👤 Step 4: Getting/creating Stripe customer for user: ${userId}`);
       // Get or create Stripe customer
       const userDoc = await db
         .collection("organizations")
@@ -131,12 +168,19 @@ export const createPaymentIntentDirect = onCall(
 
       const userData = userDoc.data();
       let customerId = userData?.stripeCustomerId;
+      console.log(`📋 User data:`, {
+        userId,
+        hasData: !!userData,
+        existingCustomerId: customerId || "none",
+        email: userData?.email || userData?.emailAddress,
+      });
 
       const customerName = userData?.firstName && userData?.lastName ?
         `${userData.firstName} ${userData.lastName}` :
         "Customer";
 
       if (!customerId) {
+        console.log(`🆕 Creating new Stripe customer: ${customerName}`);
         const customer = await stripe.customers.create({
           email: userData?.email || userData?.emailAddress || undefined,
           name: customerName, // Just the customer name, not prefixed
@@ -150,6 +194,7 @@ export const createPaymentIntentDirect = onCall(
         });
 
         customerId = customer.id;
+        console.log(`✅ Created Stripe customer: ${customerId}`);
 
         // Save customer ID
         await db
@@ -160,6 +205,9 @@ export const createPaymentIntentDirect = onCall(
           .set({
             stripeCustomerId: customerId,
           }, {merge: true});
+        console.log(`✅ Saved customer ID to user document`);
+      } else {
+        console.log(`✅ Using existing Stripe customer: ${customerId}`);
       }
 
       // Create human-readable package name
@@ -182,6 +230,13 @@ export const createPaymentIntentDirect = onCall(
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
+      });
+
+      console.log(`💳 Step 5: Creating payment intent`, {
+        amount: `$${amount / 100}`,
+        customerId,
+        packageDisplayName,
+        transactionId,
       });
 
       // Create payment intent with enhanced metadata (Acuity-style)
@@ -214,12 +269,21 @@ export const createPaymentIntentDirect = onCall(
         `✅ Payment intent created: ${paymentIntent.id} for ${amount / 100} USD`
       );
 
+      console.log(`🔑 Step 6: Returning client secret and publishable key`);
       return {
         clientSecret: paymentIntent.client_secret,
         publishableKey: orgData.stripe.publishableKey,
       };
     } catch (error: unknown) {
-      console.error("❌ Error creating payment intent:", error);
+      console.error("❌❌❌ Error in createPaymentIntentDirect:", {
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        userId,
+        orgId,
+        packageType,
+        amount,
+      });
 
       if (error instanceof HttpsError) {
         throw error;
@@ -262,6 +326,14 @@ export const createAndConfirmPaymentDirect = onCall(
       );
     }
 
+    console.log(`👉 createAndConfirmPaymentDirect called:`, {
+      userId,
+      orgId,
+      packageType,
+      amount: `$${amount / 100}`,
+      paymentMethodId: paymentMethodId.slice(-4),
+    });
+
     // Rate limiting: 10 payment attempts per minute per user
     const rateLimitKey = `payment_${request.auth.uid}`;
     const allowed = await checkRateLimit(
@@ -278,9 +350,20 @@ export const createAndConfirmPaymentDirect = onCall(
     }
 
     try {
+      console.log(`🔍 Step 1: Fetching organization document for orgId: ${orgId}`);
       // Get organization data and Stripe keys
       const orgDoc = await db.collection("organizations").doc(orgId).get();
+      
+      if (!orgDoc.exists) {
+        console.error(`❌ Organization document does not exist: ${orgId}`);
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+      
       const orgData = orgDoc.data();
+      console.log(`✅ Organization found with Stripe keys configured`);
 
       if (!orgData) {
         throw new HttpsError(
@@ -290,16 +373,20 @@ export const createAndConfirmPaymentDirect = onCall(
       }
 
       if (!orgData.stripe?.secretKey) {
+        console.error(`❌ Stripe keys not configured for org: ${orgId}`);
         throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
         );
       }
 
+      console.log(`🔑 Step 2: Initializing Stripe`);
       // Initialize Stripe with organization's secret key
       const stripe = new Stripe(orgData.stripe.secretKey, {
         apiVersion: "2025-02-24.acacia",
       });
+
+      console.log(`💰 Step 3: Validating pricing`);
 
       // Validate amount against organization's pricing
       const validPackages: { [key: string]: {price: number; lessons: number} } = {};
