@@ -117,7 +117,7 @@ export default function BlogPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-background"></div>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/30 via-transparent to-transparent"></div>
         
-        <div className="container mx-auto max-w-5xl space-y-6">
+        <div className="container mx-auto max-w-5xl space-y-6 relative z-10">
           <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
             {/* Search */}
             <div className="relative w-full lg:w-96">
