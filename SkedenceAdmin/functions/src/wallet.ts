@@ -58,7 +58,6 @@ export const createSetupIntentDirect = onCall(
         apiVersion: "2025-02-24.acacia",
       });
 
-      console.log(`🔍 Setting up payment method for user ${userId}`);
 
       // Get user data from correct location
       const userDoc = await db
@@ -69,11 +68,9 @@ export const createSetupIntentDirect = onCall(
       const userData = userDoc.data();
       let customerId = userData?.stripeCustomerId;
 
-      console.log(`📋 User data found, stripeCustomerId: ${customerId || "none"}`);
 
       // Get or create Stripe customer
       if (!customerId) {
-        console.log("🆕 No customer ID, creating new customer");
         const customerName = userData?.firstName && userData?.lastName ?
           `${userData.firstName} ${userData.lastName}` :
           "Customer";
@@ -88,7 +85,6 @@ export const createSetupIntentDirect = onCall(
         });
 
         customerId = customer.id;
-        console.log(`✅ Created new Stripe customer: ${customerId}`);
 
         // Save customer ID
         await db
@@ -97,15 +93,12 @@ export const createSetupIntentDirect = onCall(
           .update({
             stripeCustomerId: customerId,
           });
-        console.log("✅ Saved new customer ID to user document");
       } else {
         // Verify customer exists in this Stripe account
         try {
           await stripe.customers.retrieve(customerId);
-          console.log(`✅ Verified customer ${customerId} exists in Stripe account`);
         } catch (error: any) {
           if (error.code === "resource_missing") {
-            console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
             const customerName = userData?.firstName && userData?.lastName ?
               `${userData.firstName} ${userData.lastName}` :
               (userData?.firstName || "Customer");
@@ -120,7 +113,6 @@ export const createSetupIntentDirect = onCall(
             });
 
             customerId = customer.id;
-            console.log(`✅ Created new Stripe customer: ${customerId}`);
 
             // Update with new customer ID
             await db
@@ -129,7 +121,6 @@ export const createSetupIntentDirect = onCall(
               .update({
                 stripeCustomerId: customerId,
               });
-            console.log("✅ Updated customer ID in user document");
           } else {
             throw error;
           }
@@ -137,7 +128,6 @@ export const createSetupIntentDirect = onCall(
       }
 
       // Create setup intent
-      console.log(`🔧 Creating setup intent for customer ${customerId}`);
       const setupIntent = await stripe.setupIntents.create({
         customer: customerId,
         payment_method_types: ["card"],
@@ -148,16 +138,13 @@ export const createSetupIntentDirect = onCall(
         },
       });
 
-      console.log(
-        `✅ Setup intent created: ${setupIntent.id} for user ${userId}`
-      );
 
       return {
         clientSecret: setupIntent.client_secret,
         publishableKey: orgData.stripe.publishableKey,
       };
     } catch (error: unknown) {
-      console.error("❌ Error creating setup intent:", error);
+      logger.error("❌ Error creating setup intent:", error);
 
       if (error instanceof HttpsError) {
         throw error;
@@ -200,13 +187,12 @@ export const getPaymentMethodsDirect = onCall(
     }
 
     try {
-      console.log(`🔍 Getting payment methods for user ${userId} in org ${orgId}`);
 
       // Get organization and Stripe keys
       const orgDoc = await db.collection("organizations").doc(orgId).get();
 
       if (!orgDoc.exists) {
-        console.error(`❌ No organization found for ${orgId}`);
+        logger.error(`❌ No organization found for ${orgId}`);
         throw new HttpsError(
           "not-found",
           "Organization not found"
@@ -214,17 +200,15 @@ export const getPaymentMethodsDirect = onCall(
       }
 
       const orgData = orgDoc.data();
-      console.log(`✅ Found organization ${orgId}`);
 
       if (!orgData?.stripe?.secretKey || !orgData?.stripe?.publishableKey) {
-        console.error(`❌ Stripe keys missing: secretKey=${!!orgData?.stripe?.secretKey}, publishableKey=${!!orgData?.stripe?.publishableKey}`);
+        logger.error(`❌ Stripe keys missing: secretKey=${!!orgData?.stripe?.secretKey}, publishableKey=${!!orgData?.stripe?.publishableKey}`);
         throw new HttpsError(
           "failed-precondition",
           "Organization Stripe keys not configured - please configure in admin app"
         );
       }
 
-      console.log(`✅ Stripe keys valid for org ${orgId}`);
 
       // Initialize Stripe with organization's key
       const stripe = new Stripe(orgData.stripe.secretKey, {
@@ -232,9 +216,10 @@ export const getPaymentMethodsDirect = onCall(
       });
 
       // Get or create customer
+      // Query by authUserId field (not document ID, which is name-based)
       const usersSnapshot = await db
         .collection("users")
-        .where(admin.firestore.FieldPath.documentId(), "==", userId)
+        .where("authUserId", "==", userId)
         .limit(1)
         .get();
 
@@ -243,17 +228,15 @@ export const getPaymentMethodsDirect = onCall(
       }
 
       const userData = usersSnapshot.docs[0].data();
+      const userDocRef = usersSnapshot.docs[0].ref; // Store document reference
       let customerId = userData.stripeCustomerId;
 
-      console.log(`📋 User data found, stripeCustomerId: ${customerId || "none"}`);
 
       // If no customer ID, create one
       if (!customerId) {
-        console.log(`🔧 Creating new Stripe customer for user ${userId}`);
         const email = userData.email || request.auth.token.email;
         const name = userData.name || userData.firstName || "Customer";
 
-        console.log(`📧 Customer email: ${email}, name: ${name}`);
 
         const customer = await stripe.customers.create({
           email: email,
@@ -264,18 +247,15 @@ export const getPaymentMethodsDirect = onCall(
 
         customerId = customer.id;
 
-        console.log(`✅ Created Stripe customer: ${customerId}`);
 
-        // Save customer ID
-        await db.collection("users").doc(userId).update({
+        // Save customer ID using the document reference from query
+        await userDocRef.update({
           stripeCustomerId: customerId,
         });
 
-        console.log("✅ Saved customer ID to user document");
       }
 
       // Get payment methods - handle case where customer doesn't exist
-      console.log(`🔍 Listing payment methods for customer: ${customerId}`);
       let paymentMethods;
       try {
         paymentMethods = await stripe.paymentMethods.list({
@@ -285,7 +265,6 @@ export const getPaymentMethodsDirect = onCall(
       } catch (error: any) {
         // If customer doesn't exist in this Stripe account, create a new one
         if (error.code === "resource_missing" && customerId) {
-          console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
 
           const email = userData.email || request.auth.token.email;
           const name = userData.name || userData.firstName || "Customer";
@@ -298,14 +277,12 @@ export const getPaymentMethodsDirect = onCall(
           });
 
           customerId = customer.id;
-          console.log(`✅ Created new Stripe customer: ${customerId}`);
 
           // Save new customer ID
           await db.collection("users").doc(userId).update({
             stripeCustomerId: customerId,
           });
 
-          console.log("✅ Saved new customer ID to user document");
 
           // Try listing payment methods again with new customer
           paymentMethods = await stripe.paymentMethods.list({
@@ -317,9 +294,6 @@ export const getPaymentMethodsDirect = onCall(
         }
       }
 
-      console.log(
-        `✅ Found ${paymentMethods.data.length} payment methods for customer ${customerId}`
-      );
 
       // Format payment methods for response
       const formattedMethods = paymentMethods.data.map((pm) => ({
@@ -332,7 +306,7 @@ export const getPaymentMethodsDirect = onCall(
 
       return {paymentMethods: formattedMethods};
     } catch (error: unknown) {
-      console.error("❌ Error getting payment methods:", error);
+      logger.error("❌ Error getting payment methods:", error);
 
       if (error instanceof HttpsError) {
         throw error;
@@ -372,7 +346,6 @@ export const getPaymentMethodsDirectAdmin = onCall(
       // Verify admin access
       // Note: orgMembers uses a flat structure with composite key: {uid}_{orgId}
       const membershipId = `${request.auth.uid}_${orgId}`;
-      console.log(`🔍 Checking admin permissions for membership: ${membershipId}`);
 
       const memberDoc = await db
         .collection("orgMembers")
@@ -381,25 +354,21 @@ export const getPaymentMethodsDirectAdmin = onCall(
 
       const memberData = memberDoc.data();
 
-      console.log(`📋 Member doc exists: ${memberDoc.exists}`);
-      console.log("📋 Member data:", memberData);
-      console.log(`📋 Member role: ${memberData?.role}`);
 
       if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
-        console.error(`❌ Permission denied - exists: ${memberDoc.exists}, role: ${memberData?.role || "none"}`);
+        logger.error(`❌ Permission denied - exists: ${memberDoc.exists}, role: ${memberData?.role || "none"}`);
         throw new HttpsError(
           "permission-denied",
           "Only owners and admins can view client payment methods"
         );
       }
 
-      console.log(`✅ Admin ${request.auth.uid} (${memberData.role}) getting payment methods for user ${userId} in org ${orgId}`);
 
       // Get organization and Stripe keys
       const orgDoc = await db.collection("organizations").doc(orgId).get();
 
       if (!orgDoc.exists) {
-        console.error(`❌ No organization found for ${orgId}`);
+        logger.error(`❌ No organization found for ${orgId}`);
         throw new HttpsError(
           "not-found",
           "Organization not found"
@@ -407,17 +376,15 @@ export const getPaymentMethodsDirectAdmin = onCall(
       }
 
       const orgData = orgDoc.data();
-      console.log(`✅ Found organization ${orgId}`);
 
       if (!orgData?.stripe?.secretKey || !orgData?.stripe?.publishableKey) {
-        console.error(`❌ Stripe keys missing: secretKey=${!!orgData?.stripe?.secretKey}, publishableKey=${!!orgData?.stripe?.publishableKey}`);
+        logger.error(`❌ Stripe keys missing: secretKey=${!!orgData?.stripe?.secretKey}, publishableKey=${!!orgData?.stripe?.publishableKey}`);
         throw new HttpsError(
           "failed-precondition",
           "Organization Stripe keys not configured - please configure in admin app"
         );
       }
 
-      console.log(`✅ Stripe keys valid for org ${orgId}`);
 
       // Initialize Stripe with organization's key
       const stripe = new Stripe(orgData.stripe.secretKey, {
@@ -434,17 +401,14 @@ export const getPaymentMethodsDirectAdmin = onCall(
       const userData = userDoc.data();
       let customerId = userData?.stripeCustomerId;
 
-      console.log(`📋 User data found, stripeCustomerId: ${customerId || "none"}`);
 
       // If no customer ID, create one
       if (!customerId) {
-        console.log(`🔧 Creating new Stripe customer for user ${userId}`);
         const email = userData?.email;
         const name = userData?.firstName && userData?.lastName ?
           `${userData.firstName} ${userData.lastName}` :
           userData?.firstName || "Customer";
 
-        console.log(`📧 Customer email: ${email}, name: ${name}`);
 
         const customer = await stripe.customers.create({
           email: email || undefined,
@@ -455,18 +419,15 @@ export const getPaymentMethodsDirectAdmin = onCall(
 
         customerId = customer.id;
 
-        console.log(`✅ Created Stripe customer: ${customerId}`);
 
         // Save customer ID
         await db.collection("users").doc(userId).set({
           stripeCustomerId: customerId,
         }, {merge: true});
 
-        console.log("✅ Saved customer ID to user document");
       }
 
       // Get payment methods - handle case where customer doesn't exist
-      console.log(`🔍 Listing payment methods for customer: ${customerId}`);
       let paymentMethods;
       try {
         paymentMethods = await stripe.paymentMethods.list({
@@ -476,7 +437,6 @@ export const getPaymentMethodsDirectAdmin = onCall(
       } catch (error: any) {
         // If customer doesn't exist in this Stripe account, create a new one
         if (error.code === "resource_missing" && customerId) {
-          console.log(`⚠️ Customer ${customerId} not found in this Stripe account, creating new one`);
 
           const email = userData?.email;
           const name = userData?.firstName && userData?.lastName ?
@@ -491,14 +451,12 @@ export const getPaymentMethodsDirectAdmin = onCall(
           });
 
           customerId = customer.id;
-          console.log(`✅ Created new Stripe customer: ${customerId}`);
 
           // Save new customer ID
           await db.collection("users").doc(userId).set({
             stripeCustomerId: customerId,
           }, {merge: true});
 
-          console.log("✅ Saved new customer ID to user document");
 
           // Try listing payment methods again with new customer
           paymentMethods = await stripe.paymentMethods.list({
@@ -510,9 +468,6 @@ export const getPaymentMethodsDirectAdmin = onCall(
         }
       }
 
-      console.log(
-        `✅ Found ${paymentMethods.data.length} payment methods for customer ${customerId}`
-      );
 
       // Format payment methods for response
       const formattedMethods = paymentMethods.data.map((pm) => ({
@@ -525,7 +480,7 @@ export const getPaymentMethodsDirectAdmin = onCall(
 
       return {paymentMethods: formattedMethods};
     } catch (error: unknown) {
-      console.error("❌ Error getting payment methods (admin):", error);
+      logger.error("❌ Error getting payment methods (admin):", error);
 
       if (error instanceof HttpsError) {
         throw error;
@@ -597,11 +552,10 @@ export const attachPaymentMethod = onCall(
         },
       });
 
-      console.log(`✅ Attached payment method ${paymentMethodId} to customer ${customerId}`);
 
       return {success: true};
     } catch (error) {
-      console.error("❌ Error attaching payment method:", error);
+      logger.error("❌ Error attaching payment method:", error);
       throw new HttpsError(
         "internal",
         `Failed to attach payment method: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -684,7 +638,6 @@ export const chargeWithSavedMethod = onCall(
         off_session: true,
       });
 
-      console.log(`✅ Charged ${amount} cents to payment method ${paymentMethodId}`);
 
       // Record transaction
       await db.collection("transactions").add({
@@ -703,7 +656,7 @@ export const chargeWithSavedMethod = onCall(
         status: paymentIntent.status,
       };
     } catch (error) {
-      console.error("❌ Error charging with saved method:", error);
+      logger.error("❌ Error charging with saved method:", error);
       throw new HttpsError(
         "internal",
         `Failed to charge payment method: ${error instanceof Error ? error.message : "Unknown error"}`

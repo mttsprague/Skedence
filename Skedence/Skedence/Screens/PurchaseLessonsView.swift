@@ -174,7 +174,9 @@ struct PurchaseLessonsView: View {
             }
         }
         .alert(item: $alert) { a in
-            Alert(title: Text(a.title), message: Text(a.message), dismissButton: .default(Text("OK")))
+            Alert(title: Text(a.title), message: Text(a.message), dismissButton: .default(Text("OK")) {
+                a.onDismiss?()
+            })
         }
         .paymentSheet(isPresented: Binding(
             get: { paymentSheet != nil },
@@ -689,10 +691,11 @@ struct PurchaseLessonsView: View {
             // Reload packages
             await packagesService.loadMyPackages(orgId: auth.currentOrgId)
             
-            // Success - show alert
+            // Success - show alert and navigate back to passes
             alert = .init(
                 title: "Purchase Successful! 🎉",
-                message: "Your \(selectedPackage.title) has been added to your account. Check the Passes tab to see it!"
+                message: "Your \(selectedPackage.title) has been added to your account. Check the Passes tab to see it!",
+                onDismiss: { dismiss() }
             )
         } catch {
             alert = .init(title: "Payment Failed", message: error.localizedDescription)
@@ -748,7 +751,7 @@ struct PurchaseLessonsView: View {
                 // Success message
                 let successMessage = "Your \(selectedPackage.title) has been added to your account. You can now book!"
                 
-                alert = .init(title: "Purchase Successful! 🎉", message: successMessage)
+                alert = .init(title: "Purchase Successful! 🎉", message: successMessage, onDismiss: { dismiss() })
             }
         case .canceled:
             alert = .init(title: "Payment Cancelled", message: "Your payment was cancelled. No charges were made.")
@@ -763,6 +766,13 @@ struct PurchaseLessonsView: View {
         let id = UUID()
         let title: String
         let message: String
+        let onDismiss: (() -> Void)?
+        
+        init(title: String, message: String, onDismiss: (() -> Void)? = nil) {
+            self.title = title
+            self.message = message
+            self.onDismiss = onDismiss
+        }
     }
 }
 

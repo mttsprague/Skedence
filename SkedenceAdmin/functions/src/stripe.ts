@@ -49,8 +49,17 @@ export const createPaymentIntent = onCall(
     }
 
     try {
-      // Get user's orgId to load pricing structure
-      const userDoc = await db.collection("users").doc(userId).get();
+      // Get user's orgId to load pricing structure - query by authUserId field
+      const usersQuery = await db.collection("users")
+        .where("authUserId", "==", userId)
+        .limit(1)
+        .get();
+
+      if (usersQuery.empty) {
+        throw new HttpsError("not-found", "User not found");
+      }
+
+      const userDoc = usersQuery.docs[0];
       const userData = userDoc.data();
 
       if (!userData?.orgId) {
@@ -241,7 +250,17 @@ export const getOrCreateCustomer = onCall(
     }
 
     try {
-      const userDoc = await db.collection("users").doc(userId).get();
+      // Query user by authUserId field (document IDs are name-based)
+      const usersQuery = await db.collection("users")
+        .where("authUserId", "==", userId)
+        .limit(1)
+        .get();
+
+      if (usersQuery.empty) {
+        throw new HttpsError("not-found", "User not found");
+      }
+
+      const userDoc = usersQuery.docs[0];
       const userData = userDoc.data();
 
       // If customer ID already exists, return it
@@ -254,8 +273,8 @@ export const getOrCreateCustomer = onCall(
         metadata: {firebaseUID: userId},
       });
 
-      // Store customer ID in user document
-      await db.collection("users").doc(userId).update({
+      // Store customer ID in user document using the document reference
+      await userDoc.ref.update({
         stripeCustomerId: customer.id,
       });
 
@@ -289,7 +308,17 @@ export const getPaymentMethods = onCall(
     }
 
     try {
-      const userDoc = await db.collection("users").doc(userId).get();
+      // Query user by authUserId field (document IDs are name-based)
+      const usersQuery = await db.collection("users")
+        .where("authUserId", "==", userId)
+        .limit(1)
+        .get();
+
+      if (usersQuery.empty) {
+        return {paymentMethods: []};
+      }
+
+      const userDoc = usersQuery.docs[0];
       const userData = userDoc.data();
 
       if (!userData?.stripeCustomerId) {
@@ -339,9 +368,17 @@ export const getPaymentMethodsForUser = onCall(
     }
 
     try {
-      // Check if caller is admin
-      const callerDoc = await db.collection("users").doc(request.auth.uid).get();
-      const callerData = callerDoc.data();
+      // Check if caller is admin - query by authUserId field
+      const callerQuery = await db.collection("users")
+        .where("authUserId", "==", request.auth.uid)
+        .limit(1)
+        .get();
+
+      if (callerQuery.empty) {
+        throw new HttpsError("permission-denied", "Caller not found");
+      }
+
+      const callerData = callerQuery.docs[0].data();
 
       if (!callerData?.isAdmin && !callerData?.isOwner) {
         throw new HttpsError(
@@ -350,8 +387,17 @@ export const getPaymentMethodsForUser = onCall(
         );
       }
 
-      const userDoc = await db.collection("users").doc(userId).get();
-      const userData = userDoc.data();
+      // Query target user by authUserId field
+      const userQuery = await db.collection("users")
+        .where("authUserId", "==", userId)
+        .limit(1)
+        .get();
+
+      if (userQuery.empty) {
+        return {paymentMethods: []};
+      }
+
+      const userData = userQuery.docs[0].data();
 
       if (!userData?.stripeCustomerId) {
         return {paymentMethods: []};
