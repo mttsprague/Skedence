@@ -81,8 +81,8 @@ final class BookingManager: ObservableObject {
                     print("   3. User not signed in properly")
                     
                     // Check if error message mentions App Check
-                    if let errorMessage = error.localizedDescription.lowercased(),
-                       errorMessage.contains("app check") || errorMessage.contains("blocked") {
+                    let errorMessage = error.localizedDescription.lowercased()
+                    if errorMessage.contains("app check") || errorMessage.contains("blocked") {
                         print("   ⚠️ App Check is blocking the request!")
                         throw BookingCallError.server("App Check validation failed. Please contact support.")
                     }

@@ -1,6 +1,6 @@
 # CLAUDE.md - Complete Skedence/CoachFlow Project Reference
 
-**Last Updated:** February 17, 2026  
+**Last Updated:** February 25, 2026  
 **Firebase Project:** polyface-ae6d3  
 **Production Domain:** https://skedence.com (Unified Admin Portal & Marketing Site)
 **Status:** Production (Live with Stripe payments)
@@ -16,14 +16,15 @@
 5. [Pricing Structure System](#pricing-structure-system)
 6. [iOS Apps Architecture](#ios-apps-architecture)
 7. [Admin Portal (Next.js)](#admin-portal-nextjs)
-8. [Cloud Functions](#cloud-functions)
-9. [Trainer Invitation & Password Setup Flow](#trainer-invitation--password-setup-flow)
-10. [Stripe Integration](#stripe-integration)
-11. [SaaS Transformation Status](#saas-transformation-status)
-12. [Security & Firestore Rules](#security--firestore-rules)
-13. [Deployment Procedures](#deployment-procedures)
-14. [Common Issues & Solutions](#common-issues--solutions)
-15. [Key Technical Patterns](#key-technical-patterns)
+8. [Blog System](#blog-system)
+9. [Cloud Functions](#cloud-functions)
+10. [Trainer Invitation & Password Setup Flow](#trainer-invitation--password-setup-flow)
+11. [Stripe Integration](#stripe-integration)
+12. [SaaS Transformation Status](#saas-transformation-status)
+13. [Security & Firestore Rules](#security--firestore-rules)
+14. [Deployment Procedures](#deployment-procedures)
+15. [Common Issues & Solutions](#common-issues--solutions)
+16. [Key Technical Patterns](#key-technical-patterns)
 
 ---
 
@@ -1639,7 +1640,213 @@ const paymentIntent = await stripe.paymentIntents.create({
 
 ---
 
-## 🔄 Recent Changes & Updates
+## � Blog System
+
+**Location:** https://skedence.com/blog  
+**Admin Editor:** https://skedence.com/blog-admin  
+**Status:** ✅ Fully implemented with SEO & Analytics
+
+### Overview
+The blog system is a full-featured content management system (CMS) integrated into the Skedence marketing site. It supports rich content, SEO optimization, and comprehensive analytics tracking.
+
+### Key Features
+- **Rich Text Editor:** TinyMCE with image uploads, formatting, tables
+- **SEO Optimization:** Dynamic meta tags, Open Graph, Twitter Cards
+- **Google Analytics:** Automatic event tracking for views, filters, searches
+- **Categories & Tags:** Multi-category support, sport-specific content
+- **Featured Images:** Social sharing optimization (1200x630px recommended)
+- **URL Slugs:** Auto-generated, SEO-friendly URLs
+- **Draft/Published:** Preview mode before publishing
+- **Search:** Full-text search across title, content, excerpt
+- **Filtering:** By sport, category, and search terms
+- **View Counter:** Automatic view count tracking in Firestore
+
+### Blog Editor Fields
+
+**Basic Information:**
+- **Title** - Main headline (max 100 chars)
+- **URL Slug** - SEO-friendly URL (auto-generated from title)
+- **Excerpt** - Summary text (max 300 chars, used for meta description)
+- **Content** - Full blog post (HTML, TinyMCE editor)
+- **Status** - Draft or Published
+
+**SEO Fields:**
+- **Meta Title** - 60 chars max (defaults to title)
+- **Meta Description** - 160 chars max (defaults to excerpt)
+- **Keywords** - Comma-separated target keywords
+
+**Organization:**
+- **Categories** - Multiple selection (volleyball, basketball, revenue-growth, operations, etc.)
+- **Tags** - Additional tags for organization
+- **Sport** - Sport association (volleyball, basketball, soccer, baseball, all)
+
+**Visuals:**
+- **Featured Image** - Image URL for social sharing
+- **Featured Image Alt Text** - Accessibility description
+
+**Call to Action:**
+- **CTA Text** - Optional custom CTA button text
+- **CTA Link** - Link for CTA button
+
+### Firestore Schema
+
+**Collection:** `blog_posts/{postId}`
+```typescript
+{
+  id: string,
+  title: string,
+  slug: string,                  // URL-friendly version of title
+  excerpt: string,               // Short summary
+  content: string,               // Full HTML content
+  metaTitle?: string,           // SEO title (defaults to title)
+  metaDescription?: string,     // SEO description (defaults to excerpt)
+  keywords?: string,            // Comma-separated keywords
+  categories: string[],         // ["volleyball", "revenue-growth"]
+  tags: string[],               // Additional tags
+  sport: string,                // "volleyball" | "basketball" | "all"
+  featuredImage?: string,       // Image URL
+  featuredImageAlt?: string,    // Alt text for featured image
+  ctaText?: string,             // Call to action button text
+  ctaLink?: string,             // Call to action link
+  status: 'draft' | 'published',
+  views: number,                // View counter
+  createdAt: Timestamp,
+  updatedAt: Timestamp,
+  publishedAt?: Timestamp
+}
+```
+
+### SEO Implementation
+
+**Dynamic Meta Tags:**
+```html
+<title>[Blog Post Title] | Skedence Blog</title>
+<meta name="description" content="[excerpt]">
+<meta name="keywords" content="[keywords]">
+```
+
+**Open Graph Tags (Social Sharing):**
+```html
+<meta property="og:title" content="[title]">
+<meta property="og:description" content="[excerpt]">
+<meta property="og:image" content="[featuredImage]">
+<meta property="og:url" content="https://skedence.com/blog/detail?slug=[slug]">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Skedence">
+```
+
+**Twitter Card Tags:**
+```html
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="[title]">
+<meta name="twitter:description" content="[excerpt]">
+<meta name="twitter:image" content="[featuredImage]">
+```
+
+### Google Analytics Tracking
+
+**GTM ID:** `GTM-KQMV58D`
+
+**Blog Listing Page Events:**
+- `page_view` - Page visit
+- `blog_filter_sport` - Sport filter usage
+- `blog_filter_category` - Category filter usage
+- `blog_search` - Search queries with result counts
+
+**Blog Detail Page Events:**
+- `page_view` - Blog post view with title
+- `blog_post_view` - Comprehensive tracking:
+  ```javascript
+  {
+    post_id: postId,
+    post_title: title,
+    categories: categories.join(','),
+    sport: sport
+  }
+  ```
+- **View Counter** - Firestore `views` field auto-incremented
+
+### File Locations
+
+**Admin Portal:**
+- **Editor:** `/src/app/blog-admin/edit/page.tsx`
+- **List:** `/src/app/blog-admin/page.tsx`
+
+**Public Site:**
+- **Blog Listing:** `/src/app/(marketing)/blog/page.tsx`
+- **Blog Detail:** `/src/app/(marketing)/blog/detail/page.tsx`
+
+**Services:**
+- **Blog Service:** `/src/lib/blog-service.ts`
+- **Analytics Library:** `/src/lib/analytics.ts`
+- **Blog Types:** `/src/types/blog.ts`
+
+### Content Categories
+
+**Business Categories:**
+- `revenue-growth` - Revenue & monetization strategies
+- `operations` - Operational efficiency
+- `client-retention` - Client engagement & retention
+- `marketing` - Marketing & lead generation
+- `technology` - Tech tips & tools
+
+**Sport Categories:**
+- `volleyball` - Volleyball-specific content
+- `basketball` - Basketball-specific content
+- `soccer` - Soccer-specific content
+- `baseball` - Baseball-specific content
+- `all` - Applies to all sports
+
+### Publishing Checklist
+
+Before publishing:
+- [ ] Title is compelling and includes primary keyword
+- [ ] URL slug is SEO-friendly (lowercase, hyphens only)
+- [ ] Excerpt clearly summarizes post (160 chars max)
+- [ ] Meta description is set or auto-generated
+- [ ] Keywords added (5-10 relevant terms)
+- [ ] At least 2 categories selected
+- [ ] Sport selected if sport-specific
+- [ ] Featured image added with alt text (1200x630px recommended)
+- [ ] Content has proper H2/H3 structure
+- [ ] Content includes internal links when relevant
+- [ ] Preview mode looks good
+- [ ] Status set to "Published"
+
+### SEO Best Practices
+
+**Title (H1):**
+- Include primary keyword
+- Keep under 60 characters
+- Make compelling and clear
+
+**Excerpt:**
+- Summarize value proposition
+- Include secondary keywords naturally
+- Stay under 160 characters
+
+**Content:**
+- Use H2 and H3 tags for structure
+- Include keywords naturally (no stuffing)
+- Aim for 800-2,000 words
+- Break up text with bullets and lists
+- Add internal links to other blog posts
+
+**Featured Image:**
+- Use high-quality, relevant images
+- Recommended size: 1200x630px (optimal for social sharing)
+- Add descriptive alt text
+- Compress for fast loading
+
+**Keywords:**
+- Research target keywords first
+- Include 5-10 relevant keywords
+- Use long-tail keywords (3-4 word phrases)
+- Examples: "volleyball scheduling software", "private lesson pricing"
+
+---
+
+## �🔄 Recent Changes & Updates
 
 ### February 17, 2026 - Domain Migration & Footer Updates
 - **Domain Migration Complete:**

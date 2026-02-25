@@ -31,6 +31,18 @@ export default function TrainersPage() {
     trackPageView('/trainers', 'Trainers');
   }, []);
   
+  // Keyboard shortcut: Ctrl+N to add new trainer
+  useEffect(() => {
+    const handleNewTrainer = () => {
+      setNewTrainer({ firstName: '', lastName: '', email: '' });
+      setAddError(null);
+      setShowAddModal(true);
+    };
+
+    window.addEventListener('trigger-new-trainer', handleNewTrainer);
+    return () => window.removeEventListener('trigger-new-trainer', handleNewTrainer);
+  }, []);
+  
   // Edit trainer sheet state
   const [showEditSheet, setShowEditSheet] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState<User | null>(null);

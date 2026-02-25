@@ -106,6 +106,13 @@ export default function AppointmentsReportPage() {
     applyFilters();
   }, [appointments, statusFilter, trainerFilter, typeFilter, clientSearch]);
 
+  // Keyboard shortcut: Ctrl+E to export
+  useEffect(() => {
+    const handleExport = () => exportToCSV();
+    window.addEventListener('trigger-export', handleExport);
+    return () => window.removeEventListener('trigger-export', handleExport);
+  }, []); // Empty deps - exportToCSV uses local variables
+
   async function loadTrainers() {
     if (!orgId) return;
     try {
@@ -511,6 +518,7 @@ export default function AppointmentsReportPage() {
         <button
           onClick={exportToCSV}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          aria-label="Export appointment data to CSV file"
         >
           <Download className="h-4 w-4" />
           Export CSV
@@ -758,21 +766,33 @@ export default function AppointmentsReportPage() {
               <thead className="bg-muted">
                 <tr>
                   <th className="p-3 text-left">
-                    <button onClick={() => handleSort('date')} className="flex items-center gap-1 font-medium hover:text-primary">
+                    <button 
+                      onClick={() => handleSort('date')} 
+                      className="flex items-center gap-1 font-medium hover:text-primary"
+                      aria-label={`Sort by date ${sortField === 'date' ? (sortDirection === 'asc' ? 'descending' : 'ascending') : ''}`}
+                    >
                       Date/Time
-                      {sortField === 'date' && <ArrowUpDown className="h-4 w-4" />}
+                      {sortField === 'date' && <ArrowUpDown className="h-4 w-4" aria-hidden="true" />}
                     </button>
                   </th>
                   <th className="p-3 text-left">
-                    <button onClick={() => handleSort('client')} className="flex items-center gap-1 font-medium hover:text-primary">
+                    <button 
+                      onClick={() => handleSort('client')} 
+                      className="flex items-center gap-1 font-medium hover:text-primary"
+                      aria-label={`Sort by client name ${sortField === 'client' ? (sortDirection === 'asc' ? 'descending' : 'ascending') : ''}`}
+                    >
                       Client
-                      {sortField === 'client' && <ArrowUpDown className="h-4 w-4" />}
+                      {sortField === 'client' && <ArrowUpDown className="h-4 w-4" aria-hidden="true" />}
                     </button>
                   </th>
                   <th className="p-3 text-left">
-                    <button onClick={() => handleSort('trainer')} className="flex items-center gap-1 font-medium hover:text-primary">
+                    <button 
+                      onClick={() => handleSort('trainer')} 
+                      className="flex items-center gap-1 font-medium hover:text-primary"
+                      aria-label={`Sort by trainer name ${sortField === 'trainer' ? (sortDirection === 'asc' ? 'descending' : 'ascending') : ''}`}
+                    >
                       Trainer
-                      {sortField === 'trainer' && <ArrowUpDown className="h-4 w-4" />}
+                      {sortField === 'trainer' && <ArrowUpDown className="h-4 w-4" aria-hidden="true" />}
                     </button>
                   </th>
                   <th className="p-3 text-left">

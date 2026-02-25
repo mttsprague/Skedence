@@ -104,11 +104,80 @@ export default function ClientsPage() {
   const [receipts, setReceipts] = useState<Transaction[]>([]);
   const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>([]);
   const [inviteCode, setInviteCode] = useState<string>('');
+  
+  // Advanced Filters
+  const [packageTypeFilter, setPackageTypeFilter] = useState<string>('all');
+  const [passStatusFilter, setPassStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('name'); // 'name', 'joined', 'balance'
 
   // Track page view
   useEffect(() => {
     trackPageView('/clients', 'Clients');
   }, []);
+
+  // Keyboard shortcuts event listeners
+  useEffect(() => {
+    const handleNewClient = () => {
+      setSelectedClient(null);
+      setEditedClient(null);
+      setActiveTab('profile');
+      setSheetOpen(true);
+    };
+
+    const handleExport = () => {
+      // Export clients to CSV
+      const csvHeaders = ['First Name', 'Last Name', 'Email', 'Phone Number', 'Join Date', 'Total Passes', 'Active Passes'];
+      const csvRows = filteredClients.map(client => {
+        let joinDate = '';
+        if (client.createdAt) {
+          try {
+            // Try Firestore Timestamp
+            joinDate = new Date((client.createdAt as any).toMillis()).toLocaleDateString();
+          } catch {
+            // Fall back to Date
+            if (client.createdAt instanceof Date) {
+              joinDate = client.createdAt.toLocaleDateString();
+            }
+          }
+        }
+        
+        return [
+          client.firstName || '',
+          client.lastName || '',
+          client.email || client.emailAddress || '',
+          client.phoneNumber || '',
+          joinDate,
+          '0', // TODO: Load actual package counts
+          '0'
+        ];
+      });
+
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvRows.map(row => row.join(',')),
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `clients-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Clients exported to CSV');
+    };
+
+    window.addEventListener('trigger-new-client', handleNewClient);
+    window.addEventListener('trigger-export', handleExport);
+
+    return () => {
+      window.removeEventListener('trigger-new-client', handleNewClient);
+      window.removeEventListener('trigger-export', handleExport);
+    };
+  }, [clients, searchQuery]); // Changed from filteredClients to dependencies
 
   // Load organization data including invite code
   useEffect(() => {
@@ -343,11 +412,47 @@ export default function ClientsPage() {
   }, [orgId, selectedClient]);
 
   const filteredClients = clients.filter(client => {
-    if (!searchQuery) return true;
-    const search = searchQuery.toLowerCase();
-    const fullName = `${client.firstName || ''} ${client.lastName || ''}`.toLowerCase();
-    const email = (client.email || client.emailAddress || '').toLowerCase();
-    return fullName.includes(search) || email.includes(search);
+    // Search filter
+    if (searchQuery) {
+      const search = searchQuery.toLowerCase();
+      const fullName = `${client.firstName || ''} ${client.lastName || ''}`.toLowerCase();
+      const email = (client.email || client.emailAddress || '').toLowerCase();
+      if (!fullName.includes(search) && !email.includes(search)) {
+        return false;
+      }
+    }
+    
+    // Package type filter (requires loading packages - for now simplified)
+    // Full implementation would require loading all client packages
+    
+    return true;
+  }).sort((a, b) => {
+    // Sort logic
+    switch (sortBy) {
+      case 'name':
+        const nameA = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
+        const nameB = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      case 'joined':
+        // Handle both Firestore Timestamp and Date
+        const dateA = a.createdAt 
+          ? (typeof (a.createdAt as any).toMillis === 'function' 
+            ? (a.createdAt as any).toMillis() 
+            : a.createdAt instanceof Date 
+              ? a.createdAt.getTime() 
+              : 0)
+          : 0;
+        const dateB = b.createdAt 
+          ? (typeof (b.createdAt as any).toMillis === 'function' 
+            ? (b.createdAt as any).toMillis() 
+            : b.createdAt instanceof Date 
+              ? b.createdAt.getTime() 
+              : 0)
+          : 0;
+        return dateB - dateA; // Most recent first
+      default:
+        return 0;
+    }
   });
 
   const handleClientSelect = (client: User) => {
@@ -571,16 +676,48 @@ export default function ClientsPage() {
           </CardContent>
         </Card>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            type="text"
-            placeholder="Search clients by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation text-base"
-          />
+        {/* Search and Filters */}
+        <div className="space-y-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" aria-hidden="true" />
+            <input
+              type="text"
+              placeholder="Search clients by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation text-base"
+              aria-label="Search clients"
+            />
+          </div>
+          
+          {/* Advanced Filters */}
+          <div className="flex flex-wrap gap-3">
+            {/* Sort By */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+              aria-label="Sort clients by"
+            >
+              <option value="name">Sort by Name</option>
+              <option value="joined">Sort by Join Date</option>
+            </select>
+            
+            {/* Filter badges showing active filters */}
+            {(packageTypeFilter !== 'all' || passStatusFilter !== 'all') && (
+              <button
+                onClick={() => {
+                  setPackageTypeFilter('all');
+                  setPassStatusFilter('all');
+                }}
+                className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm hover:bg-primary/20 transition-colors"
+                aria-label="Clear all filters"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Client Cards Grid */}

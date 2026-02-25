@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/admin/sidebar';
 import { CommandPalette } from '@/components/command-palette';
 import { CommandPaletteProvider, useCommandPalette } from '@/hooks/useCommandPalette';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { ShortcutsHelpDialog } from '@/components/shortcuts-help-dialog';
+import { MobileBottomNav, MobileBottomNavSpacer } from '@/components/ui/mobile-bottom-nav';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -13,6 +16,9 @@ interface DashboardLayoutProps {
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { open, setOpen } = useCommandPalette();
+  
+  // Enable global keyboard shortcuts
+  useKeyboardShortcuts({ enabled: true });
   
   // Routes that use their own submenu sidebars
   const hasSubmenuSidebar = 
@@ -34,7 +40,10 @@ function LayoutContent({ children }: { children: ReactNode }) {
     return (
       <>
         {children}
+        <MobileBottomNavSpacer />
         <CommandPalette open={open} onOpenChange={setOpen} />
+        <ShortcutsHelpDialog />
+        <MobileBottomNav />
       </>
     );
   }
@@ -47,10 +56,13 @@ function LayoutContent({ children }: { children: ReactNode }) {
         <main className="flex-1 overflow-y-auto pt-16 lg:pt-0">
           <div className="container mx-auto p-6 lg:p-10 max-w-7xl">
             {children}
+            <MobileBottomNavSpacer />
           </div>
         </main>
       </div>
       <CommandPalette open={open} onOpenChange={setOpen} />
+      <ShortcutsHelpDialog />
+      <MobileBottomNav />
     </>
   );
 }

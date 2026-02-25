@@ -111,6 +111,13 @@ export default function RevenueReportPage() {
     applyFilters();
   }, [packages, sourceFilter, packageFilter, userSearch]);
 
+  // Keyboard shortcut: Ctrl+E to export
+  useEffect(() => {
+    const handleExport = () => exportToCSV();
+    window.addEventListener('trigger-export', handleExport);
+    return () => window.removeEventListener('trigger-export', handleExport);
+  }, []); // Empty deps - exportToCSV uses local variables
+
   async function loadPackages() {
     if (!orgId) return;
     
@@ -445,6 +452,7 @@ export default function RevenueReportPage() {
         <button
           onClick={exportToCSV}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          aria-label="Export revenue data to CSV file"
         >
           <Download className="h-4 w-4" />
           Export CSV

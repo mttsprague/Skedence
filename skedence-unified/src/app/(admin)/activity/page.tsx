@@ -41,6 +41,8 @@ import { ActivityType } from '@/lib/activity-logger';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { OnboardingChecklist } from '@/components/admin/onboarding-checklist';
 import { TrialBanner } from '@/components/admin/trial-banner';
+import { useRealTimeCount } from '@/hooks/useRealTimeIndicators';
+import { RealTimeStatsCard } from '@/components/ui/real-time-indicators';
 
 interface ActivityLog {
   id: string;
@@ -120,6 +122,50 @@ export default function ActivityPage() {
   useEffect(() => {
     trackPageView('/activity', 'Activity Feed');
   }, []);
+  
+  // Real-time indicators
+  const todayStart = useMemo(() => Timestamp.fromDate(startOfDay(new Date())), []);
+  const todayEnd = useMemo(() => Timestamp.fromDate(endOfDay(new Date())), []);
+  
+  const todayBookingsLive = useRealTimeCount(
+    'bookings',
+    [
+      where('orgId', '==', orgId || ''),
+      where('startTime', '>=', todayStart),
+      where('startTime', '<=', todayEnd),
+      where('status', 'in', ['confirmed', 'scheduled'])
+    ],
+    !!orgId
+  );
+  
+  const upcomingClassesLive = useRealTimeCount(
+    'classes',
+    [
+      where('orgId', '==', orgId || ''),
+      where('startTime', '>=', Timestamp.now()),
+      where('isOpenForRegistration', '==', true)
+    ],
+    !!orgId
+  );
+  
+  const activeClientsLive = useRealTimeCount(
+    'users',
+    [
+      where('orgId', '==', orgId || ''),
+      where('role', '==', 'client'),
+      where('isActive', '==', true)
+    ],
+    !!orgId
+  );
+  
+  const activeTrainersLive = useRealTimeCount(
+    'trainers',
+    [
+      where('orgId', '==', orgId || ''),
+      where('active', '==', true)
+    ],
+    !!orgId
+  );
   
   // Advanced filters
   const [selectedActivityType, setSelectedActivityType] = useState<string>('all');
@@ -947,6 +993,38 @@ export default function ActivityPage() {
 
       {/* Onboarding Checklist - Shows for new users */}
       <OnboardingChecklist />
+
+      {/* Real-Time Stats Dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <RealTimeStatsCard
+          title="Today's Bookings"
+          count={todayBookingsLive.count}
+          isLive={todayBookingsLive.isLive}
+          lastUpdate={todayBookingsLive.lastUpdate}
+          icon={<Calendar className="w-5 h-5" />}
+        />
+        <RealTimeStatsCard
+          title="Upcoming Classes"
+          count={upcomingClassesLive.count}
+          isLive={upcomingClassesLive.isLive}
+          lastUpdate={upcomingClassesLive.lastUpdate}
+          icon={<GraduationCap className="w-5 h-5" />}
+        />
+        <RealTimeStatsCard
+          title="Active Clients"
+          count={activeClientsLive.count}
+          isLive={activeClientsLive.isLive}
+          lastUpdate={activeClientsLive.lastUpdate}
+          icon={<Users className="w-5 h-5" />}
+        />
+        <RealTimeStatsCard
+          title="Active Trainers"
+          count={activeTrainersLive.count}
+          isLive={activeTrainersLive.isLive}
+          lastUpdate={activeTrainersLive.lastUpdate}
+          icon={<UserPlus className="w-5 h-5" />}
+        />
+      </div>
 
       {/* What's Happening Section - Moved to Top */}
       <Card>

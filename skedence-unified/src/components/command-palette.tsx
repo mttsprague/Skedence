@@ -102,25 +102,35 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       <div 
         className="fixed inset-0 bg-black/50 z-50 animate-in fade-in"
         onClick={() => onOpenChange(false)}
+        aria-hidden="true"
       />
-      
-      {/* Command Palette */}
-      <div className="fixed left-1/2 top-[20%] -translate-x-1/2 z-50 w-full max-w-2xl animate-in zoom-in-95 slide-in-from-top-8 duration-200">
-        <Command className="rounded-xl border border-border bg-card shadow-2xl">
+
+      {/* Command Palette Dialog */}
+      <div
+        role="dialog"
+        aria-label="Command palette"
+        aria-modal="true"
+        className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-200"
+      >
+        <Command
+          className="rounded-lg border border-border bg-background shadow-lg"
+          aria-label="Quick navigation and actions"
+        >
           <div className="flex items-center border-b border-border px-4">
-            <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+            <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <Command.Input
               placeholder="Search commands or navigate..."
               value={search}
               onValueChange={setSearch}
               className="flex h-14 w-full bg-transparent py-4 text-base outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Search commands"
             />
             <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border border-border bg-muted px-2 font-mono text-xs text-muted-foreground">
               ESC
             </kbd>
           </div>
 
-          <Command.List className="max-h-[400px] overflow-y-auto p-2 scrollbar-premium">
+          <Command.List className="max-h-[400px] overflow-y-auto p-2 scrollbar-premium" role="listbox">
             <Command.Empty className="py-8 text-center text-sm text-muted-foreground">
               No results found.
             </Command.Empty>
@@ -144,6 +154,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                         "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground",
                         "transition-colors duration-150"
                       )}
+                      role="option"
+                      aria-label={item.label}
                     >
                       <Icon className="mr-3 h-4 w-4" />
                       <span className="flex-1">{item.label}</span>
