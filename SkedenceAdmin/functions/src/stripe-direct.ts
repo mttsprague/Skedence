@@ -61,28 +61,7 @@ export const createPaymentIntentDirect = onCall(
     }
 
     try {
-      // Get organization's Stripe keys from stripe/config subcollection
-      const stripeDoc = await db
-        .collection("organizations")
-        .doc(orgId)
-        .collection("stripe")
-        .doc("config")
-        .get();
-
-      const stripeData = stripeDoc.data();
-      if (!stripeData || !stripeData.secretKey) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Organization has not configured Stripe keys"
-        );
-      }
-
-      // Initialize Stripe with organization's secret key
-      const stripe = new Stripe(stripeData.secretKey, {
-        apiVersion: "2025-02-24.acacia",
-      });
-
-      // Get organization data for pricing
+      // Get organization data and Stripe keys
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
@@ -92,6 +71,18 @@ export const createPaymentIntentDirect = onCall(
           "Organization not found"
         );
       }
+
+      if (!orgData.stripe?.secretKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Organization has not configured Stripe keys"
+        );
+      }
+
+      // Initialize Stripe with organization's secret key
+      const stripe = new Stripe(orgData.stripe.secretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
 
       // Validate amount against organization's pricing
       const validPackages: { [key: string]: number } = {};
@@ -225,7 +216,7 @@ export const createPaymentIntentDirect = onCall(
 
       return {
         clientSecret: paymentIntent.client_secret,
-        publishableKey: stripeData.publishableKey,
+        publishableKey: orgData.stripe.publishableKey,
       };
     } catch (error: unknown) {
       console.error("❌ Error creating payment intent:", error);
@@ -287,28 +278,7 @@ export const createAndConfirmPaymentDirect = onCall(
     }
 
     try {
-      // Get organization's Stripe keys from stripe/config subcollection
-      const stripeDoc = await db
-        .collection("organizations")
-        .doc(orgId)
-        .collection("stripe")
-        .doc("config")
-        .get();
-
-      const stripeData = stripeDoc.data();
-      if (!stripeData || !stripeData.secretKey) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Organization has not configured Stripe keys"
-        );
-      }
-
-      // Initialize Stripe with organization's secret key
-      const stripe = new Stripe(stripeData.secretKey, {
-        apiVersion: "2025-02-24.acacia",
-      });
-
-      // Get organization data for pricing validation
+      // Get organization data and Stripe keys
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       const orgData = orgDoc.data();
 
@@ -318,6 +288,18 @@ export const createAndConfirmPaymentDirect = onCall(
           "Organization not found"
         );
       }
+
+      if (!orgData.stripe?.secretKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Organization has not configured Stripe keys"
+        );
+      }
+
+      // Initialize Stripe with organization's secret key
+      const stripe = new Stripe(orgData.stripe.secretKey, {
+        apiVersion: "2025-02-24.acacia",
+      });
 
       // Validate amount against organization's pricing
       const validPackages: { [key: string]: {price: number; lessons: number} } = {};
@@ -604,17 +586,10 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
       // Try to retrieve the payment intent from each organization's Stripe account
       for (const orgDoc of orgsSnapshot.docs) {
         try {
-          const stripeDoc = await db
-            .collection("organizations")
-            .doc(orgDoc.id)
-            .collection("stripe")
-            .doc("config")
-            .get();
+          const orgData = orgDoc.data();
+          if (!orgData?.stripe?.secretKey) continue;
 
-          const stripeData = stripeDoc.data();
-          if (!stripeData?.secretKey) continue;
-
-          const orgStripe = new Stripe(stripeData.secretKey, {
+          const orgStripe = new Stripe(orgData.stripe.secretKey, {
             apiVersion: "2025-02-24.acacia",
           });
 
