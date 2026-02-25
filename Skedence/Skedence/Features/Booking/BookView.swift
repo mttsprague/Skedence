@@ -1709,11 +1709,16 @@ struct BookView: View {
         await loadMonthIfPossible()
         
         // Clear all booking form fields
+        selectedTrainer = nil  // Reset to trainer selection screen
         selectedSlot = nil
         selectedPackage = nil
         selectedAthletes = []
         lessonNotes = ""
         currentWaiverAthleteIndex = nil
+        
+        // Clear athlete-specific fields
+        athleteFirstNames.removeAll()
+        athleteLastNames.removeAll()
         
         // Clear dynamic form data for all athletes
         intakeFormData.fieldValues.removeAll()
