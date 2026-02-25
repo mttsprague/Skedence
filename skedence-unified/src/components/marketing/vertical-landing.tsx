@@ -1,4 +1,8 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
+import { Menu, X } from 'lucide-react';
 
 interface Benefit {
   title: string;
@@ -36,20 +40,59 @@ export default function VerticalLanding({
   features,
   faqs,
 }: VerticalLandingProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
-      <nav className="container mx-auto px-4 py-6 border-b border-border">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-primary tracking-tight">
-            Skedence
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">
-              Sign In
+      <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="text-2xl font-bold text-primary tracking-tight">
+              Skedence
             </Link>
-            <Link href="/login" className="px-4 py-2 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors">
-              Start Free Trial
-            </Link>
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-4">
+              <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">
+                Sign In
+              </Link>
+              <Link href="/login" className="px-4 py-2 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors">
+                Start Free Trial
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-foreground hover:text-primary transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+
+          {/* Mobile Menu */}
+          <div
+            className={`md:hidden transition-all duration-300 ease-in-out overflow-hidden ${
+              mobileMenuOpen ? 'max-h-48 opacity-100 mt-6' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="space-y-4 py-4 border-t border-border/50">
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors py-2"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-3 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors text-center"
+              >
+                Start Free Trial
+              </Link>
+            </div>
           </div>
         </div>
       </nav>

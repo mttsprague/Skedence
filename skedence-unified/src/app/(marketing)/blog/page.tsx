@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Clock, ArrowRight, Tag } from 'lucide-react';
+import { Search, Clock, ArrowRight, Tag, Menu, X } from 'lucide-react';
 import { BlogPost, BlogCategory, BLOG_CATEGORIES } from '@/types/blog';
 import { getPublishedPosts, getPostsByCategory } from '@/lib/blog-service';
 import { format } from 'date-fns';
@@ -15,6 +15,7 @@ export default function BlogPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BlogCategory | 'all'>('all');
   const [selectedSport, setSelectedSport] = useState<string>('all');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     loadPosts();
@@ -108,6 +109,67 @@ export default function BlogPage() {
                 Start Free Trial →
               </Link>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-foreground hover:text-primary transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        <div
+          className={`md:hidden absolute top-full left-0 right-0 bg-black/95 backdrop-blur-xl border-b border-border/50 transition-all duration-300 ease-in-out ${
+            mobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+          }`}
+        >
+          <div className="container mx-auto px-6 py-6 space-y-4">
+            <a
+              href="/#features"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+            >
+              Features
+            </a>
+            <a
+              href="/#pricing"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+            >
+              Pricing
+            </a>
+            <Link
+              href="/blog"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-base font-medium text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+            >
+              Blog
+            </Link>
+            <Link
+              href="/support"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+            >
+              Support
+            </Link>
+            <Link
+              href="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block btn-premium text-center mt-4"
+            >
+              Start Free Trial →
+            </Link>
           </div>
         </div>
       </nav>
