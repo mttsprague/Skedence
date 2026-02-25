@@ -138,7 +138,7 @@ export default function BlogPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   selectedCategory === 'all'
                     ? 'bg-primary text-black'
-                    : 'bg-muted text-foreground/60 hover:bg-muted/80'
+                    : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary border border-border'
                 }`}
               >
                 All Posts
@@ -150,7 +150,7 @@ export default function BlogPage() {
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     selectedCategory === category
                       ? 'bg-primary text-black'
-                      : 'bg-muted text-foreground/60 hover:bg-muted/80'
+                      : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary border border-border'
                   }`}
                 >
                   {BLOG_CATEGORIES[category].icon} {BLOG_CATEGORIES[category].title}
@@ -168,7 +168,7 @@ export default function BlogPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   selectedSport === 'all'
                     ? 'bg-primary text-black'
-                    : 'bg-muted text-foreground/60 hover:bg-muted/80'
+                    : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary border border-border'
                 }`}
               >
                 All Sports
@@ -180,7 +180,7 @@ export default function BlogPage() {
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
                     selectedSport === sport
                       ? 'bg-primary text-black'
-                      : 'bg-muted text-foreground/60 hover:bg-muted/80'
+                      : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary border border-border'
                   }`}
                 >
                   {sport === 'volleyball' && '🏐'}
