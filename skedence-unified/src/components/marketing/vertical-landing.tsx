@@ -81,7 +81,7 @@ export default function VerticalLanding({
               <Link
                 href="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors py-2"
+                className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors py-2"
               >
                 Sign In
               </Link>

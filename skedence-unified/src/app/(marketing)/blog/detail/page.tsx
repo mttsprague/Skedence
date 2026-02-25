@@ -134,35 +134,35 @@ function BlogPostContent() {
             <a
               href="/#features"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+              className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
             >
               Features
             </a>
             <a
               href="/#pricing"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+              className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
             >
               Pricing
             </a>
             <Link
               href="/blog"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-base font-medium text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+              className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
             >
               Blog
             </Link>
             <Link
               href="/support"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+              className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
             >
               Support
             </Link>
             <Link
               href="/login"
               onClick={() => setMobileMenuOpen(false)}
-              className="block text-base font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide py-3 border-b border-border/30"
+              className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
             >
               Sign In
             </Link>
