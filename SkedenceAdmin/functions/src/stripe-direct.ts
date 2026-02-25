@@ -158,18 +158,33 @@ export const createPaymentIntentDirect = onCall(
       console.log(`✅ Price validation passed: $${amount / 100}`);
 
       console.log(`👤 Step 4: Getting/creating Stripe customer for user: ${userId}`);
-      // Get or create Stripe customer
-      const userDoc = await db
+      // Get or create Stripe customer - check both new and legacy paths
+      let userDoc = await db
         .collection("organizations")
         .doc(orgId)
         .collection("users")
         .doc(userId)
         .get();
 
-      const userData = userDoc.data();
+      let userData = userDoc.data();
+      let userPath = `organizations/${orgId}/users/${userId}`;
+
+      // Fallback to legacy path if not found in new path
+      if (!userData) {
+        console.log(`⚠️ User not found in org subcollection, checking root users collection`);
+        userDoc = await db.collection("users").doc(userId).get();
+        userData = userDoc.data();
+        userPath = `users/${userId}`;
+        
+        if (userData) {
+          console.log(`✅ Found user in legacy path: ${userPath}`);
+        }
+      }
+
       let customerId = userData?.stripeCustomerId;
       console.log(`📋 User data:`, {
         userId,
+        userPath,
         hasData: !!userData,
         existingCustomerId: customerId || "none",
         email: userData?.email || userData?.emailAddress,
@@ -196,15 +211,22 @@ export const createPaymentIntentDirect = onCall(
         customerId = customer.id;
         console.log(`✅ Created Stripe customer: ${customerId}`);
 
-        // Save customer ID
-        await db
-          .collection("organizations")
-          .doc(orgId)
-          .collection("users")
-          .doc(userId)
-          .set({
+        // Save customer ID to whichever path the user exists in
+        console.log(`💾 Saving customer ID to: ${userPath}`);
+        if (userPath.startsWith("organizations/")) {
+          await db
+            .collection("organizations")
+            .doc(orgId)
+            .collection("users")
+            .doc(userId)
+            .set({
+              stripeCustomerId: customerId,
+            }, {merge: true});
+        } else {
+          await db.collection("users").doc(userId).set({
             stripeCustomerId: customerId,
           }, {merge: true});
+        }
         console.log(`✅ Saved customer ID to user document`);
       } else {
         console.log(`✅ Using existing Stripe customer: ${customerId}`);
@@ -430,14 +452,31 @@ export const createAndConfirmPaymentDirect = onCall(
         );
       }
 
-      // Get customer ID from root users collection
-      const userDoc = await db
+      // Get customer ID - check both new and legacy paths
+      let userDoc = await db
+        .collection("organizations")
+        .doc(orgId)
         .collection("users")
         .doc(userId)
         .get();
 
-      const userData = userDoc.data();
+      let userData = userDoc.data();
+      let userPath = `organizations/${orgId}/users/${userId}`;
+
+      // Fallback to legacy path if not found in new path
+      if (!userData) {
+        console.log(`⚠️ User not found in org subcollection, checking root users collection`);
+        userDoc = await db.collection("users").doc(userId).get();
+        userData = userDoc.data();
+        userPath = `users/${userId}`;
+        
+        if (userData) {
+          console.log(`✅ Found user in legacy path: ${userPath}`);
+        }
+      }
+
       let customerId = userData?.stripeCustomerId;
+      console.log(`📋 User customer ID: ${customerId || "none"} from ${userPath}`);
 
       // If no customer ID exists, or customer doesn't exist in this org's Stripe account, create one
       if (!customerId) {
@@ -458,13 +497,22 @@ export const createAndConfirmPaymentDirect = onCall(
         });
         customerId = customer.id;
 
-        // Save customer ID to user document
-        await db
-          .collection("users")
-          .doc(userId)
-          .set({
+        // Save customer ID to whichever path the user exists in
+        console.log(`💾 Saving customer ID to: ${userPath}`);
+        if (userPath.startsWith("organizations/")) {
+          await db
+            .collection("organizations")
+            .doc(orgId)
+            .collection("users")
+            .doc(userId)
+            .set({
+              stripeCustomerId: customerId,
+            }, {merge: true});
+        } else {
+          await db.collection("users").doc(userId).set({
             stripeCustomerId: customerId,
           }, {merge: true});
+        }
 
         console.log(`✅ Created new Stripe customer: ${customerId}`);
       } else {
