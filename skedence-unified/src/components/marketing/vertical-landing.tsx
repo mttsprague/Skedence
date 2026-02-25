@@ -56,7 +56,7 @@ export default function VerticalLanding({
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors">
                 Sign In
               </Link>
-              <Link href="/login" className="px-4 py-2 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors">
+              <Link href="/register" className="px-4 py-2 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors">
                 Start Free Trial
               </Link>
             </div>
@@ -86,7 +86,7 @@ export default function VerticalLanding({
                 Sign In
               </Link>
               <Link
-                href="/login"
+                href="/register"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-4 py-3 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors text-center"
               >
@@ -212,7 +212,7 @@ export default function VerticalLanding({
           <h2 className="text-3xl font-bold text-foreground">Run your {sportName.toLowerCase()} training like a business</h2>
           <p className="text-foreground/70 mt-3">Sell packages, automate booking, and stop chasing payments.</p>
           <div className="flex justify-center mt-6">
-            <Link href="/login" className="px-6 py-3 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors">
+            <Link href="/register" className="px-6 py-3 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors">
               Start Free Trial
             </Link>
           </div>

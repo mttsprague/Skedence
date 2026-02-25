@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence - Admin Portal Features</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #FFFFFF;
+            color: #0A0A0A;
+            line-height: 1.6;
+        }
+        
+        .page {
+            width: 8.5in;
+            min-height: 11in;
+            margin: 0 auto 1rem;
+            background: #FFFFFF;
+            page-break-after: always;
+            position: relative;
+        }
+        
+        .page:last-child {
+            page-break-after: avoid;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0A0A0A 0%, #2A2A2A 100%);
+            padding: 2.5rem 3rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255, 107, 53, 0.15) 0%, transparent 70%);
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        
+        .header-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 0.75rem;
+        }
+        
+        .header-subtitle {
+            font-size: 1.2rem;
+            color: #D1D5DB;
+            font-weight: 500;
+        }
+        
+        /* Content */
+        .content {
+            padding: 3rem;
+        }
+        
+        /* Feature showcase - Screenshot + Description */
+        .feature-showcase {
+            margin-bottom: 3rem;
+            page-break-inside: avoid;
+        }
+        
+        .feature-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            flex-shrink: 0;
+        }
+        
+        .feature-header-text h2 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #0A0A0A;
+            margin-bottom: 0.25rem;
+        }
+        
+        .feature-header-text p {
+            font-size: 1rem;
+            color: #6B7280;
+            font-weight: 500;
+        }
+        
+        .screenshot-container {
+            width: 100%;
+            height: 380px;
+            background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .screenshot-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .screenshot-placeholder {
+            text-align: center;
+            color: #9CA3AF;
+        }
+        
+        .screenshot-placeholder-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .screenshot-placeholder-text {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        .feature-description {
+            background: #FFF5F2;
+            padding: 2rem;
+            border-radius: 12px;
+            border-left: 4px solid #FF6B35;
+        }
+        
+        .feature-description h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #0A0A0A;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .feature-list li {
+            font-size: 0.95rem;
+            color: #6B7280;
+            padding-left: 1.5rem;
+            position: relative;
+            list-style: none;
+        }
+        
+        .feature-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #FF6B35;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+        
+        /* Stats callout */
+        .stats-callout {
+            background: linear-gradient(135deg, #0A0A0A 0%, #2A2A2A 100%);
+            color: white;
+            padding: 2.5rem;
+            border-radius: 16px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .stat-item h3 {
+            font-size: 2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-item p {
+            font-size: 0.95rem;
+            color: #D1D5DB;
+            font-weight: 500;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: auto;
+            padding: 2rem 3rem;
+            text-align: center;
+            border-top: 2px solid #E5E7EB;
+            font-size: 0.9rem;
+            color: #6B7280;
+        }
+        
+        .footer strong {
+            color: #FF6B35;
+            font-weight: 700;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Page 1: Reports & Analytics -->
+    <div class="page">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">Skedence</div>
+                <div class="header-title">Admin Portal Features</div>
+                <div class="header-subtitle">See your business operations at a glance</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="feature-showcase">
+                <div class="feature-header">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-header-text">
+                        <h2>Real-Time Analytics & Reports</h2>
+                        <p>Track revenue, bookings, and client growth with powerful dashboards</p>
+                    </div>
+                </div>
+                
+                <div class="screenshot-container">
+                    <div class="screenshot-placeholder">
+                        <div class="screenshot-placeholder-icon">📊</div>
+                        <div class="screenshot-placeholder-text">Add screenshot: /reports/appointments or /reports/revenue</div>
+                    </div>
+                </div>
+                
+                <div class="feature-description">
+                    <h3>What You See:</h3>
+                    <ul class="feature-list">
+                        <li>Total revenue by day, week, month</li>
+                        <li>Appointment counts and trends</li>
+                        <li>Interactive charts showing growth patterns</li>
+                        <li>Client sign-up analytics</li>
+                        <li>Filter by date range (7d, 30d, 90d, 1yr, all)</li>
+                        <li>Export data for deeper analysis</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="stats-callout">
+                <div class="stat-item">
+                    <h3>Real-Time</h3>
+                    <p>Data updates instantly as bookings happen</p>
+                </div>
+                <div class="stat-item">
+                    <h3>Mobile Ready</h3>
+                    <p>Check stats anywhere on any device</p>
+                </div>
+                <div class="stat-item">
+                    <h3>Actionable</h3>
+                    <p>Make informed business decisions fast</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>skedence.com</strong> | contact@skedence.com | Built specifically for sports training businesses
+        </div>
+    </div>
+    
+    <!-- Page 2: Client Management -->
+    <div class="page">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">Skedence</div>
+                <div class="header-title">Client Management</div>
+                <div class="header-subtitle">Complete client profiles and package tracking</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="feature-showcase">
+                <div class="feature-header">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-header-text">
+                        <h2>Comprehensive Client Database</h2>
+                        <p>View all client details, passes, and booking history in one place</p>
+                    </div>
+                </div>
+                
+                <div class="screenshot-container">
+                    <div class="screenshot-placeholder">
+                        <div class="screenshot-placeholder-icon">👥</div>
+                        <div class="screenshot-placeholder-text">Add screenshot: /clients page with cards view</div>
+                    </div>
+                </div>
+                
+                <div class="feature-description">
+                    <h3>Client Management Features:</h3>
+                    <ul class="feature-list">
+                        <li>Search and filter clients instantly</li>
+                        <li>View client cards with contact info</li>
+                        <li>See active lesson passes and balances</li>
+                        <li>Complete booking history</li>
+                        <li>Add notes and track preferences</li>
+                        <li>Direct email and phone contact</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="feature-showcase">
+                <div class="feature-header">
+                    <div class="feature-icon">📦</div>
+                    <div class="feature-header-text">
+                        <h2>Package & Pass Management</h2>
+                        <p>Assign, track, and manage lesson packages effortlessly</p>
+                    </div>
+                </div>
+                
+                <div class="screenshot-container">
+                    <div class="screenshot-placeholder">
+                        <div class="screenshot-placeholder-icon">📦</div>
+                        <div class="screenshot-placeholder-text">Add screenshot: /passes page showing package list</div>
+                    </div>
+                </div>
+                
+                <div class="feature-description">
+                    <h3>Package Tracking:</h3>
+                    <ul class="feature-list">
+                        <li>View all active packages by client</li>
+                        <li>See remaining lessons at a glance</li>
+                        <li>Track expiration dates</li>
+                        <li>Add packages manually or via purchase</li>
+                        <li>Filter by package type (1-4 athletes, classes)</li>
+                        <li>Automatic balance updates after bookings</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>skedence.com</strong> | contact@skedence.com | Built specifically for sports training businesses
+        </div>
+    </div>
+    
+    <!-- Page 3: Scheduling & Operations -->
+    <div class="page">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">Skedence</div>
+                <div class="header-title">Scheduling System</div>
+                <div class="header-subtitle">Visual calendar with drag-and-drop booking</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="feature-showcase">
+                <div class="feature-header">
+                    <div class="feature-icon">📅</div>
+                    <div class="feature-header-text">
+                        <h2>Smart Scheduling Calendar</h2>
+                        <p>Week-view calendar with real-time availability and conflict prevention</p>
+                    </div>
+                </div>
+                
+                <div class="screenshot-container">
+                    <div class="screenshot-placeholder">
+                        <div class="screenshot-placeholder-icon">📅</div>
+                        <div class="screenshot-placeholder-text">Add screenshot: /schedule page with weekly view</div>
+                    </div>
+                </div>
+                
+                <div class="feature-description">
+                    <h3>Scheduling Features:</h3>
+                    <ul class="feature-list">
+                        <li>Weekly calendar view by trainer</li>
+                        <li>Color-coded availability slots</li>
+                        <li>Real-time conflict detection</li>
+                        <li>Navigate weeks with arrow buttons</li>
+                        <li>Mobile-optimized with horizontal scroll</li>
+                        <li>Instant booking confirmation</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="feature-showcase">
+                <div class="feature-header">
+                    <div class="feature-icon">⚙️</div>
+                    <div class="feature-header-text">
+                        <h2>Flexible Pricing Structure</h2>
+                        <p>Custom pricing tiers and packages for your business model</p>
+                    </div>
+                </div>
+                
+                <div class="screenshot-container">
+                    <div class="screenshot-placeholder">
+                        <div class="screenshot-placeholder-icon">💰</div>
+                        <div class="screenshot-placeholder-text">Add screenshot: /pricing page with tiers</div>
+                    </div>
+                </div>
+                
+                <div class="feature-description">
+                    <h3>Pricing Control:</h3>
+                    <ul class="feature-list">
+                        <li>Create multiple pricing tiers (Elite, Master, etc)</li>
+                        <li>Set prices for 1-4 athlete sessions</li>
+                        <li>Custom package types and names</li>
+                        <li>Class pass pricing options</li>
+                        <li>Easy drag-and-drop tier management</li>
+                        <li>Changes sync instantly to apps</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>skedence.com</strong> | contact@skedence.com | Built specifically for sports training businesses
+        </div>
+    </div>
+    
+    <!-- Page 4: Settings & Customization -->
+    <div class="page">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">Skedence</div>
+                <div class="header-title">Settings & Branding</div>
+                <div class="header-subtitle">Customize every aspect of your platform</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="feature-showcase">
+                <div class="feature-header">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-header-text">
+                        <h2>Organization Settings</h2>
+                        <p>Control branding, billing, notifications, and more</p>
+                    </div>
+                </div>
+                
+                <div class="screenshot-container">
+                    <div class="screenshot-placeholder">
+                        <div class="screenshot-placeholder-icon">⚙️</div>
+                        <div class="screenshot-placeholder-text">Add screenshot: /settings page showing tabs</div>
+                    </div>
+                </div>
+                
+                <div class="feature-description">
+                    <h3>Settings Options:</h3>
+                    <ul class="feature-list">
+                        <li>Custom brand colors (primary color picker)</li>
+                        <li>Upload your logo</li>
+                        <li>Manage Stripe payment integration</li>
+                        <li>Configure email notifications</li>
+                        <li>Create custom intake forms</li>
+                        <li>Set up booking confirmation emails</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="stats-callout">
+                <div class="stat-item">
+                    <h3>$29+</h3>
+                    <p>Simple monthly subscription</p>
+                </div>
+                <div class="stat-item">
+                    <h3>Unlimited</h3>
+                    <p>Bookings and features included</p>
+                </div>
+                <div class="stat-item">
+                    <h3>Instant</h3>
+                    <p>Start using today</p>
+                </div>
+            </div>
+            
+            <div class="feature-showcase">
+                <div class="feature-header">
+                    <div class="feature-icon">📱</div>
+                    <div class="feature-header-text">
+                        <h2>Native Mobile Apps</h2>
+                        <p>Beautiful iOS apps for both clients and admins</p>
+                    </div>
+                </div>
+                
+                <div class="feature-description">
+                    <h3>Mobile Experience:</h3>
+                    <ul class="feature-list">
+                        <li>Clients book from their phones instantly</li>
+                        <li>Admin app for trainers and owners</li>
+                        <li>Push notifications for bookings</li>
+                        <li>Offline capability when needed</li>
+                        <li>Your branding throughout</li>
+                        <li>App Store deployment included</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Ready to see your business transform?</strong> Visit <strong>skedence.com</strong> | contact@skedence.com
+        </div>
+    </div>
+</body>
+</html>

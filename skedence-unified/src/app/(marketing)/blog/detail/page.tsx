@@ -152,7 +152,7 @@ function BlogPostContent() {
               <Link href="/blog" className="text-sm font-medium text-primary transition-colors uppercase tracking-wide">Blog</Link>
               <Link href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</Link>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
-              <Link href="/login" className="btn-premium text-sm">
+              <Link href="/register" className="btn-premium text-sm">
                 Start Free Trial →
               </Link>
             </div>
@@ -211,7 +211,7 @@ function BlogPostContent() {
               Sign In
             </Link>
             <Link
-              href="/login"
+              href="/register"
               onClick={() => setMobileMenuOpen(false)}
               className="block btn-premium text-center mt-4"
             >
@@ -332,7 +332,7 @@ function BlogPostContent() {
               Join hundreds of coaches using Skedence to save time and grow their business
             </p>
             <Link 
-              href={post.ctaLink || '/login'} 
+              href={post.ctaLink || '/register'} 
               className="btn-premium inline-flex items-center gap-2"
             >
               Start Free Trial

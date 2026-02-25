@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence - Complete Platform Features</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #FFFFFF;
+            color: #0A0A0A;
+            line-height: 1.6;
+        }
+        
+        /* Multi-page layout */
+        .page {
+            width: 8.5in;
+            min-height: 11in;
+            margin: 0 auto 1rem;
+            background: #FFFFFF;
+            page-break-after: always;
+            position: relative;
+        }
+        
+        .page:last-child {
+            page-break-after: avoid;
+        }
+        
+        /* Hero section */
+        .hero {
+            background: linear-gradient(135deg, #0A0A0A 0%, #1F1F1F 100%);
+            height: 3.5in;
+            color: white;
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -20%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 107, 53, 0.15) 0%, transparent 70%);
+        }
+        
+        .hero-logo {
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: -2px;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.3rem;
+            color: #D1D5DB;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Content sections */
+        .content {
+            padding: 2.5rem 3rem;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #0A0A0A;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 32px;
+            background: linear-gradient(180deg, #FF6B35 0%, #FF8C61 100%);
+            border-radius: 2px;
+        }
+        
+        .section-subtitle {
+            font-size: 1rem;
+            color: #6B7280;
+            margin-bottom: 2.5rem;
+            padding-left: 1rem;
+        }
+        
+        /* Feature cards */
+        .feature-list {
+            display: grid;
+            gap: 2rem;
+        }
+        
+        .feature-item {
+            background: #FFFFFF;
+            border: 2px solid #E5E7EB;
+            border-radius: 16px;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1.5rem;
+            align-items: start;
+            transition: all 0.3s ease;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .feature-item:hover {
+            border-color: #FF6B35;
+            box-shadow: 0 8px 24px rgba(255, 107, 53, 0.12);
+            transform: translateY(-2px);
+        }
+        
+        .feature-number {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+            flex-shrink: 0;
+        }
+        
+        .feature-content h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #0A0A0A;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-content p {
+            font-size: 0.95rem;
+            color: #6B7280;
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+        }
+        
+        .feature-benefits {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .benefit-tag {
+            background: #FFF5F2;
+            color: #FF6B35;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        /* Stats section */
+        .stats-section {
+            background: #0A0A0A;
+            padding: 2.5rem 3rem;
+            margin: 0 -3rem 2.5rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+        }
+        
+        .stat-card {
+            text-align: center;
+            color: white;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #D1D5DB;
+            font-weight: 500;
+        }
+        
+        /* Pricing section */
+        .pricing-box {
+            background: linear-gradient(135deg, #FFF5F2 0%, #FFE8DF 100%);
+            border: 3px solid #FF6B35;
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .pricing-title {
+            font-size: 1.1rem;
+            color: #6B7280;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .pricing-amount {
+            font-size: 4rem;
+            font-weight: 900;
+            color: #FF6B35;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pricing-subtitle {
+            font-size: 1rem;
+            color: #6B7280;
+            margin-bottom: 1.5rem;
+        }
+        
+        .pricing-features {
+            text-align: left;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .pricing-feature {
+            font-size: 0.9rem;
+            color: #0A0A0A;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        
+        .pricing-feature::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #FF6B35;
+            font-weight: 800;
+        }
+        
+        /* Setup timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 1rem;
+            bottom: 1rem;
+            width: 3px;
+            background: linear-gradient(180deg, #FF6B35 0%, #FF8C61 100%);
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -1.5rem;
+            top: 0.5rem;
+            width: 12px;
+            height: 12px;
+            background: #FF6B35;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 3px #FF6B35;
+        }
+        
+        .timeline-week {
+            font-size: 0.85rem;
+            color: #FF6B35;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+        
+        .timeline-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0A0A0A;
+            margin-bottom: 0.25rem;
+        }
+        
+        .timeline-desc {
+            font-size: 0.9rem;
+            color: #6B7280;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 3rem;
+            padding: 2rem 3rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #6B7280;
+            border-top: 2px solid #E5E7EB;
+        }
+        
+        .footer strong {
+            color: #FF6B35;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Page 1: Platform Overview -->
+    <div class="page">
+        <div class="hero">
+            <div class="hero-logo">Skedence</div>
+            <div class="hero-title">Complete Platform for<br>Sports Training Success</div>
+            <div class="hero-subtitle">Modern technology built specifically for volleyball, basketball, and sports academies</div>
+        </div>
+        
+        <div class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">$29+</div>
+                    <div class="stat-label">Simple Subscription</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">&lt;1s</div>
+                    <div class="stat-label">Real-Time Sync</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">White-Label</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">Instant</div>
+                    <div class="stat-label">Start Today</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <h2 class="section-title">Core Platform Features</h2>
+            <p class="section-subtitle">Everything you need to run and grow your sports training business</p>
+            
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-number">1</div>
+                    <div class="feature-content">
+                        <h3>Smart Scheduling & Booking</h3>
+                        <p>Automated scheduling that eliminates double-bookings and reduces admin time by 80%. Clients book directly from their phones, trainers manage availability in real-time.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">Real-time availability</span>
+                            <span class="benefit-tag">Zero conflicts</span>
+                            <span class="benefit-tag">Auto reminders</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-number">2</div>
+                    <div class="feature-content">
+                        <h3>Multi-Athlete Private Sessions</h3>
+                        <p>Purpose-built for sports training. Book 1, 2, 3, or 4 athletes per private lesson with flexible pricing tiers. Perfect for siblings, teammates, or small groups.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">1-4 athletes</span>
+                            <span class="benefit-tag">Custom pricing</span>
+                            <span class="benefit-tag">Easy booking</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-number">3</div>
+                    <div class="feature-content">
+                        <h3>Integrated Payment Processing</h3>
+                        <p>Accept payments securely with Stripe. Keep 100% of your revenue with simple subscription pricing. In-app purchases, Apple Pay, and credit cards all supported.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">No revenue sharing</span>
+                            <span class="benefit-tag">Keep 100%</span>
+                            <span class="benefit-tag">Stripe powered</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Skedence</strong> | skedence.com | Built by coaches, for coaches
+        </div>
+    </div>
+    
+    <!-- Page 2: Detailed Features -->
+    <div class="page">
+        <div class="content" style="padding-top: 2.5rem;">
+            <h2 class="section-title">Advanced Features</h2>
+            <p class="section-subtitle">Professional tools to scale your business</p>
+            
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-number">4</div>
+                    <div class="feature-content">
+                        <h3>Native Mobile Apps (iOS)</h3>
+                        <p>Beautiful client and admin apps built with native iOS technology. Fast, reliable, and works offline. Branded with your logo and colors.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">Native iOS</span>
+                            <span class="benefit-tag">Your branding</span>
+                            <span class="benefit-tag">Push notifications</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-number">5</div>
+                    <div class="feature-content">
+                        <h3>Lesson Package Management</h3>
+                        <p>Sell and track lesson packages (10-packs, 20-packs, etc.). Automatic usage tracking, expiration dates, and balance notifications for clients.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">Custom packages</span>
+                            <span class="benefit-tag">Auto tracking</span>
+                            <span class="benefit-tag">Expirations</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-number">6</div>
+                    <div class="feature-content">
+                        <h3>Group Classes & Clinics</h3>
+                        <p>Manage group training sessions with capacity limits, waitlists, and class passes. Perfect for camps, clinics, and regular group training.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">Capacity limits</span>
+                            <span class="benefit-tag">Waitlists</span>
+                            <span class="benefit-tag">Class passes</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-number">7</div>
+                    <div class="feature-content">
+                        <h3>Revenue Analytics & Reporting</h3>
+                        <p>Real-time dashboards show revenue trends, booking rates, client growth, and trainer performance. Export data for accounting.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">Real-time metrics</span>
+                            <span class="benefit-tag">Revenue tracking</span>
+                            <span class="benefit-tag">Export data</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-number">8</div>
+                    <div class="feature-content">
+                        <h3>Client & Trainer Management</h3>
+                        <p>Complete profiles, booking history, package balances, and performance tracking. Unlimited trainers at no extra cost.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">Unlimited staff</span>
+                            <span class="benefit-tag">Full history</span>
+                            <span class="benefit-tag">Performance data</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-number">9</div>
+                    <div class="feature-content">
+                        <h3>Automated Communications</h3>
+                        <p>Booking confirmations, reminder emails, and push notifications sent automatically. Keep clients informed without lifting a finger.</p>
+                        <div class="feature-benefits">
+                            <span class="benefit-tag">Auto emails</span>
+                            <span class="benefit-tag">Push alerts</span>
+                            <span class="benefit-tag">Reminders</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Skedence</strong> | skedence.com | Built by coaches, for coaches
+        </div>
+    </div>
+    
+    <!-- Page 3: Pricing & Quick Setup -->
+    <div class="page">
+        <div class="content" style="padding-top: 2.5rem;">
+            <h2 class="section-title">Simple, Transparent Pricing</h2>
+            <p class="section-subtitle">Choose the plan that fits your business size.</p>
+            
+            <div class="pricing-box">
+                <div class="pricing-title">Monthly Subscription</div>
+                <div class="pricing-amount">$29+</div>
+                <div class="pricing-subtitle">Starting at $29/month • Scale as you grow</div>
+                
+                <div class="pricing-features">
+                    <div class="pricing-feature">Unlimited bookings</div>
+                    <div class="pricing-feature">All features included</div>
+                    <div class="pricing-feature">iOS client app</div>
+                    <div class="pricing-feature">iOS admin app</div>
+                    <div class="pricing-feature">Web admin portal</div>
+                    <div class="pricing-feature">White-label branding</div>
+                    <div class="pricing-feature">Payment processing</div>
+                    <div class="pricing-feature">Real-time analytics</div>
+                    <div class="pricing-feature">Email notifications</div>
+                    <div class="pricing-feature">Push notifications</div>
+                    <div class="pricing-feature">Customer support</div>
+                    <div class="pricing-feature">Free updates</div>
+                </div>
+            </div>
+            
+            <h2 class="section-title">Quick Setup Guide</h2>
+            <p class="section-subtitle">Start accepting bookings instantly - no waiting period</p>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-week">Step 1</div>
+                    <div class="timeline-title">Create Your Account</div>
+                    <div class="timeline-desc">Sign up at skedence.com and choose your subscription plan (Starter, Studio, Academy, or Enterprise)</div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-week">Step 2</div>
+                    <div class="timeline-title">Connect Stripe Payments</div>
+                    <div class="timeline-desc">Link your Stripe account to accept payments and start receiving revenue directly</div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-week">Step 3</div>
+                    <div class="timeline-title">Set Up Your Business</div>
+                    <div class="timeline-desc">Create your pricing structure, add trainers to your roster, and configure notification settings</div>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-week">Step 4</div>
+                    <div class="timeline-title">Start Booking Sessions</div>
+                    <div class="timeline-desc">Add clients, create availability, and start accepting bookings immediately!</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Skedence</strong> | skedence.com | contact@skedence.com | 📱 Built by coaches, for coaches
+        </div>
+    </div>
+</body>
+</html>

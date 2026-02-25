@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence - Quick Reference Guide</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #FFFFFF;
+            color: #0A0A0A;
+        }
+        
+        .page {
+            width: 8.5in;
+            min-height: 11in;
+            margin: 0 auto;
+            background: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Bold header */
+        .header {
+            background: linear-gradient(135deg, #0A0A0A 0%, #2A2A2A 100%);
+            color: white;
+            padding: 2rem 2.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -5%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255, 107, 53, 0.15) 0%, transparent 70%);
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header-tagline {
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: right;
+        }
+        
+        /* Main content grid */
+        .content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0;
+            padding: 2.5rem 3rem;
+        }
+        
+        /* Section cards */
+        .section {
+            padding: 2rem;
+            border-right: 1px solid #E5E7EB;
+            border-bottom: 1px solid #E5E7EB;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .section:nth-child(3n) {
+            border-right: none;
+        }
+        
+        .section:nth-child(n+7) {
+            border-bottom: none;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .section-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #0A0A0A;
+            line-height: 1.2;
+        }
+        
+        .section-content {
+            font-size: 0.85rem;
+            color: #6B7280;
+            line-height: 1.5;
+        }
+        
+        .section-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 0.75rem;
+        }
+        
+        .section-list li {
+            padding: 0.35rem 0;
+            padding-left: 1.25rem;
+            position: relative;
+            font-size: 0.85rem;
+            color: #0A0A0A;
+        }
+        
+        .section-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #FF6B35;
+            font-weight: 800;
+        }
+        
+        /* Pricing highlight */
+        .pricing-section {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #FFF5F2 0%, #FFE8DF 100%);
+            border: 3px solid #FF6B35;
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            margin: 2rem 1.5rem;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .pricing-item h3 {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #FF6B35;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+        
+        .pricing-item p {
+            font-size: 0.95rem;
+            color: #6B7280;
+            font-weight: 600;
+        }
+        
+        .pricing-divider {
+            width: 2px;
+            height: 60px;
+            background: #FF6B35;
+        }
+        
+        /* CTA footer */
+        .footer {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            color: white;
+            padding: 2rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+        
+        .footer-text {
+            flex: 1;
+        }
+        
+        .footer-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+        
+        .footer-subtitle {
+            font-size: 1rem;
+            opacity: 0.95;
+        }
+        
+        .footer-contact {
+            text-align: right;
+        }
+        
+        .footer-website {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+        
+        .footer-email {
+            font-size: 0.95rem;
+            opacity: 0.95;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">Skedence</div>
+                <div class="header-tagline">Sports Training Management Platform</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- Section 1 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">📱</div>
+                    <h3 class="section-title">Native Mobile Apps</h3>
+                </div>
+                <div class="section-content">
+                    Beautiful iOS apps for clients and admins
+                    <ul class="section-list">
+                        <li>Real-time booking</li>
+                        <li>Push notifications</li>
+                        <li>Offline capable</li>
+                        <li>Your branding</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Section 2 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">⚡</div>
+                    <h3 class="section-title">Smart Scheduling</h3>
+                </div>
+                <div class="section-content">
+                    Automated scheduling eliminates conflicts
+                    <ul class="section-list">
+                        <li>Real-time availability</li>
+                        <li>Zero double-bookings</li>
+                        <li>Auto reminders</li>
+                        <li>Drag-and-drop</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Section 3 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">👥</div>
+                    <h3 class="section-title">Multi-Athlete</h3>
+                </div>
+                <div class="section-content">
+                    Purpose-built for sports training
+                    <ul class="section-list">
+                        <li>1-4 athletes/session</li>
+                        <li>Flexible pricing</li>
+                        <li>Easy booking</li>
+                        <li>Group or private</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Section 4 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">💳</div>
+                    <h3 class="section-title">Subscription</h3>
+                </div>
+                <div class="section-content">
+                    Simple monthly pricing
+                    <ul class="section-list">
+                        <li>$29-$299/month</li>
+                        <li>No revenue sharing</li>
+                        <li>Cancel anytime</li>
+                        <li>All features included</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Section 5 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">📦</div>
+                    <h3 class="section-title">Packages</h3>
+                </div>
+                <div class="section-content">
+                    Lesson package management
+                    <ul class="section-list">
+                        <li>10-pack, 20-pack, etc</li>
+                        <li>Auto tracking</li>
+                        <li>Expiration dates</li>
+                        <li>Balance alerts</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Section 6 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">🎓</div>
+                    <h3 class="section-title">Group Classes</h3>
+                </div>
+                <div class="section-content">
+                    Clinics and group training
+                    <ul class="section-list">
+                        <li>Capacity limits</li>
+                        <li>Waitlist management</li>
+                        <li>Class passes</li>
+                        <li>Registration</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Section 7 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">📊</div>
+                    <h3 class="section-title">Analytics</h3>
+                </div>
+                <div class="section-content">
+                    Real-time business insights
+                    <ul class="section-list">
+                        <li>Revenue tracking</li>
+                        <li>Booking trends</li>
+                        <li>Client growth</li>
+                        <li>Trainer stats</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Section 8 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">🎨</div>
+                    <h3 class="section-title">White-Label</h3>
+                </div>
+                <div class="section-content">
+                    100% your brand
+                    <ul class="section-list">
+                        <li>Custom colors</li>
+                        <li>Your logo</li>
+                        <li>Your domain</li>
+                        <li>Your App Store</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Section 9 -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-icon">⏱️</div>
+                    <h3 class="section-title">Start Instantly</h3>
+                </div>
+                <div class="section-content">
+                    Sign up and go live today
+                    <ul class="section-list">
+                        <li>Create account</li>
+                        <li>Add branding</li>
+                        <li>Connect Stripe</li>
+                        <li>Start booking!</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pricing-section">
+            <div class="pricing-item">
+                <h3>$29+</h3>
+                <p>Monthly Plans</p>
+            </div>
+            <div class="pricing-divider"></div>
+            <div class="pricing-item">
+                <h3>100%</h3>
+                <p>Keep Your Revenue</p>
+            </div>
+            <div class="pricing-divider"></div>
+            <div class="pricing-item">
+                <h3>∞</h3>
+                <p>Unlimited Bookings</p>
+            </div>
+            <div class="pricing-divider"></div>
+            <div class="pricing-item">
+                <h3>Instant</h3>
+                <p>Start Today</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-text">
+                <div class="footer-title">Ready to Transform Your Business?</div>
+                <div class="footer-subtitle">Join sports training organizations growing with Skedence</div>
+            </div>
+            <div class="footer-contact">
+                <div class="footer-website">skedence.com</div>
+                <div class="footer-email">contact@skedence.com</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

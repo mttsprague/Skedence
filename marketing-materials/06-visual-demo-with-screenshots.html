@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence - Visual Platform Demo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #FFFFFF;
+            color: #0A0A0A;
+            line-height: 1.6;
+        }
+        
+        .page {
+            width: 8.5in;
+            min-height: 11in;
+            margin: 0 auto;
+            background: #FFFFFF;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Cover page */
+        .cover {
+            background: linear-gradient(135deg, #0A0A0A 0%, #1F1F1F 50%, #0A0A0A 100%);
+            color: white;
+            padding: 4rem 3rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            min-height: 8in;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .cover::before {
+            content: '';
+            position: absolute;
+            top: -20%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 107, 53, 0.2) 0%, transparent 70%);
+        }
+        
+        .cover::after {
+            content: '';
+            position: absolute;
+            bottom: -20%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 107, 53, 0.15) 0%, transparent 70%);
+        }
+        
+        .cover-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .cover-logo {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+            letter-spacing: -2px;
+        }
+        
+        .cover-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+        
+        .cover-subtitle {
+            font-size: 1.3rem;
+            color: #D1D5DB;
+            font-weight: 500;
+            margin-bottom: 3rem;
+        }
+        
+        .cover-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .cover-stat h3 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #FF6B35;
+            margin-bottom: 0.25rem;
+        }
+        
+        .cover-stat p {
+            font-size: 0.95rem;
+            color: #D1D5DB;
+        }
+        
+        .cover-footer {
+            margin-top: auto;
+            padding-top: 3rem;
+            font-size: 1rem;
+            color: #9CA3AF;
+        }
+        
+        /* Screenshot comparison layout */
+        .comparison-section {
+            padding: 3rem;
+        }
+        
+        .comparison-title {
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 1rem;
+            color: #0A0A0A;
+        }
+        
+        .comparison-subtitle {
+            font-size: 1.1rem;
+            text-align: center;
+            color: #6B7280;
+            margin-bottom: 3rem;
+        }
+        
+        .side-by-side {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .comparison-panel {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 1rem;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .before-panel .panel-header {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+        
+        .after-panel .panel-header {
+            background: #DCFCE7;
+            color: #16A34A;
+        }
+        
+        .panel-screenshot {
+            width: 100%;
+            height: 280px;
+            background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+            border: 2px solid #E5E7EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .panel-screenshot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .panel-description {
+            padding: 1.5rem;
+            background: #F9FAFB;
+        }
+        
+        .panel-description ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .panel-description li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            font-size: 0.9rem;
+            color: #6B7280;
+        }
+        
+        .before-panel .panel-description li::before {
+            content: '✗';
+            position: absolute;
+            left: 0;
+            color: #DC2626;
+            font-weight: 800;
+        }
+        
+        .after-panel .panel-description li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #16A34A;
+            font-weight: 800;
+        }
+        
+        /* Large screenshot showcase */
+        .showcase-section {
+            padding: 3rem;
+            background: #F9FAFB;
+        }
+        
+        .showcase-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .showcase-header h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #0A0A0A;
+            margin-bottom: 0.5rem;
+        }
+        
+        .showcase-header p {
+            font-size: 1rem;
+            color: #6B7280;
+        }
+        
+        .large-screenshot {
+            width: 100%;
+            height: 450px;
+            background: linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%);
+            border: 3px solid #E5E7EB;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .large-screenshot img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 1rem;
+        }
+        
+        .screenshot-caption {
+            background: #FFFFFF;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            border-left: 4px solid #FF6B35;
+        }
+        
+        .screenshot-caption h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #0A0A0A;
+            margin-bottom: 0.75rem;
+        }
+        
+        .caption-features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .caption-features li {
+            font-size: 0.9rem;
+            color: #6B7280;
+            padding-left: 1.5rem;
+            position: relative;
+            list-style: none;
+        }
+        
+        .caption-features li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #FF6B35;
+            font-weight: 800;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: auto;
+            padding: 2rem 3rem;
+            text-align: center;
+            border-top: 2px solid #E5E7EB;
+            font-size: 0.9rem;
+            color: #6B7280;
+        }
+        
+        .footer strong {
+            color: #FF6B35;
+            font-weight: 700;
+        }
+        
+        .placeholder-text {
+            text-align: center;
+            color: #9CA3AF;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .placeholder-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Cover Page -->
+    <div class="page">
+        <div class="cover">
+            <div class="cover-content">
+                <div class="cover-logo">Skedence</div>
+                <h1 class="cover-title">See the Difference<br>Visual Platform Demo</h1>
+                <p class="cover-subtitle">Real screenshots from actual sports training businesses</p>
+                
+                <div class="cover-stats">
+                    <div class="cover-stat">
+                        <h3>$29+</h3>
+                        <p>Per Month</p>
+                    </div>
+                    <div class="cover-stat">
+                        <h3>Instant</h3>
+                        <p>Start Today</p>
+                    </div>
+                    <div class="cover-stat">
+                        <h3>100%</h3>
+                        <p>Keep Revenue</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cover-footer">
+                Professional platform built specifically for volleyball, basketball, and sports training
+            </div>
+        </div>
+    </div>
+    
+    <!-- Page 2: Before vs After - Scheduling -->
+    <div class="page">
+        <div class="comparison-section">
+            <h2 class="comparison-title">Scheduling: Before vs After</h2>
+            <p class="comparison-subtitle">From chaos to clarity instantly</p>
+            
+            <div class="side-by-side">
+                <div class="comparison-panel before-panel">
+                    <div class="panel-header">❌ BEFORE SKEDENCE</div>
+                    <div class="panel-screenshot">
+                        <div class="placeholder-text">
+                            <div class="placeholder-icon">📧</div>
+                            Add screenshot: Email/text scheduling chaos
+                        </div>
+                    </div>
+                    <div class="panel-description">
+                        <ul>
+                            <li>Manual scheduling via text and email</li>
+                            <li>Double-bookings and conflicts</li>
+                            <li>4-5 hours daily on admin work</li>
+                            <li>Frustrated clients waiting for responses</li>
+                            <li>No visibility into availability</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="comparison-panel after-panel">
+                    <div class="panel-header">✓ WITH SKEDENCE</div>
+                    <div class="panel-screenshot">
+                        <div class="placeholder-text">
+                            <div class="placeholder-icon">📅</div>
+                            Add screenshot: /schedule page (weekly calendar)
+                        </div>
+                    </div>
+                    <div class="panel-description">
+                        <ul>
+                            <li>Visual weekly calendar view</li>
+                            <li>Real-time conflict prevention</li>
+                            <li>30 minutes daily admin time</li>
+                            <li>Clients book instantly</li>
+                            <li>Full availability transparency</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>skedence.com</strong> | contact@skedence.com | Transform your scheduling today
+        </div>
+    </div>
+    
+    <!-- Page 3: Analytics Dashboard -->
+    <div class="page">
+        <div class="showcase-section">
+            <div class="showcase-header">
+                <h2>📊 Real-Time Analytics Dashboard</h2>
+                <p>Make data-driven decisions with comprehensive reporting</p>
+            </div>
+            
+            <div class="large-screenshot">
+                <div class="placeholder-text">
+                    <div class="placeholder-icon">📈</div>
+                    Add screenshot: /reports/revenue or /reports/appointments<br>
+                    (Full-width dashboard view with charts)
+                </div>
+            </div>
+            
+            <div class="screenshot-caption">
+                <h3>What This Dashboard Shows:</h3>
+                <ul class="caption-features">
+                    <li>Total revenue by time period</li>
+                    <li>Appointment counts and trends</li>
+                    <li>Interactive line charts</li>
+                    <li>Client growth analytics</li>
+                    <li>Filter by date range (7d, 30d, 90d, 1yr)</li>
+                    <li>Export to CSV for deeper analysis</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Track what matters</strong> | See your business grow in real-time
+        </div>
+    </div>
+    
+    <!-- Page 4: Client Management -->
+    <div class="page">
+        <div class="showcase-section">
+            <div class="showcase-header">
+                <h2>👥 Client Management System</h2>
+                <p>Complete client profiles with pass tracking and history</p>
+            </div>
+            
+            <div class="large-screenshot">
+                <div class="placeholder-text">
+                    <div class="placeholder-icon">👤</div>
+                    Add screenshot: /clients page or client detail view<br>
+                    (Show client cards or detailed profile)
+                </div>
+            </div>
+            
+            <div class="screenshot-caption">
+                <h3>Client Management Features:</h3>
+                <ul class="caption-features">
+                    <li>Searchable client database</li>
+                    <li>Client cards with contact info</li>
+                    <li>Active lesson passes visible</li>
+                    <li>Complete booking history</li>
+                    <li>Email and phone integration</li>
+                    <li>Notes and preferences tracking</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Know your clients</strong> | Build stronger relationships
+        </div>
+    </div>
+    
+    <!-- Page 5: Mobile Apps -->
+    <div class="page">
+        <div class="comparison-section">
+            <h2 class="comparison-title">Native Mobile Apps</h2>
+            <p class="comparison-subtitle">Beautiful iOS apps with your branding</p>
+            
+            <div class="side-by-side">
+                <div class="comparison-panel after-panel">
+                    <div class="panel-header">📱 CLIENT APP</div>
+                    <div class="panel-screenshot">
+                        <div class="placeholder-text">
+                            <div class="placeholder-icon">📱</div>
+                            Add screenshot: iOS client app (booking screen)
+                        </div>
+                    </div>
+                    <div class="panel-description">
+                        <ul>
+                            <li>Book sessions instantly</li>
+                            <li>View upcoming lessons</li>
+                            <li>Purchase lesson packages</li>
+                            <li>Push notifications</li>
+                            <li>Your brand colors and logo</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="comparison-panel after-panel">
+                    <div class="panel-header">⚡ ADMIN APP</div>
+                    <div class="panel-screenshot">
+                        <div class="placeholder-text">
+                            <div class="placeholder-icon">📊</div>
+                            Add screenshot: iOS admin app (dashboard)
+                        </div>
+                    </div>
+                    <div class="panel-description">
+                        <ul>
+                            <li>Manage clients on the go</li>
+                            <li>Create availability slots</li>
+                            <li>View all bookings</li>
+                            <li>Real-time sync</li>
+                            <li>Full business control</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Ready to see it in action?</strong> Visit <strong>skedence.com</strong> for a live demo
+        </div>
+    </div>
+    
+    <!-- Page 6: Pricing & Settings -->
+    <div class="page">
+        <div class="showcase-section">
+            <div class="showcase-header">
+                <h2>💰 Flexible Pricing Structure</h2>
+                <p>Create custom pricing tiers that match your business model</p>
+            </div>
+            
+            <div class="large-screenshot">
+                <div class="placeholder-text">
+                    <div class="placeholder-icon">💵</div>
+                    Add screenshot: /pricing page showing tier editor<br>
+                    (Show drag-and-drop pricing configuration)
+                </div>
+            </div>
+            
+            <div class="screenshot-caption">
+                <h3>Pricing Features:</h3>
+                <ul class="caption-features">
+                    <li>Multiple pricing tiers (Elite, Master, etc)</li>
+                    <li>1-4 athlete session pricing</li>
+                    <li>Custom package types</li>
+                    <li>Class pass options</li>
+                    <li>Easy drag-and-drop management</li>
+                    <li>Changes sync instantly to apps</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="comparison-section" style="padding-top: 2rem;">
+            <div style="background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%); color: white; padding: 2.5rem; border-radius: 16px; text-align: center;">
+                <h2 style="font-size: 2rem; font-weight: 900; margin-bottom: 1rem;">Ready to Transform Your Business?</h2>
+                <p style="font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.95;">Join sports training organizations growing with Skedence</p>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; margin-bottom: 1.5rem;">
+                    <div>
+                        <h3 style="font-size: 2rem; font-weight: 900;">$29+</h3>
+                        <p>Monthly Plans</p>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 2rem; font-weight: 900;">100%</h3>
+                        <p>Keep Your Revenue</p>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 2rem; font-weight: 900;">Instant</h3>
+                        <p>Start Today</p>
+                    </div>
+                </div>
+                <div style="font-size: 1.2rem; font-weight: 700;">skedence.com | contact@skedence.com</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence - Success Story</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #FFFFFF;
+            color: #0A0A0A;
+            line-height: 1.6;
+        }
+        
+        .page {
+            width: 8.5in;
+            min-height: 11in;
+            margin: 0 auto;
+            background: #FFFFFF;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Visual header with split design */
+        .split-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 4in;
+        }
+        
+        .header-left {
+            background: linear-gradient(135deg, #0A0A0A 0%, #2A2A2A 100%);
+            padding: 2.5rem;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header-left::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            right: -30%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255, 107, 53, 0.2) 0%, transparent 70%);
+        }
+        
+        .logo-small {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #FF6B35;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header-title {
+            font-size: 2rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header-subtitle {
+            font-size: 1.1rem;
+            color: #D1D5DB;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header-right {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            padding: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+        
+        .big-stat {
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 1.2rem;
+            font-weight: 600;
+            opacity: 0.95;
+        }
+        
+        /* Content sections */
+        .content {
+            padding: 2.5rem 3rem;
+            padding-bottom: 3rem;
+        }
+        
+        /* Before/After comparison */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .comparison-box {
+            border-radius: 16px;
+            padding: 2rem;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .before-box {
+            background: #FEE2E2;
+            border: 2px solid #DC2626;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .after-box {
+            background: #DCFCE7;
+            border: 2px solid #16A34A;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .comparison-title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .before-box .comparison-title {
+            color: #DC2626;
+        }
+        
+        .after-box .comparison-title {
+            color: #16A34A;
+        }
+        
+        .comparison-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .comparison-list li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            font-size: 0.95rem;
+            color: #0A0A0A;
+            font-weight: 500;
+        }
+        
+        .before-box li::before {
+            content: '✗';
+            position: absolute;
+            left: 0;
+            color: #DC2626;
+            font-weight: 800;
+        }
+        
+        .after-box li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #16A34A;
+            font-weight: 800;
+        }
+        
+        /* Results section */
+        .results-section {
+            background: linear-gradient(135deg, #0A0A0A 0%, #1F1F1F 100%);
+            margin: 0 -3rem 3rem;
+            padding: 2.5rem 3rem;
+            color: white;
+        }
+        
+        .results-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+        
+        .result-card {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 107, 53, 0.1);
+            border: 2px solid rgba(255, 107, 53, 0.3);
+            border-radius: 12px;
+        }
+        
+        .result-number {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #FF6B35;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-label {
+            font-size: 0.95rem;
+            color: #D1D5DB;
+            font-weight: 600;
+        }
+        
+        /* Quote section */
+        .quote-section {
+            background: #FFF5F2;
+            border-left: 5px solid #FF6B35;
+            padding: 2.5rem;
+            margin-bottom: 3rem;
+            border-radius: 8px;
+        }
+        
+        .quote-text {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #0A0A0A;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+        
+        .quote-author {
+            font-size: 1rem;
+            color: #6B7280;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .quote-author strong {
+            color: #FF6B35;
+            font-weight: 700;
+        }
+        
+        /* Features highlight */
+        .features-highlight {
+            background: linear-gradient(135deg, #FFF5F2 0%, #FFE8DF 100%);
+            border: 2px solid #FF6B35;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .features-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #FF6B35;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .feature-highlight {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: white;
+            padding: 1.25rem;
+            border-radius: 8px;
+        }
+        
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        
+        .feature-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #0A0A0A;
+        }
+        
+        /* CTA section */
+        .cta-section {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            color: white;
+            padding: 2.5rem 2rem;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .cta-title {
+            font-size: 2rem;
+            font-weight: 900;
+            margin-bottom: 0.75rem;
+        }
+        
+        .cta-subtitle {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.95;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #FF6B35;
+            padding: 1rem 3rem;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: auto;
+            padding: 2rem 3rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #6B7280;
+            border-top: 1px solid #E5E7EB;
+        }
+        
+        .footer strong {
+            color: #FF6B35;
+            font-weight: 700;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="split-header">
+            <div class="header-left">
+                <div class="logo-small">SKEDENCE</div>
+                <h1 class="header-title">How Polyface Volleyball Academy Transformed Their Business</h1>
+                <p class="header-subtitle">From spreadsheets and chaos to streamlined operations instantly</p>
+            </div>
+            <div class="header-right">
+                <div class="big-stat">80%</div>
+                <div class="stat-label">Time Saved on Scheduling</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="comparison">
+                <div class="comparison-box before-box">
+                    <h2 class="comparison-title">Before Skedence</h2>
+                    <ul class="comparison-list">
+                        <li>Manual scheduling via text and email</li>
+                        <li>Double-bookings and conflicts weekly</li>
+                        <li>High monthly fees from competitors</li>
+                        <li>4-5 hours daily on admin work</li>
+                        <li>Clients frustrated with booking process</li>
+                        <li>No visibility into revenue trends</li>
+                        <li>Limited to single-athlete lessons only</li>
+                    </ul>
+                </div>
+                
+                <div class="comparison-box after-box">
+                    <h2 class="comparison-title">After Skedence</h2>
+                    <ul class="comparison-list">
+                        <li>Clients book instantly from their phones</li>
+                        <li>Zero scheduling conflicts</li>
+                        <li>Subscriptions starting at $29/month</li>
+                        <li>Under 1 hour daily on admin</li>
+                        <li>Happy clients with instant booking</li>
+                        <li>Real-time revenue dashboards</li>
+                        <li>Multi-athlete lessons boosted revenue 40%</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="results-section">
+                <h2 class="results-title">Real Results in 6 Months</h2>
+                <div class="results-grid">
+                    <div class="result-card">
+                        <div class="result-number">$26k</div>
+                        <div class="result-label">Annual Savings on Fees</div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-number">40%</div>
+                        <div class="result-label">Revenue Increase</div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-number">300+</div>
+                        <div class="result-label">Active Clients</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="quote-section">
+                <p class="quote-text">"Skedence transformed our academy. We went from spending 25 hours a week on scheduling and payments to less than 5. Our clients love the app, and we're actually making more money with lower fees. It's a game-changer."</p>
+                <div class="quote-author">
+                    <span><strong>Coach Mike Polyface</strong></span>
+                    <span>•</span>
+                    <span>Owner, Polyface Volleyball Academy</span>
+                </div>
+            </div>
+            
+            <div class="features-highlight">
+                <h3 class="features-title">What Made the Difference</h3>
+                <div class="features-grid">
+                    <div class="feature-highlight">
+                        <div class="feature-icon">📱</div>
+                        <div class="feature-text">Native mobile apps clients actually use</div>
+                    </div>
+                    <div class="feature-highlight">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-text">Real-time booking eliminates conflicts</div>
+                    </div>
+                    <div class="feature-highlight">
+                        <div class="feature-icon">💰</div>
+                        <div class="feature-text">Simple subscription pricing</div>
+                    </div>
+                    <div class="feature-highlight">
+                        <div class="feature-icon">👥</div>
+                        <div class="feature-text">Multi-athlete lessons = 40% more revenue</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cta-section">
+                <h2 class="cta-title">Ready for Your Transformation?</h2>
+                <p class="cta-subtitle">Join sports training businesses already growing with Skedence</p>
+                <a href="https://skedence.com" class="cta-button">Get Started Today</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Skedence</strong> • skedence.com • Built by coaches, for coaches
+        </div>
+    </div>
+</body>
+</html>

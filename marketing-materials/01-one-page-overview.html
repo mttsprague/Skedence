@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skedence - Transform Your Sports Training Business</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #FFFFFF;
+            color: #0A0A0A;
+            line-height: 1.6;
+        }
+        
+        /* Print-ready 8.5x11 layout */
+        .page {
+            width: 8.5in;
+            min-height: 11in;
+            margin: 0 auto;
+            background: #FFFFFF;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header with brand gradient */
+        .header {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            padding: 2rem 2.5rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .tagline {
+            font-size: 1.1rem;
+            font-weight: 500;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Main content */
+        .content {
+            flex: 1;
+            padding: 2.5rem 3rem;
+            padding-bottom: 3rem;
+        }
+        
+        .headline {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0A0A0A;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+        
+        .subheadline {
+            font-size: 1.1rem;
+            color: #6B7280;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+        
+        /* Pain points section */
+        .pain-points {
+            background: #FFF5F2;
+            border-left: 4px solid #FF6B35;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .pain-points h2 {
+            color: #FF6B35;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .pain-points ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .pain-points li {
+            padding-left: 1.5rem;
+            margin-bottom: 0.75rem;
+            position: relative;
+            color: #0A0A0A;
+        }
+        
+        .pain-points li::before {
+            content: '✗';
+            position: absolute;
+            left: 0;
+            color: #DC2626;
+            font-weight: 700;
+        }
+        
+        /* Features grid */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .feature-card {
+            background: #FFFFFF;
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .feature-card:hover {
+            border-color: #FF6B35;
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.15);
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0A0A0A;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-desc {
+            font-size: 0.9rem;
+            color: #6B7280;
+            line-height: 1.5;
+        }
+        
+        /* Benefits section */
+        .benefits {
+            background: #0A0A0A;
+            color: white;
+            padding: 2.5rem 2rem;
+            border-radius: 16px;
+            margin-bottom: 3rem;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        
+        .benefits h2 {
+            color: #FF6B35;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .benefit-item {
+            text-align: center;
+        }
+        
+        .benefit-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #FF6B35;
+            margin-bottom: 0.25rem;
+        }
+        
+        .benefit-label {
+            font-size: 0.85rem;
+            color: #D1D5DB;
+        }
+        
+        /* CTA Section */
+        .cta {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .cta h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .cta p {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            opacity: 0.95;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #FF6B35;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 1rem;
+        }
+        
+        /* Footer */
+        .footer {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 2.5rem;
+            right: 2.5rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #6B7280;
+            border-top: 1px solid #E5E7EB;
+            padding-top: 1rem;
+        }
+        
+        .footer a {
+            color: #FF6B35;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        @media print {
+            .page {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <div class="logo">Skedence</div>
+            <div class="tagline">The Sports Training Management Platform Built by Coaches</div>
+        </div>
+        
+        <div class="content">
+            <h1 class="headline">Stop Losing Revenue to Outdated Scheduling and Payment Systems</h1>
+            <p class="subheadline">Skedence helps volleyball, basketball, and sports training businesses streamline operations, increase bookings, and grow revenue with purpose-built technology.</p>
+            
+            <div class="pain-points">
+                <h2>Are These Pain Points Killing Your Business?</h2>
+                <ul>
+                    <li>Spending hours manually scheduling lessons and managing cancellations</li>
+                    <li>Losing 15-20% of revenue to expensive platform fees and payment processors</li>
+                    <li>Clients frustrated with clunky, generic fitness apps not built for sports training</li>
+                    <li>No easy way for clients to book multi-athlete private lessons (2-4 athletes)</li>
+                    <li>Administrative overhead eating into valuable coaching time</li>
+                </ul>
+            </div>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <div class="feature-title">Native Mobile Apps</div>
+                    <div class="feature-desc">Beautiful iOS apps for clients and admins. Real-time booking, instant notifications, and offline capability.</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <div class="feature-title">Simple Subscription</div>
+                    <div class="feature-desc">Keep 100% of your revenue. Simple monthly subscription starting at $29/month. No hidden charges or revenue sharing.</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-title">Multi-Athlete Lessons</div>
+                    <div class="feature-desc">Purpose-built for sports training. Book 1, 2, 3, or 4 athletes per session with flexible pricing tiers.</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-title">Real-Time Everything</div>
+                    <div class="feature-desc">Live availability updates. Instant booking confirmations. No more double-bookings or scheduling conflicts.</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-title">100% White-Label</div>
+                    <div class="feature-desc">Your brand, your colors, your logo. Apps published under your Apple account. No "Powered by" branding.</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Revenue Analytics</div>
+                    <div class="feature-desc">Track bookings, revenue, client growth, and trainer performance with beautiful real-time dashboards.</div>
+                </div>
+            </div>
+            
+            <div class="benefits">
+                <h2>Real Results from Sports Training Businesses</h2>
+                <div class="benefits-grid">
+                    <div class="benefit-item">
+                        <div class="benefit-number">80%</div>
+                        <div class="benefit-label">Time saved on scheduling</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-number">100%</div>
+                        <div class="benefit-label">Keep all your revenue</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-number">Instant</div>
+                        <div class="benefit-label">Start using today</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cta">
+                <h2>Ready to Transform Your Training Business?</h2>
+                <p>Join sports training organizations already using Skedence to grow their business.</p>
+                <a href="https://skedence.com" class="cta-button">Get Started Today</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Skedence</strong> | <a href="https://skedence.com">skedence.com</a> | Built by coaches, for coaches
+        </div>
+    </div>
+</body>
+</html>

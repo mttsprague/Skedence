@@ -40,7 +40,7 @@ export default function HomePage() {
               <Link href="/blog" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Blog</Link>
               <a href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</a>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
-              <Link href="/login" className="btn-premium text-sm">
+              <Link href="/register" className="btn-premium text-sm">
                 Start Free Trial →
               </Link>
             </div>
@@ -99,7 +99,7 @@ export default function HomePage() {
               Sign In
             </Link>
             <Link
-              href="/login"
+              href="/register"
               onClick={() => setMobileMenuOpen(false)}
               className="block btn-premium text-center mt-4"
             >
@@ -130,7 +130,7 @@ export default function HomePage() {
             </p>
             
             <div className="flex flex-col sm:flex-row items-start gap-5 pt-4">
-              <Link href="/login" className="btn-premium inline-flex items-center gap-3 text-base">
+              <Link href="/register" className="btn-premium inline-flex items-center gap-3 text-base">
                 Start Free Trial
                 <ArrowRight className="w-5 h-5" />
               </Link>
@@ -391,7 +391,7 @@ export default function HomePage() {
                   <span className="text-foreground/70">Email support</span>
                 </li>
               </ul>
-              <Link href="/login" className="btn-premium w-full text-center">Start Free Trial</Link>
+              <Link href="/register" className="btn-premium w-full text-center">Start Free Trial</Link>
             </div>
             
             {/* Studio */}
@@ -429,7 +429,7 @@ export default function HomePage() {
                   <span className="text-foreground/70">Priority support</span>
                 </li>
               </ul>
-              <Link href="/login" className="btn-premium w-full text-center">Start Free Trial</Link>
+              <Link href="/register" className="btn-premium w-full text-center">Start Free Trial</Link>
             </div>
             
             {/* Academy */}
@@ -464,7 +464,7 @@ export default function HomePage() {
                   <span className="text-foreground/70">Dedicated support</span>
                 </li>
               </ul>
-              <Link href="/login" className="btn-premium w-full text-center">Start Free Trial</Link>
+              <Link href="/register" className="btn-premium w-full text-center">Start Free Trial</Link>
             </div>
             
             {/* Enterprise */}
@@ -555,7 +555,7 @@ export default function HomePage() {
           <h2 className="text-5xl md:text-7xl font-black tracking-tight text-foreground uppercase leading-tight">Ready to Transform<br />Your Business?</h2>
           <p className="text-xl md:text-2xl text-foreground/60 font-light">Join hundreds of coaches using Skedence to save time and grow</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
-            <Link href="/login" className="btn-premium">Start Free Trial</Link>
+            <Link href="/register" className="btn-premium">Start Free Trial</Link>
             <Link href="/support" className="btn-secondary">Contact Sales</Link>
           </div>
           <p className="text-sm text-foreground/40 uppercase tracking-wider font-medium">14-day free trial • Cancel anytime</p>
