@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ArrowLeft, Calendar, Package, FileText, CreditCard, User as UserIcon, Receipt, History } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ClientData {
   id: string;
@@ -258,8 +259,37 @@ function ClientDetailContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10" />
+          <div className="flex-1">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-5 w-48 mt-2" />
+          </div>
+        </div>
+        
+        {/* Tabs */}
+        <div className="flex gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-10 w-24" />
+          ))}
+        </div>
+        
+        {/* Content cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }

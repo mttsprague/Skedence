@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, deleteDoc, doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Calendar, Clock, Plus, Trash2, User, MapPin } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
+import { toast } from '@/lib/toast';
 
 interface Trainer {
   id: string;
@@ -175,9 +177,10 @@ export default function AvailabilityPage() {
         recurringType: 'daily',
         daysOfWeek: [1, 2, 3, 4, 5],
       });
+      toast.success('Availability slots added successfully');
     } catch (error) {
       console.error('Error adding slot:', error);
-      alert('Error adding availability slot');
+      toast.error('Failed to add availability slot', 'Please try again');
     } finally {
       setAdding(false);
     }
@@ -190,9 +193,10 @@ export default function AvailabilityPage() {
       const trainerRef = doc(db, 'trainers', selectedTrainer);
       await deleteDoc(doc(trainerRef, 'schedules', slotId));
       setSlots(slots.filter(s => s.id !== slotId));
+      toast.success('Availability slot deleted');
     } catch (error) {
       console.error('Error deleting slot:', error);
-      alert('Error deleting slot');
+      toast.error('Failed to delete slot', 'Please try again');
     }
   };
 

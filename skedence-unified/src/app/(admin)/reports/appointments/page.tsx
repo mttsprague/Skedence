@@ -9,6 +9,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, addMonths, differenceInMinutes } from 'date-fns';
 import { Download, Calendar, Filter, ChevronDown, ArrowUpDown, Users, Clock, TrendingUp } from 'lucide-react';
 import { trackPageView, trackFeature } from '@/lib/analytics';
+import { Skeleton, StatCardSkeleton, TableSkeleton } from '@/components/ui/skeleton';
 
 interface Appointment {
   id: string;
@@ -466,8 +467,35 @@ export default function AppointmentsReportPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading appointments data...</div>
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-5 w-96 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        
+        {/* Stats cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        
+        {/* Chart */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-80 w-full" />
+          </CardContent>
+        </Card>
+        
+        {/* Table */}
+        <TableSkeleton rows={10} />
       </div>
     );
   }

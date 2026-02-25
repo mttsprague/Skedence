@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Plus, Trash2, GripVertical, AlertCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface IntakeField {
   id: string;
@@ -147,8 +148,34 @@ export default function IntakeFormsPage() {
   if (loading) {
     return (
       <BusinessSettingsSubmenu>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div className="space-y-6">
+          <div>
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-5 w-96 mt-2" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="border rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-5 w-5" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-48" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                    <Skeleton className="h-9 w-9" />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       </BusinessSettingsSubmenu>
     );

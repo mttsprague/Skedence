@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Calendar, Clock, User, MapPin, DollarSign, Plus } from 'lucide-react';
 import { format, addHours } from 'date-fns';
 import { Location } from '@/types/location';
+import { toast } from '@/lib/toast';
 
 interface Client {
   id: string;
@@ -201,7 +203,7 @@ export default function BookingsPage() {
 
   const handleCreateBooking = async () => {
     if (!selectedClient || !selectedTrainer || !selectedSlot || !selectedPackage) {
-      alert('Please fill in all fields');
+      toast.error('Missing information', 'Please fill in all fields');
       return;
     }
 
@@ -217,6 +219,7 @@ export default function BookingsPage() {
       });
 
       setSuccess(true);
+      toast.success('Booking created successfully!');
       
       // Reload slots to remove the booked one
       const startOfDay = new Date(`${selectedDate}T00:00:00`);
@@ -251,7 +254,8 @@ export default function BookingsPage() {
 
       setTimeout(() => setSuccess(false), 3000);
     } catch (error: any) {
-      alert(error.message || 'Error creating booking');
+      console.error('Error creating booking:', error);
+      toast.error('Failed to create booking', error.message || 'Please try again');
     } finally {
       setCreating(false);
     }

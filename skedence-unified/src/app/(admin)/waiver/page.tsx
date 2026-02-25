@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { FileText, AlertCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface WaiverSettings {
   requireWaiver: boolean;
@@ -66,8 +67,24 @@ export default function WaiverPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-9 w-64" />
+          <Skeleton className="h-5 w-96 mt-2" />
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <Skeleton className="h-5 w-5" />
+              <Skeleton className="h-5 w-48" />
+            </div>
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-10 w-32" />
+          </CardContent>
+        </Card>
       </div>
     );
   }

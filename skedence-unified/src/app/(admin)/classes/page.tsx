@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { Location } from '@/types/location';
 import { logClassCreated, logClassUpdated, logClassDeleted } from '@/lib/activity-logger';
+import { toast } from '@/lib/toast';
 
 interface Trainer {
   id: string;
@@ -477,10 +479,10 @@ export default function ClassesPage() {
       // Finally, delete the class itself
       await deleteDoc(doc(db, 'classes', classId));
       setClasses(classes.filter(c => c.id !== classId));
-      alert('Class deleted and all participants have been notified of the cancellation.');
+      toast.success('Class deleted', 'All participants have been notified of the cancellation');
     } catch (error) {
       console.error('Error deleting class:', error);
-      alert('Error deleting class. Please try again.');
+      toast.error('Failed to delete class', 'Please try again');
     }
   };
 

@@ -11,6 +11,8 @@ import { Users, Clock, GraduationCap, Plus, X, ChevronLeft, ChevronRight } from 
 import { cn } from '@/lib/utils';
 import { BookLessonModal, CreateAvailabilityModal } from '@/components/admin/scheduling-modals';
 import { startOfDay, endOfDay, addWeeks } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/lib/toast';
 
 interface Trainer {
   id: string;
@@ -670,11 +672,15 @@ export default function SchedulingPage() {
       });
       
       setSelectedItem(null);
-      alert(refundPass 
-        ? 'Session cancelled successfully! The client\'s pass has been refunded.' 
-        : 'Session cancelled successfully. The client\'s pass was not refunded.');
+      toast.success(
+        'Session cancelled',
+        refundPass 
+          ? "The client's pass has been refunded." 
+          : "The client's pass was not refunded."
+      );
     } catch (error: any) {
-      alert(error.message || 'Failed to cancel session');
+      console.error('Failed to cancel session:', error);
+      toast.error('Failed to cancel session', error.message || 'Please try again');
     } finally {
       setCancellingBooking(false);
     }

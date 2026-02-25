@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { startOfWeek, addDays, setHours, setMinutes } from 'date-fns';
 import { User, Users } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/lib/toast';
 
 interface AthleteInfo {
   firstName?: string;
@@ -490,11 +492,15 @@ export default function SchedulePage() {
 
       // Close dialog and show success
       setSelectedBooking(null);
-      alert(refundPass 
-        ? 'Session cancelled successfully! The client\'s pass has been refunded.' 
-        : 'Session cancelled successfully. The client\'s pass was not refunded.');
+      toast.success(
+        'Session cancelled',
+        refundPass 
+          ? "The client's pass has been refunded." 
+          : "The client's pass was not refunded."
+      );
     } catch (error: any) {
-      alert(error.message || 'Failed to cancel session');
+      console.error('Failed to cancel session:', error);
+      toast.error('Failed to cancel session', error.message || 'Please try again');
     } finally {
       setCancellingBooking(false);
     }
@@ -502,11 +508,29 @@ export default function SchedulePage() {
 
   if (loading) {
     return (
-      <>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-foreground/80">Loading schedule...</div>
+      <div className="flex flex-col h-[calc(100vh-8rem)]">
+        <div className="p-4 bg-white border-b space-y-3">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96" />
         </div>
-      </>
+        <div className="flex-1 p-4 space-y-4">
+          <div className="flex gap-4">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 flex-1" />
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                {Array.from({ length: 8 }).map((_, j) => (
+                  <Skeleton key={j} className="h-20 w-full" />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -773,7 +797,6 @@ export default function SchedulePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => {
-                      alert('Early cancel button clicked!');
                       console.log('Early cancel clicked');
                       setShowCancelConfirm('early');
                     }}
@@ -784,7 +807,6 @@ export default function SchedulePage() {
                   </button>
                   <button
                     onClick={() => {
-                      alert('Late cancel button clicked!');
                       console.log('Late cancel clicked');
                       setShowCancelConfirm('late');
                     }}

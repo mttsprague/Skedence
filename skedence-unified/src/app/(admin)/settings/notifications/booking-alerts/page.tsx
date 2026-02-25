@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface BookingAlertSettings {
   sendAppointmentNotifications: boolean;
@@ -77,8 +78,24 @@ export default function BookingAlertsPage() {
   if (loading) {
     return (
       <NotificationsSubmenu>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <div className="max-w-4xl space-y-6">
+          <div>
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-5 w-96 mt-2" />
+          </div>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="border rounded-lg p-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-5 w-48" />
+                    <Skeleton className="h-4 w-96" />
+                  </div>
+                  <Skeleton className="h-6 w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </NotificationsSubmenu>
     );

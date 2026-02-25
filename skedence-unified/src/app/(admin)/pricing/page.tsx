@@ -9,6 +9,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Plus, Trash2, Info } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PackageOption {
   id: string;
@@ -419,12 +420,49 @@ export default function PricingPage() {
   if (loading) {
     return (
       <BusinessSettingsSubmenu>
-        <div className="p-6 lg:p-8">
-          <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-foreground/80">Loading pricing...</p>
+        <div className="p-6 lg:p-8 space-y-6">
+          {/* Header */}
+          <div>
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-5 w-96 mt-2" />
           </div>
+          
+          {/* Info card */}
+          <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-full" />
+                <Skeleton className="h-5 w-3/4" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Pricing tiers */}
+          <div className="space-y-6">
+            {[1, 2].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-9 w-24" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {[1, 2, 3].map((j) => (
+                    <div key={j} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-5 w-48" />
+                          <Skeleton className="h-4 w-64" />
+                          <Skeleton className="h-4 w-32" />
+                        </div>
+                        <Skeleton className="h-9 w-20" />
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </BusinessSettingsSubmenu>

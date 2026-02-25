@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { collection, query, where, getDocs, limit, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trackPageView } from '@/lib/analytics';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/lib/toast';
 import { 
   Calendar, 
   XCircle, 
@@ -758,9 +760,12 @@ export default function ActivityPage() {
 
       // Close dialog and show success
       setSelectedBooking(null);
-      alert(refundPass 
-        ? 'Session cancelled successfully! The client\'s pass has been refunded.' 
-        : 'Session cancelled successfully. The client\'s pass was not refunded.');
+      toast.success(
+        'Session cancelled',
+        refundPass 
+          ? "The client's pass has been refunded." 
+          : "The client's pass was not refunded."
+      );
       
       // Reload the bookings to reflect the cancellation
       const dayStart = Timestamp.fromDate(startOfDay(happeningDate));
@@ -803,7 +808,8 @@ export default function ActivityPage() {
         });
       setTodayBookings(bookings);
     } catch (error: any) {
-      alert(error.message || 'Failed to cancel session');
+      console.error('Failed to cancel session:', error);
+      toast.error('Failed to cancel session', error.message || 'Please try again');
     } finally {
       setCancellingBooking(false);
     }
@@ -879,11 +885,50 @@ export default function ActivityPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-foreground/80">Loading activity feed...</p>
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-5 w-96 mt-2" />
         </div>
+        
+        {/* What's Happening Card */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="border rounded-lg p-4">
+                  <Skeleton className="h-5 w-32 mb-2" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Activity Feed */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-start gap-3 p-3 border rounded">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }

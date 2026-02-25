@@ -7,6 +7,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Loader2, FileText } from 'lucide-react';
 import { EmailTemplateEditor } from '@/components/admin/email-template-editor';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface EmailNotificationSettings {
   // Confirmations
@@ -107,8 +108,26 @@ export default function ClientEmailsPage() {
   if (loading) {
     return (
       <NotificationsSubmenu>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <div className="max-w-4xl space-y-6">
+          <div>
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-5 w-96 mt-2" />
+          </div>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="border rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-6 w-12" />
+              </div>
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-32 w-full" />
+              </div>
+            </div>
+          ))}
         </div>
       </NotificationsSubmenu>
     );
