@@ -35,16 +35,18 @@ export const createSetupIntentDirect = onCall(
     }
 
     try {
-      // Get organization's Stripe keys
-      const stripeDoc = await db
-        .collection("organizations")
-        .doc(orgId)
-        .collection("stripe")
-        .doc("config")
-        .get();
+      // Get organization and Stripe keys
+      const orgDoc = await db.collection("organizations").doc(orgId).get();
+      const orgData = orgDoc.data();
 
-      const stripeData = stripeDoc.data();
-      if (!stripeData || !stripeData.secretKey) {
+      if (!orgData) {
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      if (!orgData.stripe?.secretKey) {
         throw new HttpsError(
           "failed-precondition",
           "Organization has not configured Stripe keys"
@@ -52,7 +54,7 @@ export const createSetupIntentDirect = onCall(
       }
 
       // Initialize Stripe with organization's secret key
-      const stripe = new Stripe(stripeData.secretKey, {
+      const stripe = new Stripe(orgData.stripe.secretKey, {
         apiVersion: "2025-02-24.acacia",
       });
 
@@ -152,7 +154,7 @@ export const createSetupIntentDirect = onCall(
 
       return {
         clientSecret: setupIntent.client_secret,
-        publishableKey: stripeData.publishableKey,
+        publishableKey: orgData.stripe.publishableKey,
       };
     } catch (error: unknown) {
       console.error("❌ Error creating setup intent:", error);
@@ -200,37 +202,32 @@ export const getPaymentMethodsDirect = onCall(
     try {
       console.log(`🔍 Getting payment methods for user ${userId} in org ${orgId}`);
 
-      // Get organization's Stripe keys
-      const stripeDoc = await db
-        .collection("organizations")
-        .doc(orgId)
-        .collection("stripe")
-        .doc("config")
-        .get();
+      // Get organization and Stripe keys
+      const orgDoc = await db.collection("organizations").doc(orgId).get();
 
-      if (!stripeDoc.exists) {
-        console.error(`❌ No Stripe config found for org ${orgId}`);
+      if (!orgDoc.exists) {
+        console.error(`❌ No organization found for ${orgId}`);
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      const orgData = orgDoc.data();
+      console.log(`✅ Found organization ${orgId}`);
+
+      if (!orgData?.stripe?.secretKey || !orgData?.stripe?.publishableKey) {
+        console.error(`❌ Stripe keys missing: secretKey=${!!orgData?.stripe?.secretKey}, publishableKey=${!!orgData?.stripe?.publishableKey}`);
         throw new HttpsError(
           "failed-precondition",
           "Organization Stripe keys not configured - please configure in admin app"
         );
       }
 
-      const stripeData = stripeDoc.data();
-      console.log(`✅ Found Stripe config for org ${orgId}`);
-
-      if (!stripeData?.secretKey || !stripeData?.publishableKey) {
-        console.error(`❌ Stripe keys missing: secretKey=${!!stripeData?.secretKey}, publishableKey=${!!stripeData?.publishableKey}`);
-        throw new HttpsError(
-          "failed-precondition",
-          "Organization Stripe keys not configured properly"
-        );
-      }
-
       console.log(`✅ Stripe keys valid for org ${orgId}`);
 
       // Initialize Stripe with organization's key
-      const stripe = new Stripe(stripeData.secretKey, {
+      const stripe = new Stripe(orgData.stripe.secretKey, {
         apiVersion: "2025-02-24.acacia",
       });
 
@@ -398,37 +395,32 @@ export const getPaymentMethodsDirectAdmin = onCall(
 
       console.log(`✅ Admin ${request.auth.uid} (${memberData.role}) getting payment methods for user ${userId} in org ${orgId}`);
 
-      // Get organization's Stripe keys
-      const stripeDoc = await db
-        .collection("organizations")
-        .doc(orgId)
-        .collection("stripe")
-        .doc("config")
-        .get();
+      // Get organization and Stripe keys
+      const orgDoc = await db.collection("organizations").doc(orgId).get();
 
-      if (!stripeDoc.exists) {
-        console.error(`❌ No Stripe config found for org ${orgId}`);
+      if (!orgDoc.exists) {
+        console.error(`❌ No organization found for ${orgId}`);
+        throw new HttpsError(
+          "not-found",
+          "Organization not found"
+        );
+      }
+
+      const orgData = orgDoc.data();
+      console.log(`✅ Found organization ${orgId}`);
+
+      if (!orgData?.stripe?.secretKey || !orgData?.stripe?.publishableKey) {
+        console.error(`❌ Stripe keys missing: secretKey=${!!orgData?.stripe?.secretKey}, publishableKey=${!!orgData?.stripe?.publishableKey}`);
         throw new HttpsError(
           "failed-precondition",
           "Organization Stripe keys not configured - please configure in admin app"
         );
       }
 
-      const stripeData = stripeDoc.data();
-      console.log(`✅ Found Stripe config for org ${orgId}`);
-
-      if (!stripeData?.secretKey || !stripeData?.publishableKey) {
-        console.error(`❌ Stripe keys missing: secretKey=${!!stripeData?.secretKey}, publishableKey=${!!stripeData?.publishableKey}`);
-        throw new HttpsError(
-          "failed-precondition",
-          "Organization Stripe keys not configured properly"
-        );
-      }
-
       console.log(`✅ Stripe keys valid for org ${orgId}`);
 
       // Initialize Stripe with organization's key
-      const stripe = new Stripe(stripeData.secretKey, {
+      const stripe = new Stripe(orgData.stripe.secretKey, {
         apiVersion: "2025-02-24.acacia",
       });
 
@@ -573,14 +565,9 @@ export const attachPaymentMethod = onCall(
       let stripeSecretKey: string;
 
       if (orgId) {
-        const stripeDoc = await db
-          .collection("organizations")
-          .doc(orgId)
-          .collection("stripe")
-          .doc("config")
-          .get();
-
-        stripeSecretKey = stripeDoc.data()?.secretKey;
+        const orgDoc = await db.collection("organizations").doc(orgId).get();
+        const orgData = orgDoc.data();
+        stripeSecretKey = orgData?.stripe?.secretKey;
       } else {
         // Legacy single-tenant
         const configDoc = await db.collection("stripeConfig").doc("keys").get();
@@ -667,14 +654,9 @@ export const chargeWithSavedMethod = onCall(
       let stripeSecretKey: string;
 
       if (orgId) {
-        const stripeDoc = await db
-          .collection("organizations")
-          .doc(orgId)
-          .collection("stripe")
-          .doc("config")
-          .get();
-
-        stripeSecretKey = stripeDoc.data()?.secretKey;
+        const orgDoc = await db.collection("organizations").doc(orgId).get();
+        const orgData = orgDoc.data();
+        stripeSecretKey = orgData?.stripe?.secretKey;
       } else {
         const configDoc = await db.collection("stripeConfig").doc("keys").get();
         stripeSecretKey = configDoc.data()?.secretKey;
