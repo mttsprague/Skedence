@@ -89,9 +89,9 @@ struct PassesTabView: View {
                             )
                         }
                         .menuStyle(.automatic)
-                        .onChange(of: selectedClient) { _, newClient in
+                        .onChange(of: selectedClient?.id) { _, _ in
                             // Load payment methods when client is selected
-                            if let client = newClient, let orgId = auth.currentOrgId {
+                            if let client = selectedClient, let orgId = auth.currentOrgId {
                                 Task {
                                     // Use authUserId if available (Firebase Auth UID), fallback to document ID
                                     let userId = client.authUserId ?? client.id
