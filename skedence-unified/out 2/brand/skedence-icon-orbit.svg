@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Skedence icon orbit">
+  <circle cx="256" cy="256" r="214" fill="none" stroke="#FF6B35" stroke-width="20" />
+  <circle cx="256" cy="256" r="164" fill="none" stroke="#0A0A0A" stroke-width="12" opacity="0.15" />
+    <path d="M 136 176
+           C 136 128 204 104 256 104
+           C 328 104 388 140 388 196
+           C 388 244 332 268 256 276
+           C 180 284 124 308 124 352
+           C 124 404 188 428 256 428
+           C 318 428 368 406 388 372"
+        fill="none"
+        stroke="#FF6B35"
+        stroke-width="32"
+      stroke-linecap="round"
+      transform="translate(512 0) scale(-1 1)" />
+</svg>

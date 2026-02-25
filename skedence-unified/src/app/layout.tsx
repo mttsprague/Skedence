@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Skedence - Personal Training Management",
-  description: "Manage your personal training business with Skedence. Schedule sessions, manage clients, track progress, and grow your business.",
+  title: "Skedence - Coaching Business Management Software",
+  description: "Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, manage clients, and get paid online. Built for coaches, trainers, and instructors.",
   icons: {
     icon: [
       { url: '/favicon.png', type: 'image/png' },
@@ -24,6 +24,28 @@ export const metadata: Metadata = {
     initialScale: 1,
     maximumScale: 5,
     userScalable: true,
+  },
+  openGraph: {
+    title: 'Skedence - Coaching Business Management Software',
+    description: 'Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, manage clients, and get paid online.',
+    url: 'https://skedence.com',
+    siteName: 'Skedence',
+    images: [
+      {
+        url: 'https://skedence.com/logo-nav.png',
+        width: 1200,
+        height: 630,
+        alt: 'Skedence - Coaching Business Management',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Skedence - Coaching Business Management Software',
+    description: 'Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, and get paid online.',
+    images: ['https://skedence.com/logo-nav.png'],
   },
 };
 

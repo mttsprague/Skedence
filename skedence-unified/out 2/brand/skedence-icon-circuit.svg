@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Skedence icon circuit">
+  <rect x="56" y="56" width="400" height="400" rx="96" fill="#0A0A0A" />
+  <rect x="76" y="76" width="360" height="360" rx="80" fill="none" stroke="#FF6B35" stroke-width="10" />
+    <path d="M 160 144
+           L 320 144
+           C 352 144 372 164 372 196
+           C 372 224 352 244 320 244
+           L 204 244
+           C 176 244 156 264 156 292
+           C 156 328 184 356 236 356
+           L 352 356"
+        fill="none"
+        stroke="#FF6B35"
+        stroke-width="26"
+        stroke-linecap="round"
+      stroke-linejoin="round"
+      transform="translate(512 0) scale(-1 1)" />
+  <circle cx="160" cy="144" r="10" fill="#FF6B35" />
+  <circle cx="352" cy="356" r="10" fill="#FF6B35" />
+  <circle cx="320" cy="144" r="10" fill="#FF6B35" />
+</svg>

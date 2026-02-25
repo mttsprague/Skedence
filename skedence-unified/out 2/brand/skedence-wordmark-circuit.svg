@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-label="Skedence wordmark circuit">
+  <g transform="translate(30, 30)">
+    <rect x="16" y="16" width="208" height="208" rx="52" fill="#0A0A0A" />
+    <rect x="30" y="30" width="180" height="180" rx="44" fill="none" stroke="#FF6B35" stroke-width="8" />
+        <path d="M 64 78
+             L 154 78
+             C 176 78 190 92 190 114
+             C 190 132 176 146 154 146
+             L 98 146
+             C 82 146 70 158 70 176
+             C 70 198 88 214 118 214
+             L 190 214"
+          fill="none"
+          stroke="#FF6B35"
+          stroke-width="16"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          transform="translate(240 0) scale(-1 1)" />
+    <circle cx="64" cy="78" r="6" fill="#FF6B35" />
+    <circle cx="190" cy="214" r="6" fill="#FF6B35" />
+    <circle cx="154" cy="78" r="6" fill="#FF6B35" />
+  </g>
+  <text x="280" y="170" fill="#0A0A0A" font-size="120" font-family="Geist, Space Grotesk, Arial, sans-serif" font-weight="700" letter-spacing="2">
+    Skedence
+  </text>
+</svg>

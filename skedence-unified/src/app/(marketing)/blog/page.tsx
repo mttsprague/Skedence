@@ -19,6 +19,26 @@ export default function BlogPage() {
 
   useEffect(() => {
     loadPosts();
+    
+    // Update document title and meta tags for SEO
+    document.title = 'Skedence Blog - Coaching Business Tips & Resources'
+    
+    // Update or create meta description
+    let metaDescription = document.querySelector('meta[name="description"]');
+    if (!metaDescription) {
+      metaDescription = document.createElement('meta');
+      metaDescription.setAttribute('name', 'description');
+      document.head.appendChild(metaDescription);
+    }
+    metaDescription.setAttribute('content', 'Expert tips and resources for coaching businesses. Learn how to grow your training business, manage clients, and optimize your scheduling.');
+    
+    // Update Open Graph tags
+    updateMetaTag('og:title', 'Skedence Blog - Coaching Business Tips & Resources');
+    updateMetaTag('og:description', 'Expert tips and resources for coaching businesses. Learn how to grow your training business, manage clients, and optimize your scheduling.');
+    updateMetaTag('og:url', 'https://skedence.com/blog');
+    updateMetaTag('og:type', 'website');
+    updateMetaTag('og:image', 'https://skedence.com/logo-nav.png');
+    
     // Track blog listing page view
     trackPageView('/blog', 'Skedence Blog - Coaching Business Tips');
   }, []);
@@ -79,6 +99,24 @@ export default function BlogPage() {
     }
 
     setFilteredPosts(filtered);
+  }
+
+  // Helper function to update or create meta tags
+  function updateMetaTag(property: string, content: string) {
+    let meta = document.querySelector(`meta[property="${property}"]`);
+    if (!meta) {
+      meta = document.querySelector(`meta[name="${property}"]`);
+    }
+    if (!meta) {
+      meta = document.createElement('meta');
+      if (property.startsWith('og:') || property.startsWith('article:')) {
+        meta.setAttribute('property', property);
+      } else {
+        meta.setAttribute('name', property);
+      }
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', content);
   }
 
   // Get unique sports from posts
