@@ -138,6 +138,23 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // BLOG POSTS COLLECTION
+    // Public: Anyone can read published posts
+    // Admin: Only Skedence team can create/edit/delete
+    // =========================================================================
+    match /blogPosts/{postId} {
+      // Anyone can read published posts
+      allow read: if resource.data.status == 'published' || isSignedIn();
+      
+      // Only authenticated Skedence team members can write
+      // Add your team email addresses here
+      allow create, update, delete: if isSignedIn() && (
+        request.auth.token.email == 'mttsprague@gmail.com' ||
+        request.auth.token.email == 'support@skedence.com'
+      );
+    }
+
+    // =========================================================================
     // CATCH-ALL: Allow everything else too
     // =========================================================================
     match /{document=**} {

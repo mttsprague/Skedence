@@ -329,7 +329,7 @@ function SubscriptionContent() {
               </div>
               <h2 className="text-2xl font-bold">Start Your 14-Day Free Trial</h2>
               <p className="text-foreground/70">
-                Try any plan free for 14 days. No credit card required until trial ends.
+                Try any plan free for 14 days. Cancel anytime during the trial.
               </p>
             </div>
           </CardContent>

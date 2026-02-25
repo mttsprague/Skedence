@@ -31,8 +31,7 @@ export default function HomePage() {
             
             <div className="hidden md:flex items-center gap-10">
               <a href="#features" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Features</a>
-              <a href="#pricing" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</a>
-              <a href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</a>
+              <a href="#pricing" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</a>              <Link href="/blog" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Blog</Link>              <a href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</a>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
               <Link href="/login" className="btn-premium text-sm">
                 Start Free Trial →
@@ -75,11 +74,11 @@ export default function HomePage() {
             <div className="flex items-center gap-8 text-sm text-foreground/50 pt-8 font-medium">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-primary" />
-                <span>No credit card required</span>
+                <span>14-day free trial</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-primary" />
-                <span>14-day free trial</span>
+                <span>Cancel anytime</span>
               </div>
             </div>
           </div>
@@ -447,7 +446,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-10">
             <div className="space-y-5">
               <h3 className="text-xl font-bold text-foreground">How does the free trial work?</h3>
-              <p className="text-foreground/50 leading-relaxed">Start with a 14-day free trial with full access to all features. No credit card required to start.</p>
+              <p className="text-foreground/50 leading-relaxed">Start with a 14-day free trial with full access to all features.</p>
             </div>
             
             <div className="space-y-5">
@@ -491,7 +490,7 @@ export default function HomePage() {
             <Link href="/login" className="btn-premium">Start Free Trial</Link>
             <Link href="/support" className="btn-secondary">Contact Sales</Link>
           </div>
-          <p className="text-sm text-foreground/40 uppercase tracking-wider font-medium">14-day free trial • No credit card required</p>
+          <p className="text-sm text-foreground/40 uppercase tracking-wider font-medium">14-day free trial • Cancel anytime</p>
         </div>
       </section>
 

@@ -75,7 +75,7 @@ export default function VerticalLanding({
               </Link>
             </div>
             <p className="text-sm text-foreground/60 mt-6">
-              14-day free trial. No credit card required.
+              14-day free trial. Cancel anytime.
             </p>
           </div>
           <div className="bg-muted/30 border border-border rounded-2xl p-8">

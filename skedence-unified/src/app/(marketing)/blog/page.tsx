@@ -1,0 +1,287 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Search, Clock, ArrowRight, Tag } from 'lucide-react';
+import { BlogPost, BlogCategory, BLOG_CATEGORIES } from '@/types/blog';
+import { getPublishedPosts, getPostsByCategory } from '@/lib/blog-service';
+import { format } from 'date-fns';
+import { trackPageView, trackEvent } from '@/lib/analytics';
+
+export default function BlogPage() {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<BlogCategory | 'all'>('all');
+
+  useEffect(() => {
+    loadPosts();
+    // Track blog listing page view
+    trackPageView('/blog', 'Skedence Blog - Coaching Business Tips');
+  }, []);
+
+  useEffect(() => {
+    filterPosts();
+  }, [posts, searchQuery, selectedCategory]);
+
+  async function loadPosts() {
+    setLoading(true);
+    try {
+      const data = await getPublishedPosts();
+      setPosts(data);
+    } catch (error) {
+      console.error('Error loading blog posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function filterPosts() {
+    let filtered = [...posts];
+
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(post => post.category === selectedCategory);
+      // Track category filter usage
+      trackEvent('blog_filter_category', {
+        category: selectedCategory,
+        result_count: filtered.length
+      });
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(post => 
+        post.title.toLowerCase().includes(query) ||
+        post.excerpt.toLowerCase().includes(query) ||
+        post.tags.some(tag => tag.toLowerCase().includes(query))
+      );
+      // Track search usage
+      trackEvent('blog_search', {
+        search_query: searchQuery,
+        result_count: filtered.length
+      });
+    }
+
+    setFilteredPosts(filtered);
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-xl border-b border-border/50">
+        <div className="container mx-auto px-6 lg:px-12">
+          <div className="flex items-center justify-between h-20">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/50">
+                <span className="text-black font-bold text-xl">S</span>
+              </div>
+              <span className="text-2xl font-bold text-foreground tracking-tight">Skedence</span>
+            </Link>
+            
+            <div className="hidden md:flex items-center gap-10">
+              <a href="/#features" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Features</a>
+              <a href="/#pricing" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</a>
+              <Link href="/blog" className="text-sm font-medium text-primary transition-colors uppercase tracking-wide">Blog</Link>
+              <Link href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</Link>
+              <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
+              <Link href="/login" className="btn-premium text-sm">
+                Start Free Trial →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative pt-40 pb-20 px-6 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-background"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/30 via-transparent to-transparent"></div>
+        
+        <div className="container mx-auto max-w-5xl relative z-10">
+          <div className="text-center space-y-6">
+            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-foreground uppercase leading-tight">
+              The Skedence <span className="text-primary">Blog</span>
+            </h1>
+            <p className="text-xl md:text-2xl text-foreground/60 font-light max-w-3xl mx-auto">
+              Practical advice for building and growing your private coaching business
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Search & Filter */}
+      <section className="py-12 px-6 border-b border-border/50">
+        <div className="container mx-auto max-w-6xl">
+          <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+            {/* Search */}
+            <div className="relative w-full lg:w-96">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
+              <input
+                type="text"
+                placeholder="Search articles..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-muted border border-border rounded-lg text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedCategory === 'all'
+                    ? 'bg-primary text-black'
+                    : 'bg-muted text-foreground/60 hover:bg-muted/80'
+                }`}
+              >
+                All Posts
+              </button>
+              {(Object.keys(BLOG_CATEGORIES) as BlogCategory[]).map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedCategory === category
+                      ? 'bg-primary text-black'
+                      : 'bg-muted text-foreground/60 hover:bg-muted/80'
+                  }`}
+                >
+                  {BLOG_CATEGORIES[category].icon} {BLOG_CATEGORIES[category].title}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Blog Posts Grid */}
+      <section className="py-20 px-6">
+        <div className="container mx-auto max-w-6xl">
+          {loading ? (
+            <div className="text-center py-20">
+              <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-foreground/60">Loading articles...</p>
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-xl text-foreground/60">
+                {searchQuery || selectedCategory !== 'all' 
+                  ? 'No articles found matching your filters.' 
+                  : 'No articles published yet. Check back soon!'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredPosts.map((post) => (
+                <Link 
+                  key={post.id} 
+                  href={`/blog/detail?slug=${post.slug}`}
+                  className="group premium-card p-6 hover:border-primary/50 transition-all duration-300 flex flex-col"
+                >
+                  {/* Featured Image */}
+                  {post.featuredImage && (
+                    <div className="relative w-full h-48 mb-6 rounded-lg overflow-hidden bg-muted">
+                      <img 
+                        src={post.featuredImage} 
+                        alt={post.featuredImageAlt || post.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  )}
+
+                  {/* Category Badge */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider">
+                      {BLOG_CATEGORIES[post.category].icon} {BLOG_CATEGORIES[post.category].title}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors line-clamp-2">
+                    {post.title}
+                  </h3>
+
+                  {/* Excerpt */}
+                  <p className="text-foreground/60 mb-4 line-clamp-3 flex-1">
+                    {post.excerpt}
+                  </p>
+
+                  {/* Meta */}
+                  <div className="flex items-center justify-between text-sm text-foreground/40 pt-4 border-t border-border/50">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      <span>{format(post.publishedAt || post.createdAt, 'MMM d, yyyy')}</span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-32 px-6 bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto max-w-4xl text-center space-y-8">
+          <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">
+            Ready to Grow Your Coaching Business?
+          </h2>
+          <p className="text-xl text-foreground/60">
+            Join hundreds of coaches using Skedence to save time and scale
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
+            <Link href="/login" className="btn-premium">Start Free Trial</Link>
+            <Link href="/support" className="btn-secondary">Contact Sales</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border/50 py-16 px-6 bg-black">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            <div>
+              <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Product</h4>
+              <ul className="space-y-3">
+                <li><a href="/#features" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Features</a></li>
+                <li><a href="/#pricing" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Pricing</a></li>
+                <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Support</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Company</h4>
+              <ul className="space-y-3">
+                <li><Link href="/about" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">About</Link></li>
+                <li><Link href="/blog" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Blog</Link></li>
+                <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Contact</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Legal</h4>
+              <ul className="space-y-3">
+                <li><Link href="/privacy" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Terms of Service</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Connect</h4>
+              <p className="text-sm text-orange-500">support@skedence.com</p>
+            </div>
+          </div>
+          
+          <div className="pt-10 border-t border-border/50 text-center">
+            <p className="text-sm text-foreground/40 uppercase tracking-wider">&copy; 2026 Skedence. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
