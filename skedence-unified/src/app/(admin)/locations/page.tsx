@@ -5,12 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { MapPin, Plus, Edit2, Trash2, X, AlertCircle, Building2, Crown } from 'lucide-react';
 import { Location } from '@/types/location';
 import { logLocationCreated, logLocationUpdated, logLocationDeleted } from '@/lib/activity-logger';
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
+import { toast } from '@/lib/toast';
 
 type SubscriptionTier = 'starter' | 'studio' | 'academy' | 'enterprise';
 
@@ -163,9 +165,10 @@ export default function LocationsPage() {
       }
       
       setLocations(locations.filter(loc => loc.id !== locationId));
+      toast.success('Location deleted successfully');
     } catch (error) {
       console.error('Error deleting location:', error);
-      alert('Error deleting location');
+      toast.error('Failed to delete location', 'Please try again');
     }
   };
 
@@ -269,9 +272,10 @@ export default function LocationsPage() {
       }
 
       resetForm();
+      toast.success(editingLocation ? 'Location updated successfully' : 'Location created successfully');
     } catch (error) {
       console.error('Error saving location:', error);
-      alert('Error saving location');
+      toast.error('Failed to save location', 'Please try again');
     } finally {
       setSaving(false);
     }
@@ -280,8 +284,29 @@ export default function LocationsPage() {
   if (loading) {
     return (
       <BusinessSettingsSubmenu>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="p-6 lg:p-8 space-y-6">
+          {/* Header skeleton */}
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-40" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+          
+          {/* Location cards skeleton */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-border bg-card p-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-8 w-8 rounded" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </BusinessSettingsSubmenu>
     );

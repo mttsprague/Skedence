@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ClientCardSkeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
 import { Save, X, User as UserIcon, Search, Calendar, Package, FileText, CreditCard, Receipt, History, Download, Smartphone, QrCode, Key } from 'lucide-react';
 import { logClientProfileUpdated } from '@/lib/activity-logger';
 import { trackPageView } from '@/lib/analytics';
+import { toast } from '@/lib/toast';
 
 interface Booking {
   id: string;
@@ -417,10 +419,10 @@ export default function ClientsPage() {
       setClients(prev => prev.map(c => c.id === editedClient.id ? editedClient : c));
       setSelectedClient(editedClient);
       
-      alert('Client profile updated successfully!');
+      toast.success('Client profile updated successfully!');
     } catch (error) {
       console.error('Error updating client:', error);
-      alert('Failed to update client profile. Please try again.');
+      toast.error('Failed to update client profile', 'Please try again');
     } finally {
       setSaving(false);
     }
@@ -461,8 +463,22 @@ export default function ClientsPage() {
     return (
       <SchedulingSubmenu>
         <div className="p-6 lg:p-8">
-          <div className="text-center py-12">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="space-y-6">
+            {/* Header skeleton */}
+            <div className="space-y-2">
+              <div className="h-9 w-32 bg-muted animate-pulse rounded" />
+              <div className="h-5 w-48 bg-muted animate-pulse rounded" />
+            </div>
+            
+            {/* Search and filter skeleton */}
+            <div className="h-12 w-full bg-muted animate-pulse rounded-lg" />
+            
+            {/* Client cards skeleton */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ClientCardSkeleton key={i} />
+              ))}
+            </div>
           </div>
         </div>
       </SchedulingSubmenu>
