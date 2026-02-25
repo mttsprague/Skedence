@@ -391,14 +391,35 @@ export const getPaymentMethodsDirectAdmin = onCall(
         apiVersion: "2025-02-24.acacia",
       });
 
-      // Get user data from root users collection
-      const userDoc = await db.collection("users").doc(userId).get();
+      // Query user by authUserId field (dual-path query pattern)
+      // First try organizations/{orgId}/users subcollection
+      let usersQuery = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("users")
+        .where("authUserId", "==", userId)
+        .limit(1)
+        .get();
+      
+      let userDoc = usersQuery.docs[0];
+      let userData = userDoc?.data();
 
-      if (!userDoc.exists) {
+      // Fallback to legacy root users collection if not found
+      if (!userData) {
+        usersQuery = await db
+          .collection("users")
+          .where("authUserId", "==", userId)
+          .limit(1)
+          .get();
+        
+        userDoc = usersQuery.docs[0];
+        userData = userDoc?.data();
+      }
+
+      if (!userData || !userDoc) {
         throw new HttpsError("not-found", "User not found");
       }
 
-      const userData = userDoc.data();
       let customerId = userData?.stripeCustomerId;
 
 
@@ -420,8 +441,8 @@ export const getPaymentMethodsDirectAdmin = onCall(
         customerId = customer.id;
 
 
-        // Save customer ID
-        await db.collection("users").doc(userId).set({
+        // Save customer ID using document reference from query
+        await userDoc.ref.set({
           stripeCustomerId: customerId,
         }, {merge: true});
 
@@ -452,8 +473,8 @@ export const getPaymentMethodsDirectAdmin = onCall(
 
           customerId = customer.id;
 
-          // Save new customer ID
-          await db.collection("users").doc(userId).set({
+          // Save new customer ID using document reference
+          await userDoc.ref.set({
             stripeCustomerId: customerId,
           }, {merge: true});
 

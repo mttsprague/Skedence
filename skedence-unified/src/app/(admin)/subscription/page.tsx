@@ -328,7 +328,7 @@ function SubscriptionContent() {
                 
                 {isCurrent && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                    <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
                       CURRENT PLAN
                     </span>
                   </div>

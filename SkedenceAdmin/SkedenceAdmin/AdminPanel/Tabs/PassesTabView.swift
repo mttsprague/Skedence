@@ -4,9 +4,15 @@
 //
 //  Extracted from AdminPanelView - Phase 1.1 Refactoring
 //  Created on 2/4/26
+//  Updated on 2/25/26: Added payment processing for client purchases
 //
 
 import SwiftUI
+
+enum PaymentMethod: Equatable {
+    case savedCard(String) // Payment method ID
+    case free // Admin adds for free
+}
 
 struct PassesTabView: View {
     @EnvironmentObject private var dependencies: AdminAppDependencies
@@ -23,6 +29,12 @@ struct PassesTabView: View {
     @Binding var passAction: PassAction
     @Binding var isAddingPass: Bool
     @Binding var alertItem: AlertItem?
+    
+    // Payment-related state
+    @StateObject private var stripeService = StripeService()
+    @StateObject private var customerService = StripeCustomerService()
+    @State private var selectedPaymentMethod: PaymentMethod = .free
+    @State private var isLoadingPaymentMethods = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xl) {
@@ -77,6 +89,19 @@ struct PassesTabView: View {
                             )
                         }
                         .menuStyle(.automatic)
+                        .onChange(of: selectedClient) { _, newClient in
+                            // Load payment methods when client is selected
+                            if let client = newClient, let orgId = auth.currentOrgId {
+                                Task {
+                                    // Use authUserId if available (Firebase Auth UID), fallback to document ID
+                                    let userId = client.authUserId ?? client.id
+                                    await loadPaymentMethodsForClient(userId: userId, orgId: orgId)
+                                }
+                            } else {
+                                // Clear payment methods when no client selected
+                                selectedPaymentMethod = .free
+                            }
+                        }
                     }
                     
                     Divider()
@@ -170,6 +195,102 @@ struct PassesTabView: View {
                         )
                     }
                     
+                    // Payment Method Selection (only for adding passes)
+                    if passAction == .add {
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            Text("Payment Method")
+                                .font(.labelMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            
+                            if isLoadingPaymentMethods {
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Loading payment methods...")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(Spacing.sm)
+                            } else if customerService.paymentMethods.isEmpty {
+                                // No saved cards - only free option
+                                HStack {
+                                    Image(systemName: "gift.fill")
+                                        .foregroundStyle(AppTheme.primary)
+                                    Text("Add for Free (Admin)")
+                                        .font(.bodyMedium)
+                                }
+                                .padding(Spacing.sm)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                        .fill(AppTheme.primary.opacity(0.08))
+                                )
+                            } else {
+                                // Has saved cards - show options
+                                VStack(spacing: Spacing.xs) {
+                                    // Free option
+                                    Button {
+                                        selectedPaymentMethod = .free
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: selectedPaymentMethod == .free ? "checkmark.circle.fill" : "circle")
+                                                .foregroundStyle(selectedPaymentMethod == .free ? AppTheme.primary : .secondary)
+                                            Image(systemName: "gift.fill")
+                                                .foregroundStyle(selectedPaymentMethod == .free ? AppTheme.primary : .secondary)
+                                            Text("Add for Free (Admin)")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(selectedPaymentMethod == .free ? AppTheme.textPrimary : AppTheme.textSecondary)
+                                            Spacer()
+                                        }
+                                        .padding(Spacing.sm)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(selectedPaymentMethod == .free ? AppTheme.primary.opacity(0.08) : Color.clear)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                        .stroke(AppTheme.border, lineWidth: 1)
+                                                )
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    
+                                    // Saved card options
+                                    ForEach(customerService.paymentMethods) { method in
+                                        Button {
+                                            selectedPaymentMethod = .savedCard(method.id)
+                                        } label: {
+                                            HStack {
+                                                Image(systemName: selectedPaymentMethod == .savedCard(method.id) ? "checkmark.circle.fill" : "circle")
+                                                    .foregroundStyle(selectedPaymentMethod == .savedCard(method.id) ? AppTheme.primary : .secondary)
+                                                Image(systemName: "creditcard.fill")
+                                                    .foregroundStyle(selectedPaymentMethod == .savedCard(method.id) ? AppTheme.primary : .secondary)
+                                                Text("\(method.displayBrand) •••• \(method.last4)")
+                                                    .font(.bodyMedium)
+                                                    .foregroundStyle(selectedPaymentMethod == .savedCard(method.id) ? AppTheme.textPrimary : AppTheme.textSecondary)
+                                                Spacer()
+                                                Text("Exp \(method.expirationDisplay)")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            .padding(Spacing.sm)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                    .fill(selectedPaymentMethod == .savedCard(method.id) ? AppTheme.primary.opacity(0.08) : Color.clear)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                            .stroke(AppTheme.border, lineWidth: 1)
+                                                    )
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
                     // Submit button
                     Button {
                         Task {
@@ -201,17 +322,42 @@ struct PassesTabView: View {
     
     // MARK: - Helper Methods
     
+    private func loadPaymentMethodsForClient(userId: String, orgId: String) async {
+        isLoadingPaymentMethods = true
+        await customerService.loadPaymentMethodsForUser(userId: userId, orgId: orgId)
+        isLoadingPaymentMethods = false
+        
+        // Default to free if no saved cards
+        if customerService.paymentMethods.isEmpty {
+            selectedPaymentMethod = .free
+        }
+    }
+    
     private func addPassToClient() async {
         guard let client = selectedClient else { return }
+        guard let orgId = auth.currentOrgId else { return }
         
         isAddingPass = true
         
         do {
-            try await adminService.addPassToClient(
-                clientId: client.id,
-                passType: selectedPassType,
-                totalLessons: passQuantity
-            )
+            // Check if we're using a saved card or adding for free
+            switch selectedPaymentMethod {
+            case .savedCard(let paymentMethodId):
+                // Process payment with saved card
+                try await processPaymentForClient(
+                    client: client,
+                    paymentMethodId: paymentMethodId,
+                    orgId: orgId
+                )
+                
+            case .free:
+                // Add pass for free (admin privilege)
+                try await adminService.addPassToClient(
+                    clientId: client.id,
+                    passType: selectedPassType,
+                    totalLessons: passQuantity
+                )
+            }
             
             alertItem = AlertItem(
                 title: "Pass Added",
@@ -222,10 +368,9 @@ struct PassesTabView: View {
             selectedPassType = ""
             selectedPassTitle = ""
             passQuantity = 1
+            selectedPaymentMethod = .free
             
-            if let orgId = auth.currentOrgId {
-                await adminService.loadAllUsers(orgId: orgId)
-            }
+            await adminService.loadAllUsers(orgId: orgId)
             await packagesService.loadMyPackages()
             
         } catch {
@@ -236,6 +381,33 @@ struct PassesTabView: View {
         }
         
         isAddingPass = false
+    }
+    
+    private func processPaymentForClient(client: SimpleUser, paymentMethodId: String, orgId: String) async throws {
+        // Get the package price from pricing structure
+        guard let package = pricingService.allPackageOptions.first(where: { $0.packageType == selectedPassType }) else {
+            throw PassesError.packageNotFound
+        }
+        
+        let totalAmount = package.priceInCents * passQuantity
+        
+        // Get client's authUserId (Firebase Auth UID)
+        guard let clientAuthUserId = client.authUserId else {
+            throw PassesError.clientAuthIdNotFound
+        }
+        
+        // Process payment using client's saved card
+        _ = try await stripeService.createAndConfirmPaymentForClient(
+            clientUserId: clientAuthUserId,
+            packageType: selectedPassType,
+            amount: totalAmount,
+            trainerId: nil, // Admin-initiated, no specific trainer
+            orgId: orgId,
+            paymentMethodId: paymentMethodId
+        )
+        
+        // Payment succeeded - package will be created by Cloud Function
+        print("✅ Payment processed successfully for client: \(client.firstName) \(client.lastName)")
     }
     
     private func removePassFromClient() async {
@@ -274,5 +446,24 @@ struct PassesTabView: View {
         }
         
         isAddingPass = false
+    }
+}
+
+// MARK: - Error Types
+
+enum PassesError: LocalizedError {
+    case packageNotFound
+    case clientNotFound
+    case clientAuthIdNotFound
+    
+    var errorDescription: String? {
+        switch self {
+        case .packageNotFound:
+            return "Selected package type not found in pricing structure"
+        case .clientNotFound:
+            return "Client document not found"
+        case .clientAuthIdNotFound:
+            return "Client's authentication ID not found - please ensure client has signed in at least once"
+        }
     }
 }

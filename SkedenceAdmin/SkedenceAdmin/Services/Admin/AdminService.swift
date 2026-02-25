@@ -405,6 +405,8 @@ final class AdminService: ObservableObject {
                 let lastName = data["lastName"] as? String ?? ""
                 let athleteFirst = data["athleteFirstName"] as? String ?? ""
                 let athleteLast = data["athleteLastName"] as? String ?? ""
+                let authUserId = data["authUserId"] as? String
+                let email = data["email"] as? String ?? data["emailAddress"] as? String ?? ""
                 
                 let athleteName = [athleteFirst, athleteLast]
                     .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -415,7 +417,9 @@ final class AdminService: ObservableObject {
                     id: doc.documentID,
                     firstName: firstName,
                     lastName: lastName,
-                    athleteName: athleteName
+                    athleteName: athleteName,
+                    authUserId: authUserId,
+                    email: email
                 )
             }.sorted { $0.lastName < $1.lastName }
         } catch {
@@ -670,4 +674,6 @@ struct SimpleUser: Identifiable {
     let firstName: String
     let lastName: String
     let athleteName: String
+    let authUserId: String? // Firebase Auth UID (needed for payment processing)
+    let email: String
 }
