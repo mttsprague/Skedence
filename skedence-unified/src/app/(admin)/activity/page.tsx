@@ -129,45 +129,35 @@ export default function ActivityPage() {
   const todayStart = useMemo(() => Timestamp.fromDate(startOfDay(new Date())), []);
   const todayEnd = useMemo(() => Timestamp.fromDate(endOfDay(new Date())), []);
   
-  const todayBookingsLive = useRealTimeCount(
-    'bookings',
-    [
-      where('orgId', '==', orgId || ''),
-      where('startTime', '>=', todayStart),
-      where('startTime', '<=', todayEnd),
-      where('status', 'in', ['confirmed', 'scheduled'])
-    ],
-    !!orgId
-  );
+  // Memoize constraints arrays to prevent infinite loops in useRealTimeCount
+  const todayBookingsConstraints = useMemo(() => [
+    where('orgId', '==', orgId || ''),
+    where('startTime', '>=', todayStart),
+    where('startTime', '<=', todayEnd),
+    where('status', 'in', ['confirmed', 'scheduled'])
+  ], [orgId, todayStart, todayEnd]);
   
-  const upcomingClassesLive = useRealTimeCount(
-    'classes',
-    [
-      where('orgId', '==', orgId || ''),
-      where('startTime', '>=', Timestamp.now()),
-      where('isOpenForRegistration', '==', true)
-    ],
-    !!orgId
-  );
+  const upcomingClassesConstraints = useMemo(() => [
+    where('orgId', '==', orgId || ''),
+    where('startTime', '>=', Timestamp.now()),
+    where('isOpenForRegistration', '==', true)
+  ], [orgId]);
   
-  const activeClientsLive = useRealTimeCount(
-    'orgMembers',
-    [
-      where('orgId', '==', orgId || ''),
-      where('role', '==', 'client'),
-      where('isActive', '==', true)
-    ],
-    !!orgId
-  );
+  const activeClientsConstraints = useMemo(() => [
+    where('orgId', '==', orgId || ''),
+    where('role', '==', 'client'),
+    where('isActive', '==', true)
+  ], [orgId]);
   
-  const activeTrainersLive = useRealTimeCount(
-    'trainers',
-    [
-      where('orgId', '==', orgId || ''),
-      where('active', '==', true)
-    ],
-    !!orgId
-  );
+  const activeTrainersConstraints = useMemo(() => [
+    where('orgId', '==', orgId || ''),
+    where('active', '==', true)
+  ], [orgId]);
+  
+  const todayBookingsLive = useRealTimeCount('bookings', todayBookingsConstraints, !!orgId);
+  const upcomingClassesLive = useRealTimeCount('classes', upcomingClassesConstraints, !!orgId);
+  const activeClientsLive = useRealTimeCount('orgMembers', activeClientsConstraints, !!orgId);
+  const activeTrainersLive = useRealTimeCount('trainers', activeTrainersConstraints, !!orgId);
   
   // Advanced filters
   const [selectedActivityType, setSelectedActivityType] = useState<string>('all');

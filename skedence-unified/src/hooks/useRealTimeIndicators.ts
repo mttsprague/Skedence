@@ -52,7 +52,7 @@ export function useRealTimeCount(
       unsubscribe();
       setIsLive(false);
     };
-  }, [collectionPath, enabled, JSON.stringify(constraints)]);
+  }, [collectionPath, enabled, constraints]);
 
   return { count, lastUpdate, isLive };
 }
