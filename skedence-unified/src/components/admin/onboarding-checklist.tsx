@@ -54,40 +54,7 @@ export function OnboardingChecklist() {
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
 
-  useEffect(() => {
-    if (!orgId) return;
-
-    const db = getFirestore();
-    
-    // Set up real-time listener for onboarding progress
-    const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
-    
-    const unsubscribe = onSnapshot(
-      onboardingRef,
-      (snapshot) => {
-        console.log('📊 Onboarding Checklist: Received snapshot update');
-        if (snapshot.exists()) {
-          const data = snapshot.data() as OnboardingProgress;
-          console.log('📊 Onboarding progress data:', data);
-          setProgress(data);
-          setIsVisible(!data.dismissed);
-          setIsLoading(false);
-        } else {
-          console.log('📊 No onboarding doc exists, checking actual progress');
-          // Check actual progress from other collections
-          checkActualProgress();
-        }
-      },
-      (error) => {
-        console.error('❌ Error loading onboarding progress:', error);
-        setIsLoading(false);
-      }
-    );
-    
-    // Clean up listener on unmount
-    return () => unsubscribe();
-  }, [orgId]);
-
+  // Define helper functions BEFORE useEffect to avoid hooks issues
   async function checkActualProgress() {
     if (!orgId) return;
 
@@ -167,6 +134,42 @@ export function OnboardingChecklist() {
       return 0;
     }
   }
+
+  // Set up real-time listener AFTER helper functions are defined
+  useEffect(() => {
+    if (!orgId) return;
+
+    const db = getFirestore();
+    
+    // Set up real-time listener for onboarding progress
+    const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
+    
+    const unsubscribe = onSnapshot(
+      onboardingRef,
+      (snapshot) => {
+        console.log('📊 Onboarding Checklist: Received snapshot update');
+        if (snapshot.exists()) {
+          const data = snapshot.data() as OnboardingProgress;
+          console.log('📊 Onboarding progress data:', data);
+          setProgress(data);
+          setIsVisible(!data.dismissed);
+          setIsLoading(false);
+        } else {
+          console.log('📊 No onboarding doc exists, checking actual progress');
+          // Check actual progress from other collections
+          checkActualProgress();
+        }
+      },
+      (error) => {
+        console.error('❌ Error loading onboarding progress:', error);
+        setIsLoading(false);
+      }
+    );
+    
+    // Clean up listener on unmount
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]); // checkActualProgress uses orgId which is in deps
 
   async function handleDismiss() {
     if (!orgId) return;
