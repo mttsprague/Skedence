@@ -147,15 +147,12 @@ export function OnboardingChecklist() {
     const unsubscribe = onSnapshot(
       onboardingRef,
       (snapshot) => {
-        console.log('📊 Onboarding Checklist: Received snapshot update');
         if (snapshot.exists()) {
           const data = snapshot.data() as OnboardingProgress;
-          console.log('📊 Onboarding progress data:', data);
           setProgress(data);
           setIsVisible(!data.dismissed);
           setIsLoading(false);
         } else {
-          console.log('📊 No onboarding doc exists, checking actual progress');
           // Check actual progress from other collections
           checkActualProgress();
         }
