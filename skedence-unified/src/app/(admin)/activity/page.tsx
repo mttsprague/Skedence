@@ -149,7 +149,7 @@ export default function ActivityPage() {
   );
   
   const activeClientsLive = useRealTimeCount(
-    'users',
+    'orgMembers',
     [
       where('orgId', '==', orgId || ''),
       where('role', '==', 'client'),
