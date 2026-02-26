@@ -1,0 +1,21 @@
+# Build outputs
+out/
+out 2/
+.next/
+dist/
+build/
+
+# Migration scripts (one-off tools)
+*.js
+!eslint.config.mjs
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+
+# Cache
+.turbo/
+.cache/

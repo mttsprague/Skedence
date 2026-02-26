@@ -73,20 +73,7 @@ export default function RevenueReportPage() {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
-  // Check subscription access
-  if (!subLoading && !canAccessFeature('canAccessReports')) {
-    const reason = getBlockReason('canAccessReports');
-    return (
-      <SubscriptionPaywall
-        feature="Revenue Reports"
-        reason={reason || undefined}
-        currentPlan={subscription?.plan}
-        suggestedPlan="starter"
-      />
-    );
-  }
-  
-  // Month options: 4 future + current + 24 past
+  // Month options: 4 future + current + 24 past - MOVED BEFORE EARLY RETURN
   const monthOptions = (() => {
     const options: { value: string; label: string }[] = [];
     const now = new Date();
@@ -102,6 +89,7 @@ export default function RevenueReportPage() {
     return options;
   })();
 
+  // Effects - MOVED BEFORE EARLY RETURN
   useEffect(() => {
     if (!orgId) return;
     loadPackages();
@@ -117,6 +105,19 @@ export default function RevenueReportPage() {
     window.addEventListener('trigger-export', handleExport);
     return () => window.removeEventListener('trigger-export', handleExport);
   }, []); // Empty deps - exportToCSV uses local variables
+  
+  // Check subscription access
+  if (!subLoading && !canAccessFeature('canAccessReports')) {
+    const reason = getBlockReason('canAccessReports');
+    return (
+      <SubscriptionPaywall
+        feature="Revenue Reports"
+        reason={reason || undefined}
+        currentPlan={subscription?.plan}
+        suggestedPlan="starter"
+      />
+    );
+  }
 
   async function loadPackages() {
     if (!orgId) return;

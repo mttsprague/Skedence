@@ -62,24 +62,11 @@ export default function UsersReportPage() {
   const [emailSearch, setEmailSearch] = useState('');
   const [athleteFilter, setAthleteFilter] = useState<'all' | 'has' | 'none'>('all');
   
-  // Check subscription access
-  if (!subLoading && !canAccessFeature('canAccessReports')) {
-    const reason = getBlockReason('canAccessReports');
-    return (
-      <SubscriptionPaywall
-        feature="User Analytics"
-        reason={reason || undefined}
-        currentPlan={subscription?.plan}
-        suggestedPlan="starter"
-      />
-    );
-  }
-  
-  // Sorting
+  // Sorting - MOVED BEFORE EARLY RETURN
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
-  // Month options: 4 future + current + 24 past
+  // Month options: 4 future + current + 24 past - MOVED BEFORE EARLY RETURN
   const monthOptions = (() => {
     const options: { value: string; label: string }[] = [];
     const now = new Date();
@@ -95,6 +82,7 @@ export default function UsersReportPage() {
     return options;
   })();
 
+  // Effects - MOVED BEFORE EARLY RETURN
   useEffect(() => {
     if (!orgId) return;
     loadUsers();
@@ -110,6 +98,19 @@ export default function UsersReportPage() {
     window.addEventListener('trigger-export', handleExport);
     return () => window.removeEventListener('trigger-export', handleExport);
   }, []); // Empty deps - exportToCSV uses local variables
+  
+  // Check subscription access
+  if (!subLoading && !canAccessFeature('canAccessReports')) {
+    const reason = getBlockReason('canAccessReports');
+    return (
+      <SubscriptionPaywall
+        feature="User Analytics"
+        reason={reason || undefined}
+        currentPlan={subscription?.plan}
+        suggestedPlan="starter"
+      />
+    );
+  }
 
   async function loadUsers() {
     if (!orgId) return;

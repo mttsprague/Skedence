@@ -43,6 +43,7 @@ import { OnboardingChecklist } from '@/components/admin/onboarding-checklist';
 import { TrialBanner } from '@/components/admin/trial-banner';
 import { useRealTimeCount } from '@/hooks/useRealTimeIndicators';
 import { RealTimeStatsCard } from '@/components/ui/real-time-indicators';
+import { ErrorBoundarySection } from '@/components/error-boundary';
 
 interface ActivityLog {
   id: string;
@@ -989,10 +990,14 @@ export default function ActivityPage() {
       </div>
 
       {/* Trial Status Banner */}
-      <TrialBanner orgId={orgId} />
+      <ErrorBoundarySection sectionName="Trial Banner">
+        <TrialBanner orgId={orgId} />
+      </ErrorBoundarySection>
 
       {/* Onboarding Checklist - Shows for new users */}
-      <OnboardingChecklist />
+      <ErrorBoundarySection sectionName="Onboarding Checklist">
+        <OnboardingChecklist />
+      </ErrorBoundarySection>
 
       {/* Real-Time Stats Dashboard */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
