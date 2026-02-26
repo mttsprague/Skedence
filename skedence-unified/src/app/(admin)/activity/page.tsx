@@ -380,12 +380,14 @@ export default function ActivityPage() {
           activitiesSnap.docs.map(async (activityDoc) => {
             const data = activityDoc.data();
             let actorName = data.actorName;
+            const originalActorName = data.actorName; // Store original for description replacement
             
             // Try to get full name from multiple sources
             if (data.actorId) {
               try {
                 // First try users collection
                 let userDoc = await getDoc(doc(db, 'users', data.actorId));
+                
                 if (userDoc.exists()) {
                   const userData = userDoc.data();
                   const firstName = userData?.firstName || '';
@@ -396,6 +398,7 @@ export default function ActivityPage() {
                 } else {
                   // Try trainers collection
                   const trainerDoc = await getDoc(doc(db, 'trainers', data.actorId));
+                  
                   if (trainerDoc.exists()) {
                     const trainerData = trainerDoc.data();
                     const firstName = trainerData?.firstName || '';
@@ -418,14 +421,30 @@ export default function ActivityPage() {
                       const userId = memberData?.userId;
                       
                       if (userId) {
-                        // Try to get user data with the userId from orgMembers
-                        const userDoc2 = await getDoc(doc(db, 'users', userId));
-                        if (userDoc2.exists()) {
-                          const userData = userDoc2.data();
-                          const firstName = userData?.firstName || '';
-                          const lastName = userData?.lastName || '';
+                        // userId in orgMembers could be either:
+                        // - trainer document ID (for trainers/admins/owners)
+                        // - user document ID (for clients)
+                        // Try trainers collection first (most likely for admin actions)
+                        const trainerDoc2 = await getDoc(doc(db, 'trainers', userId));
+                        
+                        if (trainerDoc2.exists()) {
+                          const trainerData = trainerDoc2.data();
+                          const firstName = trainerData?.firstName || '';
+                          const lastName = trainerData?.lastName || '';
                           if (firstName || lastName) {
                             actorName = `${firstName} ${lastName}`.trim();
+                          }
+                        } else {
+                          // Fall back to users collection (for client actions)
+                          const userDoc2 = await getDoc(doc(db, 'users', userId));
+                          
+                          if (userDoc2.exists()) {
+                            const userData = userDoc2.data();
+                            const firstName = userData?.firstName || '';
+                            const lastName = userData?.lastName || '';
+                            if (firstName || lastName) {
+                              actorName = `${firstName} ${lastName}`.trim();
+                            }
                           }
                         }
                       }
@@ -437,6 +456,12 @@ export default function ActivityPage() {
               }
             }
             
+            // Replace old actorName in description with resolved full name
+            let description = data.description;
+            if (actorName !== originalActorName && originalActorName) {
+              description = description.replace(originalActorName, actorName);
+            }
+            
             return {
               id: activityDoc.id,
               type: data.type as ActivityType,
@@ -446,7 +471,7 @@ export default function ActivityPage() {
               targetId: data.targetId,
               targetName: data.targetName,
               targetType: data.targetType,
-              description: data.description,
+              description: description,
               timestamp: data.timestamp?.toDate() || data.createdAt?.toDate() || new Date(),
               metadata: data.metadata,
               orgId: data.orgId,

@@ -62,7 +62,6 @@ export async function logActivity(data: ActivityLogData): Promise<string> {
     };
 
     const docRef = await addDoc(collection(db, 'activities'), activityData);
-    console.log('✅ Activity logged:', data.type, docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('❌ Failed to log activity:', error);
