@@ -291,17 +291,6 @@ function BlogPostContent() {
             </div>
           </div>
 
-          {/* Featured Image */}
-          {post.featuredImage && (
-            <div className="relative w-full h-96 mb-12 rounded-xl overflow-hidden bg-muted">
-              <img 
-                src={post.featuredImage} 
-                alt={post.featuredImageAlt || post.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
-
           {/* Article Content */}
           <div 
             className="prose prose-lg prose-invert max-w-none mb-12"
