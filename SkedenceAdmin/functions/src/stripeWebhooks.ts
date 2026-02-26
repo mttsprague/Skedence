@@ -139,8 +139,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`✅ Checkout completed for org ${orgId} - Plan: ${planTier}, Status: ${status}`);
 
-  // Send confirmation email
+  // Send confirmation email to customer
   await sendSubscriptionEmail(orgId, status === "trialing");
+  
+  // Send notification to platform admin
+  await sendAdminNotification(orgId, planTier, status === "trialing");
 }
 
 async function sendSubscriptionEmail(orgId: string, isTrial: boolean) {
@@ -213,6 +216,90 @@ async function sendSubscriptionEmail(orgId: string, isTrial: boolean) {
     console.log(`✅ Subscription confirmation sent to ${ownerEmail}`);
   } catch (error) {
     console.error("Error sending subscription email:", error);
+  }
+}
+
+async function sendAdminNotification(orgId: string, planTier: string, isTrial: boolean) {
+  try {
+    const orgDoc = await admin.firestore().collection("organizations").doc(orgId).get();
+    const org = orgDoc.data();
+    if (!org) return;
+
+    const ownerIds = org.adminIds || [];
+    let ownerEmail = "Unknown";
+    let ownerName = "Unknown";
+    
+    if (ownerIds.length > 0) {
+      const ownerDoc = await admin.firestore().collection("users").doc(ownerIds[0]).get();
+      const owner = ownerDoc.data();
+      if (owner) {
+        ownerEmail = owner.email || owner.emailAddress || "No email";
+        ownerName = `${owner.firstName || ""} ${owner.lastName || ""}`.trim() || "Unknown";
+      }
+    }
+
+    const orgName = org.name || "Unknown Organization";
+    const planName = planTier.charAt(0).toUpperCase() + planTier.slice(1);
+    
+    // Get plan price
+    const planPrices: Record<string, string> = {
+      "starter": "$29/month",
+      "studio": "$79/month",
+      "academy": "$149/month",
+      "enterprise": "$299/month",
+    };
+    const planPrice = planPrices[planTier] || "Unknown";
+
+    // Send notification to platform admin
+    await admin.firestore().collection("mail").add({
+      to: "matt.sprague@skedence.com", // Platform admin email
+      from: "Skedence Notifications <no-reply@skedence.com>",
+      replyTo: ownerEmail !== "No email" ? ownerEmail : undefined,
+      message: {
+        subject: `🎉 New ${isTrial ? "Trial" : "Subscription"}: ${orgName} - ${planName}`,
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FF6B35;">${isTrial ? "New Trial Started! 🚀" : "New Paid Subscription! 💰"}</h2>
+          
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">Organization Details</h3>
+            <p><strong>Organization:</strong> ${orgName}</p>
+            <p><strong>Plan:</strong> ${planName} (${planPrice})</p>
+            <p><strong>Status:</strong> ${isTrial ? "Free Trial (14 days)" : "Active Paid Subscription"}</p>
+            <p><strong>Organization ID:</strong> ${orgId}</p>
+          </div>
+          
+          <div style="background: #fff; border: 1px solid #ddd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">Owner Information</h3>
+            <p><strong>Name:</strong> ${ownerName}</p>
+            <p><strong>Email:</strong> ${ownerEmail}</p>
+            ${ownerEmail !== "No email" ? `<p><a href="mailto:${ownerEmail}" style="color: #FF6B35;">Send Email</a></p>` : ""}
+          </div>
+          
+          ${isTrial ? `
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>💡 Trial Info:</strong> This trial will convert to ${planName} plan after 14 days unless cancelled.</p>
+            </div>
+          ` : `
+            <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>💰 Revenue:</strong> This subscription generates ${planPrice} in recurring revenue!</p>
+            </div>
+          `}
+          
+          <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+            <strong>Next Steps:</strong><br>
+            • Check onboarding progress in Firebase Console<br>
+            • Monitor usage metrics<br>
+            ${isTrial ? "• Follow up before trial ends to ensure conversion" : "• Send welcome message and check in after 1 week"}
+          </p>
+        </div>
+      `,
+      },
+    });
+
+    console.log(`✅ Admin notification sent for ${orgName} (${planTier})`);
+  } catch (error) {
+    console.error("Error sending admin notification:", error);
   }
 }
 
