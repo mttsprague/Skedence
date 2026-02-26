@@ -234,7 +234,7 @@ export default function AppointmentsReportPage() {
                 trainerName = `${td.firstName || ''} ${td.lastName || ''}`.trim();
               }
             } catch (err) {
-              console.warn('Could not load trainer:', err);
+              // Silent fail - use basic info
             }
           }
         }
@@ -297,7 +297,7 @@ export default function AppointmentsReportPage() {
               clientEmail = clientData.emailAddress || clientData.email || '';
             }
           } catch (err) {
-            console.warn('Could not load class participant:', err);
+            // Silent fail - use participant data
           }
           
           // Determine status for group class

@@ -154,7 +154,7 @@ export default function PassesPage() {
                 });
               }
             } catch (err) {
-              console.warn('Could not load user data for', userId, err);
+              // Skip users we can't load
             }
           }
         }
@@ -244,17 +244,12 @@ export default function PassesPage() {
     setMessage(null);
 
     try {
-      // Debug: Check if orgMember document exists
+      // Verify orgMember document exists
       if (user?.uid && orgId) {
         const orgMemberDocId = `${user.uid}_${orgId}`;
-        console.log('🔍 Checking orgMember document:', orgMemberDocId);
         try {
           const orgMemberDoc = await getDoc(doc(db, 'orgMembers', orgMemberDocId));
-          if (orgMemberDoc.exists()) {
-            console.log('✅ OrgMember document exists:', orgMemberDoc.data());
-          } else {
-            console.error('❌ OrgMember document does NOT exist:', orgMemberDocId);
-            console.error('This is likely why you have permission-denied errors');
+          if (!orgMemberDoc.exists()) {
             setMessage({
               type: 'error',
               text: 'Your account is not properly linked to this organization. Please contact support.'
@@ -264,7 +259,7 @@ export default function PassesPage() {
             return;
           }
         } catch (err) {
-          console.error('Error checking orgMember document:', err);
+          // Silent fail - continue with operation
         }
       }
       if (action === 'add') {
@@ -286,24 +281,18 @@ export default function PassesPage() {
           orgId: orgId
         };
 
-        console.log('📝 Writing pass data:', passData);
-        console.log('👤 Client userId:', selectedClient.userId);
-        console.log('🏢 Organization ID:', orgId);
-
         // Write to STANDARD path: organizations/{orgId}/users/{userId}/packages
         try {
-          console.log('📂 Writing to STANDARD path: organizations/' + orgId + '/users/' + selectedClient.userId + '/packages');
           const docRef = await addDoc(
             collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages'),
             passData
           );
-          console.log('✅ Pass write successful! Doc ID:', docRef.id);
+          if (!docRef?.id) {
+            throw new Error('Failed to generate document ID');
+          }
         } catch (error) {
-          console.error('❌ Pass write FAILED:', error);
           throw new Error(`Failed to write pass: ${error instanceof Error ? error.message : String(error)}`);
         }
-
-        console.log('🎉 Pass successfully added!');
 
         // Track pass creation (admin-added, so amount is 0)
         trackBusiness.packageCreated(selectedPackage.packageType, 0);
@@ -324,7 +313,6 @@ export default function PassesPage() {
               totalSessions: quantity,
             });
           } catch (activityError) {
-            console.warn('Could not log activity (activities collection is Cloud Function only):', activityError);
             // Don't fail the operation if activity logging fails
           }
         }

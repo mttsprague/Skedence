@@ -261,7 +261,7 @@ export default function LocationsPage() {
           const currentProgress = onboardingDoc.exists() ? onboardingDoc.data() : {};
           await setDoc(onboardingRef, { ...currentProgress, hasSettings: true }, { merge: true });
         } catch (error) {
-          console.error('Error marking onboarding step complete:', error);
+          // Silent fail - onboarding step not critical
         }
         
         setLocations([...locations, {

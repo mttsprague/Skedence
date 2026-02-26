@@ -82,12 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const maxRetries = 5;
           for (let i = 0; i < maxRetries; i++) {
             const delay = 2000 + (i * 1000); // 2s, 3s, 4s, 5s, 6s
-            console.log(`Auth: orgMembers empty, retry ${i + 1}/${maxRetries} in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             orgMembersSnap = await getDocs(orgMembersQuery);
             
             if (!orgMembersSnap.empty) {
-              console.log(`Auth: ✅ Found orgMembers on retry ${i + 1}`);
               break;
             }
           }
@@ -95,10 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (!orgMembersSnap.empty) {
           const memberData = orgMembersSnap.docs[0].data();
-          const role = memberData.role as 'owner' | 'admin' | 'trainer' | 'client';
-          const userOrgId = memberData.orgId;
+          const role = memberData?.role as 'owner' | 'admin' | 'trainer' | 'client';
+          const userOrgId = memberData?.orgId;
           
-          console.log('Auth: User role from orgMembers:', role);
+          // Verify required fields exist
+          if (!role || !userOrgId) {
+            setUserData(null);
+            setOrgId(null);
+            if (!hasCompletedInitialCheck.current) {
+              hasCompletedInitialCheck.current = true;
+              await firebaseSignOut(auth);
+            }
+            return;
+          }
           
           // Allow owner and admin roles to access admin portal
           if (role === 'owner' || role === 'admin') {
@@ -109,10 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
               if (userDoc.exists()) {
                 const userDocData = userDoc.data();
-                userName = `${userDocData.firstName || ''} ${userDocData.lastName || ''}`.trim() || userDocData.name || userName;
+                userName = `${userDocData?.firstName || ''} ${userDocData?.lastName || ''}`.trim() || userDocData?.name || userName;
               }
             } catch (err) {
-              console.warn('Auth: Could not fetch user data:', err);
+              // Silent fail - use email as fallback
             }
             
             setUserData({ 
@@ -127,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hasCompletedInitialCheck.current = true;
             validatedUserId.current = firebaseUser.uid;
           } else {
-            console.error('Auth: User is not an owner or admin. Admin portal access denied.');
+            // User is not owner/admin - deny access
             setUserData(null);
             setOrgId(null);
             
@@ -138,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
         } else {
-          console.error('Auth: User not found in orgMembers after retries. Admin portal access denied.');
+          // User not found in orgMembers - deny access
           setUserData(null);
           setOrgId(null);
           
@@ -149,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch (error) {
-        console.error('Auth: Error fetching trainer data:', error);
+        // Critical error - deny access
         setUserData(null);
         setOrgId(null);
       } finally {

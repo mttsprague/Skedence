@@ -333,7 +333,6 @@ export default function TrainersPage() {
       };
 
       await setDoc(trainerRef, trainerData);
-      console.log('✅ Created trainer:', trainerId);
 
       // Create orgMembers entry
       const memberData = {
@@ -345,7 +344,6 @@ export default function TrainersPage() {
       };
 
       await setDoc(doc(db, 'orgMembers', `${userId}_${orgId}`), memberData);
-      console.log('✅ Created orgMember for trainer:', userId);
 
       // Log activity
       if (user && userData) {

@@ -395,7 +395,7 @@ export default function ActivityPage() {
         
         setActivities(logs);
       } catch (error) {
-        console.error('Error loading activities:', error);
+        // Silent fail - show empty state
       } finally {
         setLoading(false);
       }
@@ -450,7 +450,7 @@ export default function ActivityPage() {
         
         setUpcomingClasses(classes);
       } catch (error) {
-        console.error('Error loading upcoming classes:', error);
+        // Silent fail - show empty state
       }
     }
 
@@ -509,7 +509,7 @@ export default function ActivityPage() {
         
         setTodayBookings(bookings);
       } catch (error) {
-        console.error('Error loading today bookings:', error);
+        // Silent fail - show empty state
       }
     }
 
@@ -556,7 +556,7 @@ export default function ActivityPage() {
         
         setUpcomingClassesSnapshot(classes);
       } catch (error) {
-        console.error('Error loading upcoming classes snapshot:', error);
+        // Silent fail - show empty state
       }
     }
 
@@ -599,7 +599,7 @@ export default function ActivityPage() {
             
             return participant;
           } catch (error) {
-            console.error('Error fetching user details:', error);
+            // Silent fail - use registration data only
             return participant;
           }
         })
@@ -609,7 +609,7 @@ export default function ActivityPage() {
         b.registeredAt.seconds - a.registeredAt.seconds
       ));
     } catch (error) {
-      console.error('Error loading participants:', error);
+      // Silent fail - show empty participants
       setParticipants([]);
     } finally {
       setLoadingParticipants(false);

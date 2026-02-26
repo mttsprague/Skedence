@@ -52,9 +52,8 @@ export default function WaiverPage() {
     try {
       await setDoc(doc(db, 'organizations', orgId), newSettings, { merge: true });
       setLastSaved(new Date());
-      console.log('Waiver settings auto-saved to Firebase');
     } catch (error) {
-      console.error('Error saving waiver settings:', error);
+      // Silent fail - user will retry if needed
     }
   }, [orgId]);
 

@@ -43,8 +43,9 @@ export function useRealTimeCount(
         setIsLive(true);
       },
       (error) => {
-        console.error(`Real-time count error (${collectionPath}):`, error);
+        // Silent fail - set offline state
         setIsLive(false);
+        setCount(0);
       }
     );
 
