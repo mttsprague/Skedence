@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { AlertCircle, Clock, Crown, X } from 'lucide-react';
@@ -25,25 +25,29 @@ export function TrialBanner({ orgId }: TrialBannerProps) {
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [isDismissed, setIsDismissed] = useState(false);
 
+  // Memoize Functions instance to prevent recreation
+  const functions = useMemo(() => getFunctions(), []);
+
   const loadSubscriptionStatus = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      const functions = getFunctions();
       const getStatus = httpsCallable<
         { organizationId: string },
         SubscriptionStatus
       >(functions, 'getWebSubscriptionStatus');
 
       const result = await getStatus({ organizationId: orgId });
-      console.log('🔔 Trial Banner - Subscription Status:', result.data);
       setSubscriptionStatus(result.data);
     } catch (error) {
       console.error('Error loading subscription:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, functions]);
 
   useEffect(() => {
     loadSubscriptionStatus();
@@ -51,40 +55,37 @@ export function TrialBanner({ orgId }: TrialBannerProps) {
 
   // Calculate days remaining in trial
   useEffect(() => {
-    if (!subscriptionStatus) return;
-
-    if (subscriptionStatus.trialEnd && subscriptionStatus.status === 'trialing') {
-      const calculateDays = () => {
-        const now = new Date().getTime();
-        // Handle both formats: { seconds } or { _seconds }
-        const timestampSeconds = subscriptionStatus.trialEnd!.seconds || subscriptionStatus.trialEnd!._seconds || 0;
-        const trialEndDate = new Date(timestampSeconds * 1000).getTime();
-        const days = Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24));
-        setDaysRemaining(Math.max(0, days));
-      };
-
-      calculateDays();
-      const interval = setInterval(calculateDays, 1000 * 60 * 60); // Update every hour
-
-      return () => clearInterval(interval);
+    if (!subscriptionStatus?.trialEnd || subscriptionStatus.status !== 'trialing') {
+      return;
     }
+
+    const calculateDays = () => {
+      const now = new Date().getTime();
+      // Handle both formats: { seconds } or { _seconds }
+      const timestampSeconds = subscriptionStatus.trialEnd!.seconds || subscriptionStatus.trialEnd!._seconds || 0;
+      const trialEndDate = new Date(timestampSeconds * 1000).getTime();
+      const days = Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24));
+      setDaysRemaining(Math.max(0, days));
+    };
+
+    calculateDays();
+    const interval = setInterval(calculateDays, 1000 * 60 * 60); // Update every hour
+
+    return () => clearInterval(interval);
   }, [subscriptionStatus]);
 
+  // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
   // Don't show banner if:
   // - Loading
   // - Dismissed
+  // - No orgId
   // - Has active paid subscription
-  if (isLoading || isDismissed) {
-    console.log('🔔 Trial Banner - Not showing because:', {
-      isLoading,
-      isDismissed,
-    });
+  if (isLoading || isDismissed || !orgId) {
     return null;
   }
 
   // Hide banner if they have an active paid subscription (not trialing)
   if (subscriptionStatus?.hasSubscription && subscriptionStatus?.status === 'active') {
-    console.log('🔔 Trial Banner - Hidden: Active paid subscription');
     return null;
   }
 
