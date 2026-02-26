@@ -200,7 +200,6 @@ export function TrialBanner({ orgId }: TrialBannerProps) {
     );
   }
 
-  // No banner needed
-  console.log('🔔 Trial Banner - Not showing (unexpected state):', subscriptionStatus);
+  // No banner needed - all other states handled above
   return null;
 }
