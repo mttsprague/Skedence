@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Clock, ArrowRight, Tag, Menu, X } from 'lucide-react';
+import { Search, Clock, ArrowRight, Tag, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BlogPost, BlogCategory, BLOG_CATEGORIES } from '@/types/blog';
 import { getPublishedPosts, getPostsByCategory } from '@/lib/blog-service';
 import { format } from 'date-fns';
 import { trackPageView, trackEvent } from '@/lib/analytics';
+
+const POSTS_PER_PAGE = 6;
 
 export default function BlogPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -16,6 +18,7 @@ export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState<BlogCategory | 'all'>('all');
   const [selectedSport, setSelectedSport] = useState<string>('all');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadPosts();
@@ -46,6 +49,11 @@ export default function BlogPage() {
   useEffect(() => {
     filterPosts();
   }, [posts, searchQuery, selectedCategory, selectedSport]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedSport]);
 
   async function loadPosts() {
     setLoading(true);
@@ -123,6 +131,18 @@ export default function BlogPage() {
   const availableSports = Array.from(new Set(posts.map(post => post.sport || 'all')))
     .filter(sport => sport !== 'all')
     .sort();
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
+  const startIndex = (currentPage - 1) * POSTS_PER_PAGE;
+  const endIndex = startIndex + POSTS_PER_PAGE;
+  const currentPosts = filteredPosts.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of posts grid
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -312,52 +332,122 @@ export default function BlogPage() {
               </p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredPosts.map((post) => (
-                <Link 
-                  key={post.id} 
-                  href={`/blog/detail?slug=${post.slug}`}
-                  className="group premium-card p-6 hover:border-primary/50 transition-all duration-300 flex flex-col"
-                >
-                  {/* Category & Sport Badges */}
-                  <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    {post.categories && post.categories.filter(cat => BLOG_CATEGORIES[cat]).map(cat => (
-                      <span key={cat} className="text-xs font-bold text-primary uppercase tracking-wider">
-                        {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
-                      </span>
-                    ))}
-                    {post.sport && post.sport !== 'all' && (
-                      <span className="text-xs font-medium bg-muted text-foreground/70 px-2 py-1 rounded uppercase tracking-wider">
-                        {post.sport === 'volleyball' && '🏐'}
-                        {post.sport === 'basketball' && '🏀'}
-                        {post.sport === 'soccer' && '⚽'}
-                        {post.sport === 'baseball' && '⚾'}
-                        {' '}{post.sport}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors line-clamp-2">
-                    {post.title}
-                  </h3>
-
-                  {/* Excerpt */}
-                  <p className="text-foreground/60 mb-4 line-clamp-3 flex-1">
-                    {post.excerpt}
-                  </p>
-
-                  {/* Meta */}
-                  <div className="flex items-center justify-between text-sm text-foreground/40 pt-4 border-t border-border/50">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      <span>{format(post.publishedAt || post.createdAt, 'MMM d, yyyy')}</span>
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {currentPosts.map((post) => (
+                  <Link 
+                    key={post.id} 
+                    href={`/blog/detail?slug=${post.slug}`}
+                    className="group premium-card p-6 hover:border-primary/50 transition-all duration-300 flex flex-col"
+                  >
+                    {/* Category & Sport Badges */}
+                    <div className="flex items-center gap-2 mb-4 flex-wrap">
+                      {post.categories && post.categories.filter(cat => BLOG_CATEGORIES[cat]).map(cat => (
+                        <span key={cat} className="text-xs font-bold text-primary uppercase tracking-wider">
+                          {BLOG_CATEGORIES[cat].icon} {BLOG_CATEGORIES[cat].title}
+                        </span>
+                      ))}
+                      {post.sport && post.sport !== 'all' && (
+                        <span className="text-xs font-medium bg-muted text-foreground/70 px-2 py-1 rounded uppercase tracking-wider">
+                          {post.sport === 'volleyball' && '🏐'}
+                          {post.sport === 'basketball' && '🏀'}
+                          {post.sport === 'soccer' && '⚽'}
+                          {post.sport === 'baseball' && '⚾'}
+                          {' '}{post.sport}
+                        </span>
+                      )}
                     </div>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+
+                    {/* Title */}
+                    <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors line-clamp-2">
+                      {post.title}
+                    </h3>
+
+                    {/* Excerpt */}
+                    <p className="text-foreground/60 mb-4 line-clamp-3 flex-1">
+                      {post.excerpt}
+                    </p>
+
+                    {/* Meta */}
+                    <div className="flex items-center justify-between text-sm text-foreground/40 pt-4 border-t border-border/50">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        <span>{format(post.publishedAt || post.createdAt, 'MMM d, yyyy')}</span>
+                      </div>
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-16">
+                  {/* Previous Button */}
+                  <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+                      currentPage === 1
+                        ? 'bg-muted text-foreground/40 cursor-not-allowed'
+                        : 'bg-primary text-black hover:shadow-lg hover:shadow-primary/30'
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Previous</span>
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      // Show first page, last page, current page, and pages around current
+                      const showPage = 
+                        page === 1 || 
+                        page === totalPages || 
+                        (page >= currentPage - 1 && page <= currentPage + 1);
+                      
+                      // Show ellipsis
+                      const showEllipsisBefore = page === currentPage - 2 && currentPage > 3;
+                      const showEllipsisAfter = page === currentPage + 2 && currentPage < totalPages - 2;
+
+                      if (showEllipsisBefore || showEllipsisAfter) {
+                        return <span key={page} className="text-foreground/40 px-2">...</span>;
+                      }
+
+                      if (!showPage) return null;
+
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => goToPage(page)}
+                          className={`min-w-[40px] h-10 rounded-lg font-semibold transition-all ${
+                            currentPage === page
+                              ? 'bg-primary text-black shadow-md shadow-primary/30'
+                              : 'bg-muted text-foreground/70 hover:bg-primary/20 hover:text-primary'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
                   </div>
-                </Link>
-              ))}
-            </div>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+                      currentPage === totalPages
+                        ? 'bg-muted text-foreground/40 cursor-not-allowed'
+                        : 'bg-primary text-black hover:shadow-lg hover:shadow-primary/30'
+                    }`}
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
