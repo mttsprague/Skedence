@@ -1,0 +1,61 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, rebrand-coachflow]
+  pull_request:
+    branches: [main, rebrand-coachflow]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './skedence-unified/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./skedence-unified
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: ./skedence-unified
+        run: npm run lint
+
+      - name: Type check
+        working-directory: ./skedence-unified
+        run: npm run type-check
+
+      - name: Build application
+        working-directory: ./skedence-unified
+        run: npm run build
+        env:
+          # Prevent build from failing on warnings
+          CI: false
+
+      - name: Check for build output
+        working-directory: ./skedence-unified
+        run: |
+          if [ ! -d "out" ]; then
+            echo "Build failed: 'out' directory not created"
+            exit 1
+          fi
+          echo "✅ Build successful - 'out' directory exists"
+
+  # Optional: Add test job here when you add tests
+  # test:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #     - run: npm ci
+  #     - run: npm test

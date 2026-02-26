@@ -247,18 +247,13 @@ export function OnboardingChecklist() {
     return null;
   }
 
-  // Show celebration when complete (unless dismissed)
-  if (isComplete && !progress.celebrationDismissed) {
-    return <OnboardingCelebration />;
+  // Hide checklist if complete (celebration is handled by parent component)
+  if (isComplete) {
+    return null;
   }
 
   // Hide checklist if dismissed and not complete
   if (!isVisible && !isComplete) {
-    return null;
-  }
-
-  // If complete and celebration was dismissed, hide everything
-  if (isComplete && progress.celebrationDismissed) {
     return null;
   }
 

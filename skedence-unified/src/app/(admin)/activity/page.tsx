@@ -40,6 +40,7 @@ import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays, st
 import { ActivityType } from '@/lib/activity-logger';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { OnboardingChecklist } from '@/components/admin/onboarding-checklist';
+import { OnboardingCelebration } from '@/components/admin/onboarding-celebration';
 import { TrialBanner } from '@/components/admin/trial-banner';
 import { useRealTimeCount } from '@/hooks/useRealTimeIndicators';
 import { RealTimeStatsCard } from '@/components/ui/real-time-indicators';
@@ -997,6 +998,11 @@ export default function ActivityPage() {
       {/* Onboarding Checklist - Shows for new users */}
       <ErrorBoundarySection sectionName="Onboarding Checklist">
         <OnboardingChecklist />
+      </ErrorBoundarySection>
+
+      {/* Onboarding Celebration - Shows when setup is complete */}
+      <ErrorBoundarySection sectionName="Onboarding Celebration">
+        <OnboardingCelebration />
       </ErrorBoundarySection>
 
       {/* Real-Time Stats Dashboard */}
