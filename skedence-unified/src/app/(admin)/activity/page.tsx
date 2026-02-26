@@ -381,16 +381,55 @@ export default function ActivityPage() {
             const data = activityDoc.data();
             let actorName = data.actorName;
             
-            // Try to get full name from users collection
+            // Try to get full name from multiple sources
             if (data.actorId) {
               try {
-                const userDoc = await getDoc(doc(db, 'users', data.actorId));
+                // First try users collection
+                let userDoc = await getDoc(doc(db, 'users', data.actorId));
                 if (userDoc.exists()) {
                   const userData = userDoc.data();
-                  const firstName = userData.firstName || '';
-                  const lastName = userData.lastName || '';
+                  const firstName = userData?.firstName || '';
+                  const lastName = userData?.lastName || '';
                   if (firstName || lastName) {
                     actorName = `${firstName} ${lastName}`.trim();
+                  }
+                } else {
+                  // Try trainers collection
+                  const trainerDoc = await getDoc(doc(db, 'trainers', data.actorId));
+                  if (trainerDoc.exists()) {
+                    const trainerData = trainerDoc.data();
+                    const firstName = trainerData?.firstName || '';
+                    const lastName = trainerData?.lastName || '';
+                    if (firstName || lastName) {
+                      actorName = `${firstName} ${lastName}`.trim();
+                    }
+                  } else if (orgId) {
+                    // Try orgMembers to find the user
+                    const orgMembersSnap = await getDocs(
+                      query(
+                        collection(db, 'orgMembers'),
+                        where('authUserId', '==', data.actorId),
+                        where('orgId', '==', orgId)
+                      )
+                    );
+                    
+                    if (!orgMembersSnap.empty) {
+                      const memberData = orgMembersSnap.docs[0].data();
+                      const userId = memberData?.userId;
+                      
+                      if (userId) {
+                        // Try to get user data with the userId from orgMembers
+                        const userDoc2 = await getDoc(doc(db, 'users', userId));
+                        if (userDoc2.exists()) {
+                          const userData = userDoc2.data();
+                          const firstName = userData?.firstName || '';
+                          const lastName = userData?.lastName || '';
+                          if (firstName || lastName) {
+                            actorName = `${firstName} ${lastName}`.trim();
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               } catch (err) {
