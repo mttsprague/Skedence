@@ -319,17 +319,6 @@ export default function BlogPage() {
                   href={`/blog/detail?slug=${post.slug}`}
                   className="group premium-card p-6 hover:border-primary/50 transition-all duration-300 flex flex-col"
                 >
-                  {/* Featured Image */}
-                  {post.featuredImage && (
-                    <div className="relative w-full h-48 mb-6 rounded-lg overflow-hidden bg-muted">
-                      <img 
-                        src={post.featuredImage} 
-                        alt={post.featuredImageAlt || post.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                  )}
-
                   {/* Category & Sport Badges */}
                   <div className="flex items-center gap-2 mb-4 flex-wrap">
                     {post.categories && post.categories.filter(cat => BLOG_CATEGORIES[cat]).map(cat => (
