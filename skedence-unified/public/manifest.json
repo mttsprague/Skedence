@@ -21,8 +21,8 @@
       "type": "image/png"
     },
     {
-      "src": "/logo-nav.png",
-      "sizes": " 512x512",
+      "src": "/og-image.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }

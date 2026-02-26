@@ -37,7 +37,7 @@ export default function BlogPage() {
     updateMetaTag('og:description', 'Expert tips and resources for coaching businesses. Learn how to grow your training business, manage clients, and optimize your scheduling.');
     updateMetaTag('og:url', 'https://skedence.com/blog');
     updateMetaTag('og:type', 'website');
-    updateMetaTag('og:image', 'https://skedence.com/logo-nav.png');
+    updateMetaTag('og:image', 'https://skedence.com/og-image.png');
     
     // Track blog listing page view
     trackPageView('/blog', 'Skedence Blog - Coaching Business Tips');

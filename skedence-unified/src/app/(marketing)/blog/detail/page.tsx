@@ -54,14 +54,14 @@ function BlogPostContent() {
         updateMetaTag('og:description', data.excerpt);
         updateMetaTag('og:url', `https://skedence.com/blog/detail?slug=${data.slug}`);
         updateMetaTag('og:type', 'article');
-        updateMetaTag('og:image', data.featuredImage || 'https://skedence.com/logo-nav.png');
+        updateMetaTag('og:image', data.featuredImage || 'https://skedence.com/og-image.png');
         updateMetaTag('og:site_name', 'Skedence');
         
         // Update Twitter Card tags
         updateMetaTag('twitter:card', 'summary_large_image');
         updateMetaTag('twitter:title', data.title);
         updateMetaTag('twitter:description', data.excerpt);
-        updateMetaTag('twitter:image', data.featuredImage || 'https://skedence.com/logo-nav.png');
+        updateMetaTag('twitter:image', data.featuredImage || 'https://skedence.com/og-image.png');
         
         // Track blog post view
         trackPageView(`/blog/${data.slug}`, data.title);

@@ -41,9 +41,9 @@ export const metadata: Metadata = {
     siteName: 'Skedence',
     images: [
       {
-        url: 'https://skedence.com/logo-nav.png',
-        width: 1200,
-        height: 630,
+        url: 'https://skedence.com/og-image.png',
+        width: 1024,
+        height: 1024,
         alt: 'Skedence - Coaching Business Management',
       },
     ],
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Skedence - Coaching Business Management Software',
     description: 'Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, and get paid online.',
-    images: ['https://skedence.com/logo-nav.png'],
+    images: ['https://skedence.com/og-image.png'],
   },
 };
 
