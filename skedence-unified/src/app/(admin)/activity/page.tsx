@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { collection, query, where, getDocs, limit, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, limit, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trackPageView } from '@/lib/analytics';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -375,23 +375,45 @@ export default function ActivityPage() {
         
         const activitiesSnap = await getDocs(activitiesQuery);
         
-        const logs: ActivityLog[] = activitiesSnap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            type: data.type as ActivityType,
-            actorId: data.actorId,
-            actorName: data.actorName,
-            actorRole: data.actorRole,
-            targetId: data.targetId,
-            targetName: data.targetName,
-            targetType: data.targetType,
-            description: data.description,
-            timestamp: data.timestamp?.toDate() || data.createdAt?.toDate() || new Date(),
-            metadata: data.metadata,
-            orgId: data.orgId,
-          };
-        });
+        // Enrich activities with actual user names
+        const logs: ActivityLog[] = await Promise.all(
+          activitiesSnap.docs.map(async (activityDoc) => {
+            const data = activityDoc.data();
+            let actorName = data.actorName;
+            
+            // Try to get full name from users collection
+            if (data.actorId) {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', data.actorId));
+                if (userDoc.exists()) {
+                  const userData = userDoc.data();
+                  const firstName = userData.firstName || '';
+                  const lastName = userData.lastName || '';
+                  if (firstName || lastName) {
+                    actorName = `${firstName} ${lastName}`.trim();
+                  }
+                }
+              } catch (err) {
+                // Silent fail - use stored actorName
+              }
+            }
+            
+            return {
+              id: activityDoc.id,
+              type: data.type as ActivityType,
+              actorId: data.actorId,
+              actorName: actorName,
+              actorRole: data.actorRole,
+              targetId: data.targetId,
+              targetName: data.targetName,
+              targetType: data.targetType,
+              description: data.description,
+              timestamp: data.timestamp?.toDate() || data.createdAt?.toDate() || new Date(),
+              metadata: data.metadata,
+              orgId: data.orgId,
+            };
+          })
+        );
         
         setActivities(logs);
       } catch (error) {
