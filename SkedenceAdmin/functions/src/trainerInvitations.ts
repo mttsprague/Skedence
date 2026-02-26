@@ -187,7 +187,7 @@ This secure link expires in 7 days.
 
 Step 2: Download SkedenceAdmin
 After setting your password, download the app:
-iOS: https://apps.apple.com/app/skedence-admin
+iOS: https://apps.apple.com/us/app/skedenceadmin/id6757625868
 
 Step 3: Login
 Open the app and sign in with:
@@ -453,7 +453,7 @@ function generateInvitationHTML(
           <div class="step-number">2</div>
           <div class="step-content">
             <strong>Download SkedenceAdmin</strong>
-            <p><a href="https://apps.apple.com/app/skedence-admin" class="button" style="display: inline-block; margin-top: 8px;">📱 iOS App Store</a></p>
+            <p><a href="https://apps.apple.com/us/app/skedenceadmin/id6757625868" class="button" style="display: inline-block; margin-top: 8px;">📱 iOS App Store</a></p>
           </div>
         </div>
         
