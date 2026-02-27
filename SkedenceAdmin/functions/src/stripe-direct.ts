@@ -588,6 +588,7 @@ export const createAndConfirmPaymentDirect = onCall(
             packageCategory: packageCategory,
             totalLessons: totalLessons,
             lessonsUsed: 0,
+            amountPaid: amount, // Store amount in cents for revenue tracking
             orgId: orgId,
             purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
             expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
@@ -835,6 +836,7 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
           packageCategory: packageCategory,
           totalLessons: totalLessons,
           lessonsUsed: 0,
+          amountPaid: paymentIntent.amount, // Store amount in cents for revenue tracking
           orgId: orgId,
           purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
           expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),

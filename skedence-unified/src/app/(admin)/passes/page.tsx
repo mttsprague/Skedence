@@ -278,6 +278,7 @@ export default function PassesPage() {
           purchaseDate: Timestamp.fromDate(now),
           expirationDate: Timestamp.fromDate(expirationDate),
           transactionId: `ADMIN_ADDED_${Date.now()}`,
+          amountPaid: 0, // Admin-added passes are free (stored in cents)
           orgId: orgId
         };
 

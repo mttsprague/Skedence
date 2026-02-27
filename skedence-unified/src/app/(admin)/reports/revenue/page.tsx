@@ -195,7 +195,8 @@ export default function RevenueReportPage() {
           }
           
           // Get amount paid (in cents, convert to dollars)
-          const amountPaidCents = data.amountPaid || 0;
+          // Handle missing field (legacy data) vs 0 (admin-added)
+          const amountPaidCents = typeof data.amountPaid === 'number' ? data.amountPaid : 0;
           const amountPaid = amountPaidCents / 100;
           
           // Determine source
@@ -203,6 +204,11 @@ export default function RevenueReportPage() {
           const source: 'paid' | 'admin_added' = transactionId.startsWith('ADMIN_ADDED') 
             ? 'admin_added' 
             : 'paid';
+          
+          // Log warning for paid packages with no revenue
+          if (source === 'paid' && amountPaidCents === 0) {
+            console.warn('Paid package with $0 amount:', packageDoc.id, data.packageName);
+          }
           
           loadedPackages.push({
             id: packageDoc.id,

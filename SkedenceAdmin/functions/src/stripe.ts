@@ -201,6 +201,7 @@ export const confirmPaymentAndCreatePackage = onCall(
         packageType,
         totalLessons,
         lessonsUsed: 0,
+        amountPaid: paymentIntent.amount, // Store amount in cents for revenue tracking
         purchaseDate: now,
         expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
         transactionId: paymentIntentId,
