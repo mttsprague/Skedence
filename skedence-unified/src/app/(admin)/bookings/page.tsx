@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Calendar, Clock, User, MapPin, DollarSign, Plus } from 'lucide-react';
@@ -133,27 +133,42 @@ export default function BookingsPage() {
     }
 
     async function loadPackages() {
+      if (!orgId || !selectedClient) {
+        setPackages([]);
+        return;
+      }
+      
+      // Type narrowing: TypeScript needs explicit assertion that orgId is string
+      const validOrgId: string = orgId;
+      const validClientId: string = selectedClient;
+      
       try {
-        // Query users/{userId}/lessonPackages directly
-        
-        // Get all packages (we'll filter in code since remainingLessons might be undefined)
-        const allPackagesSnapshot = await getDocs(
-          collection(db, 'users', selectedClient, 'lessonPackages')
+        // Query STANDARD path: organizations/{orgId}/users/{userId}/packages
+        // This matches the iOS client app implementation
+        const packagesQuery = query(
+          collection(db, 'organizations', validOrgId, 'users', validClientId, 'packages'),
+          orderBy('purchaseDate', 'desc')
         );
         
-        const packagesData = allPackagesSnapshot.docs
+        const packagesSnapshot = await getDocs(packagesQuery);
+        
+        const packagesData = packagesSnapshot.docs
           .map(doc => {
             const data = doc.data();
-            
-            // If remainingLessons is undefined, assume it equals totalLessons (unused package)
-            const remaining = data.remainingLessons !== undefined ? data.remainingLessons : data.totalLessons || 0;
+            const totalLessons = data.totalLessons || 0;
+            const lessonsUsed = data.lessonsUsed || 0;
+            const remaining = totalLessons - lessonsUsed;
             
             return {
               id: doc.id,
-              userId: selectedClient,
-              packageName: data.packageName || data.name || data.packageType || 'Unknown Package',
+              userId: validClientId,
+              packageName: data.packageName || data.packageType || 'Unknown Package',
+              packageType: data.packageType || 'unknown',
               remainingLessons: remaining,
-              totalLessons: data.totalLessons || 0,
+              totalLessons: totalLessons,
+              lessonsUsed: lessonsUsed,
+              purchaseDate: data.purchaseDate,
+              expirationDate: data.expirationDate,
             };
           })
           .filter(pkg => pkg.remainingLessons > 0); // Only show packages with lessons remaining
@@ -163,6 +178,7 @@ export default function BookingsPage() {
           setSelectedPackage(packagesData[0].id);
         }
       } catch (error) {
+        console.error('Error loading packages:', error);
         setPackages([]);
       }
     }
