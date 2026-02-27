@@ -359,8 +359,8 @@ export default function StripeSettingsPage() {
                   Stripe Support Center
                 </a>
                 {' '}or contact us at{' '}
-                <a href="mailto:support@skedence.com" className="text-primary hover:underline">
-                  support@skedence.com
+                <a href="mailto:Matt.Sprague@skedence.com" className="text-primary hover:underline">
+                  Matt.Sprague@skedence.com
                 </a>
               </p>
             </div>

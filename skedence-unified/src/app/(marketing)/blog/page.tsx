@@ -500,7 +500,7 @@ export default function BlogPage() {
             
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Connect</h4>
-              <p className="text-sm text-orange-500">support@skedence.com</p>
+              <p className="text-sm text-orange-500">Matt.Sprague@skedence.com</p>
             </div>
           </div>
           

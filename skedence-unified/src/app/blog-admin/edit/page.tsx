@@ -17,7 +17,7 @@ import { auth } from '@/lib/firebase';
 // Allowed Skedence team emails
 const ALLOWED_EMAILS = [
   'mttsprague@gmail.com',
-  'support@skedence.com',
+  'Matt.Sprague@skedence.com',
   // Add more team member emails here
 ];
 

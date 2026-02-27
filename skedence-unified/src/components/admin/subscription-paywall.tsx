@@ -115,7 +115,7 @@ export function SubscriptionPaywall({
 
             {/* Additional Help */}
             <p className="text-sm text-muted-foreground">
-              Questions? <a href="mailto:support@skedence.com" className="text-primary hover:underline">Contact Support</a>
+              Questions? <a href="mailto:Matt.Sprague@skedence.com" className="text-primary hover:underline">Contact Support</a>
             </p>
           </div>
         </CardContent>

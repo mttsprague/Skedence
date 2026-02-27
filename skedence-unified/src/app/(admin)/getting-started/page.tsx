@@ -961,7 +961,7 @@ const guideSections: GuideSection[] = [
         title: 'Getting Help',
         content: 'We\'re here to help you succeed!',
         steps: [
-          'Email support: support@skedence.com',
+          'Email support: Matt.Sprague@skedence.com',
           'Response time: Within 24 hours (usually faster)',
           'Include in your message:',
           '  • Your organization name',
@@ -1329,7 +1329,7 @@ export default function GettingStartedPage() {
                   We're here to help! Our support team typically responds within 24 hours.
                 </p>
                 <a
-                  href="mailto:support@skedence.com"
+                  href="mailto:Matt.Sprague@skedence.com"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
                 >
                   <Mail className="h-4 w-4" />

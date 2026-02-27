@@ -327,11 +327,11 @@ export function OnboardingChecklist() {
         <div className="pt-3 border-t">
           <p className="text-xs text-center text-muted-foreground">
             Need help? Check out our{' '}
-            <a href="mailto:support@skedence.com" className="text-primary hover:underline">
+            <a href="mailto:Matt.Sprague@skedence.com" className="text-primary hover:underline">
               support documentation
             </a>
             {' '}or{' '}
-            <a href="mailto:support@skedence.com" className="text-primary hover:underline">
+            <a href="mailto:Matt.Sprague@skedence.com" className="text-primary hover:underline">
               contact us
             </a>
           </p>

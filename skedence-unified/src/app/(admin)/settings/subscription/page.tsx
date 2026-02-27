@@ -448,7 +448,7 @@ function SubscriptionContent() {
         <CardContent className="pt-6">
           <div className="text-center space-y-2 text-sm text-muted-foreground">
             <p>All plans include a 14-day free trial. Cancel anytime.</p>
-            <p>Need help choosing? <a href="mailto:support@skedence.com" className="text-blue-600 hover:underline">Contact us</a></p>
+            <p>Need help choosing? <a href="mailto:Matt.Sprague@skedence.com" className="text-blue-600 hover:underline">Contact us</a></p>
             <p className="text-xs">Prices shown are in USD. By subscribing, you agree to our Terms of Service.</p>
           </div>
         </CardContent>

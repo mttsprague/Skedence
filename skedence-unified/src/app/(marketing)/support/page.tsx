@@ -56,7 +56,7 @@ export default function SupportPage() {
             Can&apos;t find what you&apos;re looking for? Send us a message and we&apos;ll get back to you within 24 hours.
           </p>
           <a 
-            href="mailto:support@skedence.com" 
+            href="mailto:Matt.Sprague@skedence.com" 
             className="btn-premium inline-block"
           >
             Email Support
