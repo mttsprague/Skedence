@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, rebrand-coachflow]
+    branches: [main]  # Only run on main branch, not rebrand-coachflow
   pull_request:
     branches: [main, rebrand-coachflow]
 
