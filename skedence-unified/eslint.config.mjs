@@ -10,8 +10,12 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
+    "out 2/**",
     "build/**",
     "next-env.d.ts",
+    // Ignore all root-level utility/migration scripts
+    "*.js",
+    "Scripts/**",
   ]),
   // Enforce React Hooks rules as ERRORS (not warnings)
   {
