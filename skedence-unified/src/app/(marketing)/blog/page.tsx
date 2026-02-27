@@ -337,7 +337,7 @@ export default function BlogPage() {
                 {currentPosts.map((post) => (
                   <a
                     key={post.id} 
-                    href={`/blog/detail?slug=${post.slug}`}
+                    href={`/blog/detail#${post.slug}`}
                     className="group premium-card p-6 hover:border-primary/50 transition-all duration-300 flex flex-col cursor-pointer"
                   >
                     {/* Category & Sport Badges */}

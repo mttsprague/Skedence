@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Clock, ArrowLeft, ArrowRight, Eye, Tag, Menu, X } from 'lucide-react';
 import { BlogPost, BLOG_CATEGORIES } from '@/types/blog';
@@ -10,9 +9,6 @@ import { format } from 'date-fns';
 import { trackPageView, trackEvent } from '@/lib/analytics';
 
 function BlogPostContent() {
-  const searchParams = useSearchParams();
-  const slug = searchParams.get('slug');
-  
   const [post, setPost] = useState<BlogPost | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,13 +16,17 @@ function BlogPostContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    // Get slug from URL hash (after #)
+    const hash = window.location.hash;
+    const slug = hash ? hash.substring(1) : null; // Remove # prefix
+    
     if (slug) {
       loadPost(slug);
     } else {
       setNotFound(true);
       setLoading(false);
     }
-  }, [slug]);
+  }, []);
 
   async function loadPost(slug: string) {
     setLoading(true);
@@ -424,13 +424,5 @@ function BlogPostContent() {
 }
 
 export default function BlogPostPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    }>
-      <BlogPostContent />
-    </Suspense>
-  );
+  return <BlogPostContent />;
 }
