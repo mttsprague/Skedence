@@ -603,13 +603,49 @@ export default function RevenueReportPage() {
             <ComposedChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
+              <YAxis 
+                yAxisId="left" 
+                tickFormatter={(value) => `$${value}`}
+                label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft' }}
+              />
+              <YAxis 
+                yAxisId="right" 
+                orientation="right"
+                label={{ value: 'Passes', angle: 90, position: 'insideRight' }}
+              />
+              <Tooltip 
+                formatter={(value: any, name?: string) => {
+                  if (name && name.includes('Revenue')) {
+                    return [`$${Number(value).toFixed(2)}`, name];
+                  }
+                  return [value, name || ''];
+                }}
+              />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="paidRevenue" stroke="#10b981" name="Paid Revenue ($)" />
-              <Line yAxisId="left" type="monotone" dataKey="adminRevenue" stroke="#f59e0b" name="Admin Revenue ($)" />
-              <Line yAxisId="right" type="monotone" dataKey="totalPassCount" stroke="#3b82f6" name="Total Passes" />
+              <Line 
+                yAxisId="left" 
+                type="monotone" 
+                dataKey="paidRevenue" 
+                stroke="#10b981" 
+                strokeWidth={2}
+                name="Paid Revenue ($)" 
+              />
+              <Line 
+                yAxisId="left" 
+                type="monotone" 
+                dataKey="adminRevenue" 
+                stroke="#f59e0b" 
+                strokeWidth={2}
+                name="Admin Revenue ($)" 
+              />
+              <Line 
+                yAxisId="right" 
+                type="monotone" 
+                dataKey="totalPassCount" 
+                stroke="#3b82f6" 
+                strokeWidth={2}
+                name="Total Passes" 
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
