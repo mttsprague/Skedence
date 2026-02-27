@@ -269,6 +269,7 @@ export default function RevenueReportPage() {
       };
     });
     
+
     setChartData(data);
   }
 
@@ -604,13 +605,15 @@ export default function RevenueReportPage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis 
-                yAxisId="left" 
+                yAxisId="left"
+                domain={[0, (dataMax: number) => Math.max(5, Math.ceil(dataMax * 1.2))]}
                 tickFormatter={(value) => `$${value}`}
                 label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft' }}
               />
               <YAxis 
-                yAxisId="right" 
+                yAxisId="right"
                 orientation="right"
+                domain={[0, (dataMax: number) => Math.max(5, Math.ceil(dataMax * 1.2))]}
                 label={{ value: 'Passes', angle: 90, position: 'insideRight' }}
               />
               <Tooltip 
@@ -623,28 +626,34 @@ export default function RevenueReportPage() {
               />
               <Legend />
               <Line 
-                yAxisId="left" 
-                type="monotone" 
-                dataKey="paidRevenue" 
-                stroke="#10b981" 
-                strokeWidth={2}
-                name="Paid Revenue ($)" 
-              />
-              <Line 
-                yAxisId="left" 
-                type="monotone" 
-                dataKey="adminRevenue" 
-                stroke="#f59e0b" 
-                strokeWidth={2}
-                name="Admin Revenue ($)" 
-              />
-              <Line 
-                yAxisId="right" 
+                yAxisId="right"
                 type="monotone" 
                 dataKey="totalPassCount" 
                 stroke="#3b82f6" 
                 strokeWidth={2}
+                dot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }}
+                isAnimationActive={false}
                 name="Total Passes" 
+              />
+              <Line 
+                yAxisId="left"
+                type="monotone" 
+                dataKey="adminRevenue" 
+                stroke="#f59e0b" 
+                strokeWidth={2}
+                dot={{ r: 3, fill: '#f59e0b', strokeWidth: 0 }}
+                isAnimationActive={false}
+                name="Admin Revenue ($)" 
+              />
+              <Line 
+                yAxisId="left"
+                type="monotone" 
+                dataKey="paidRevenue" 
+                stroke="#10b981" 
+                strokeWidth={2}
+                dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
+                isAnimationActive={false}
+                name="Paid Revenue ($)" 
               />
             </ComposedChart>
           </ResponsiveContainer>

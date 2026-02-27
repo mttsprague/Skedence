@@ -335,10 +335,10 @@ export default function BlogPage() {
             <>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {currentPosts.map((post) => (
-                  <Link 
+                  <a
                     key={post.id} 
                     href={`/blog/detail?slug=${post.slug}`}
-                    className="group premium-card p-6 hover:border-primary/50 transition-all duration-300 flex flex-col"
+                    className="group premium-card p-6 hover:border-primary/50 transition-all duration-300 flex flex-col cursor-pointer"
                   >
                     {/* Category & Sport Badges */}
                     <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -376,7 +376,7 @@ export default function BlogPage() {
                       </div>
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </div>
-                  </Link>
+                  </a>
                 ))}
               </div>
 
