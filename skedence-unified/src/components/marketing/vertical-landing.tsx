@@ -90,7 +90,7 @@ export default function VerticalLanding({
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-4 py-3 text-sm font-semibold bg-primary text-black rounded-md hover:bg-primary/90 transition-colors text-center"
               >
-                Start Free Trial
+                Start 14-Day Free Trial
               </Link>
             </div>
           </div>

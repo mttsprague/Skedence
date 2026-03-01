@@ -108,7 +108,7 @@ export function TrialBanner({ orgId }: TrialBannerProps) {
                 size="sm" 
                 className="mt-3 bg-purple-600 hover:bg-purple-700"
               >
-                Start Free Trial →
+                Start 14-Day Free Trial →
               </Button>
             </Link>
           </div>

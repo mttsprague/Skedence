@@ -61,7 +61,7 @@ export interface BlogPost {
   internalNotes?: string;             // Admin-only notes
   
   // CTA
-  ctaText?: string;                   // Call to action text (default: "Start Free Trial")
+  ctaText?: string;                   // Call to action text (default: "Start 14-Day Free Trial")
   ctaLink?: string;                   // Call to action link (default: "/login")
   
   // Sport-specific (for filtering sport landing pages)

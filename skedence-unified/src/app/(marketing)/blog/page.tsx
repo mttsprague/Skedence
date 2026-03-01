@@ -164,7 +164,7 @@ export default function BlogPage() {
               <Link href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</Link>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
               <Link href="/register" className="btn-premium text-sm">
-                Start Free Trial →
+                Start 14-Day Free Trial →
               </Link>
             </div>
 
@@ -226,7 +226,7 @@ export default function BlogPage() {
               onClick={() => setMobileMenuOpen(false)}
               className="block btn-premium text-center mt-4"
             >
-              Start Free Trial →
+              Start 14-Day Free Trial →
             </Link>
           </div>
         </div>
@@ -462,7 +462,7 @@ export default function BlogPage() {
             Join hundreds of coaches using Skedence to save time and scale
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
-            <Link href="/register" className="btn-premium">Start Free Trial</Link>
+            <Link href="/register" className="btn-premium">Start 14-Day Free Trial</Link>
             <Link href="/support" className="btn-secondary">Contact Sales</Link>
           </div>
         </div>

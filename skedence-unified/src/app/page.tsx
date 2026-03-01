@@ -41,7 +41,7 @@ export default function HomePage() {
               <a href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</a>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
               <Link href="/register" className="btn-premium text-sm">
-                Start Free Trial →
+                Start 14-Day Free Trial →
               </Link>
             </div>
 
@@ -103,7 +103,7 @@ export default function HomePage() {
               onClick={() => setMobileMenuOpen(false)}
               className="block btn-premium text-center mt-4"
             >
-              Start Free Trial →
+              Start 14-Day Free Trial →
             </Link>
           </div>
         </div>
@@ -131,7 +131,7 @@ export default function HomePage() {
             
             <div className="flex flex-col sm:flex-row items-start gap-5 pt-4">
               <Link href="/register" className="btn-premium inline-flex items-center gap-3 text-base">
-                Start Free Trial
+                Start 14-Day Free Trial
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <a href="#features" className="btn-secondary inline-flex items-center gap-3 text-base">
@@ -555,7 +555,7 @@ export default function HomePage() {
           <h2 className="text-5xl md:text-7xl font-black tracking-tight text-foreground uppercase leading-tight">Ready to Transform<br />Your Business?</h2>
           <p className="text-xl md:text-2xl text-foreground/60 font-light">Join hundreds of coaches using Skedence to save time and grow</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
-            <Link href="/register" className="btn-premium">Start Free Trial</Link>
+            <Link href="/register" className="btn-premium">Start 14-Day Free Trial</Link>
             <Link href="/support" className="btn-secondary">Contact Sales</Link>
           </div>
           <p className="text-sm text-foreground/40 uppercase tracking-wider font-medium">14-day free trial • Cancel anytime</p>

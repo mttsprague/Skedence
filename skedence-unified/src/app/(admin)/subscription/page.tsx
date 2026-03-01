@@ -369,7 +369,7 @@ function SubscriptionContent() {
                       ? 'Loading...' 
                       : subscriptionStatus?.hasSubscription
                       ? 'Switch to This Plan'
-                      : 'Start Free Trial'
+                      : 'Start 14-Day Free Trial'
                     }
                   </Button>
                 </CardContent>
