@@ -217,9 +217,18 @@ private struct SignedInProfileScreen: View {
 
     // Header with gradient background, avatar, name, email
     private var header: some View {
-        let name = (usersService.currentUser?.displayName.isEmpty == false
-                    ? usersService.currentUser!.displayName
-                    : (Auth.auth().currentUser?.displayName ?? "Client"))
+        // Extract name from UsersService first, then fallback to email-based name
+        let name: String = {
+            if let user = usersService.currentUser, !user.displayName.isEmpty {
+                return user.displayName
+            }
+            // Fallback: extract name from email if user data not loaded yet
+            if let email = Auth.auth().currentUser?.email {
+                let emailPrefix = email.split(separator: "@").first.map(String.init) ?? "User"
+                return emailPrefix.capitalized
+            }
+            return "User"
+        }()
         let email = usersService.currentUser?.emailAddress ?? Auth.auth().currentUser?.email
         let initials = initialsFrom(name: name, emailFallback: email ?? "")
 

@@ -155,10 +155,6 @@ struct AdminClassCard: View {
                 }
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onTap()
-        }
         .alert("Delete Class", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {

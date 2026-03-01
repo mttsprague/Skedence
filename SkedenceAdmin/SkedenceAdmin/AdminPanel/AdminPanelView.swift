@@ -100,20 +100,6 @@ struct AdminPanelView: View {
                 }
                 .environmentObject(dependencies)
             }
-            .sheet(item: $classToEdit) { classItem in
-                EditClassView(
-                    classItem: classItem,
-                    adminService: adminService,
-                    trainersService: trainersService
-                ) {
-                    Task {
-                        if let orgId = auth.currentOrgId {
-                            await classesService.loadAllClasses(orgId: orgId)
-                        }
-                    }
-                }
-                .environmentObject(dependencies)
-            }
             .sheet(isPresented: $showingAddLocation) {
                 AddEditLocationSheet(
                     locationsService: locationsService,

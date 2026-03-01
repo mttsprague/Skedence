@@ -575,24 +575,74 @@ export const registerForClass = onCall(
     const userId = userQuery.docs[0].id;
 
     const userRef = db.collection("users").doc(userId);
-    const classPassRef = userRef
-      .collection("lessonPackages")
-      .doc(classPassPackageId);
     const classRef = db.collection("classes").doc(classId);
+
+    // Get user data first to determine orgId for dual-path package lookup
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "User profile not found for the authenticated user."
+      );
+    }
+    const userData = userDoc.data()!;
+    const userOrgId = userData.orgId as string | undefined;
+
+    // Try NEW path first: organizations/{orgId}/users/{userId}/packages
+    let classPassRef: admin.firestore.DocumentReference;
+    let classPassDoc: admin.firestore.DocumentSnapshot;
+    let packagePath = "old";
+
+    if (userOrgId) {
+      const newPathRef = db
+        .collection("organizations")
+        .doc(userOrgId)
+        .collection("users")
+        .doc(userId)
+        .collection("packages")
+        .doc(classPassPackageId);
+      const newPathDoc = await newPathRef.get();
+
+      if (newPathDoc.exists) {
+        classPassRef = newPathRef;
+        classPassDoc = newPathDoc;
+        packagePath = "new";
+        console.log(`✅ Found class pass in NEW path: organizations/${userOrgId}/users/${userId}/packages/${classPassPackageId}`);
+      } else {
+        // Fallback to OLD path
+        classPassRef = userRef.collection("lessonPackages").doc(classPassPackageId);
+        classPassDoc = await classPassRef.get();
+        packagePath = "old";
+        console.log(`⚠️  Package not found in new path, trying OLD path: users/${userId}/lessonPackages/${classPassPackageId}`);
+      }
+    } else {
+      // No orgId, use old path
+      classPassRef = userRef.collection("lessonPackages").doc(classPassPackageId);
+      classPassDoc = await classPassRef.get();
+      console.log(`⚠️  No orgId found, using OLD path: users/${userId}/lessonPackages/${classPassPackageId}`);
+    }
+
+    if (!classPassDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "Specified class pass not found. Checked both old and new package storage paths."
+      );
+    }
 
     try {
       await db.runTransaction(async (transaction) => {
-        const userDoc = await transaction.get(userRef);
-        const classPassDoc = await transaction.get(classPassRef);
+        // Re-fetch documents in transaction
+        const userDocTx = await transaction.get(userRef);
+        const classPassDocTx = await transaction.get(classPassRef);
         const classDoc = await transaction.get(classRef);
 
-        if (!userDoc.exists) {
+        if (!userDocTx.exists) {
           throw new HttpsError(
             "not-found",
             "User profile not found for the authenticated user."
           );
         }
-        if (!classPassDoc.exists) {
+        if (!classPassDocTx.exists) {
           throw new HttpsError(
             "not-found",
             "Specified class pass not found."
@@ -605,8 +655,8 @@ export const registerForClass = onCall(
           );
         }
 
-        const userData = userDoc.data();
-        const classPassData = classPassDoc.data();
+        const userData = userDocTx.data();
+        const classPassData = classPassDocTx.data();
         const classData = classDoc.data();
 
         if (!userData || !classPassData || !classData) {
@@ -2042,16 +2092,53 @@ export const manualRegisterForClass = onCall(
           );
         }
 
-        // Verify package exists and has credits
-        const packageDoc = await db
-          .collection("users")
-          .doc(userId)
-          .collection("lessonPackages")
-          .doc(classPassPackageId)
-          .get();
+        // Get user to determine orgId for dual-path package lookup
+        const userDoc = await db.collection("users").doc(userId).get();
+        if (!userDoc.exists) {
+          throw new HttpsError("not-found", "User not found");
+        }
+        const userOrgId = userDoc.data()?.orgId as string | undefined;
+
+        // Try NEW path first: organizations/{orgId}/users/{userId}/packages
+        let packageRef: admin.firestore.DocumentReference;
+        let packageDoc: admin.firestore.DocumentSnapshot;
+
+        if (userOrgId) {
+          const newPathRef = db
+            .collection("organizations")
+            .doc(userOrgId)
+            .collection("users")
+            .doc(userId)
+            .collection("packages")
+            .doc(classPassPackageId);
+          packageDoc = await newPathRef.get();
+
+          if (packageDoc.exists) {
+            packageRef = newPathRef;
+            console.log(`✅ Found package in NEW path: organizations/${userOrgId}/users/${userId}/packages/${classPassPackageId}`);
+          } else {
+            // Fallback to OLD path
+            packageRef = db
+              .collection("users")
+              .doc(userId)
+              .collection("lessonPackages")
+              .doc(classPassPackageId);
+            packageDoc = await packageRef.get();
+            console.log(`⚠️  Package not found in new path, trying OLD path: users/${userId}/lessonPackages/${classPassPackageId}`);
+          }
+        } else {
+          // No orgId, use old path
+          packageRef = db
+            .collection("users")
+            .doc(userId)
+            .collection("lessonPackages")
+            .doc(classPassPackageId);
+          packageDoc = await packageRef.get();
+          console.log(`⚠️  No orgId, using OLD path: users/${userId}/lessonPackages/${classPassPackageId}`);
+        }
 
         if (!packageDoc.exists) {
-          throw new HttpsError("not-found", "Package not found");
+          throw new HttpsError("not-found", "Package not found in either old or new path");
         }
 
         const packageData = packageDoc.data()!;
@@ -2072,15 +2159,10 @@ export const manualRegisterForClass = onCall(
           status: "confirmed",
         };
 
-        // Decrement package
-        await db
-          .collection("users")
-          .doc(userId)
-          .collection("lessonPackages")
-          .doc(classPassPackageId)
-          .update({
-            lessonsRemaining: admin.firestore.FieldValue.increment(-1),
-          });
+        // Decrement package (use the same ref we found earlier)
+        await packageRef.update({
+          lessonsRemaining: admin.firestore.FieldValue.increment(-1),
+        });
 
         console.log(`✅ Registered user ${userId} for class ${classId} using package ${classPassPackageId}`);
       } else {

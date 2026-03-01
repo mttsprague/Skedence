@@ -33,6 +33,15 @@ struct SkedenceApp: App {
         // Configure Firebase
         FirebaseApp.configure()
         
+        // Explicitly set auth persistence to ensure sessions persist across app launches
+        // This stores auth tokens in iOS Keychain
+        do {
+            try Auth.auth().useUserAccessGroup(nil) // Use default keychain access group
+            print("🔧 Auth: Configured with Keychain persistence")
+        } catch {
+            print("⚠️ Auth: Failed to configure persistence: \(error.localizedDescription)")
+        }
+        
         // Initialize Analytics and Crashlytics services
         _ = AnalyticsService.shared
         _ = CrashlyticsService.shared

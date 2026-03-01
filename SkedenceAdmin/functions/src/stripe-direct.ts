@@ -247,9 +247,17 @@ export const createPaymentIntentDirect = onCall(
         },
       });
 
+      // Create ephemeral key for customer to enable saved payment methods
+      const ephemeralKey = await stripe.ephemeralKeys.create(
+        {customer: customerId},
+        {apiVersion: "2025-02-24"}
+      );
+
       return {
         clientSecret: paymentIntent.client_secret,
         publishableKey: orgData.stripe.publishableKey,
+        customerId: customerId,
+        ephemeralKeySecret: ephemeralKey.secret,
       };
     } catch (error: unknown) {
       logger.error("❌❌❌ Error in createPaymentIntentDirect:", {
@@ -804,13 +812,23 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
       }
 
       // Query for user document by authUserId (document IDs are name-based)
-      const userQuery = await db
+      // Try org-scoped path first (standard multi-tenant)
+      let userQuery = await db
         .collection("organizations")
         .doc(orgId)
         .collection("users")
         .where("authUserId", "==", userId)
         .limit(1)
         .get();
+
+      // Fall back to top-level users collection (for legacy/custom apps like PolyFace)
+      if (userQuery.empty) {
+        userQuery = await db
+          .collection("users")
+          .where("authUserId", "==", userId)
+          .limit(1)
+          .get();
+      }
 
       if (userQuery.empty) {
         throw new HttpsError("not-found", `User not found for authUserId: ${userId}`);

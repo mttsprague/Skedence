@@ -132,5 +132,18 @@ struct ClassesTabView: View {
                 }
             }
         }
+        .sheet(item: $classToEdit) { classItem in
+            EditClassView(
+                classItem: classItem,
+                adminService: adminService,
+                trainersService: trainersService
+            ) {
+                Task {
+                    guard let orgId = auth.currentOrgId else { return }
+                    await classesService.loadAllClasses(orgId: orgId)
+                }
+            }
+            .environmentObject(dependencies)
+        }
     }
 }

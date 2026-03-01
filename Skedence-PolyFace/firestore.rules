@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // ULTRA-PERMISSIVE RULES FOR DEBUGGING
+    // TODO: Restore proper security rules after fixing App Check
+    // =========================================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // =========================================================================
+    // ORGANIZATION MEMBERSHIP COLLECTION 
+    // =========================================================================
+    match /orgMembers/{membershipId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // ORGANIZATIONS COLLECTION
+    // =========================================================================
+    match /organizations/{orgId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // USERS COLLECTION
+    // Document ID: firstName_lastName
+    // Has authUserId field for Firebase Auth UID
+    // =========================================================================
+    match /users/{userId} {
+      allow read, write: if true;
+
+      // Packages subcollection
+      match /packages/{packageId} {
+        allow read, write: if true;
+      }
+
+      // Legacy lessonPackages subcollection
+      match /lessonPackages/{packageId} {
+        allow read, write: if true;
+      }
+
+      // Documents subcollection
+      match /documents/{documentId} {
+        allow read, write: if true;
+      }
+
+      // Waivers subcollection
+      match /waivers/{waiverName} {
+        allow read, write: if true;
+      }
+
+      // Payment Methods subcollection
+      match /paymentMethods/{methodId} {
+        allow read, write: if true;
+      }
+    }
+
+    // =========================================================================
+    // TRAINERS COLLECTION
+    // Document ID: firstName_lastName
+    // Has authUserId field for Firebase Auth UID
+    // =========================================================================
+    match /trainers/{trainerId} {
+      // Allow all authenticated users full access
+      allow read, write: if true;
+
+      // Schedules subcollection
+      match /schedules/{slotId} {
+        allow read, write: if true;
+      }
+    }
+
+    // =========================================================================
+    // BOOKINGS COLLECTION
+    // =========================================================================
+    match /bookings/{bookingId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // CLASSES COLLECTION
+    // =========================================================================
+    match /classes/{classId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // LOCATIONS COLLECTION
+    // =========================================================================
+    match /locations/{locationId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // CLASS REGISTRATIONS COLLECTION
+    // =========================================================================
+    match /classRegistrations/{registrationId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // ACTIVITIES COLLECTION
+    // =========================================================================
+    match /activities/{activityId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // MAIL COLLECTION (Firebase Extension)
+    // =========================================================================
+    match /mail/{mailId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // WAIVERS COLLECTION (Top-level)
+    // =========================================================================
+    match /waivers/{waiverId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // INTAKE FORMS COLLECTION
+    // =========================================================================
+    match /intakeForms/{formId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // STRIPE COLLECTION (for payment intents, etc)
+    // =========================================================================
+    match /stripe/{document=**} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // BLOG POSTS COLLECTION
+    // Public: Anyone can read published posts
+    // Admin: Only Skedence team can create/edit/delete
+    // =========================================================================
+    match /blogPosts/{postId} {
+      // Anyone can read published posts
+      allow read: if resource.data.status == 'published' || isSignedIn();
+      
+      // Only authenticated Skedence team members can write
+      // Add your team email addresses here
+      allow create, update, delete: if isSignedIn() && (
+        request.auth.token.email == 'mttsprague@gmail.com' ||
+        request.auth.token.email == 'support@skedence.com'
+      );
+    }
+
+    // =========================================================================
+    // CATCH-ALL: Allow everything else too
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

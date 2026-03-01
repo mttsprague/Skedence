@@ -77,6 +77,7 @@ struct BookView: View {
     @State private var filteredTrainers: [Trainer] = []
     @State private var isSearchingTrainers = false
     @State private var hasSearched = false
+    @State private var classSearchText = ""
 
     enum Mode: String, CaseIterable { case lessons = "Privates", classes = "Classes" }
     
@@ -100,6 +101,18 @@ struct BookView: View {
         let now = Date()
         return classesService.classes.filter { classItem in
             classItem.startTime >= now
+        }
+    }
+    
+    // Filter classes by search text
+    private var filteredClasses: [GroupClass] {
+        if classSearchText.isEmpty {
+            return availableClasses
+        }
+        return availableClasses.filter { classItem in
+            classItem.title.localizedCaseInsensitiveContains(classSearchText) ||
+            classItem.description.localizedCaseInsensitiveContains(classSearchText) ||
+            classItem.trainerName.localizedCaseInsensitiveContains(classSearchText)
         }
     }
     
@@ -450,7 +463,8 @@ struct BookView: View {
         var athletes = profile.athletes ?? []
         athletes.append(newAthlete)
         
-        try await userRef.updateData([
+        // Use setData with merge to create field if it doesn't exist
+        try await userRef.setData([
             "athletes": athletes.map { athlete in
                 [
                     "firstName": athlete.firstName ?? "",
@@ -461,7 +475,9 @@ struct BookView: View {
                     "position": athlete.position ?? ""
                 ] as [String: Any]
             }
-        ])
+        ], merge: true)
+        
+        print("✅ Saved new athlete: \(firstName) \(lastName) to profile")
         
         // Reload user profile to reflect changes
         await usersService.loadCurrentUserIfAvailable()
@@ -1000,14 +1016,28 @@ struct BookView: View {
                                             HStack(spacing: Spacing.sm) {
                                                 TextField("First Name", text: Binding(
                                                     get: { athleteFirstNames[index] ?? "" },
-                                                    set: { athleteFirstNames[index] = $0 }
+                                                    set: { newValue in
+                                                        athleteFirstNames[index] = newValue
+                                                        // Update selectedAthletes immediately so waiver uses correct name
+                                                        let lastName = athleteLastNames[index] ?? ""
+                                                        if !newValue.isEmpty && !lastName.isEmpty {
+                                                            selectedAthletes[index] = "\(newValue) \(lastName)"
+                                                        }
+                                                    }
                                                 ))
                                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                                 .autocapitalization(.words)
                                                 
                                                 TextField("Last Name", text: Binding(
                                                     get: { athleteLastNames[index] ?? "" },
-                                                    set: { athleteLastNames[index] = $0 }
+                                                    set: { newValue in
+                                                        athleteLastNames[index] = newValue
+                                                        // Update selectedAthletes immediately so waiver uses correct name
+                                                        let firstName = athleteFirstNames[index] ?? ""
+                                                        if !firstName.isEmpty && !newValue.isEmpty {
+                                                            selectedAthletes[index] = "\(firstName) \(newValue)"
+                                                        }
+                                                    }
                                                 ))
                                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                                 .autocapitalization(.words)
@@ -1118,6 +1148,40 @@ struct BookView: View {
                 .font(.headingMedium)
                 .foregroundStyle(AppTheme.textPrimary)
             .padding(.horizontal, Spacing.lg)
+            
+            // Search Bar
+            HStack(spacing: Spacing.sm) {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.textTertiary)
+                    
+                    TextField("Search classes...", text: $classSearchText)
+                        .font(.bodyMedium)
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    
+                    if !classSearchText.isEmpty {
+                        Button {
+                            classSearchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundStyle(AppTheme.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: CornerRadius.sm)
+                        .fill(Color.platformSecondaryBackground)
+                )
+            }
+            .padding(.horizontal, Spacing.lg)
+            
             if classesService.isLoading {
                 HStack { Spacer(); ProgressView().tint(AppTheme.primary); Spacer() }
                     .padding(Spacing.xl)
@@ -1129,9 +1193,17 @@ struct BookView: View {
                 )
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.xl)
+            } else if filteredClasses.isEmpty {
+                EmptyStateView(
+                    icon: "magnifyingglass",
+                    title: "No Results",
+                    message: "No classes match '\(classSearchText)'"
+                )
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.xl)
             } else {
                 VStack(spacing: Spacing.sm) {
-                    ForEach(availableClasses) { classItem in
+                    ForEach(filteredClasses) { classItem in
                         ClassCard(
                             classItem: classItem,
                             onTap: { selectedClass = classItem },
@@ -1584,7 +1656,8 @@ struct BookView: View {
             
             updatedAthletes[athleteIndex] = athleteToUpdate
             
-            try await userRef.updateData([
+            // Use setData with merge to handle cases where field might not exist
+            try await userRef.setData([
                 "athletes": updatedAthletes.map { athlete in
                     [
                         "firstName": athlete.firstName ?? "",
@@ -1595,7 +1668,9 @@ struct BookView: View {
                         "position": athlete.position ?? ""
                     ] as [String: Any]
                 }
-            ])
+            ], merge: true)
+            
+            print("✅ Updated athlete info for: \(athleteName)")
         } else {
             // Check legacy athlete fields
             var updates: [String: Any] = [:]
@@ -1628,7 +1703,7 @@ struct BookView: View {
             }
             
             if !updates.isEmpty {
-                try await userRef.updateData(updates)
+                try await userRef.setData(updates, merge: true)
             }
         }
         
@@ -1642,7 +1717,7 @@ struct BookView: View {
         }
         
         if !contactUpdates.isEmpty {
-            try await userRef.updateData(contactUpdates)
+            try await userRef.setData(contactUpdates, merge: true)
         }
         
         // Reload user profile
@@ -1708,6 +1783,21 @@ struct BookView: View {
         await loadDayIfPossible()
         await loadMonthIfPossible()
         
+        // Reload bookings so they appear in schedule
+        if let orgId = auth.currentOrgId {
+            print("📅 finishBookingSuccess: Reloading bookings for orgId: \(orgId)")
+            await bookingsService.loadMyBookings(orgId: orgId)
+            print("📅 finishBookingSuccess: Bookings count after reload: \(bookingsService.myBookings.count)")
+            if !bookingsService.myBookings.isEmpty {
+                print("📅 Latest bookings:")
+                for booking in bookingsService.myBookings.prefix(3) {
+                    print("   - Booking ID: \(booking.id ?? "nil"), Start: \(booking.startTime?.description ?? "nil"), Status: \(booking.status)")
+                }
+            } else {
+                print("⚠️ finishBookingSuccess: No bookings found after reload!")
+            }
+        }
+        
         // Clear all booking form fields
         selectedTrainer = nil  // Reset to trainer selection screen
         selectedSlot = nil
@@ -1719,6 +1809,7 @@ struct BookView: View {
         // Clear athlete-specific fields
         athleteFirstNames.removeAll()
         athleteLastNames.removeAll()
+        athleteInfoExpanded.removeAll()  // Fix: Clear expanded state to dismiss athlete info UI
         
         // Clear dynamic form data for all athletes
         intakeFormData.fieldValues.removeAll()
@@ -1832,16 +1923,43 @@ struct BookView: View {
         }
         
         do {
-            // Save athlete information to profile for first athlete if provided
-            if let firstAthlete = selectedAthletes.first,
-               let athleteName = firstAthlete,
-               let form = athleteIntakeForms[0] {
-                try await saveAthleteInfoToProfile(athleteName: athleteName, formData: form)
+            // Save all athlete information to profile before booking
+            for (index, athleteName) in selectedAthletes.enumerated() {
+                if let _ = athleteName, let athleteForm = athleteIntakeForms[index] {
+                    // Check if this is a new athlete
+                    if isNewAthlete[index] == true {
+                        // Get the actual name from the form fields
+                        let firstName = athleteFirstNames[index] ?? ""
+                        let lastName = athleteLastNames[index] ?? ""
+                        
+                        guard !firstName.isEmpty && !lastName.isEmpty else {
+                            bookingAlert = .init(
+                                title: "Incomplete Information",
+                                message: "Please enter the athlete's first and last name."
+                            )
+                            return
+                        }
+                        
+                        // Save new athlete with their real name
+                        let fullName = "\(firstName) \(lastName)"
+                        try await saveNewAthleteToProfile(firstName: firstName, lastName: lastName, formData: athleteForm)
+                        
+                        // Update the selected athlete to use their real name
+                        selectedAthletes[index] = fullName
+                    } else {
+                        // Existing athlete - just update their info
+                        if let name = athleteName {
+                            try await saveAthleteInfoToProfile(athleteName: name, formData: athleteForm)
+                        }
+                    }
+                }
             }
             
             let packageId = selectedPackage?.id ?? ""
-            let athleteForBooking = selectedAthletes.first ?? nil
-            let secondAthleteForBooking = selectedAthletes.count > 1 ? selectedAthletes[1] : nil
+            // Get all athlete names from selectedAthletes array (now with real names for new athletes)
+            let athleteNames = selectedAthletes.compactMap { $0 }
+            let athleteForBooking = athleteNames.first ?? nil
+            let secondAthleteForBooking = athleteNames.count > 1 ? athleteNames[1] : nil
             let notesForBooking = lessonNotes.isEmpty ? nil : lessonNotes
             
             _ = try await bookingManager.bookLesson(

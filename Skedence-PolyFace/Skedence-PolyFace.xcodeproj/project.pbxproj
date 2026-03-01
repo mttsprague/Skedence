@@ -1,0 +1,806 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C32043052E9ECE09003EF857 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = C32043042E9ECE09003EF857 /* FirebaseAnalytics */; };
+		C32043072E9ECE09003EF857 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C32043062E9ECE09003EF857 /* FirebaseAuth */; };
+		C32043092E9ECE09003EF857 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = C32043082E9ECE09003EF857 /* FirebaseCore */; };
+		C320430B2E9ECE09003EF857 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = C320430A2E9ECE09003EF857 /* FirebaseDatabase */; };
+		C320430D2E9ECE09003EF857 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C320430C2E9ECE09003EF857 /* FirebaseFirestore */; };
+		C320430F2E9ECE09003EF857 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = C320430E2E9ECE09003EF857 /* FirebaseFunctions */; };
+		C32043112E9ECE09003EF857 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C32043102E9ECE09003EF857 /* FirebaseStorage */; };
+		C3220FD12F4EA2C800AFD34B /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = C32043122E9ECE09003EF857 /* FirebaseAppCheck */; };
+		C34AB5DA2F05A4BA0039C772 /* Stripe in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB5D92F05A4BA0039C772 /* Stripe */; };
+		C34AB5DC2F05A4BA0039C772 /* StripeApplePay in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB5DB2F05A4BA0039C772 /* StripeApplePay */; };
+		C34AB5DE2F05A4BA0039C772 /* StripeCardScan in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB5DD2F05A4BA0039C772 /* StripeCardScan */; };
+		C34AB5E02F05A4BA0039C772 /* StripeConnect in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB5DF2F05A4BA0039C772 /* StripeConnect */; };
+		C34AB5E22F05A4BA0039C772 /* StripeFinancialConnections in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB5E12F05A4BA0039C772 /* StripeFinancialConnections */; };
+		C34AB62E2F05B4920039C772 /* StripeIdentity in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB62D2F05B4920039C772 /* StripeIdentity */; };
+		C34AB6302F05B4920039C772 /* StripeIssuing in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB62F2F05B4920039C772 /* StripeIssuing */; };
+		C34AB6322F05B4920039C772 /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB6312F05B4920039C772 /* StripePaymentSheet */; };
+		C34AB6342F05B4920039C772 /* StripePayments in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB6332F05B4920039C772 /* StripePayments */; };
+		C34AB6362F05B4920039C772 /* StripePaymentsUI in Frameworks */ = {isa = PBXBuildFile; productRef = C34AB6352F05B4920039C772 /* StripePaymentsUI */; };
+		C381D0122EA13C5E00173F89 /* BookingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C381D0112EA13C5E00173F89 /* BookingManager.swift */; };
+		C394B5AF2F1007D500BC0002 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = C394B5AE2F1007D500BC0002 /* FirebaseCrashlytics */; };
+		C3BCEE222EA15912004619EF /* MyUpcomingLessonsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BCEE212EA15911004619EF /* MyUpcomingLessonsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C320425A2E9C9D53003EF857 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C32042422E9C9D52003EF857 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C32042492E9C9D52003EF857;
+			remoteInfo = Skedence;
+		};
+		C32042642E9C9D53003EF857 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C32042422E9C9D52003EF857 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C32042492E9C9D52003EF857;
+			remoteInfo = Skedence;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		C320424A2E9C9D52003EF857 /* PolyFace Volleyball Academy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PolyFace Volleyball Academy.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C32042592E9C9D53003EF857 /* SkedenceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SkedenceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C32042632E9C9D53003EF857 /* SkedenceUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SkedenceUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C381D0112EA13C5E00173F89 /* BookingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingManager.swift; sourceTree = "<group>"; };
+		C3BCEE212EA15911004619EF /* MyUpcomingLessonsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyUpcomingLessonsView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C3C7F2E02F05CC980064EF0A /* Exceptions for "Skedence" folder in "PolyFace Volleyball Academy" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C32042492E9C9D52003EF857 /* PolyFace Volleyball Academy */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		C320424C2E9C9D52003EF857 /* Skedence */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C3C7F2E02F05CC980064EF0A /* Exceptions for "Skedence" folder in "PolyFace Volleyball Academy" target */,
+			);
+			path = Skedence;
+			sourceTree = "<group>";
+		};
+		C320425C2E9C9D53003EF857 /* SkedenceTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SkedenceTests;
+			sourceTree = "<group>";
+		};
+		C32042662E9C9D53003EF857 /* SkedenceUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SkedenceUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C32042472E9C9D52003EF857 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3220FD12F4EA2C800AFD34B /* FirebaseAppCheck in Frameworks */,
+				C32043052E9ECE09003EF857 /* FirebaseAnalytics in Frameworks */,
+				C34AB5E22F05A4BA0039C772 /* StripeFinancialConnections in Frameworks */,
+				C32043092E9ECE09003EF857 /* FirebaseCore in Frameworks */,
+				C34AB5E02F05A4BA0039C772 /* StripeConnect in Frameworks */,
+				C34AB6322F05B4920039C772 /* StripePaymentSheet in Frameworks */,
+				C320430B2E9ECE09003EF857 /* FirebaseDatabase in Frameworks */,
+				C34AB6342F05B4920039C772 /* StripePayments in Frameworks */,
+				C34AB5DC2F05A4BA0039C772 /* StripeApplePay in Frameworks */,
+				C34AB6362F05B4920039C772 /* StripePaymentsUI in Frameworks */,
+				C34AB6302F05B4920039C772 /* StripeIssuing in Frameworks */,
+				C320430F2E9ECE09003EF857 /* FirebaseFunctions in Frameworks */,
+				C32043112E9ECE09003EF857 /* FirebaseStorage in Frameworks */,
+				C34AB62E2F05B4920039C772 /* StripeIdentity in Frameworks */,
+				C34AB5DA2F05A4BA0039C772 /* Stripe in Frameworks */,
+				C320430D2E9ECE09003EF857 /* FirebaseFirestore in Frameworks */,
+				C394B5AF2F1007D500BC0002 /* FirebaseCrashlytics in Frameworks */,
+				C34AB5DE2F05A4BA0039C772 /* StripeCardScan in Frameworks */,
+				C32043072E9ECE09003EF857 /* FirebaseAuth in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C32042562E9C9D53003EF857 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C32042602E9C9D53003EF857 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C32042412E9C9D52003EF857 = {
+			isa = PBXGroup;
+			children = (
+				C320424C2E9C9D52003EF857 /* Skedence */,
+				C320425C2E9C9D53003EF857 /* SkedenceTests */,
+				C32042662E9C9D53003EF857 /* SkedenceUITests */,
+				C320424B2E9C9D52003EF857 /* Products */,
+				C381D0112EA13C5E00173F89 /* BookingManager.swift */,
+				C3BCEE212EA15911004619EF /* MyUpcomingLessonsView.swift */,
+			);
+			sourceTree = "<group>";
+		};
+		C320424B2E9C9D52003EF857 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C320424A2E9C9D52003EF857 /* PolyFace Volleyball Academy.app */,
+				C32042592E9C9D53003EF857 /* SkedenceTests.xctest */,
+				C32042632E9C9D53003EF857 /* SkedenceUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C32042492E9C9D52003EF857 /* PolyFace Volleyball Academy */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C320426D2E9C9D53003EF857 /* Build configuration list for PBXNativeTarget "PolyFace Volleyball Academy" */;
+			buildPhases = (
+				C32042462E9C9D52003EF857 /* Sources */,
+				C32042472E9C9D52003EF857 /* Frameworks */,
+				C32042482E9C9D52003EF857 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C320424C2E9C9D52003EF857 /* Skedence */,
+			);
+			name = "PolyFace Volleyball Academy";
+			packageProductDependencies = (
+				C32043042E9ECE09003EF857 /* FirebaseAnalytics */,
+				C32043122E9ECE09003EF857 /* FirebaseAppCheck */,
+				C32043062E9ECE09003EF857 /* FirebaseAuth */,
+				C32043082E9ECE09003EF857 /* FirebaseCore */,
+				C320430A2E9ECE09003EF857 /* FirebaseDatabase */,
+				C320430C2E9ECE09003EF857 /* FirebaseFirestore */,
+				C320430E2E9ECE09003EF857 /* FirebaseFunctions */,
+				C32043102E9ECE09003EF857 /* FirebaseStorage */,
+				C34AB5D92F05A4BA0039C772 /* Stripe */,
+				C34AB5DB2F05A4BA0039C772 /* StripeApplePay */,
+				C34AB5DD2F05A4BA0039C772 /* StripeCardScan */,
+				C34AB5DF2F05A4BA0039C772 /* StripeConnect */,
+				C34AB5E12F05A4BA0039C772 /* StripeFinancialConnections */,
+				C34AB62D2F05B4920039C772 /* StripeIdentity */,
+				C34AB62F2F05B4920039C772 /* StripeIssuing */,
+				C34AB6312F05B4920039C772 /* StripePaymentSheet */,
+				C34AB6332F05B4920039C772 /* StripePayments */,
+				C34AB6352F05B4920039C772 /* StripePaymentsUI */,
+				C394B5AE2F1007D500BC0002 /* FirebaseCrashlytics */,
+			);
+			productName = Skedence;
+			productReference = C320424A2E9C9D52003EF857 /* PolyFace Volleyball Academy.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C32042582E9C9D53003EF857 /* SkedenceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C32042702E9C9D53003EF857 /* Build configuration list for PBXNativeTarget "SkedenceTests" */;
+			buildPhases = (
+				C32042552E9C9D53003EF857 /* Sources */,
+				C32042562E9C9D53003EF857 /* Frameworks */,
+				C32042572E9C9D53003EF857 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C320425B2E9C9D53003EF857 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C320425C2E9C9D53003EF857 /* SkedenceTests */,
+			);
+			name = SkedenceTests;
+			packageProductDependencies = (
+			);
+			productName = SkedenceTests;
+			productReference = C32042592E9C9D53003EF857 /* SkedenceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		C32042622E9C9D53003EF857 /* SkedenceUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C32042732E9C9D53003EF857 /* Build configuration list for PBXNativeTarget "SkedenceUITests" */;
+			buildPhases = (
+				C320425F2E9C9D53003EF857 /* Sources */,
+				C32042602E9C9D53003EF857 /* Frameworks */,
+				C32042612E9C9D53003EF857 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C32042652E9C9D53003EF857 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C32042662E9C9D53003EF857 /* SkedenceUITests */,
+			);
+			name = SkedenceUITests;
+			packageProductDependencies = (
+			);
+			productName = SkedenceUITests;
+			productReference = C32042632E9C9D53003EF857 /* SkedenceUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C32042422E9C9D52003EF857 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					C32042492E9C9D52003EF857 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+					C32042582E9C9D53003EF857 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = C32042492E9C9D52003EF857;
+					};
+					C32042622E9C9D53003EF857 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = C32042492E9C9D52003EF857;
+					};
+				};
+			};
+			buildConfigurationList = C32042452E9C9D52003EF857 /* Build configuration list for PBXProject "Skedence-PolyFace" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C32042412E9C9D52003EF857;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = C320424B2E9C9D52003EF857 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C32042492E9C9D52003EF857 /* PolyFace Volleyball Academy */,
+				C32042582E9C9D53003EF857 /* SkedenceTests */,
+				C32042622E9C9D53003EF857 /* SkedenceUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C32042482E9C9D52003EF857 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C32042572E9C9D53003EF857 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C32042612E9C9D53003EF857 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C32042462E9C9D52003EF857 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3BCEE222EA15912004619EF /* MyUpcomingLessonsView.swift in Sources */,
+				C381D0122EA13C5E00173F89 /* BookingManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C32042552E9C9D53003EF857 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C320425F2E9C9D53003EF857 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C320425B2E9C9D53003EF857 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C32042492E9C9D52003EF857 /* PolyFace Volleyball Academy */;
+			targetProxy = C320425A2E9C9D53003EF857 /* PBXContainerItemProxy */;
+		};
+		C32042652E9C9D53003EF857 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C32042492E9C9D52003EF857 /* PolyFace Volleyball Academy */;
+			targetProxy = C32042642E9C9D53003EF857 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		C320426B2E9C9D53003EF857 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = L89C7G95SP;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C320426C2E9C9D53003EF857 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = L89C7G95SP;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		C320426E2E9C9D53003EF857 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L89C7G95SP;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Skedence/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "PolyFace Volleyball Academy";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Matthew-Sprague.PolyFace-Volleyball";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		C320426F2E9C9D53003EF857 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L89C7G95SP;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Skedence/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "PolyFace Volleyball Academy";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Matthew-Sprague.PolyFace-Volleyball";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		C32042712E9C9D53003EF857 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L89C7G95SP;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = MattSprague.SkedenceTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Skedence.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Skedence";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		C32042722E9C9D53003EF857 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L89C7G95SP;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = MattSprague.SkedenceTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Skedence.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Skedence";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		C32042742E9C9D53003EF857 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L89C7G95SP;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = MattSprague.SkedenceUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = Skedence;
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		C32042752E9C9D53003EF857 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L89C7G95SP;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = MattSprague.SkedenceUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = Skedence;
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C32042452E9C9D52003EF857 /* Build configuration list for PBXProject "Skedence-PolyFace" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C320426B2E9C9D53003EF857 /* Debug */,
+				C320426C2E9C9D53003EF857 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C320426D2E9C9D53003EF857 /* Build configuration list for PBXNativeTarget "PolyFace Volleyball Academy" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C320426E2E9C9D53003EF857 /* Debug */,
+				C320426F2E9C9D53003EF857 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C32042702E9C9D53003EF857 /* Build configuration list for PBXNativeTarget "SkedenceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C32042712E9C9D53003EF857 /* Debug */,
+				C32042722E9C9D53003EF857 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C32042732E9C9D53003EF857 /* Build configuration list for PBXNativeTarget "SkedenceUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C32042742E9C9D53003EF857 /* Debug */,
+				C32042752E9C9D53003EF857 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.4.0;
+			};
+		};
+		C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stripe/stripe-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 25.3.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C32043042E9ECE09003EF857 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		C32043062E9ECE09003EF857 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		C32043082E9ECE09003EF857 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		C320430A2E9ECE09003EF857 /* FirebaseDatabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseDatabase;
+		};
+		C320430C2E9ECE09003EF857 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		C320430E2E9ECE09003EF857 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
+		};
+		C32043102E9ECE09003EF857 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+		C32043122E9ECE09003EF857 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+		C34AB5D92F05A4BA0039C772 /* Stripe */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = Stripe;
+		};
+		C34AB5DB2F05A4BA0039C772 /* StripeApplePay */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeApplePay;
+		};
+		C34AB5DD2F05A4BA0039C772 /* StripeCardScan */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeCardScan;
+		};
+		C34AB5DF2F05A4BA0039C772 /* StripeConnect */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeConnect;
+		};
+		C34AB5E12F05A4BA0039C772 /* StripeFinancialConnections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeFinancialConnections;
+		};
+		C34AB62D2F05B4920039C772 /* StripeIdentity */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeIdentity;
+		};
+		C34AB62F2F05B4920039C772 /* StripeIssuing */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripeIssuing;
+		};
+		C34AB6312F05B4920039C772 /* StripePaymentSheet */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripePaymentSheet;
+		};
+		C34AB6332F05B4920039C772 /* StripePayments */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripePayments;
+		};
+		C34AB6352F05B4920039C772 /* StripePaymentsUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C34AB5D82F05A4BA0039C772 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripePaymentsUI;
+		};
+		C394B5AE2F1007D500BC0002 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C32043032E9ECE09003EF857 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = C32042422E9C9D52003EF857 /* Project object */;
+}
