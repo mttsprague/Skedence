@@ -95,6 +95,7 @@ const posts = [
     keywords: "private volleyball lesson drills, volleyball lesson plan template, how to structure a volleyball private lesson, volleyball training structure, private volleyball coaching",
     categories: ["volleyball", "operations", "business-tips"],
     sport: "volleyball",
+    authorName: "Skedence Team",
     featuredImage: "https://skedence.com/logo-nav.png",
     featuredImageAlt: "Skedence - Volleyball Lesson Structure",
     content: `${blogStyles}
@@ -206,6 +207,7 @@ Short feedback loops.</p>
     keywords: "soccer training business insurance, do I need insurance for private soccer training, soccer coach liability, private soccer trainer insurance requirements, soccer coaching business protection",
     categories: ["soccer", "operations", "business-tips", "getting-started"],
     sport: "soccer",
+    authorName: "Skedence Team",
     featuredImage: "https://skedence.com/logo-nav.png",
     featuredImageAlt: "Skedence - Soccer Training Insurance",
     content: `${blogStyles}
@@ -310,6 +312,7 @@ Short feedback loops.</p>
     keywords: "basketball training gym rental, how to rent gym space for private training, basketball trainer facility options, rent basketball court for training, basketball gym rental options",
     categories: ["basketball", "operations", "getting-started", "business-tips"],
     sport: "basketball",
+    authorName: "Skedence Team",
     featuredImage: "https://skedence.com/logo-nav.png",
     featuredImageAlt: "Skedence - Basketball Gym Rental",
     content: `${blogStyles}
@@ -404,6 +407,7 @@ Short feedback loops.</p>
     keywords: "baseball lesson pricing tiers, pitching coach pricing structure, how to price baseball training programs, baseball trainer pricing model, tiered pricing baseball coaching",
     categories: ["baseball", "revenue-growth", "business-tips", "getting-started"],
     sport: "baseball",
+    authorName: "Skedence Team",
     featuredImage: "https://skedence.com/logo-nav.png",
     featuredImageAlt: "Skedence - Baseball Pricing Tiers",
     content: `${blogStyles}
