@@ -334,9 +334,35 @@ export default function ClientsPage() {
           return;
         }
 
-        // Use the document ID as the actual user ID (Firebase Auth UID)
-        const actualUserId = userSnapshot.docs[0].id;
-        console.log('✅ Found Firebase Auth UID:', actualUserId, 'for email:', userEmail);
+        // CRITICAL: There may be multiple user docs with same email (custom ID + Firebase Auth UID)
+        // We need to find the one that actually has documents
+        let actualUserId: string | null = null;
+        
+        console.log(`🔍 Found ${userSnapshot.docs.length} user document(s) for email:`, userEmail);
+        
+        for (const userDoc of userSnapshot.docs) {
+          const testUserId = userDoc.id;
+          console.log(`🔍 Checking user ID: ${testUserId}`);
+          
+          // Check if this user has documents
+          const testDocsSnap = await getDocs(
+            collection(db, 'users', testUserId, 'documents')
+          );
+          
+          console.log(`📁 User ${testUserId} has ${testDocsSnap.size} documents`);
+          
+          if (!testDocsSnap.empty) {
+            actualUserId = testUserId;
+            console.log(`✅ Found Firebase Auth UID with documents: ${actualUserId}`);
+            break;
+          }
+        }
+        
+        // If no user has documents, use the first one as fallback
+        if (!actualUserId) {
+          actualUserId = userSnapshot.docs[0].id;
+          console.log(`⚠️ No user has documents, using first user ID: ${actualUserId}`);
+        }
 
         // Load bookings
         const now = new Date();
