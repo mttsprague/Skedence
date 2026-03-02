@@ -44,19 +44,15 @@ interface LessonPackage {
 interface Document {
   id: string;
   name: string;
+  displayName?: string;
   type: string;
   url: string;
   uploadedAt: Timestamp;
   uploadedBy?: string;
-}
-
-interface Waiver {
-  id: string;
+  signedBy?: string;
+  signatoryEmail?: string;
+  isMinor?: boolean;
   athleteName?: string;
-  signedAt: Timestamp;
-  ipAddress?: string;
-  pdfUrl?: string;
-  waiverText?: string;
 }
 
 interface PaymentMethod {
@@ -362,7 +358,7 @@ export default function ClientsPage() {
         }) as LessonPackage[];
         setPackages(packagesData);
 
-        // Load documents
+        // Load documents (includes waivers with type: "waiver")
         const docsSnap = await getDocs(
           collection(db, 'users', selectedClient.id, 'documents')
         );
@@ -370,28 +366,12 @@ export default function ClientsPage() {
           id: doc.id,
           ...doc.data(),
         })) as Document[];
-
-        // Load waivers
-        const waiversSnap = await getDocs(
-          collection(db, 'users', selectedClient.id, 'waivers')
-        );
-        const waiversData = waiversSnap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: `Waiver - ${data.athleteName || 'Signed'}`,
-            type: 'waiver',
-            url: data.pdfUrl || '',
-            uploadedAt: data.signedAt,
-            uploadedBy: 'Client',
-          } as Document;
-        }).filter(waiver => waiver.url); // Only include waivers with PDF URLs
-
-        // Merge documents and waivers, sort by date (newest first)
-        const allDocs = [...docsData, ...waiversData].sort((a, b) => 
+        
+        // Sort by uploadedAt (newest first)
+        const sortedDocs = docsData.sort((a, b) => 
           b.uploadedAt.seconds - a.uploadedAt.seconds
         );
-        setDocuments(allDocs);
+        setDocuments(sortedDocs);
 
         // Load pricing packages to check if they're active
         const pricingSnap = await getDocs(
@@ -1080,27 +1060,39 @@ export default function ClientsPage() {
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {documents.map((doc) => (
-                              <Card key={doc.id}>
-                                <CardContent className="pt-6">
-                                  <div className="flex items-start gap-3 mb-3">
-                                    <FileText className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <p className="font-medium truncate">{doc.name}</p>
-                                        {doc.type === 'waiver' && (
-                                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Waiver</span>
+                            {documents.map((doc) => {
+                              const isWaiver = doc.type === 'waiver';
+                              const displayName = doc.displayName || doc.name;
+                              const athleteLabel = doc.athleteName ? ` - ${doc.athleteName}` : '';
+                              return (
+                                <Card key={doc.id}>
+                                  <CardContent className="pt-6">
+                                    <div className="flex items-start gap-3 mb-3">
+                                      <FileText className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <p className="font-medium truncate">{displayName}{athleteLabel}</p>
+                                          {isWaiver && (
+                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex-shrink-0">Waiver</span>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          {doc.uploadedAt.toDate().toLocaleDateString()}
+                                        </p>
+                                        {isWaiver && doc.signedBy && (
+                                          <p className="text-xs text-muted-foreground mt-1">
+                                            Signed by: {doc.signedBy}
+                                          </p>
                                         )}
                                       </div>
-                                      <p className="text-xs text-muted-foreground">{doc.uploadedAt.toDate().toLocaleDateString()}</p>
                                     </div>
-                                  </div>
-                                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="block w-full text-center px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
-                                    View PDF
-                                  </a>
-                                </CardContent>
-                              </Card>
-                            ))}
+                                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="block w-full text-center px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90">
+                                      View PDF
+                                    </a>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
