@@ -591,9 +591,9 @@ export default function RevenueReportPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="text-3xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <div className="text-3xl font-bold">${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-sm text-muted-foreground mt-1">
-              ${paidRevenue.toFixed(2)} paid, ${adminRevenue.toFixed(2)} admin
+              ${paidRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} paid, ${adminRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} admin
             </p>
           </CardContent>
         </Card>
@@ -621,7 +621,7 @@ export default function RevenueReportPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="text-3xl font-bold">${avgTransactionValue.toFixed(2)}</div>
+            <div className="text-3xl font-bold">${avgTransactionValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-sm text-muted-foreground mt-1">
               Per package sold
             </p>
@@ -668,7 +668,7 @@ export default function RevenueReportPage() {
               <Tooltip 
                 formatter={(value: any, name?: string) => {
                   if (name && name.includes('Revenue')) {
-                    return [`$${Number(value).toFixed(2)}`, name];
+                    return [`$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name];
                   }
                   return [value, name || ''];
                 }}
@@ -734,8 +734,8 @@ export default function RevenueReportPage() {
                     <td className="p-3 text-right">{item.count}</td>
                     <td className="p-3 text-right text-green-600">{item.paidCount}</td>
                     <td className="p-3 text-right text-orange-600">{item.adminCount}</td>
-                    <td className="p-3 text-right font-medium">${item.revenue.toFixed(2)}</td>
-                    <td className="p-3 text-right text-muted-foreground">${item.avgPrice.toFixed(2)}</td>
+                    <td className="p-3 text-right font-medium">${item.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-3 text-right text-muted-foreground">${item.avgPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -860,7 +860,7 @@ export default function RevenueReportPage() {
                       </span>
                     </td>
                     <td className="p-3 text-right font-medium">
-                      ${pkg.amountPaid.toFixed(2)}
+                      ${pkg.amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="p-3">
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
