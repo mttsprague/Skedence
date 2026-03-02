@@ -310,65 +310,14 @@ export default function ClientsPage() {
       try {
         if (!orgId || !selectedClient) return;
 
-        // CRITICAL: selectedClient.id is the custom ID from orgMembers (e.g., "mike_parent")
-        // We need to find the actual Firebase Auth UID by querying users collection by email
-        const userEmail = selectedClient.email || selectedClient.emailAddress;
-        if (!userEmail) {
-          console.error('❌ Selected client has no email:', selectedClient);
-          setTabDataLoading(false);
-          return;
-        }
+        // Use the selected client's ID for most queries
+        const clientId = selectedClient.id;
 
-        console.log('🔍 Looking up Firebase Auth UID for:', userEmail);
-
-        // Query users collection by email to get the actual Firebase Auth UID
-        const userQuery = query(
-          collection(db, 'users'),
-          where('emailAddress', '==', userEmail)
-        );
-        const userSnapshot = await getDocs(userQuery);
-
-        if (userSnapshot.empty) {
-          console.error('❌ No user document found for email:', userEmail);
-          setTabDataLoading(false);
-          return;
-        }
-
-        // CRITICAL: There may be multiple user docs with same email (custom ID + Firebase Auth UID)
-        // We need to find the one that actually has documents
-        let actualUserId: string | null = null;
-        
-        console.log(`🔍 Found ${userSnapshot.docs.length} user document(s) for email:`, userEmail);
-        
-        for (const userDoc of userSnapshot.docs) {
-          const testUserId = userDoc.id;
-          console.log(`🔍 Checking user ID: ${testUserId}`);
-          
-          // Check if this user has documents
-          const testDocsSnap = await getDocs(
-            collection(db, 'users', testUserId, 'documents')
-          );
-          
-          console.log(`📁 User ${testUserId} has ${testDocsSnap.size} documents`);
-          
-          if (!testDocsSnap.empty) {
-            actualUserId = testUserId;
-            console.log(`✅ Found Firebase Auth UID with documents: ${actualUserId}`);
-            break;
-          }
-        }
-        
-        // If no user has documents, use the first one as fallback
-        if (!actualUserId) {
-          actualUserId = userSnapshot.docs[0].id;
-          console.log(`⚠️ No user has documents, using first user ID: ${actualUserId}`);
-        }
-
-        // Load bookings
+        // Load bookings (use client ID)
         const now = new Date();
         const bookingsQuery = query(
           collection(db, 'bookings'),
-          where('clientUID', '==', actualUserId),
+          where('clientUID', '==', clientId),
           where('orgId', '==', orgId)
         );
         const bookingsSnap = await getDocs(bookingsQuery);
@@ -389,15 +338,15 @@ export default function ClientsPage() {
             .sort((a, b) => b.startTime.seconds - a.startTime.seconds)
         );
 
-        // Load packages - try new path first
+        // Load packages (use client ID) - try new path first
         let packagesSnap = await getDocs(
-          collection(db, 'organizations', orgId, 'users', actualUserId, 'packages')
+          collection(db, 'organizations', orgId, 'users', clientId, 'packages')
         );
 
         // Fallback to old path
         if (packagesSnap.empty) {
           packagesSnap = await getDocs(
-            collection(db, 'users', actualUserId, 'lessonPackages')
+            collection(db, 'users', clientId, 'lessonPackages')
           );
         }
 
@@ -411,10 +360,29 @@ export default function ClientsPage() {
         }) as LessonPackage[];
         setPackages(packagesData);
 
-        // Load documents from /documents subcollection (standard path)
-        console.log('🔍 Querying documents for user:', actualUserId);
+        // DOCUMENTS ONLY: Get authUserId from user document
+        console.log('🔍 Loading authUserId for documents from user:', clientId);
+        const userDocRef = doc(db, 'users', clientId);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        let documentsUserId = clientId; // Default to client ID
+        
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          if (userData.authUserId) {
+            documentsUserId = userData.authUserId;
+            console.log(`✅ Found authUserId: ${documentsUserId} for documents`);
+          } else {
+            console.log('⚠️ No authUserId field, using client ID for documents');
+          }
+        } else {
+          console.log('⚠️ User document not found, using client ID for documents');
+        }
+
+        // Load documents (use authUserId if available, otherwise client ID)
+        console.log('🔍 Querying documents for user:', documentsUserId);
         const docsSnap = await getDocs(
-          collection(db, 'users', actualUserId, 'documents')
+          collection(db, 'users', documentsUserId, 'documents')
         );
         console.log('📁 Found documents in /documents:', docsSnap.docs.length);
         
@@ -435,7 +403,7 @@ export default function ClientsPage() {
         // ALSO check legacy /waivers subcollection (just in case)
         console.log('🔍 Checking legacy waivers subcollection...');
         const waiversSnap = await getDocs(
-          collection(db, 'users', actualUserId, 'waivers')
+          collection(db, 'users', documentsUserId, 'waivers')
         );
         console.log('📁 Found waivers in /waivers:', waiversSnap.docs.length);
         
@@ -472,9 +440,9 @@ export default function ClientsPage() {
         })) as PricingPackage[];
         setPricingPackages(pricingData);
 
-        // Load payment methods
+        // Load payment methods (use client ID)
         const paymentsSnap = await getDocs(
-          collection(db, 'users', actualUserId, 'paymentMethods')
+          collection(db, 'users', clientId, 'paymentMethods')
         );
         const paymentsData = paymentsSnap.docs.map(doc => ({
           id: doc.id,
@@ -483,10 +451,10 @@ export default function ClientsPage() {
         console.log('Payment methods loaded:', paymentsData.length, paymentsData);
         setPaymentMethods(paymentsData);
 
-        // Load receipts/transactions
+        // Load receipts/transactions (use client ID)
         const receiptsQuery = query(
           collection(db, 'transactions'),
-          where('userId', '==', actualUserId),
+          where('userId', '==', clientId),
           where('orgId', '==', orgId)
         );
         const receiptsSnap = await getDocs(receiptsQuery);
