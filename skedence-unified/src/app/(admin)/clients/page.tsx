@@ -317,18 +317,61 @@ export default function ClientsPage() {
         console.log('🔍 Selected client ID:', selectedClient.id);
         console.log('🔍 Selected client email:', selectedClient.email);
         
-        // Query users collection by email to find ALL matching users
-        const usersQuery = query(
+        // Try multiple approaches to find the correct user ID
+        let actualUserId = selectedClient.id; // fallback to original ID
+        
+        // APPROACH 1: Query by emailAddress field
+        let usersQuery = query(
           collection(db, 'users'),
           where('emailAddress', '==', selectedClient.email)
         );
-        const usersSnapshot = await getDocs(usersQuery);
+        let usersSnapshot = await getDocs(usersQuery);
         
-        console.log(`📋 Found ${usersSnapshot.docs.length} user(s) with email ${selectedClient.email}`);
+        console.log(`📋 Found ${usersSnapshot.docs.length} user(s) with emailAddress=${selectedClient.email}`);
         
-        let actualUserId = selectedClient.id; // fallback to original ID
+        // APPROACH 2: Also try 'email' field (alternative field name)
+        if (usersSnapshot.docs.length === 0) {
+          usersQuery = query(
+            collection(db, 'users'),
+            where('email', '==', selectedClient.email)
+          );
+          usersSnapshot = await getDocs(usersQuery);
+          console.log(`📋 Found ${usersSnapshot.docs.length} user(s) with email=${selectedClient.email}`);
+        }
         
-        // If we found users, check each one for documents
+        // APPROACH 3: Get ALL users in org and check each for documents
+        if (usersSnapshot.docs.length === 0 || usersSnapshot.docs.every(doc => doc.id === selectedClient.id)) {
+          console.log('⚠️ Standard email query failed or only found current ID, checking ALL org users...');
+          const orgMembersQuery = query(
+            collection(db, 'orgMembers'),
+            where('orgId', '==', orgId),
+            where('role', '==', 'client')
+          );
+          const orgMembersSnapshot = await getDocs(orgMembersQuery);
+          console.log(`📋 Found ${orgMembersSnapshot.docs.length} clients in organization`);
+          
+          // Check each client for documents
+          for (const memberDoc of orgMembersSnapshot.docs) {
+            const userId = memberDoc.data().userId;
+            console.log(`   👤 Checking user: ${userId}`);
+            
+            const testDocsSnap = await getDocs(
+              collection(db, 'users', userId, 'documents')
+            );
+            
+            if (testDocsSnap.docs.length > 0) {
+              console.log(`      ✅ Found ${testDocsSnap.docs.length} documents!`);
+              // Check if this might be our user by checking user details
+              const testUserDoc = await getDoc(doc(db, 'users', userId));
+              if (testUserDoc.exists()) {
+                const testUserData = testUserDoc.data();
+                console.log(`      User: ${testUserData.firstName} ${testUserData.lastName} (${testUserData.emailAddress || testUserData.email})`);
+              }
+            }
+          }
+        }
+        
+        // Check each matching user for documents
         if (usersSnapshot.docs.length > 0) {
           let foundUserWithDocs = false;
           
@@ -353,10 +396,10 @@ export default function ClientsPage() {
           if (!foundUserWithDocs) {
             // No user with documents found, use first match
             actualUserId = usersSnapshot.docs[0].id;
-            console.log(`   ⚠️ No documents found in any user, using first: ${actualUserId}`);
+            console.log(`   ⚠️ No documents found in any matching user, using first: ${actualUserId}`);
           }
         } else {
-          console.warn('⚠️ Could not find user by email, using original ID');
+          console.warn('⚠️ Could not find user by email');
         }
 
         // Load bookings
