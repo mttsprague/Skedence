@@ -358,18 +358,54 @@ export default function ClientsPage() {
         }) as LessonPackage[];
         setPackages(packagesData);
 
-        // Load documents (includes waivers with type: "waiver")
+        // Load documents from /documents subcollection (standard path)
+        console.log('🔍 Querying documents for user:', selectedClient.id);
         const docsSnap = await getDocs(
           collection(db, 'users', selectedClient.id, 'documents')
         );
-        const docsData = docsSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Document[];
+        console.log('📁 Found documents in /documents:', docsSnap.docs.length);
+        
+        const docsData = docsSnap.docs.map(doc => {
+          const data = doc.data();
+          console.log('Document data:', {
+            id: doc.id,
+            type: data.type,
+            name: data.name || data.displayName,
+            uploadedAt: data.uploadedAt
+          });
+          return {
+            id: doc.id,
+            ...data,
+          };
+        }) as Document[];
+        
+        // ALSO check legacy /waivers subcollection (just in case)
+        console.log('🔍 Checking legacy waivers subcollection...');
+        const waiversSnap = await getDocs(
+          collection(db, 'users', selectedClient.id, 'waivers')
+        );
+        console.log('📁 Found waivers in /waivers:', waiversSnap.docs.length);
+        
+        const waiversData = waiversSnap.docs.map(doc => {
+          const data = doc.data();
+          console.log('Legacy waiver data:', {
+            id: doc.id,
+            ...data
+          });
+          return {
+            id: doc.id,
+            type: 'waiver', // Ensure it's marked as waiver
+            ...data,
+          };
+        }) as Document[];
+        
+        // Merge both sources
+        const allDocs = [...docsData, ...waiversData];
+        console.log('📊 Total documents found:', allDocs.length);
         
         // Sort by uploadedAt (newest first)
-        const sortedDocs = docsData.sort((a, b) => 
-          b.uploadedAt.seconds - a.uploadedAt.seconds
+        const sortedDocs = allDocs.sort((a, b) => 
+          b.uploadedAt?.seconds - a.uploadedAt?.seconds
         );
         setDocuments(sortedDocs);
 
