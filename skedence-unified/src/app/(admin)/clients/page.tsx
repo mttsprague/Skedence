@@ -317,17 +317,44 @@ export default function ClientsPage() {
         console.log('🔍 Selected client ID:', selectedClient.id);
         console.log('🔍 Selected client email:', selectedClient.email);
         
-        // Query users collection by email to find the actual Firebase Auth UID
+        // Query users collection by email to find ALL matching users
         const usersQuery = query(
           collection(db, 'users'),
           where('emailAddress', '==', selectedClient.email)
         );
         const usersSnapshot = await getDocs(usersQuery);
         
+        console.log(`📋 Found ${usersSnapshot.docs.length} user(s) with email ${selectedClient.email}`);
+        
         let actualUserId = selectedClient.id; // fallback to original ID
+        
+        // If we found users, check each one for documents
         if (usersSnapshot.docs.length > 0) {
-          actualUserId = usersSnapshot.docs[0].id; // Use Firebase Auth UID (document ID)
-          console.log('✅ Resolved actual user ID:', actualUserId);
+          let foundUserWithDocs = false;
+          
+          for (const userDoc of usersSnapshot.docs) {
+            console.log(`   👤 Checking user ID: ${userDoc.id}`);
+            
+            // Check if this user has documents
+            const testDocsSnap = await getDocs(
+              collection(db, 'users', userDoc.id, 'documents')
+            );
+            
+            console.log(`      📁 Has ${testDocsSnap.docs.length} documents`);
+            
+            if (testDocsSnap.docs.length > 0) {
+              actualUserId = userDoc.id;
+              foundUserWithDocs = true;
+              console.log(`   ✅ Using user ID with documents: ${actualUserId}`);
+              break;
+            }
+          }
+          
+          if (!foundUserWithDocs) {
+            // No user with documents found, use first match
+            actualUserId = usersSnapshot.docs[0].id;
+            console.log(`   ⚠️ No documents found in any user, using first: ${actualUserId}`);
+          }
         } else {
           console.warn('⚠️ Could not find user by email, using original ID');
         }
