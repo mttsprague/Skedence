@@ -311,11 +311,32 @@ export default function ClientsPage() {
       try {
         if (!orgId || !selectedClient) return; // Type guard
 
+        // CRITICAL FIX: Resolve actual Firebase Auth UID FIRST
+        // The selectedClient.id might be a custom ID (like "mike_parent")
+        // but documents/payment methods/etc are stored under the Firebase Auth UID
+        console.log('🔍 Selected client ID:', selectedClient.id);
+        console.log('🔍 Selected client email:', selectedClient.email);
+        
+        // Query users collection by email to find the actual Firebase Auth UID
+        const usersQuery = query(
+          collection(db, 'users'),
+          where('emailAddress', '==', selectedClient.email)
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        
+        let actualUserId = selectedClient.id; // fallback to original ID
+        if (usersSnapshot.docs.length > 0) {
+          actualUserId = usersSnapshot.docs[0].id; // Use Firebase Auth UID (document ID)
+          console.log('✅ Resolved actual user ID:', actualUserId);
+        } else {
+          console.warn('⚠️ Could not find user by email, using original ID');
+        }
+
         // Load bookings
         const now = new Date();
         const bookingsQuery = query(
           collection(db, 'bookings'),
-          where('clientUID', '==', selectedClient.id),
+          where('clientUID', '==', actualUserId),
           where('orgId', '==', orgId)
         );
         const bookingsSnap = await getDocs(bookingsQuery);
@@ -338,13 +359,13 @@ export default function ClientsPage() {
 
         // Load packages - try new path first
         let packagesSnap = await getDocs(
-          collection(db, 'organizations', orgId, 'users', selectedClient.id, 'packages')
+          collection(db, 'organizations', orgId, 'users', actualUserId, 'packages')
         );
 
         // Fallback to old path
         if (packagesSnap.empty) {
           packagesSnap = await getDocs(
-            collection(db, 'users', selectedClient.id, 'lessonPackages')
+            collection(db, 'users', actualUserId, 'lessonPackages')
           );
         }
 
@@ -359,9 +380,9 @@ export default function ClientsPage() {
         setPackages(packagesData);
 
         // Load documents from /documents subcollection (standard path)
-        console.log('🔍 Querying documents for user:', selectedClient.id);
+        console.log('🔍 Querying documents for user:', actualUserId);
         const docsSnap = await getDocs(
-          collection(db, 'users', selectedClient.id, 'documents')
+          collection(db, 'users', actualUserId, 'documents')
         );
         console.log('📁 Found documents in /documents:', docsSnap.docs.length);
         
@@ -382,7 +403,7 @@ export default function ClientsPage() {
         // ALSO check legacy /waivers subcollection (just in case)
         console.log('🔍 Checking legacy waivers subcollection...');
         const waiversSnap = await getDocs(
-          collection(db, 'users', selectedClient.id, 'waivers')
+          collection(db, 'users', actualUserId, 'waivers')
         );
         console.log('📁 Found waivers in /waivers:', waiversSnap.docs.length);
         
@@ -421,7 +442,7 @@ export default function ClientsPage() {
 
         // Load payment methods
         const paymentsSnap = await getDocs(
-          collection(db, 'users', selectedClient.id, 'paymentMethods')
+          collection(db, 'users', actualUserId, 'paymentMethods')
         );
         const paymentsData = paymentsSnap.docs.map(doc => ({
           id: doc.id,
@@ -433,7 +454,7 @@ export default function ClientsPage() {
         // Load receipts/transactions
         const receiptsQuery = query(
           collection(db, 'transactions'),
-          where('userId', '==', selectedClient.id),
+          where('userId', '==', actualUserId),
           where('orgId', '==', orgId)
         );
         const receiptsSnap = await getDocs(receiptsQuery);
