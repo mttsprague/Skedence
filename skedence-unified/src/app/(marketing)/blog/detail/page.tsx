@@ -16,9 +16,18 @@ function BlogPostContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Get slug from URL hash (after #)
+    // Support both hash-based routing (#slug) and query params (?slug=) for backward compatibility
+    let slug: string | null = null;
+    
+    // First try hash (new format)
     const hash = window.location.hash;
-    const slug = hash ? hash.substring(1) : null; // Remove # prefix
+    if (hash) {
+      slug = hash.substring(1); // Remove # prefix
+    } else {
+      // Fallback to query params (old format)
+      const urlParams = new URLSearchParams(window.location.search);
+      slug = urlParams.get('slug');
+    }
     
     if (slug) {
       loadPost(slug);
@@ -49,19 +58,42 @@ function BlogPostContent() {
         }
         metaDescription.setAttribute('content', data.excerpt);
         
+        // Update or create meta keywords
+        if (data.keywords) {
+          let metaKeywords = document.querySelector('meta[name="keywords"]');
+          if (!metaKeywords) {
+            metaKeywords = document.createElement('meta');
+            metaKeywords.setAttribute('name', 'keywords');
+            document.head.appendChild(metaKeywords);
+          }
+          metaKeywords.setAttribute('content', data.keywords.toString());
+        }
+        
         // Update Open Graph tags for social sharing
         updateMetaTag('og:title', data.title);
         updateMetaTag('og:description', data.excerpt);
-        updateMetaTag('og:url', `https://skedence.com/blog/detail?slug=${data.slug}`);
+        updateMetaTag('og:url', `https://skedence.com/blog/detail#${data.slug}`);
         updateMetaTag('og:type', 'article');
-        updateMetaTag('og:image', data.featuredImage || 'https://skedence.com/og-image.png');
-        updateMetaTag('og:site_name', 'Skedence');
+        updateMetaTag('og:image', data.featuredImage || 'https://skedence.com/logo-nav.png');
+        updateMetaTag('og:site_name', 'Skedence Blog');
+        
+        // Add article-specific Open Graph tags
+        if (data.publishedAt) {
+          updateMetaTag('article:published_time', data.publishedAt.toISOString());
+        }
+        if (data.updatedAt) {
+          updateMetaTag('article:modified_time', data.updatedAt.toISOString());
+        }
+        if (data.categories && data.categories.length > 0) {
+          updateMetaTag('article:section', data.categories[0]);
+        }
         
         // Update Twitter Card tags
         updateMetaTag('twitter:card', 'summary_large_image');
         updateMetaTag('twitter:title', data.title);
         updateMetaTag('twitter:description', data.excerpt);
-        updateMetaTag('twitter:image', data.featuredImage || 'https://skedence.com/og-image.png');
+        updateMetaTag('twitter:image', data.featuredImage || 'https://skedence.com/logo-nav.png');
+        updateMetaTag('twitter:image:alt', data.featuredImageAlt || data.title);
         
         // Track blog post view
         trackPageView(`/blog/${data.slug}`, data.title);
