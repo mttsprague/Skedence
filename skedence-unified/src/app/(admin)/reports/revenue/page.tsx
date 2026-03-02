@@ -52,7 +52,7 @@ type SortField = 'date' | 'user' | 'package' | 'amount' | 'source';
 type SortDirection = 'asc' | 'desc';
 
 export default function RevenueReportPage() {
-  const { orgId } = useAuth();
+  const { orgId, user } = useAuth();
   const { subscription, isLoading: subLoading, canAccessFeature, getBlockReason } = useSubscriptionEnforcement(orgId);
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState<PackageRevenue[]>([]);
@@ -225,6 +225,55 @@ export default function RevenueReportPage() {
             lessonsUsed: data.lessonsUsed || 0
           });
         }
+      }
+      
+      // DEMO DATA INJECTION - Only for specific admin and February 2026
+      const isDemoUser = user?.email === 'mttsprague@gmail.com';
+      const isFebruary2026 = dateRangeType === 'month' && selectedMonth === '2026-02';
+      
+      if (isDemoUser && isFebruary2026) {
+        console.log('🎬 Injecting demo data for February 2026');
+        
+        // Generate realistic demo packages throughout February
+        const demoPackages: PackageRevenue[] = [
+          // Week 1 - Strong start
+          { id: 'demo_1', userId: 'demo_user_1', userName: 'Sarah Johnson', userEmail: 'sarah.j@example.com', packageType: 'private_10', packageName: '10 Private Lessons', purchaseDate: new Date('2026-02-02'), amountPaid: 800, transactionId: 'demo_txn_1', source: 'paid', totalLessons: 10, lessonsUsed: 2 },
+          { id: 'demo_2', userId: 'demo_user_2', userName: 'Mike Chen', userEmail: 'mchen@example.com', packageType: 'group_20', packageName: '20 Group Sessions', purchaseDate: new Date('2026-02-03'), amountPaid: 400, transactionId: 'demo_txn_2', source: 'paid', totalLessons: 20, lessonsUsed: 5 },
+          { id: 'demo_3', userId: 'demo_user_3', userName: 'Emily Rodriguez', userEmail: 'emily.r@example.com', packageType: 'private_5', packageName: '5 Private Lessons', purchaseDate: new Date('2026-02-04'), amountPaid: 425, transactionId: 'demo_txn_3', source: 'paid', totalLessons: 5, lessonsUsed: 1 },
+          { id: 'demo_4', userId: 'demo_user_4', userName: 'James Wilson', userEmail: 'jwilson@example.com', packageType: 'elite_unlimited', packageName: 'Elite Unlimited Monthly', purchaseDate: new Date('2026-02-05'), amountPaid: 1200, transactionId: 'demo_txn_4', source: 'paid', totalLessons: 0, lessonsUsed: 0 },
+          { id: 'demo_5', userId: 'demo_user_5', userName: 'Lisa Martinez', userEmail: 'lmartinez@example.com', packageType: 'private_10', packageName: '10 Private Lessons', purchaseDate: new Date('2026-02-06'), amountPaid: 800, transactionId: 'demo_txn_5', source: 'paid', totalLessons: 10, lessonsUsed: 3 },
+          
+          // Week 2 - Peak performance
+          { id: 'demo_6', userId: 'demo_user_6', userName: 'David Thompson', userEmail: 'dthompson@example.com', packageType: 'semi_private_8', packageName: '8 Semi-Private Sessions', purchaseDate: new Date('2026-02-09'), amountPaid: 600, transactionId: 'demo_txn_6', source: 'paid', totalLessons: 8, lessonsUsed: 2 },
+          { id: 'demo_7', userId: 'demo_user_7', userName: 'Amanda Lee', userEmail: 'alee@example.com', packageType: 'private_10', packageName: '10 Private Lessons', purchaseDate: new Date('2026-02-10'), amountPaid: 800, transactionId: 'demo_txn_7', source: 'paid', totalLessons: 10, lessonsUsed: 4 },
+          { id: 'demo_8', userId: 'demo_user_8', userName: 'Chris Anderson', userEmail: 'canderson@example.com', packageType: 'group_20', packageName: '20 Group Sessions', purchaseDate: new Date('2026-02-11'), amountPaid: 400, transactionId: 'demo_txn_8', source: 'paid', totalLessons: 20, lessonsUsed: 6 },
+          { id: 'demo_9', userId: 'demo_user_9', userName: 'Jessica Brown', userEmail: 'jbrown@example.com', packageType: 'private_20', packageName: '20 Private Lessons', purchaseDate: new Date('2026-02-12'), amountPaid: 1500, transactionId: 'demo_txn_9', source: 'paid', totalLessons: 20, lessonsUsed: 1 },
+          { id: 'demo_10', userId: 'demo_user_10', userName: 'Robert Davis', userEmail: 'rdavis@example.com', packageType: 'elite_unlimited', packageName: 'Elite Unlimited Monthly', purchaseDate: new Date('2026-02-13'), amountPaid: 1200, transactionId: 'demo_txn_10', source: 'paid', totalLessons: 0, lessonsUsed: 0 },
+          { id: 'demo_11', userId: 'demo_user_11', userName: 'Nicole Garcia', userEmail: 'ngarcia@example.com', packageType: 'private_5', packageName: '5 Private Lessons', purchaseDate: new Date('2026-02-13'), amountPaid: 425, transactionId: 'demo_txn_11', source: 'paid', totalLessons: 5, lessonsUsed: 2 },
+          
+          // Week 3 - Consistent growth
+          { id: 'demo_12', userId: 'demo_user_12', userName: 'Kevin White', userEmail: 'kwhite@example.com', packageType: 'semi_private_8', packageName: '8 Semi-Private Sessions', purchaseDate: new Date('2026-02-16'), amountPaid: 600, transactionId: 'demo_txn_12', source: 'paid', totalLessons: 8, lessonsUsed: 1 },
+          { id: 'demo_13', userId: 'demo_user_13', userName: 'Rachel Taylor', userEmail: 'rtaylor@example.com', packageType: 'private_10', packageName: '10 Private Lessons', purchaseDate: new Date('2026-02-17'), amountPaid: 800, transactionId: 'demo_txn_13', source: 'paid', totalLessons: 10, lessonsUsed: 5 },
+          { id: 'demo_14', userId: 'demo_user_14', userName: 'Tom Harris', userEmail: 'tharris@example.com', packageType: 'group_20', packageName: '20 Group Sessions', purchaseDate: new Date('2026-02-18'), amountPaid: 400, transactionId: 'demo_txn_14', source: 'paid', totalLessons: 20, lessonsUsed: 7 },
+          { id: 'demo_15', userId: 'demo_user_15', userName: 'Sophia Clark', userEmail: 'sclark@example.com', packageType: 'private_20', packageName: '20 Private Lessons', purchaseDate: new Date('2026-02-19'), amountPaid: 1500, transactionId: 'demo_txn_15', source: 'paid', totalLessons: 20, lessonsUsed: 3 },
+          { id: 'demo_16', userId: 'demo_user_16', userName: 'Daniel Lewis', userEmail: 'dlewis@example.com', packageType: 'private_10', packageName: '10 Private Lessons', purchaseDate: new Date('2026-02-20'), amountPaid: 800, transactionId: 'demo_txn_16', source: 'paid', totalLessons: 10, lessonsUsed: 2 },
+          
+          // Week 4 - Strong finish
+          { id: 'demo_17', userId: 'demo_user_17', userName: 'Olivia Walker', userEmail: 'owalker@example.com', packageType: 'elite_unlimited', packageName: 'Elite Unlimited Monthly', purchaseDate: new Date('2026-02-23'), amountPaid: 1200, transactionId: 'demo_txn_17', source: 'paid', totalLessons: 0, lessonsUsed: 0 },
+          { id: 'demo_18', userId: 'demo_user_18', userName: 'Matthew Hall', userEmail: 'mhall@example.com', packageType: 'private_5', packageName: '5 Private Lessons', purchaseDate: new Date('2026-02-24'), amountPaid: 425, transactionId: 'demo_txn_18', source: 'paid', totalLessons: 5, lessonsUsed: 1 },
+          { id: 'demo_19', userId: 'demo_user_19', userName: 'Emma Young', userEmail: 'eyoung@example.com', packageType: 'semi_private_8', packageName: '8 Semi-Private Sessions', purchaseDate: new Date('2026-02-25'), amountPaid: 600, transactionId: 'demo_txn_19', source: 'paid', totalLessons: 8, lessonsUsed: 3 },
+          { id: 'demo_20', userId: 'demo_user_20', userName: 'Nathan King', userEmail: 'nking@example.com', packageType: 'private_10', packageName: '10 Private Lessons', purchaseDate: new Date('2026-02-26'), amountPaid: 800, transactionId: 'demo_txn_20', source: 'paid', totalLessons: 10, lessonsUsed: 4 },
+          { id: 'demo_21', userId: 'demo_user_21', userName: 'Ava Scott', userEmail: 'ascott@example.com', packageType: 'group_20', packageName: '20 Group Sessions', purchaseDate: new Date('2026-02-27'), amountPaid: 400, transactionId: 'demo_txn_21', source: 'paid', totalLessons: 20, lessonsUsed: 2 },
+          { id: 'demo_22', userId: 'demo_user_22', userName: 'Ethan Green', userEmail: 'egreen@example.com', packageType: 'private_20', packageName: '20 Private Lessons', purchaseDate: new Date('2026-02-27'), amountPaid: 1500, transactionId: 'demo_txn_22', source: 'paid', totalLessons: 20, lessonsUsed: 1 },
+          
+          // Some admin-added passes
+          { id: 'demo_23', userId: 'demo_user_23', userName: 'Isabella Adams', userEmail: 'iadams@example.com', packageType: 'comp_pass', packageName: 'Complimentary Pass', purchaseDate: new Date('2026-02-15'), amountPaid: 0, transactionId: 'ADMIN_ADDED_demo_23', source: 'admin_added', totalLessons: 5, lessonsUsed: 0 },
+          { id: 'demo_24', userId: 'demo_user_24', userName: 'Mason Nelson', userEmail: 'mnelson@example.com', packageType: 'comp_pass', packageName: 'Complimentary Pass', purchaseDate: new Date('2026-02-22'), amountPaid: 0, transactionId: 'ADMIN_ADDED_demo_24', source: 'admin_added', totalLessons: 3, lessonsUsed: 1 },
+        ];
+        
+        // Add demo packages to loaded packages
+        loadedPackages.push(...demoPackages);
+        console.log(`🎬 Added ${demoPackages.length} demo packages. Total revenue: $${demoPackages.filter(p => p.source === 'paid').reduce((sum, p) => sum + p.amountPaid, 0).toFixed(2)}`);
       }
       
       setPackages(loadedPackages);

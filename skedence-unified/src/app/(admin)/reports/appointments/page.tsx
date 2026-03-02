@@ -50,7 +50,7 @@ type SortField = 'date' | 'client' | 'trainer' | 'type' | 'duration' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function AppointmentsReportPage() {
-  const { orgId } = useAuth();
+  const { orgId, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
@@ -331,6 +331,63 @@ export default function AppointmentsReportPage() {
             location: classData.location
           });
         }
+      }
+      
+      // DEMO DATA INJECTION - Only for specific admin and February 2026
+      const isDemoUser = user?.email === 'mttsprague@gmail.com';
+      const isFebruary2026 = dateRangeType === 'month' && selectedMonth === '2026-02';
+      
+      if (isDemoUser && isFebruary2026) {
+        console.log('🎬 Injecting demo appointments for February 2026');
+        
+        // Generate realistic demo appointments throughout February
+        const demoAppointments: Appointment[] = [
+          // Week 1
+          { id: 'demo_apt_1', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-02T09:00:00'), endTime: new Date('2026-02-02T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_1', clientName: 'Alex Johnson', clientEmail: 'alex@example.com', location: 'Court 1' },
+          { id: 'demo_apt_2', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-02T10:30:00'), endTime: new Date('2026-02-02T11:30:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_2', clientName: 'Emma Davis', clientEmail: 'emma@example.com', location: 'Court 1' },
+          { id: 'demo_apt_3', type: '2-Athlete Private', typeCategory: '2_athlete', cost: 120, startTime: new Date('2026-02-03T14:00:00'), endTime: new Date('2026-02-03T15:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_3', clientName: 'Taylor Smith', clientEmail: 'taylor@example.com', location: 'Court 2', athleteNames: ['Taylor Smith', 'Jordan Smith'] },
+          { id: 'demo_apt_4', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-03T18:00:00'), endTime: new Date('2026-02-03T19:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_4', clientName: 'Chris Brown', clientEmail: 'chris@example.com', location: 'Main Court' },
+          { id: 'demo_apt_5', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-04T16:00:00'), endTime: new Date('2026-02-04T17:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_3', trainerName: 'Coach Alex', clientId: 'demo_client_5', clientName: 'Jamie Wilson', clientEmail: 'jamie@example.com', location: 'Court 1' },
+          { id: 'demo_apt_6', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-05T09:00:00'), endTime: new Date('2026-02-05T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_6', clientName: 'Morgan Lee', clientEmail: 'morgan@example.com', location: 'Court 1' },
+          { id: 'demo_apt_7', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-05T18:00:00'), endTime: new Date('2026-02-05T19:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_7', clientName: 'Riley Garcia', clientEmail: 'riley@example.com', location: 'Main Court' },
+          
+          // Week 2 - Peak activity
+          { id: 'demo_apt_8', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-09T08:00:00'), endTime: new Date('2026-02-09T09:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_8', clientName: 'Casey Martinez', clientEmail: 'casey@example.com', location: 'Court 1' },
+          { id: 'demo_apt_9', type: '2-Athlete Private', typeCategory: '2_athlete', cost: 120, startTime: new Date('2026-02-09T10:00:00'), endTime: new Date('2026-02-09T11:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_9', clientName: 'Avery Rodriguez', clientEmail: 'avery@example.com', location: 'Court 1', athleteNames: ['Avery Rodriguez', 'Blake Rodriguez'] },
+          { id: 'demo_apt_10', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-10T09:00:00'), endTime: new Date('2026-02-10T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_10', clientName: 'Quinn Hernandez', clientEmail: 'quinn@example.com', location: 'Court 2' },
+          { id: 'demo_apt_11', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-10T18:00:00'), endTime: new Date('2026-02-10T19:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_11', clientName: 'Peyton Lopez', clientEmail: 'peyton@example.com', location: 'Main Court' },
+          { id: 'demo_apt_12', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-11T14:00:00'), endTime: new Date('2026-02-11T15:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_3', trainerName: 'Coach Alex', clientId: 'demo_client_12', clientName: 'Drew Gonzalez', clientEmail: 'drew@example.com', location: 'Court 1' },
+          { id: 'demo_apt_13', type: '3-Athlete Private', typeCategory: '3_athlete', cost: 160, startTime: new Date('2026-02-11T16:00:00'), endTime: new Date('2026-02-11T17:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_13', clientName: 'Cameron Wilson', clientEmail: 'cameron@example.com', location: 'Court 2', athleteNames: ['Cameron Wilson', 'Dakota Wilson', 'Ellis Wilson'] },
+          { id: 'demo_apt_14', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-12T09:00:00'), endTime: new Date('2026-02-12T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_14', clientName: 'Skylar Anderson', clientEmail: 'skylar@example.com', location: 'Court 1' },
+          { id: 'demo_apt_15', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-12T18:00:00'), endTime: new Date('2026-02-12T19:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_15', clientName: 'Sage Thomas', clientEmail: 'sage@example.com', location: 'Main Court' },
+          { id: 'demo_apt_16', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-13T10:00:00'), endTime: new Date('2026-02-13T11:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_16', clientName: 'River Taylor', clientEmail: 'river@example.com', location: 'Court 2' },
+          
+          // Week 3
+          { id: 'demo_apt_17', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-16T09:00:00'), endTime: new Date('2026-02-16T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_17', clientName: 'Phoenix Moore', clientEmail: 'phoenix@example.com', location: 'Court 1' },
+          { id: 'demo_apt_18', type: '2-Athlete Private', typeCategory: '2_athlete', cost: 120, startTime: new Date('2026-02-17T14:00:00'), endTime: new Date('2026-02-17T15:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_18', clientName: 'Rowan Jackson', clientEmail: 'rowan@example.com', location: 'Court 2', athleteNames: ['Rowan Jackson', 'Parker Jackson'] },
+          { id: 'demo_apt_19', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-17T18:00:00'), endTime: new Date('2026-02-17T19:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_19', clientName: 'Finley Martin', clientEmail: 'finley@example.com', location: 'Main Court' },
+          { id: 'demo_apt_20', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-18T09:00:00'), endTime: new Date('2026-02-18T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_3', trainerName: 'Coach Alex', clientId: 'demo_client_20', clientName: 'Charlie White', clientEmail: 'charlie@example.com', location: 'Court 1' },
+          { id: 'demo_apt_21', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-19T10:00:00'), endTime: new Date('2026-02-19T11:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_21', clientName: 'Reese Harris', clientEmail: 'reese@example.com', location: 'Court 1' },
+          { id: 'demo_apt_22', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-19T18:00:00'), endTime: new Date('2026-02-19T19:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_22', clientName: 'Emerson Clark', clientEmail: 'emerson@example.com', location: 'Main Court' },
+          
+          // Week 4
+          { id: 'demo_apt_23', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-23T09:00:00'), endTime: new Date('2026-02-23T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_23', clientName: 'Lennox Lewis', clientEmail: 'lennox@example.com', location: 'Court 1' },
+          { id: 'demo_apt_24', type: '2-Athlete Private', typeCategory: '2_athlete', cost: 120, startTime: new Date('2026-02-24T14:00:00'), endTime: new Date('2026-02-24T15:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_24', clientName: 'Sawyer Walker', clientEmail: 'sawyer@example.com', location: 'Court 2', athleteNames: ['Sawyer Walker', 'Sloane Walker'] },
+          { id: 'demo_apt_25', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-24T18:00:00'), endTime: new Date('2026-02-24T19:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_25', clientName: 'Hayden Young', clientEmail: 'hayden@example.com', location: 'Main Court' },
+          { id: 'demo_apt_26', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-25T09:00:00'), endTime: new Date('2026-02-25T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_3', trainerName: 'Coach Alex', clientId: 'demo_client_26', clientName: 'Rory Allen', clientEmail: 'rory@example.com', location: 'Court 1' },
+          { id: 'demo_apt_27', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-26T10:00:00'), endTime: new Date('2026-02-26T11:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_27', clientName: 'Marlowe King', clientEmail: 'marlowe@example.com', location: 'Court 1' },
+          { id: 'demo_apt_28', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-26T18:00:00'), endTime: new Date('2026-02-26T19:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_28', clientName: 'Bellamy Scott', clientEmail: 'bellamy@example.com', location: 'Main Court' },
+          { id: 'demo_apt_29', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-27T09:00:00'), endTime: new Date('2026-02-27T10:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_29', clientName: 'Logan Green', clientEmail: 'logan@example.com', location: 'Court 1' },
+          { id: 'demo_apt_30', type: '2-Athlete Private', typeCategory: '2_athlete', cost: 120, startTime: new Date('2026-02-27T14:00:00'), endTime: new Date('2026-02-27T15:00:00'), status: 'completed', duration: 60, trainerId: 'demo_trainer_3', trainerName: 'Coach Alex', clientId: 'demo_client_30', clientName: 'Bailey Adams', clientEmail: 'bailey@example.com', location: 'Court 1', athleteNames: ['Bailey Adams', 'Blake Adams'] },
+          
+          // Some cancelled and no-shows for realism
+          { id: 'demo_apt_31', type: 'Private Lesson', typeCategory: 'private', cost: 80, startTime: new Date('2026-02-14T10:00:00'), endTime: new Date('2026-02-14T11:00:00'), status: 'cancelled', duration: 60, trainerId: 'demo_trainer_1', trainerName: 'Coach Sarah', clientId: 'demo_client_31', clientName: 'Aspen Baker', clientEmail: 'aspen@example.com', location: 'Court 1' },
+          { id: 'demo_apt_32', type: 'Group Class', typeCategory: 'class', cost: 45, startTime: new Date('2026-02-21T18:00:00'), endTime: new Date('2026-02-21T19:00:00'), status: 'no-show', duration: 60, trainerId: 'demo_trainer_2', trainerName: 'Coach Mike', clientId: 'demo_client_32', clientName: 'Eden Cruz', clientEmail: 'eden@example.com', location: 'Main Court' },
+        ];
+        
+        // Add demo appointments to loaded appointments
+        loadedAppointments.push(...demoAppointments);
+        console.log(`🎬 Added ${demoAppointments.length} demo appointments`);
       }
       
       setAppointments(loadedAppointments);
