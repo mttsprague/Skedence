@@ -219,32 +219,10 @@ export default function ClientsPage() {
           const memberData = memberDoc.data();
           if (memberData.role !== 'client') return null;
           
-          // CRITICAL: Query users collection by email to get ACTUAL document ID (Firebase Auth UID)
-          // Don't use memberData.userId - that's a custom ID like "mike_parent"
-          const userEmail = memberData.emailAddress || memberData.email;
-          if (!userEmail) {
-            console.warn('⚠️ OrgMember has no email, skipping:', memberData.userId);
-            return null;
-          }
+          const userDoc = await getDoc(doc(db, 'users', memberData.userId));
+          if (!userDoc.exists()) return null;
           
-          // Find user by email to get the real Firebase Auth UID (document ID)
-          const userQuery = query(
-            collection(db, 'users'),
-            where('emailAddress', '==', userEmail)
-          );
-          const userSnapshot = await getDocs(userQuery);
-          
-          if (userSnapshot.empty) {
-            console.warn(`⚠️ No user document found for email: ${userEmail}`);
-            return null;
-          }
-          
-          // Use the DOCUMENT ID (Firebase Auth UID), not memberData.userId
-          const userDoc = userSnapshot.docs[0];
-          const actualUserId = userDoc.id; // This is the Firebase Auth UID!
           const userData = userDoc.data();
-          
-          console.log(`✅ Loaded client: ${userData.firstName} ${userData.lastName} (${actualUserId})`);
           // Convert legacy athlete fields to athletes array if needed
           let athletesArray: AthleteInfo[] = [];
           if (Array.isArray(userData.athletes) && userData.athletes.length > 0) {
@@ -278,7 +256,7 @@ export default function ClientsPage() {
           }
           
           return {
-            id: actualUserId, // Use Firebase Auth UID, not custom ID
+            id: memberData.userId,
             firstName: userData.firstName || '',
             lastName: userData.lastName || '',
             email: userData.emailAddress || userData.email || '',
@@ -330,13 +308,35 @@ export default function ClientsPage() {
     async function loadTabData() {
       setTabDataLoading(true);
       try {
-        if (!orgId || !selectedClient) return; // Type guard
+        if (!orgId || !selectedClient) return;
 
-        // selectedClient.id is now the Firebase Auth UID (document ID from users collection)
-        // No need to look it up - it's already correct!
-        const actualUserId = selectedClient.id;
-        console.log('🔍 Loading tab data for user:', actualUserId);
-        console.log('🔍 User email:', selectedClient.email);
+        // CRITICAL: selectedClient.id is the custom ID from orgMembers (e.g., "mike_parent")
+        // We need to find the actual Firebase Auth UID by querying users collection by email
+        const userEmail = selectedClient.email || selectedClient.emailAddress;
+        if (!userEmail) {
+          console.error('❌ Selected client has no email:', selectedClient);
+          setTabDataLoading(false);
+          return;
+        }
+
+        console.log('🔍 Looking up Firebase Auth UID for:', userEmail);
+
+        // Query users collection by email to get the actual Firebase Auth UID
+        const userQuery = query(
+          collection(db, 'users'),
+          where('emailAddress', '==', userEmail)
+        );
+        const userSnapshot = await getDocs(userQuery);
+
+        if (userSnapshot.empty) {
+          console.error('❌ No user document found for email:', userEmail);
+          setTabDataLoading(false);
+          return;
+        }
+
+        // Use the document ID as the actual user ID (Firebase Auth UID)
+        const actualUserId = userSnapshot.docs[0].id;
+        console.log('✅ Found Firebase Auth UID:', actualUserId, 'for email:', userEmail);
 
         // Load bookings
         const now = new Date();
