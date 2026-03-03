@@ -35,7 +35,7 @@ A multi-tenant SaaS platform for fitness and sports organizations to manage:
 - **Client scheduling** - Book 1-on-1 and group training sessions
 - **Trainer management** - Assign schedules, track availability
 - **Lesson packages** - Sell and track lesson passes (private, 2-athlete, 3-athlete, classes)
-- **Payments** - Stripe Connect integration with 5% platform fee
+- **Payments** - Stripe Connect integration (organizations keep 100% of revenue)
 - **Dynamic branding** - Each organization has custom colors and branding
 
 ### Platform Components
@@ -44,7 +44,7 @@ A multi-tenant SaaS platform for fitness and sports organizations to manage:
 - **Admin Web Portal** - https://skedence.com/admin-portal/ - Full web dashboard
 - **Marketing Website** - https://skedence.com - Public landing page
 - **Firebase Backend** - Firestore database, Cloud Functions, Authentication
-- **Stripe Connect** - Payment processing with platform fees
+- **Stripe Connect** - Payment processing (businesses keep 100% of revenue)
 
 ### Key Technologies
 - **iOS:** SwiftUI, Firebase SDK, Stripe iOS SDK
@@ -944,11 +944,11 @@ const unsubscribe = onSnapshot(q, (snapshot) => {
   - Queries Stripe API for account status
   - Updates organization document
 
-- **createPaymentIntentConnect** - Processes payment with platform fee
+- **createPaymentIntentConnect** - Processes payments for organizations
   - Callable function
-  - Creates payment intent with 5% platform fee
+  - Creates payment intent (no platform fee - businesses keep 100%)
   - Validates pricing structure
-  - Client pays $80 → Platform takes $4 → Business receives $76
+  - Client pays $80 → Business receives full $80 (minus standard Stripe fees)
 
 #### Stripe Webhooks
 - **stripeConnectWebhook** - Handles Stripe events
@@ -1099,9 +1099,9 @@ Each organization has their own Stripe Connect Express account:
 **Payment Flow:**
 ```
 Client pays $80 
-  → Stripe processes payment
-  → Platform takes $4 (5% application fee)
-  → Business receives $76 in their Connect account
+  → Stripe processes payment (standard Stripe fees apply)
+  → Business receives full amount in their Connect account
+  → Skedence revenue comes from monthly subscription fees only
 ```
 
 **Organization Stripe Fields:**
@@ -1128,7 +1128,7 @@ stripe: {
 7. Client's `remainingLessons` updated
 
 **Key Functions:**
-- `createPaymentIntentConnect` - Creates payment intent with 5% fee
+- `createPaymentIntentConnect` - Creates payment intent (no platform fee)
 - `stripeConnectWebhook` - Handles payment success events
 
 ### Stripe Onboarding (New Businesses)
@@ -1199,7 +1199,7 @@ stripe: {
 - Added Stripe Connect fields to organizations
 - Created Connect Cloud Functions
 - Made branding dynamic (colors, logos)
-- Payment flow with 5% platform fee
+- Payment flow (organizations keep 100% of revenue)
 
 #### STEP 9: Business Onboarding Flow ✅
 - Built `OnboardingLandingView`
@@ -1559,19 +1559,18 @@ func loadOrgBranding(orgId: String) async {
 }
 ```
 
-### Platform Fee Calculation (Stripe Connect)
+### Stripe Connect Payment Processing
 ```typescript
-// 5% platform fee
-const platformFeeAmount = Math.round(amount * 0.05);
+// No platform fee - organizations keep 100% of revenue
 const paymentIntent = await stripe.paymentIntents.create({
   amount: amount,
   currency: "usd",
-  application_fee_amount: platformFeeAmount,
   transfer_data: {
     destination: connectAccountId,
   },
 });
-// Client pays $80 → Platform $4 → Business $76
+// Client pays $80 → Business receives full $80 (minus standard Stripe processing fees)
+// Skedence revenue comes from monthly subscription fees ($29-$299/month)
 ```
 
 ---
@@ -1635,7 +1634,7 @@ const paymentIntent = await stripe.paymentIntents.create({
 11. **Dual-path queries** for backwards compatibility during migration
 12. **Pricing structure** is dynamic - loaded from Firestore per org
 13. **Real-time listeners** preferred over getDocs for live data
-14. **Platform fee** is 5% on all Stripe Connect payments
+14. **No platform fee** - Organizations keep 100% of payment revenue (Skedence revenue from subscriptions only)
 15. **Deep link scheme** is `skedence://` for iOS apps
 
 ---

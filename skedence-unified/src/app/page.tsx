@@ -159,6 +159,37 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Product Video Section */}
+      <section className="py-32 px-6 bg-gradient-to-b from-background via-muted/10 to-background">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center space-y-6 mb-12">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">See Skedence In Action</h2>
+            <p className="text-lg text-foreground/60 font-light max-w-2xl mx-auto">
+              Watch how Skedence transforms coaching businesses with smart scheduling, payments, and client management
+            </p>
+          </div>
+          
+          <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 group">
+            <video 
+              className="w-full h-full object-cover"
+              controls
+              preload="metadata"
+            >
+              <source src="https://storage.googleapis.com/polyface-ae6d3.firebasestorage.app/marketing-videos/skedence-video.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none"></div>
+          </div>
+          
+          <div className="text-center mt-12">
+            <Link href="/register" className="btn-premium inline-flex items-center gap-3">
+              Start Your Free Trial
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Sport Landing Pages */}
       <section className="py-24 px-6 bg-background">
         <div className="container mx-auto max-w-7xl">
