@@ -16,10 +16,11 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://*.firebaseapp.com https://*.firebase.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://*.firebaseapp.com https://*.firebase.com https://*.googletagmanager.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
               "font-src 'self' data:",
+              "media-src 'self' https://storage.googleapis.com",
               "connect-src 'self' https://*.googleapis.com https://*.firebase.com https://*.firebaseio.com https://*.cloudfunctions.net wss://*.firebaseio.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
