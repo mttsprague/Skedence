@@ -38,7 +38,7 @@ export default function HomePage() {
               <a href="#features" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Features</a>
               <a href="#pricing" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</a>
               <Link href="/blog" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Blog</Link>
-              <a href="/support.html" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</a>
+              <Link href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</Link>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
               <Link href="/register" className="btn-premium text-sm">
                 Start 14-Day Free Trial →
@@ -84,13 +84,13 @@ export default function HomePage() {
             >
               Blog
             </Link>
-            <a
-              href="/support.html"
+            <Link
+              href="/support"
               onClick={() => setMobileMenuOpen(false)}
               className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
             >
               Support
-            </a>
+            </Link>
             <Link
               href="/login"
               onClick={() => setMobileMenuOpen(false)}
@@ -530,7 +530,7 @@ export default function HomePage() {
                   <span className="text-foreground/70">Account manager</span>
                 </li>
               </ul>
-              <Link href="/support.html" className="btn-secondary w-full text-center">Contact Sales</Link>
+              <Link href="/support" className="btn-secondary w-full text-center">Contact Sales</Link>
             </div>
           </div>
         </div>
@@ -588,7 +588,7 @@ export default function HomePage() {
           <p className="text-xl md:text-2xl text-foreground/60 font-light">Join hundreds of coaches using Skedence to save time and grow</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
             <Link href="/register" className="btn-premium">Start 14-Day Free Trial</Link>
-            <Link href="/support.html" className="btn-secondary">Contact Sales</Link>
+            <Link href="/support" className="btn-secondary">Contact Sales</Link>
           </div>
           <p className="text-sm text-foreground/40 uppercase tracking-wider font-medium">14-day free trial • Cancel anytime</p>
         </div>
@@ -603,7 +603,7 @@ export default function HomePage() {
               <ul className="space-y-3">
                 <li><a href="#features" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Features</a></li>
                 <li><a href="#pricing" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Pricing</a></li>
-                <li><a href="/support.html" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Support</a></li>
+                <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Support</Link></li>
               </ul>
             </div>
             
@@ -611,7 +611,7 @@ export default function HomePage() {
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Company</h4>
               <ul className="space-y-3">
                 <li><Link href="/about" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">About</Link></li>
-                <li><a href="/support.html" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Contact</a></li>
+                <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Contact</Link></li>
               </ul>
             </div>
             
