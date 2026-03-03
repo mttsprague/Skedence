@@ -169,16 +169,17 @@ export default function HomePage() {
             </p>
           </div>
           
-          <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 group">
+          <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 bg-black">
             <video 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               controls
-              preload="metadata"
+              preload="auto"
+              crossOrigin="anonymous"
+              playsInline
             >
               <source src="https://storage.googleapis.com/polyface-ae6d3.firebasestorage.app/marketing-videos/skedence-video.mp4" type="video/mp4" />
               Your browser does not support the video tag.
             </video>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none"></div>
           </div>
           
           <div className="text-center mt-12">
