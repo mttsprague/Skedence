@@ -68,6 +68,8 @@ export default function VolleyballPage() {
         subheadline="Sell lesson packages, automate scheduling, and stop chasing payments. Built for volleyball coaches, clubs, and academies."
         primaryKeyword="volleyball scheduling software"
         secondaryKeyword="volleyball booking system"
+        videoUrl="https://firebasestorage.googleapis.com/v0/b/polyface-ae6d3.firebasestorage.app/o/marketing-videos%2Fvolleyball-outbound.mp4?alt=media"
+        videoTitle="See Volleyball Training Management in Action"
         benefits={[
           {
             title: 'Sell lesson packages',

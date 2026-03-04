@@ -28,6 +28,8 @@ interface VerticalLandingProps {
   benefits: Benefit[];
   features: Feature[];
   faqs: FaqItem[];
+  videoUrl?: string;
+  videoTitle?: string;
 }
 
 export default function VerticalLanding({
@@ -39,6 +41,8 @@ export default function VerticalLanding({
   benefits,
   features,
   faqs,
+  videoUrl,
+  videoTitle,
 }: VerticalLandingProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -183,6 +187,30 @@ export default function VerticalLanding({
             </div>
           </div>
         </section>
+
+        {videoUrl && (
+          <section className="mt-20">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-3xl font-bold text-foreground mb-8 text-center">
+                {videoTitle || `See ${sportName} Training in Action`}
+              </h2>
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border bg-black">
+                <video
+                  controls
+                  preload="metadata"
+                  className="w-full"
+                  style={{ aspectRatio: '16/9' }}
+                >
+                  <source src={videoUrl} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+              <p className="text-center text-sm text-foreground/60 mt-4">
+                Watch how {sportName.toLowerCase()} coaches use Skedence
+              </p>
+            </div>
+          </section>
+        )}
 
         <section className="mt-20">
           <h2 className="text-3xl font-bold text-foreground mb-8">Everything you need</h2>
