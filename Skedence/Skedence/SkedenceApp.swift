@@ -8,6 +8,7 @@
 import SwiftUI
 import Combine
 import FirebaseCore
+import FirebaseAuth
 import FirebaseAppCheck
 import FirebaseCrashlytics
 import FirebaseAnalytics

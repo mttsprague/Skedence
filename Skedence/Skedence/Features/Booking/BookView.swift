@@ -26,6 +26,7 @@ struct BookView: View {
     @ObservedObject var packagesService: PackagesService
     @ObservedObject var usersService: UsersService
     @StateObject private var bookingManager = BookingManager()
+    @StateObject private var bookingsService = BookingsService()
     @StateObject private var classesService = ClassesService()
     @StateObject private var settingsService = SettingsService()
     @StateObject private var pricingService = PricingStructureService()
