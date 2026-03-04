@@ -49,6 +49,17 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
     
+    // Marketing videos - publicly accessible for website embedding
+    match /marketing-videos/{videoFile} {
+      // Anyone can read (no authentication required)
+      allow read: if true;
+      
+      // Only authenticated admins can upload (manual upload via Console)
+      allow write: if request.auth != null
+                   && validateFileSize(100)
+                   && request.resource.contentType.matches('video/.*');
+    }
+    
     // Trainer profile images
     match /trainers/{trainerId}/profile/{imageFile} {
       // Anyone authenticated can read trainer profile images
