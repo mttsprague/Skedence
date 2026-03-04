@@ -34,3 +34,25 @@ export const SKEDENCE_COLORS = {
   text: '#ffffff',
   textSecondary: '#9ca3af',
 };
+
+// Volleyball Outbound Video Constants
+export const VOLLEYBALL_COMP_NAME = "VolleyballOutbound";
+export const VOLLEYBALL_FPS = 30;
+export const VOLLEYBALL_WIDTH = 1920;
+export const VOLLEYBALL_HEIGHT = 1080;
+export const VOLLEYBALL_DURATION = 60 * VOLLEYBALL_FPS; // 60 seconds
+
+// Scene durations (in frames)
+export const VB_SCENE1_DURATION = 5 * VOLLEYBALL_FPS; // 5 seconds - Direct Hook
+export const VB_SCENE2_DURATION = 10 * VOLLEYBALL_FPS; // 10 seconds - Real Situation
+export const VB_SCENE3_DURATION = 20 * VOLLEYBALL_FPS; // 20 seconds - The System
+export const VB_SCENE4_DURATION = 15 * VOLLEYBALL_FPS; // 15 seconds - Revenue Reality
+export const VB_SCENE5_DURATION = 10 * VOLLEYBALL_FPS; // 10 seconds - Close
+
+// Brand colors (same as Skedence)
+export const VOLLEYBALL_COLORS = {
+  background: '#0f1115',
+  accent: '#ff6b35', // Orange
+  text: '#ffffff',
+  textSecondary: '#9ca3af',
+};

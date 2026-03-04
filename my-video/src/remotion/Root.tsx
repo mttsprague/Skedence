@@ -11,10 +11,16 @@ import {
   SKEDENCE_FPS,
   SKEDENCE_WIDTH,
   SKEDENCE_HEIGHT,
+  VOLLEYBALL_COMP_NAME,
+  VOLLEYBALL_DURATION,
+  VOLLEYBALL_FPS,
+  VOLLEYBALL_WIDTH,
+  VOLLEYBALL_HEIGHT,
 } from "../../types/constants";
 import { Main } from "./MyComp/Main";
 import { NextLogo } from "./MyComp/NextLogo";
 import { SkedenceMain } from "./Skedence/Main";
+import { VolleyballMain } from "./Volleyball/Main";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -46,6 +52,15 @@ export const RemotionRoot: React.FC = () => {
         fps={SKEDENCE_FPS}
         width={SKEDENCE_WIDTH}
         height={SKEDENCE_HEIGHT}
+        defaultProps={{}}
+      />
+      <Composition
+        id={VOLLEYBALL_COMP_NAME}
+        component={VolleyballMain}
+        durationInFrames={VOLLEYBALL_DURATION}
+        fps={VOLLEYBALL_FPS}
+        width={VOLLEYBALL_WIDTH}
+        height={VOLLEYBALL_HEIGHT}
         defaultProps={{}}
       />
     </>
