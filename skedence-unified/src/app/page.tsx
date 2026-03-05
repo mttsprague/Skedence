@@ -17,6 +17,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import ROICalculator from '@/components/roi-calculator';
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -382,8 +383,15 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ROI Calculator */}
+      <section className="py-32 px-6 bg-gradient-to-b from-background to-muted/20">
+        <div className="container mx-auto max-w-4xl">
+          <ROICalculator />
+        </div>
+      </section>
+
       {/* Pricing */}
-      <section id="pricing" className="py-32 px-6 bg-background">
+      <section id="pricing" className="py-24 px-6 bg-muted/20">
         <div className="container mx-auto max-w-7xl">
           <div className="text-center space-y-6 mb-20">
             <h2 className="text-5xl md:text-6xl font-black tracking-tight text-foreground uppercase">Transparent Pricing</h2>

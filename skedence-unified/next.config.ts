@@ -16,12 +16,13 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://*.firebaseapp.com https://*.firebase.com https://*.googletagmanager.com",
-              "style-src 'self' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://*.firebaseapp.com https://*.firebase.com https://*.googletagmanager.com https://*.crisp.chat",
+              "style-src 'self' 'unsafe-inline' https://*.crisp.chat",
               "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://*.crisp.chat",
               "media-src 'self' https://storage.googleapis.com https://firebasestorage.googleapis.com",
-              "connect-src 'self' https://*.googleapis.com https://*.firebase.com https://*.firebaseio.com https://*.cloudfunctions.net wss://*.firebaseio.com https://*.google-analytics.com",
+              "connect-src 'self' https://*.googleapis.com https://*.firebase.com https://*.firebaseio.com https://*.cloudfunctions.net wss://*.firebaseio.com https://*.google-analytics.com wss://*.crisp.chat https://*.crisp.chat",
+              "frame-src https://*.crisp.chat",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'"
