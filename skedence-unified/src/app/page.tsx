@@ -163,9 +163,9 @@ export default function HomePage() {
       <section className="py-32 px-6 bg-gradient-to-b from-background via-muted/10 to-background">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center space-y-6 mb-12">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">See Skedence In Action</h2>
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">The Complete Journey</h2>
             <p className="text-lg text-foreground/60 font-light max-w-2xl mx-auto">
-              Watch how Skedence transforms coaching businesses with smart scheduling, payments, and client management
+              From setup to bookings: Watch how coaches set pricing, clients purchase passes, and sessions get booked—all in one platform
             </p>
           </div>
           
@@ -177,7 +177,7 @@ export default function HomePage() {
               crossOrigin="anonymous"
               playsInline
             >
-              <source src="https://storage.googleapis.com/polyface-ae6d3.firebasestorage.app/marketing-videos/skedence-video.mp4" type="video/mp4" />
+              <source src="https://firebasestorage.googleapis.com/v0/b/polyface-ae6d3.firebasestorage.app/o/marketing-videos%2Fthe-journey.mp4?alt=media" type="video/mp4" />
               Your browser does not support the video tag.
             </video>
           </div>
