@@ -102,7 +102,7 @@ export const Scene4Revenue: React.FC = () => {
               marginBottom: 30,
             }}
           >
-            12 athletes.
+            12 athletes
           </div>
           <div
             style={{
@@ -113,7 +113,7 @@ export const Scene4Revenue: React.FC = () => {
               marginBottom: 30,
             }}
           >
-            8 sessions per month.
+            8 sessions per month
           </div>
           <div
             style={{
@@ -123,7 +123,7 @@ export const Scene4Revenue: React.FC = () => {
               opacity: metric3Opacity,
             }}
           >
-            $85 per lesson.
+            $85 per lesson
           </div>
         </div>
       </AbsoluteFill>

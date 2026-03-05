@@ -16,11 +16,23 @@ import {
   VOLLEYBALL_FPS,
   VOLLEYBALL_WIDTH,
   VOLLEYBALL_HEIGHT,
+  HOWITWORKS_COMP_NAME,
+  HOWITWORKS_DURATION,
+  HOWITWORKS_FPS,
+  HOWITWORKS_WIDTH,
+  HOWITWORKS_HEIGHT,
+  JOURNEY_COMP_NAME,
+  JOURNEY_DURATION,
+  JOURNEY_FPS,
+  JOURNEY_WIDTH,
+  JOURNEY_HEIGHT,
 } from "../../types/constants";
 import { Main } from "./MyComp/Main";
 import { NextLogo } from "./MyComp/NextLogo";
 import { SkedenceMain } from "./Skedence/Main";
 import { VolleyballMain } from "./Volleyball/Main";
+import { Main as HowItWorksMain } from "./HowItWorks/Main";
+import { Main as JourneyMain } from "./TheJourney/Main";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -61,6 +73,24 @@ export const RemotionRoot: React.FC = () => {
         fps={VOLLEYBALL_FPS}
         width={VOLLEYBALL_WIDTH}
         height={VOLLEYBALL_HEIGHT}
+        defaultProps={{}}
+      />
+      <Composition
+        id={HOWITWORKS_COMP_NAME}
+        component={HowItWorksMain}
+        durationInFrames={HOWITWORKS_DURATION}
+        fps={HOWITWORKS_FPS}
+        width={HOWITWORKS_WIDTH}
+        height={HOWITWORKS_HEIGHT}
+        defaultProps={{}}
+      />
+      <Composition
+        id={JOURNEY_COMP_NAME}
+        component={JourneyMain}
+        durationInFrames={JOURNEY_DURATION}
+        fps={JOURNEY_FPS}
+        width={JOURNEY_WIDTH}
+        height={JOURNEY_HEIGHT}
         defaultProps={{}}
       />
     </>

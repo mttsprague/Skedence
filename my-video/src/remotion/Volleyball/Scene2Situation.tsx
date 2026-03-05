@@ -90,7 +90,7 @@ export const Scene2Situation: React.FC = () => {
               marginBottom: 60,
             }}
           >
-            At 5 athletes, it works.
+            With 5 athletes, some manage
           </div>
 
           {/* Second overlay */}
@@ -102,7 +102,7 @@ export const Scene2Situation: React.FC = () => {
               opacity: overlay2Opacity,
             }}
           >
-            At 15+, it gets messy.
+            With 10+ athletes, good luck
           </div>
         </div>
       </AbsoluteFill>

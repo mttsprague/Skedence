@@ -160,7 +160,7 @@ export const Scene3System: React.FC = () => {
         style={{
           justifyContent: 'flex-end',
           alignItems: 'center',
-          paddingBottom: 150,
+          paddingBottom: 70,
           zIndex: 5,
         }}
       >
@@ -174,7 +174,7 @@ export const Scene3System: React.FC = () => {
             textShadow: '0 2px 10px rgba(0, 0, 0, 0.8)',
           }}
         >
-          Set your availability once.
+          Set your availability once
         </div>
       </AbsoluteFill>
 
@@ -197,7 +197,7 @@ export const Scene3System: React.FC = () => {
             textShadow: '0 2px 10px rgba(0, 0, 0, 0.8)',
           }}
         >
-          Sell lesson packages.
+          Sell lesson packages
         </div>
       </AbsoluteFill>
 
@@ -206,7 +206,7 @@ export const Scene3System: React.FC = () => {
         style={{
           justifyContent: 'flex-start',
           alignItems: 'center',
-          paddingTop: 100,
+          paddingTop: 50,
           zIndex: 5,
         }}
       >
@@ -220,7 +220,7 @@ export const Scene3System: React.FC = () => {
             textShadow: '0 2px 10px rgba(0, 0, 0, 0.8)',
           }}
         >
-          Track revenue in one place.
+          Track revenue in one place
         </div>
       </AbsoluteFill>
     </AbsoluteFill>

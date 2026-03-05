@@ -56,3 +56,55 @@ export const VOLLEYBALL_COLORS = {
   text: '#ffffff',
   textSecondary: '#9ca3af',
 };
+
+// How It Works Video Constants
+export const HOWITWORKS_COMP_NAME = "HowItWorks";
+export const HOWITWORKS_FPS = 30;
+export const HOWITWORKS_WIDTH = 1920;
+export const HOWITWORKS_HEIGHT = 1080;
+export const HOWITWORKS_DURATION = 80 * HOWITWORKS_FPS; // 80 seconds
+
+// Scene durations (in frames)
+export const HIW_SCENE1_DURATION = 8 * HOWITWORKS_FPS; // 8 seconds - The Problem
+export const HIW_SCENE2_DURATION = 11 * HOWITWORKS_FPS; // 11 seconds - Run Training Business
+export const HIW_SCENE3_DURATION = 7 * HOWITWORKS_FPS; // 7 seconds - Lesson Packages
+export const HIW_SCENE4_DURATION = 10 * HOWITWORKS_FPS; // 10 seconds - Track Revenue
+export const HIW_SCENE5_DURATION = 14 * HOWITWORKS_FPS; // 14 seconds - Trainer Apps (2 pairs)
+export const HIW_SCENE6_DURATION = 10 * HOWITWORKS_FPS; // 10 seconds - Client App (3 phones)
+export const HIW_SCENE7_DURATION = 8 * HOWITWORKS_FPS; // 8 seconds - Auto Updates
+export const HIW_SCENE8_DURATION = 6 * HOWITWORKS_FPS; // 6 seconds - Full System
+export const HIW_SCENE9_DURATION = 6 * HOWITWORKS_FPS; // 6 seconds - Closing
+
+// Brand colors
+export const HOWITWORKS_COLORS = {
+  background: '#0f1115',
+  accent: '#ff6b35', // Orange for visibility against white backgrounds
+  text: '#ffffff',
+  textSecondary: '#9ca3af',
+  textDark: '#1a1d24', // For text on light backgrounds
+};
+
+// The Journey Video Constants (Agent-Designed)
+export const JOURNEY_COMP_NAME = "TheJourney";
+export const JOURNEY_FPS = 30;
+export const JOURNEY_WIDTH = 1920;
+export const JOURNEY_HEIGHT = 1080;
+export const JOURNEY_DURATION = 55 * JOURNEY_FPS; // 55 seconds
+
+// Scene durations (in frames)
+export const JOURNEY_SCENE1_DURATION = 5 * JOURNEY_FPS; // 5 seconds - Opening Hook
+export const JOURNEY_SCENE2_DURATION = 8 * JOURNEY_FPS; // 8 seconds - Quick Setup
+export const JOURNEY_SCENE3_DURATION = 7 * JOURNEY_FPS; // 7 seconds - Athlete Discovery
+export const JOURNEY_SCENE4_DURATION = 8 * JOURNEY_FPS; // 8 seconds - The Booking
+export const JOURNEY_SCENE5_DURATION = 7 * JOURNEY_FPS; // 7 seconds - Staying Synced
+export const JOURNEY_SCENE6_DURATION = 8 * JOURNEY_FPS; // 8 seconds - Business Insights
+export const JOURNEY_SCENE7_DURATION = 7 * JOURNEY_FPS; // 7 seconds - Scale Effortlessly
+export const JOURNEY_SCENE8_DURATION = 5 * JOURNEY_FPS; // 5 seconds - Closing
+
+// Brand colors (matching Skedence brand)
+export const JOURNEY_COLORS = {
+  background: '#0f1115',
+  accent: '#ff6b35', // Orange
+  text: '#ffffff',
+  textSecondary: '#9ca3af',
+};

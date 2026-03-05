@@ -104,7 +104,7 @@ export const Scene5Close: React.FC = () => {
             maxWidth: '80%',
           }}
         >
-          Skedence is built for private training businesses.
+          Skedence is built for private training businesses
         </div>
       </AbsoluteFill>
 
@@ -155,7 +155,7 @@ export const Scene5Close: React.FC = () => {
               opacity: text2Opacity,
             }}
           >
-            Run your lessons like a business.
+            Run your lessons like a business
           </div>
         </div>
       </AbsoluteFill>
