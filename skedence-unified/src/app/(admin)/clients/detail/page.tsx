@@ -7,7 +7,7 @@ import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ArrowLeft, Calendar, Package, FileText, CreditCard, User as UserIcon, Receipt, History } from 'lucide-react';
+import { ArrowLeft, Calendar, Package, FileText, CreditCard, User as UserIcon, Receipt, History, Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ClientData {
@@ -29,6 +29,7 @@ interface Booking {
   athleteNames?: string[];
   lessonPackageId?: string;
   orgId: string;
+  isClassBooking?: boolean;
 }
 
 interface LessonPackage {
@@ -101,6 +102,12 @@ function ClientDetailContent() {
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [pastBookings, setPastBookings] = useState<Booking[]>([]);
   const [packages, setPackages] = useState<LessonPackage[]>([]);
+  
+  // Computed values to separate lessons from classes
+  const upcomingLessons = upcomingBookings.filter(b => !b.isClassBooking);
+  const upcomingClasses = upcomingBookings.filter(b => b.isClassBooking);
+  const pastLessons = pastBookings.filter(b => !b.isClassBooking);
+  const pastClasses = pastBookings.filter(b => b.isClassBooking);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [receipts, setReceipts] = useState<Transaction[]>([]);
@@ -388,8 +395,18 @@ function ClientDetailContent() {
               completedSessions={packages.reduce((sum, p) => sum + p.lessonsUsed, 0)}
             />
           )}
-          {activeTab === 'upcoming' && <UpcomingTab bookings={upcomingBookings} />}
-          {activeTab === 'history' && <HistoryTab bookings={pastBookings} />}
+          {activeTab === 'upcoming' && (
+            <UpcomingTab 
+              upcomingLessons={upcomingLessons}
+              upcomingClasses={upcomingClasses}
+            />
+          )}
+          {activeTab === 'history' && (
+            <HistoryTab 
+              pastLessons={pastLessons}
+              pastClasses={pastClasses}
+            />
+          )}
         {activeTab === 'passes' && <PassesTab activePasses={activePasses} expiredPasses={expiredPasses} />}
         {activeTab === 'documents' && <DocumentsTab documents={documents} />}
         {activeTab === 'payments' && <PaymentsTab methods={paymentMethods} />}
@@ -475,115 +492,239 @@ function OverviewTab({
   );
 }
 
-function UpcomingTab({ bookings }: { bookings: Booking[] }) {
-  if (bookings.length === 0) {
-    return (
-      <div className="p-12 text-center text-muted-foreground">
-        <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-        <p>No upcoming sessions scheduled</p>
-      </div>
-    );
-  }
-
+function UpcomingTab({ upcomingLessons, upcomingClasses }: { 
+  upcomingLessons: Booking[]; 
+  upcomingClasses: Booking[];
+}) {
   return (
-    <div className="p-6">
-      <div className="space-y-3">
-        {bookings.map((booking) => (
-          <Card key={booking.id}>
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <p className="font-semibold text-foreground">
-                    {booking.startTime.toDate().toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </p>
-                  <p className="text-sm text-foreground/80">
-                    {booking.startTime.toDate().toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit' 
-                    })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit' 
-                    })}
-                  </p>
-                  <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
-                  {booking.athleteNames && booking.athleteNames.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Athletes: {booking.athleteNames.join(', ')}
-                    </p>
-                  )}
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  booking.status === 'booked' ? 'bg-green-100 text-green-700' :
-                  booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                  'bg-gray-100 text-foreground'
-                }`}>
-                  {booking.status}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-6">
+      {/* Upcoming Lessons */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4 px-6">Upcoming Lessons</h3>
+        {upcomingLessons.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+            <p>No upcoming lessons scheduled</p>
+          </div>
+        ) : (
+          <div className="px-6">
+            <div className="space-y-3">
+              {upcomingLessons.map((booking) => (
+                <Card key={booking.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">
+                          {booking.startTime.toDate().toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                        <p className="text-sm text-foreground/80">
+                          {booking.startTime.toDate().toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })}
+                        </p>
+                        <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
+                        {booking.athleteNames && booking.athleteNames.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Athletes: {booking.athleteNames.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        booking.status === 'booked' ? 'bg-green-100 text-green-700' :
+                        booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-foreground'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Upcoming Classes */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4 px-6">Upcoming Classes</h3>
+        {upcomingClasses.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+            <p>No upcoming classes scheduled</p>
+          </div>
+        ) : (
+          <div className="px-6">
+            <div className="space-y-3">
+              {upcomingClasses.map((booking) => (
+                <Card key={booking.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">
+                          {booking.startTime.toDate().toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                        <p className="text-sm text-foreground/80">
+                          {booking.startTime.toDate().toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })}
+                        </p>
+                        <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
+                        {booking.athleteNames && booking.athleteNames.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Athletes: {booking.athleteNames.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        booking.status === 'booked' ? 'bg-green-100 text-green-700' :
+                        booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-foreground'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function HistoryTab({ bookings }: { bookings: Booking[] }) {
-  if (bookings.length === 0) {
-    return (
-      <div className="p-12 text-center text-muted-foreground">
-        <History className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-        <p>No past sessions</p>
-      </div>
-    );
-  }
-
+function HistoryTab({ pastLessons, pastClasses }: { 
+  pastLessons: Booking[]; 
+  pastClasses: Booking[];
+}) {
   return (
-    <div className="p-6">
-      <div className="space-y-3">
-        {bookings.map((booking) => (
-          <Card key={booking.id}>
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <p className="font-semibold text-foreground">
-                    {booking.startTime.toDate().toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </p>
-                  <p className="text-sm text-foreground/80">
-                    {booking.startTime.toDate().toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit' 
-                    })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit' 
-                    })}
-                  </p>
-                  <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
-                  {booking.athleteNames && booking.athleteNames.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Athletes: {booking.athleteNames.join(', ')}
-                    </p>
-                  )}
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                  booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                  'bg-gray-100 text-foreground'
-                }`}>
-                  {booking.status}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-6">
+      {/* Past Lessons */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4 px-6">Past Lessons</h3>
+        {pastLessons.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <History className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+            <p>No past lessons</p>
+          </div>
+        ) : (
+          <div className="px-6">
+            <div className="space-y-3">
+              {pastLessons.map((booking) => (
+                <Card key={booking.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">
+                          {booking.startTime.toDate().toLocaleDateString('en-US', { 
+                            month: 'long', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        <p className="text-sm text-foreground/80">
+                          {booking.startTime.toDate().toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })}
+                        </p>
+                        <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
+                        {booking.athleteNames && booking.athleteNames.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Athletes: {booking.athleteNames.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                        booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-foreground'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Past Classes */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4 px-6">Past Classes</h3>
+        {pastClasses.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+            <p>No past classes</p>
+          </div>
+        ) : (
+          <div className="px-6">
+            <div className="space-y-3">
+              {pastClasses.map((booking) => (
+                <Card key={booking.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">
+                          {booking.startTime.toDate().toLocaleDateString('en-US', { 
+                            month: 'long', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        <p className="text-sm text-foreground/80">
+                          {booking.startTime.toDate().toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit' 
+                          })}
+                        </p>
+                        <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
+                        {booking.athleteNames && booking.athleteNames.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Athletes: {booking.athleteNames.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                        booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-foreground'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

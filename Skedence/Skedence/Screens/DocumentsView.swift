@@ -36,12 +36,12 @@ struct DocumentsView: View {
         .navigationTitle("Documents")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            if let userId = Auth.auth().currentUser?.uid {
+            if let userId = auth.currentUserDocId {
                 try? await documentsService.fetch(userId: userId)
             }
         }
         .refreshable {
-            if let userId = Auth.auth().currentUser?.uid {
+            if let userId = auth.currentUserDocId {
                 try? await documentsService.fetch(userId: userId)
             }
         }

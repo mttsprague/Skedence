@@ -276,8 +276,10 @@ struct ClientCardView: View {
     
     private var scheduleContent: some View {
         ScheduleSection(
-            upcomingBookings: viewModel.upcomingBookings,
-            pastBookings: viewModel.pastBookings,
+            upcomingLessons: viewModel.upcomingLessons,
+            pastLessons: viewModel.pastLessons,
+            upcomingClasses: viewModel.upcomingClasses,
+            pastClasses: viewModel.pastClasses,
             isLoading: viewModel.isLoadingBookings,
             isAdmin: auth.isAdmin,
             onCancelBooking: { bookingId in
@@ -360,6 +362,23 @@ class ClientCardViewModel: ObservableObject {
     @Published var isLoadingDocuments = false
     @Published var isLoadingPaymentMethod = false
     @Published var isLoadingProfile = false
+    
+    // Computed properties to separate lessons from classes
+    var upcomingLessons: [ClientBooking] {
+        upcomingBookings.filter { $0.isClassBooking != true }
+    }
+    
+    var upcomingClasses: [ClientBooking] {
+        upcomingBookings.filter { $0.isClassBooking == true }
+    }
+    
+    var pastLessons: [ClientBooking] {
+        pastBookings.filter { $0.isClassBooking != true }
+    }
+    
+    var pastClasses: [ClientBooking] {
+        pastBookings.filter { $0.isClassBooking == true }
+    }
     
     func loadClientData(clientId: String, selectedBooking: ClientBooking?, orgId: String?, userEmail: String? = nil) async {
         // Check admin status

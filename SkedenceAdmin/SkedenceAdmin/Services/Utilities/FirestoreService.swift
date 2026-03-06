@@ -978,24 +978,24 @@ final class FirestoreService {
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         
-        // First, get the user document to check for authUserId
-        // Documents may be stored under authUserId rather than the document ID
-        let userDoc = try await db.collection("users").document(clientId).getDocument()
-        let actualUserId: String
-        
-        if let authUserId = userDoc.data()?["authUserId"] as? String, !authUserId.isEmpty {
-            // Documents are stored under the Firebase Auth UID
-            actualUserId = authUserId
-        } else {
-            // Fall back to using the document ID
-            actualUserId = clientId
-        }
-        
-        let snapshot = try await db.collection("users")
-            .document(actualUserId)
+        // First, try the NEW path (firstName_lastName document ID)
+        var snapshot = try await db.collection("users")
+            .document(clientId)
             .collection("documents")
             .order(by: "uploadedAt", descending: true)
             .getDocuments()
+        
+        // If no documents found, try the OLD path (authUserId) for backwards compatibility
+        if snapshot.documents.isEmpty {
+            let userDoc = try await db.collection("users").document(clientId).getDocument()
+            if let authUserId = userDoc.data()?["authUserId"] as? String, !authUserId.isEmpty {
+                snapshot = try await db.collection("users")
+                    .document(authUserId)
+                    .collection("documents")
+                    .order(by: "uploadedAt", descending: true)
+                    .getDocuments()
+            }
+        }
         
         let documents: [ClientDocument] = snapshot.documents.compactMap { doc in
             let data = doc.data()

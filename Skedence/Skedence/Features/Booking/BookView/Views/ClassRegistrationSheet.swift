@@ -244,7 +244,7 @@ struct ClassRegistrationSheet: View {
     
     // Check waiver status for primary athlete
     private func checkPrimaryAthleteWaiver() async {
-        guard let userId = Auth.auth().currentUser?.uid,
+        guard let userId = auth.currentUserDocId,
               let athleteName = selectedAthleteName,
               settingsService.settings?.requireWaiver == true else {
             primaryAthleteHasWaiver = true
@@ -257,7 +257,7 @@ struct ClassRegistrationSheet: View {
     
     // Check waiver status for second athlete
     private func checkSecondAthleteWaiver() async {
-        guard let userId = Auth.auth().currentUser?.uid,
+        guard let userId = auth.currentUserDocId,
               let athleteName = secondAthleteName,
               settingsService.settings?.requireWaiver == true else {
             secondAthleteHasWaiver = true
@@ -270,7 +270,7 @@ struct ClassRegistrationSheet: View {
     
     // Handle waiver agreement (matches BookView flow - saves to documents subcollection with PDF)
     private func handleWaiverAgreement() async {
-        guard let userId = Auth.auth().currentUser?.uid,
+        guard let userId = auth.currentUserDocId,
               let profile = usersService.currentUser else {
             showWaiverAgreement = false
             pendingRegistrationSuccess = false
@@ -1047,7 +1047,7 @@ struct ClassRegistrationSheet: View {
         
         do {
             // Check waivers FIRST - if any athlete needs waiver, show sheet and return
-            if let userId = Auth.auth().currentUser?.uid {
+            if let userId = auth.currentUserDocId {
                 // Check primary athlete
                 if let athleteName = selectedAthleteName {
                     let athleteHasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)

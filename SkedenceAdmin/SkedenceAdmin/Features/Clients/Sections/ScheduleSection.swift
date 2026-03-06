@@ -8,19 +8,21 @@
 import SwiftUI
 
 struct ScheduleSection: View {
-    let upcomingBookings: [ClientBooking]
-    let pastBookings: [ClientBooking]
+    let upcomingLessons: [ClientBooking]
+    let pastLessons: [ClientBooking]
+    let upcomingClasses: [ClientBooking]
+    let pastClasses: [ClientBooking]
     let isLoading: Bool
     let isAdmin: Bool
     let onCancelBooking: (String) -> Void
     
     var body: some View {
         VStack(spacing: Spacing.md) {
-            // Upcoming Visits
+            // Upcoming Lessons
             CardView {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     HStack {
-                        Text("Upcoming Visits")
+                        Text("Upcoming Lessons")
                             .font(.headingSmall)
                             .foregroundStyle(AppTheme.textPrimary)
                         
@@ -32,12 +34,12 @@ struct ScheduleSection: View {
                         }
                     }
                     
-                    if upcomingBookings.isEmpty && !isLoading {
+                    if upcomingLessons.isEmpty && !isLoading {
                         VStack(spacing: Spacing.sm) {
                             Image(systemName: "calendar.badge.clock")
                                 .font(.system(size: 32))
                                 .foregroundStyle(AppTheme.textTertiary)
-                            Text("No upcoming visits")
+                            Text("No upcoming lessons")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
@@ -45,7 +47,7 @@ struct ScheduleSection: View {
                         .padding(.vertical, Spacing.md)
                     } else {
                         VStack(spacing: Spacing.xs) {
-                            ForEach(upcomingBookings) { booking in
+                            ForEach(upcomingLessons) { booking in
                                 upcomingBookingRow(booking)
                             }
                         }
@@ -53,19 +55,28 @@ struct ScheduleSection: View {
                 }
             }
             
-            // Visit History
+            // Upcoming Classes
             CardView {
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Visit History")
-                        .font(.headingSmall)
-                        .foregroundStyle(AppTheme.textPrimary)
+                    HStack {
+                        Text("Upcoming Classes")
+                            .font(.headingSmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        Spacer()
+                        
+                        if isLoading {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
                     
-                    if pastBookings.isEmpty && !isLoading {
+                    if upcomingClasses.isEmpty && !isLoading {
                         VStack(spacing: Spacing.sm) {
-                            Image(systemName: "clock.arrow.circlepath")
+                            Image(systemName: "person.3")
                                 .font(.system(size: 32))
                                 .foregroundStyle(AppTheme.textTertiary)
-                            Text("No past visits")
+                            Text("No upcoming classes")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
@@ -73,7 +84,63 @@ struct ScheduleSection: View {
                         .padding(.vertical, Spacing.md)
                     } else {
                         VStack(spacing: Spacing.xs) {
-                            ForEach(pastBookings.prefix(10)) { booking in
+                            ForEach(upcomingClasses) { booking in
+                                upcomingBookingRow(booking)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Past Lessons
+            CardView {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("Past Lessons")
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    
+                    if pastLessons.isEmpty && !isLoading {
+                        VStack(spacing: Spacing.sm) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 32))
+                                .foregroundStyle(AppTheme.textTertiary)
+                            Text("No past lessons")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.md)
+                    } else {
+                        VStack(spacing: Spacing.xs) {
+                            ForEach(pastLessons.prefix(10)) { booking in
+                                bookingRow(booking)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Past Classes
+            CardView {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("Past Classes")
+                        .font(.headingSmall)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    
+                    if pastClasses.isEmpty && !isLoading {
+                        VStack(spacing: Spacing.sm) {
+                            Image(systemName: "person.3")
+                                .font(.system(size: 32))
+                                .foregroundStyle(AppTheme.textTertiary)
+                            Text("No past classes")
+                                .font(.bodyMedium)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.md)
+                    } else {
+                        VStack(spacing: Spacing.xs) {
+                            ForEach(pastClasses.prefix(10)) { booking in
                                 bookingRow(booking)
                             }
                         }

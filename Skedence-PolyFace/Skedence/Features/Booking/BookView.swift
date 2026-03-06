@@ -1366,7 +1366,7 @@ struct BookView: View {
         
         do {
             // Check waivers FIRST, before creating the booking - sequential for all athletes
-            if let userId = Auth.auth().currentUser?.uid {
+            if let userId = auth.currentUserDocId {
                 // Check each selected athlete for waivers sequentially
                 for (index, athleteName) in selectedAthletes.enumerated() {
                     guard let name = athleteName else { continue }
@@ -1758,7 +1758,7 @@ struct BookView: View {
     }
     
     private func checkWaiverStatusForAthlete(athleteName: String, index: Int) async {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let userId = auth.currentUserDocId else { return }
         
         do {
             let hasWaiver = try await checkAthleteHasWaiver(userId: userId, athleteName: athleteName)
@@ -1824,7 +1824,7 @@ struct BookView: View {
     }
     
     private func handleWaiverAgreement() async {
-        guard let userId = Auth.auth().currentUser?.uid,
+        guard let userId = auth.currentUserDocId,
               let profile = usersService.currentUser else {
             showWaiverAgreement = false
             pendingBookingSuccess = false
