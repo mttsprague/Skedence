@@ -1175,6 +1175,22 @@ struct ClassRegistrationSheet: View {
                 throw NSError(domain: "ClassRegistrationSheet", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
             }
             
+            // Save new athlete to profile if needed
+            if isNewAthlete && isOnlyParticipant == false && secondAthleteName != nil {
+                if let fullName = newAthleteIntakeData.fieldValues["athleteFullName"] as? String, !fullName.isEmpty {
+                    let names = fullName.split(separator: " ")
+                    let firstName = String(names.first ?? "")
+                    let lastName = names.count > 1 ? String(names.dropFirst().joined(separator: " ")) : ""
+                    try await saveNewAthleteToProfile(firstName: firstName, lastName: lastName, formData: newAthleteIntakeData)
+                } else {
+                    let firstName = (newAthleteIntakeData.fieldValues["athleteFirstName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let lastName = (newAthleteIntakeData.fieldValues["athleteLastName"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !firstName.isEmpty && !lastName.isEmpty {
+                        try await saveNewAthleteToProfile(firstName: firstName, lastName: lastName, formData: newAthleteIntakeData)
+                    }
+                }
+            }
+            
             let athleteForRegistration = selectedAthleteName
             let secondAthleteForRegistration = isOnlyParticipant == false ? secondAthleteName : nil
             
@@ -1204,5 +1220,64 @@ struct ClassRegistrationSheet: View {
             errorMessage = "Registration failed: \(error.localizedDescription)"
         }
         isRegistering = false
+    }
+    
+    // Save new athlete to user profile (copied from BookView)
+    private func saveNewAthleteToProfile(firstName: String, lastName: String, formData: IntakeFormData) async throws {
+        guard let authUserId = Auth.auth().currentUser?.uid else { return }
+        guard let profile = usersService.currentUser else { return }
+        
+        let db = Firestore.firestore()
+        
+        // Query to find user document ID by authUserId field
+        let userQuery = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let userDoc = userQuery.documents.first else {
+            throw NSError(domain: "ClassRegistrationSheet", code: 404, userInfo: [NSLocalizedDescriptionKey: "User profile not found"])
+        }
+        
+        let userRef = db.collection("users").document(userDoc.documentID)
+        
+        // Extract values from dynamic form data
+        let birthday = formData.fieldValues["athleteBirthday"] as? String ?? ""
+        let schoolTeam = formData.fieldValues["schoolTeam"] as? String ?? ""
+        let experienceLevel = formData.fieldValues["experienceLevel"] as? String ?? ""
+        let position = formData.fieldValues["position"] as? String ?? ""
+        
+        // Create new athlete
+        let newAthlete = AthleteInfo(
+            firstName: firstName,
+            lastName: lastName,
+            birthday: birthday.isEmpty ? nil : birthday,
+            schoolClubTeam: schoolTeam.isEmpty ? nil : schoolTeam,
+            experienceLevel: experienceLevel.isEmpty ? nil : experienceLevel,
+            position: position.isEmpty ? nil : position
+        )
+        
+        // Add to existing athletes array
+        var athletes = profile.athletes ?? []
+        athletes.append(newAthlete)
+        
+        // Use setData with merge to create field if it doesn't exist
+        try await userRef.setData([
+            "athletes": athletes.map { athlete in
+                [
+                    "firstName": athlete.firstName ?? "",
+                    "lastName": athlete.lastName ?? "",
+                    "birthday": athlete.birthday ?? "",
+                    "schoolClubTeam": athlete.schoolClubTeam ?? "",
+                    "experienceLevel": athlete.experienceLevel ?? "",
+                    "position": athlete.position ?? ""
+                ] as [String: Any]
+            }
+        ], merge: true)
+        
+        print("✅ Saved new athlete: \(firstName) \(lastName) to profile from class registration")
+        
+        // Reload user profile to reflect changes
+        await usersService.loadCurrentUserIfAvailable()
     }
 }

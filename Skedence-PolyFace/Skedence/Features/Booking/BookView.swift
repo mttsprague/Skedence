@@ -402,7 +402,7 @@ struct BookView: View {
     
     private var contentView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
                 modePicker
                 if mode == .lessons {
                     lessonsContent

@@ -54,7 +54,7 @@ struct GettingStartedSection: View {
                     } label: {
                         GettingStartedStepCard(
                             stepNumber: 2,
-                            title: "View Trainer Availability",
+                            title: "View Classes and Trainer Availability",
                             description: "View trainers availability in the book tab",
                             color: AppTheme.secondary,
                             icon: "arrow.right.circle.fill"
