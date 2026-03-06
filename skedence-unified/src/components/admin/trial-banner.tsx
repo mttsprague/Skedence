@@ -129,59 +129,42 @@ export function TrialBanner({ orgId }: TrialBannerProps) {
 
   // SCENARIO 2: Active trial - show countdown
   if (subscriptionStatus?.status === 'trialing' && daysRemaining !== null) {
-    const isUrgent = daysRemaining <= 3;
+    const isEnding = daysRemaining <= 3;
     const isWarning = daysRemaining <= 7 && daysRemaining > 3;
 
     return (
       <div className={`relative rounded-lg p-4 ${
-        isUrgent ? 'bg-red-50 border-2 border-red-200' :
-        isWarning ? 'bg-orange-50 border-2 border-orange-200' :
+        isEnding ? 'bg-blue-50 border-2 border-blue-200' :
+        isWarning ? 'bg-blue-50 border-2 border-blue-200' :
         'bg-blue-50 border-2 border-blue-200'
       }`}>
         <div className="flex items-start gap-3">
-          {isUrgent ? (
-            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-          ) : isWarning ? (
-            <Clock className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
-          ) : (
-            <Crown className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-          )}
+          <Crown className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           
           <div className="flex-1">
-            <h3 className={`font-semibold ${
-              isUrgent ? 'text-red-900' :
-              isWarning ? 'text-orange-900' :
-              'text-blue-900'
-            }`}>
+            <h3 className="font-semibold text-blue-900">
               {daysRemaining === 0 ? (
-                'Your free trial ends today!'
+                '🎉 Your free trial ends today - You\'re all set!'
               ) : daysRemaining === 1 ? (
-                'Your free trial ends tomorrow'
+                '🎉 1 day left in your free trial'
               ) : (
-                `${daysRemaining} days left in your free trial`
+                `🎉 ${daysRemaining} days left in your free trial`
               )}
             </h3>
-            <p className={`text-sm mt-1 ${
-              isUrgent ? 'text-red-700' :
-              isWarning ? 'text-orange-700' :
-              'text-blue-700'
-            }`}>
-              {isUrgent ? (
-                <>Subscribe now to continue using Skedence without interruption.</>
+            <p className="text-sm mt-1 text-blue-700">
+              {isEnding ? (
+                <>Your subscription is active and will automatically continue after your trial. No action needed!</>
               ) : (
-                <>Choose a plan to keep enjoying all features after your trial ends.</>
+                <>You're subscribed! After your trial, billing will begin automatically. You can manage your subscription anytime.</>
               )}
             </p>
             <Link href="/subscription">
               <Button 
                 size="sm" 
-                className={`mt-3 ${
-                  isUrgent ? 'bg-red-600 hover:bg-red-700' :
-                  isWarning ? 'bg-orange-600 hover:bg-orange-700' :
-                  'bg-blue-600 hover:bg-blue-700'
-                }`}
+                variant="outline"
+                className="mt-3 border-blue-300 text-blue-700 hover:bg-blue-100"
               >
-                View Plans & Subscribe
+                Manage Subscription
               </Button>
             </Link>
           </div>
