@@ -208,7 +208,7 @@ export function WeekScheduleGrid({
             {timeSlots.map((slot, idx) => (
               <div
                 key={idx}
-                className="h-7 sm:h-8 flex items-start justify-center pt-1 text-[10px] sm:text-xs text-muted-foreground"
+                className="h-7 sm:h-14 flex items-start justify-center pt-1 text-[10px] sm:text-xs text-muted-foreground border-b border-border/30"
               >
                 {slot.minute === 0 ? formatTimeSlot(slot.hour, slot.minute) : (
                   <span className="text-muted-foreground/60">{formatTimeSlot(slot.hour, slot.minute)}</span>
@@ -218,16 +218,189 @@ export function WeekScheduleGrid({
           </div>
 
           {/* Day columns */}
-          <div className="flex-1 relative min-w-[560px] sm:min-w-0">
-            {/* Current time indicator */}
-            {currentTimeY !== null && weekDays.some(d => isToday(d)) && (
+          <div className="flex flex-1 min-w-[560px] sm:min-w-0 relative">
+            {weekDays.map((day, dayIdx) => (
               <div
-                className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none"
-                style={{ top: `${currentTimeY}px` }}
+                key={dayIdx}
+                className={`flex-1 min-w-[80px] sm:min-w-0 border-l relative ${
+                  isToday(day) ? 'bg-blue-50/30' : ''
+                }`}
               >
-                <div className="absolute left-0 -top-1 w-2 h-2 bg-red-500 rounded-full" />
+                {/* Time slot rows for this day */}
+                {timeSlots.map((slot, slotIdx) => {
+                  const { cellBookings, cellClasses, cellAvailability } = getEventsForCell(day, slot.hour);
+                  const isCurrentTimeSlot = isToday(day) && slot.hour === currentHour;
+                  
+                  return (
+                    <div
+                      key={slotIdx}
+                      ref={isCurrentTimeSlot ? currentTimeRef : undefined}
+                      className={`h-7 sm:h-14 border-b border-border/30 relative group ${
+                        isCurrentTimeSlot ? 'bg-yellow-50/50' : ''
+                      }`}
+                      onClick={() => slot.minute === 0 && onAddAvailability(day, slot.hour)}
+                    >
+                      {/* Add button on hover (desktop only) */}
+                      <div className="hidden sm:flex absolute inset-0 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                      </div>
+
+                      {/* Render bookings in this cell */}
+                      {cellBookings.map((booking) => {
+                        const startTime = new Date(booking.startTime);
+                        const endTime = new Date(booking.endTime);
+                        const startMinutes = getHours(startTime) * 60 + getMinutes(startTime);
+                        const endMinutes = getHours(endTime) * 60 + getMinutes(endTime);
+                        const duration = endMinutes - startMinutes;
+                        const cellStartMinutes = slot.hour * 60 + slot.minute;
+                        
+                        // Only render if this is the starting cell for the booking
+                        if (startMinutes === cellStartMinutes) {
+                          const heightInCells = duration / 30; // 30-min cells
+                          // Mobile: 28px per cell (h-7), Desktop: 56px per cell (h-14)
+                          const mobileHeight = heightInCells * 28;
+                          const desktopHeight = heightInCells * 56;
+                          
+                          return (
+                            <div
+                              key={booking.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBookingClick(booking);
+                              }}
+                              className="absolute left-0.5 right-0.5 bg-blue-500 text-white rounded px-1 py-0.5 text-[10px] sm:text-xs font-medium overflow-hidden cursor-pointer hover:bg-blue-600 transition-colors z-10"
+                              style={{ 
+                                height: `${mobileHeight}px`,
+                                top: 0 
+                              }}
+                            >
+                              <style jsx>{`
+                                @media (min-width: 640px) {
+                                  div {
+                                    height: ${desktopHeight}px !important;
+                                  }
+                                }
+                              `}</style>
+                              <div className="truncate">{booking.clientName || 'Booking'}</div>
+                              <div className="text-[8px] sm:text-[10px] opacity-90 truncate">
+                                {format(startTime, 'h:mm')} - {format(endTime, 'h:mm a')}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+
+                      {/* Render classes in this cell */}
+                      {cellClasses.map((classItem) => {
+                        const startTime = new Date(classItem.startTime);
+                        const endTime = new Date(classItem.endTime);
+                        const startMinutes = getHours(startTime) * 60 + getMinutes(startTime);
+                        const endMinutes = getHours(endTime) * 60 + getMinutes(endTime);
+                        const duration = endMinutes - startMinutes;
+                        const cellStartMinutes = slot.hour * 60 + slot.minute;
+                        
+                        // Only render if this is the starting cell for the class
+                        if (startMinutes === cellStartMinutes) {
+                          const heightInCells = duration / 30;
+                          const mobileHeight = heightInCells * 28;
+                          const desktopHeight = heightInCells * 56;
+                          
+                          return (
+                            <div
+                              key={classItem.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onClassClick(classItem);
+                              }}
+                              className="absolute left-0.5 right-0.5 bg-purple-500 text-white rounded px-1 py-0.5 text-[10px] sm:text-xs font-medium overflow-hidden cursor-pointer hover:bg-purple-600 transition-colors z-10"
+                              style={{ 
+                                height: `${mobileHeight}px`,
+                                top: 0 
+                              }}
+                            >
+                              <style jsx>{`
+                                @media (min-width: 640px) {
+                                  div {
+                                    height: ${desktopHeight}px !important;
+                                  }
+                                }
+                              `}</style>
+                              <div className="truncate">{classItem.title}</div>
+                              <div className="text-[8px] sm:text-[10px] opacity-90 truncate">
+                                {classItem.currentParticipants}/{classItem.maxParticipants} • {format(startTime, 'h:mm a')}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+
+                      {/* Render availability slots in this cell */}
+                      {cellAvailability.map((availSlot) => {
+                        const startTime = new Date(availSlot.startTime);
+                        const endTime = new Date(availSlot.endTime);
+                        const startMinutes = getHours(startTime) * 60 + getMinutes(startTime);
+                        const endMinutes = getHours(endTime) * 60 + getMinutes(endTime);
+                        const duration = endMinutes - startMinutes;
+                        const cellStartMinutes = slot.hour * 60 + slot.minute;
+                        
+                        // Only render if this is the starting cell for the availability
+                        if (startMinutes === cellStartMinutes) {
+                          const heightInCells = duration / 30;
+                          const mobileHeight = heightInCells * 28;
+                          const desktopHeight = heightInCells * 56;
+                          
+                          return (
+                            <div
+                              key={availSlot.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAvailabilityClick(availSlot);
+                              }}
+                              className={`absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] sm:text-xs overflow-hidden cursor-pointer transition-colors ${
+                                availSlot.status === 'open'
+                                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
+                                  : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                              }`}
+                              style={{ 
+                                height: `${mobileHeight}px`,
+                                top: 0 
+                              }}
+                            >
+                              <style jsx>{`
+                                @media (min-width: 640px) {
+                                  div {
+                                    height: ${desktopHeight}px !important;
+                                  }
+                                }
+                              `}</style>
+                              <div className="truncate font-medium">
+                                {availSlot.status === 'open' ? 'Available' : 'Unavailable'}
+                              </div>
+                              <div className="text-[8px] sm:text-[10px] opacity-75 truncate">
+                                {format(startTime, 'h:mm')} - {format(endTime, 'h:mm a')}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+                  );
+                })}
+
+                {/* Current time indicator for this day */}
+                {currentTimeY !== null && isToday(day) && (
+                  <div
+                    className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none"
+                    style={{ top: `${currentTimeY}px` }}
+                  >
+                    <div className="absolute left-0 -top-1 w-2 h-2 bg-red-500 rounded-full" />
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
