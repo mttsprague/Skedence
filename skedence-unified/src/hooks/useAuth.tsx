@@ -48,6 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Skip if this is the same validated user (prevents re-validation on re-renders)
       // Check BEFORE setting any state to prevent re-renders
       if (firebaseUser && validatedUserId.current === firebaseUser.uid && hasCompletedInitialCheck.current) {
+        // Make sure loading is set to false for already-validated users
+        if (loading) {
+          setLoading(false);
+        }
         return;
       }
       
