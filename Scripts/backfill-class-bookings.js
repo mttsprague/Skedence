@@ -67,7 +67,7 @@ async function backfillClassBookings() {
 
       try {
         // Get class data
-        const classDoc = await db.collection('classes').doc(classId).getDocument();
+        const classDoc = await db.collection('classes').doc(classId).get();
         if (!classDoc.exists) {
           console.log(`   ⚠️  Class not found: ${classId}`);
           stats.classesNotFound++;
