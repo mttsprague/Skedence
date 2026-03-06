@@ -480,27 +480,27 @@ export default function TrainersPage() {
                       <Edit className="h-4 w-4" />
                     </button>
                     
-                  <div className="flex items-start space-x-4">
-                    <div className={`w-12 h-12 rounded-full ${
+                  <div className="flex items-start space-x-3 sm:space-x-4">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${
                       trainer.isActive 
                         ? 'bg-gradient-to-br from-teal-500 to-teal-600' 
                         : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                    } flex items-center justify-center text-white font-bold text-lg flex-shrink-0`}>
+                    } flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0`}>
                       {trainer.firstName?.[0]}{trainer.lastName?.[0]}
                     </div>
                     <div className="flex-1 min-w-0 pr-8">
-                      <h3 className="text-lg font-semibold text-foreground truncate">
+                      <h3 className="text-base sm:text-lg font-semibold text-foreground truncate">
                         {trainer.firstName} {trainer.lastName}
                       </h3>
                       {(trainer.email || trainer.emailAddress) && (
-                        <div className="flex items-center text-sm text-foreground/80 mt-1">
-                          <Mail className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                          <span className="truncate">{trainer.email || trainer.emailAddress}</span>
+                        <div className="flex items-center text-xs sm:text-sm text-foreground/80 mt-1 gap-1.5">
+                          <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                          <span className="truncate break-all">{trainer.email || trainer.emailAddress}</span>
                         </div>
                       )}
                       {trainer.phone && (
-                        <div className="flex items-center text-sm text-foreground/80 mt-1">
-                          <Phone className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                        <div className="flex items-center text-xs sm:text-sm text-foreground/80 mt-1 gap-1.5">
+                          <Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                           <span>{trainer.phone}</span>
                         </div>
                       )}

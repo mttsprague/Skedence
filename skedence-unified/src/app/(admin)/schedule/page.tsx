@@ -624,7 +624,7 @@ export default function SchedulePage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Start Time</Label>
                 <div className="text-sm text-muted-foreground">
@@ -794,13 +794,13 @@ export default function SchedulePage() {
                 <h3 className="text-xl font-black text-red-700 mb-4 text-center animate-pulse">
                   ⚠️ CANCEL THIS SESSION
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <button
                     onClick={() => {
                       console.log('Early cancel clicked');
                       setShowCancelConfirm('early');
                     }}
-                    className="px-6 py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-md text-base transform hover:scale-105 transition"
+                    className="px-4 sm:px-6 py-3 sm:py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-md text-sm sm:text-base transform hover:scale-105 transition"
                   >
                     🕐 Early Cancel
                     <div className="text-xs mt-1">Refund Pass</div>
@@ -810,7 +810,7 @@ export default function SchedulePage() {
                       console.log('Late cancel clicked');
                       setShowCancelConfirm('late');
                     }}
-                    className="px-6 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md text-base transform hover:scale-105 transition"
+                    className="px-4 sm:px-6 py-3 sm:py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md text-sm sm:text-base transform hover:scale-105 transition"
                   >
                     ⏰ Late Cancel
                     <div className="text-xs mt-1">No Refund</div>

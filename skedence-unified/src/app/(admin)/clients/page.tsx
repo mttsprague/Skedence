@@ -806,23 +806,23 @@ export default function ClientsPage() {
                 onClick={() => handleClientSelect(client)}
               >
                 <Card className="hover:shadow-lg transition-shadow h-full">
-                  <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
+                  <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-start gap-3 sm:gap-4">
                     {/* Avatar */}
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-semibold text-lg">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-semibold text-base sm:text-lg">
                         {(client.firstName?.[0] || '') + (client.lastName?.[0] || '')}
                       </span>
                     </div>
 
                     {/* Client Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground truncate">
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <h3 className="font-semibold text-foreground truncate text-sm sm:text-base">
                         {client.firstName} {client.lastName}
                       </h3>
-                      <p className="text-sm text-foreground/80 truncate">{client.email || client.emailAddress}</p>
+                      <p className="text-xs sm:text-sm text-foreground/80 truncate break-all">{client.email || client.emailAddress}</p>
                       {client.phone && (
-                        <p className="text-sm text-muted-foreground truncate">{client.phone}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">{client.phone}</p>
                       )}
                       {(client.athletes && client.athletes.length > 0) && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -847,20 +847,20 @@ export default function ClientsPage() {
             <div className="flex flex-col h-full">
               {/* Sticky Header */}
               <div className="sticky top-0 bg-white z-10 border-b">
-                <SheetHeader className="p-6 pb-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-xl">
+                <SheetHeader className="p-4 sm:p-6 pb-4">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-lg sm:text-xl">
                         {(selectedClient.firstName?.[0] || '') + (selectedClient.lastName?.[0] || '')}
                       </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <SheetTitle className="text-2xl font-bold text-foreground">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <SheetTitle className="text-xl sm:text-2xl font-bold text-foreground break-words">
                         {selectedClient.firstName} {selectedClient.lastName}
                       </SheetTitle>
-                      <p className="text-sm text-foreground/80">{selectedClient.email || selectedClient.emailAddress}</p>
+                      <p className="text-xs sm:text-sm text-foreground/80 break-all">{selectedClient.email || selectedClient.emailAddress}</p>
                       {selectedClient.phone && (
-                        <p className="text-sm text-muted-foreground">{selectedClient.phone}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{selectedClient.phone}</p>
                       )}
                     </div>
                   </div>
@@ -939,25 +939,25 @@ export default function ClientsPage() {
                             <CardTitle>Contact Information</CardTitle>
                           </CardHeader>
                           <CardContent className="space-y-3">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
                                 <p className="text-sm text-foreground/80">Email</p>
-                                <p className="font-medium">{selectedClient.email || selectedClient.emailAddress}</p>
+                                <p className="font-medium text-sm break-all">{selectedClient.email || selectedClient.emailAddress}</p>
                               </div>
                               <div>
                                 <p className="text-sm text-foreground/80">Phone</p>
-                                <p className="font-medium">{selectedClient.phone || selectedClient.phoneNumber || 'Not provided'}</p>
+                                <p className="font-medium text-sm">{selectedClient.phone || selectedClient.phoneNumber || 'Not provided'}</p>
                               </div>
                               <div>
                                 <p className="text-sm text-foreground/80">Emergency Contact</p>
-                                <p className="font-medium">{selectedClient.emergencyContactName || 'Not provided'}</p>
+                                <p className="font-medium text-sm">{selectedClient.emergencyContactName || 'Not provided'}</p>
                                 {selectedClient.emergencyContactNumber && (
                                   <p className="text-sm text-muted-foreground">{selectedClient.emergencyContactNumber}</p>
                                 )}
                               </div>
                               <div>
                                 <p className="text-sm text-foreground/80">Referred By</p>
-                                <p className="font-medium">{selectedClient.referredBy || 'Not provided'}</p>
+                                <p className="font-medium text-sm">{selectedClient.referredBy || 'Not provided'}</p>
                               </div>
                             </div>
                             {selectedClient.notesForCoach && (
