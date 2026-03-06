@@ -5,6 +5,33 @@ import {isEmailEnabled} from "./emailSettings";
 import {generateEmail} from "./emailTemplates";
 
 /**
+ * Log activity to the activities collection
+ */
+async function logActivity(data: {
+  type: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  targetId?: string;
+  targetName?: string;
+  targetType?: string;
+  description: string;
+  metadata?: Record<string, any>;
+  orgId: string;
+}) {
+  try {
+    await admin.firestore().collection("activities").add({
+      ...data,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`✅ Activity logged: ${data.type}`);
+  } catch (error) {
+    console.error("❌ Failed to log activity:", error);
+  }
+}
+
+/**
  * Send confirmation email when a client purchases a lesson package
  */
 export const sendPurchaseConfirmation = onDocumentCreated(
@@ -131,6 +158,28 @@ export const sendPurchaseConfirmation = onDocumentCreated(
       });
 
       console.log(`✅ Purchase confirmation sent to ${clientEmail}`);
+
+      // Log activity for package purchase
+      if (orgId) {
+        await logActivity({
+          type: "pass_purchased",
+          actorId: userId,
+          actorName: clientName,
+          actorRole: "client",
+          targetId: snap.id,
+          targetName: packageName,
+          targetType: "pass",
+          description: `${clientName} purchased ${packageName} (${packageData.totalLessons || 0} sessions)${amount > 0 ? ` for $${amount.toFixed(2)}` : ""}`,
+          metadata: {
+            packageId: snap.id,
+            packageType: packageData.packageType,
+            totalLessons: packageData.totalLessons,
+            amountPaid: Math.round(amount * 100),
+            transactionId: packageData.transactionId,
+          },
+          orgId: orgId,
+        });
+      }
     } catch (error) {
       console.error("Error sending purchase confirmation:", error);
     }
@@ -778,3 +827,88 @@ export async function sendRescheduleConfirmation(
     console.error("Error sending reschedule confirmation:", error);
   }
 }
+
+/**
+ * Log activity when a new client registers
+ */
+export const logClientRegistration = onDocumentCreated(
+  "users/{userId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const userData = snap.data();
+    const {userId} = event.params;
+
+    try {
+      // Only log for clients (not trainers or admins)
+      const role = userData.role || "client";
+      if (role !== "client") {
+        console.log(`Skipping activity log for non-client user: ${userId} (role: ${role})`);
+        return;
+      }
+
+      // Get organization ID
+      let orgId = userData.orgId;
+      
+      // If orgId not in user doc, try to get from orgMembers
+      if (!orgId) {
+        // Try different patterns for orgMembers document ID
+        const orgMemberPatterns = [
+          `${userId}_${userData.organizationId}`, // New pattern: userId_orgId
+          userId, // Legacy pattern: just userId
+        ];
+
+        for (const pattern of orgMemberPatterns) {
+          const orgMemberDoc = await admin.firestore().collection("orgMembers").doc(pattern).get();
+          if (orgMemberDoc.exists) {
+            orgId = orgMemberDoc.data()?.orgId;
+            if (orgId) break;
+          }
+        }
+
+        // Final fallback: query by authUserId
+        if (!orgId) {
+          const orgMembersQuery = await admin.firestore()
+            .collection("orgMembers")
+            .where("authUserId", "==", userId)
+            .limit(1)
+            .get();
+          
+          if (!orgMembersQuery.empty) {
+            orgId = orgMembersQuery.docs[0].data()?.orgId;
+          }
+        }
+      }
+
+      if (!orgId) {
+        console.log(`No orgId found for user ${userId}, skipping activity log`);
+        return;
+      }
+
+      const clientName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "New Client";
+      const clientEmail = userData.emailAddress || userData.email || "";
+
+      // Log activity for client registration
+      await logActivity({
+        type: "client_registered",
+        actorId: userId,
+        actorName: clientName,
+        actorRole: "client",
+        targetId: userId,
+        targetName: clientName,
+        targetType: "client",
+        description: `${clientName} registered as a new client`,
+        metadata: {
+          email: clientEmail,
+          phone: userData.phoneNumber || userData.phone || "",
+        },
+        orgId: orgId,
+      });
+
+      console.log(`✅ Client registration logged for ${clientName} (${userId})`);
+    } catch (error) {
+      console.error("Error logging client registration:", error);
+    }
+  }
+);
