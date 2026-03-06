@@ -177,31 +177,33 @@ export function WeekScheduleGrid({
         </div>
       </div>
 
-      {/* Week days header */}
-      <div className="flex bg-white border-b sticky top-0 z-10">
-        <div className="w-12 sm:w-16 flex-shrink-0" /> {/* Time column spacer */}
-        {weekDays.map((day, i) => (
-          <div
-            key={i}
-            className={`flex-1 min-w-[80px] sm:min-w-0 text-center py-2 border-l ${
-              isToday(day) ? 'bg-blue-50' : ''
-            }`}
-          >
-            <div className="text-[10px] sm:text-xs text-foreground/80">
-              <span className="hidden sm:inline">{format(day, 'EEE')}</span>
-              <span className="sm:hidden">{format(day, 'EEEEE')}</span>
-            </div>
-            <div className={`text-sm sm:text-base font-semibold ${
-              isToday(day) ? 'text-blue-600' : ''
-            }`}>
-              {format(day, 'd')}
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Schedule grid */}
       <div ref={scrollRef} className="flex-1 overflow-auto relative">
+        {/* Week days header - inside scroll container so it scrolls horizontally with grid */}
+        <div className="flex bg-white border-b sticky top-0 z-20">
+          <div className="w-12 sm:w-16 flex-shrink-0 bg-white" /> {/* Time column spacer */}
+          <div className="flex flex-1 min-w-[560px] sm:min-w-0">
+            {weekDays.map((day, i) => (
+              <div
+                key={i}
+                className={`flex-1 min-w-[80px] sm:min-w-0 text-center py-2 border-l ${
+                  isToday(day) ? 'bg-blue-50' : ''
+                }`}
+              >
+                <div className="text-[10px] sm:text-xs text-foreground/80">
+                  <span className="hidden sm:inline">{format(day, 'EEE')}</span>
+                  <span className="sm:hidden">{format(day, 'EEEEE')}</span>
+                </div>
+                <div className={`text-sm sm:text-base font-semibold ${
+                  isToday(day) ? 'text-blue-600' : ''
+                }`}>
+                  {format(day, 'd')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="flex min-w-full">
           {/* Time column */}
           <div className="w-12 sm:w-16 flex-shrink-0 bg-background sticky left-0 z-10">
