@@ -102,7 +102,6 @@ export default function SchedulePage() {
   // Set initial trainer to current user (must resolve trainer doc ID, not Auth UID)
   useEffect(() => {
     if (user && !selectedTrainerId && orgId && userData) {
-      console.log('📅 Schedule: Resolving trainer ID for user:', user.uid, 'role:', userData.role);
       // For trainers, we need to find their trainer document ID (not Auth UID)
       if (userData.role === 'trainer') {
         // Query trainers collection to find document by email
@@ -117,7 +116,6 @@ export default function SchedulePage() {
             if (!snapshot.empty) {
               const trainerDoc = snapshot.docs[0];
               setSelectedTrainerId(trainerDoc.id); // Use trainer document ID
-              console.log('✅ Schedule: Resolved trainer ID:', trainerDoc.id, 'for user:', user.uid);
             } else {
               console.error('❌ Schedule: No trainer document found for email:', userData.email || user.email);
             }
@@ -140,13 +138,9 @@ export default function SchedulePage() {
               // Owner/admin is also a trainer
               const trainerDoc = snapshot.docs[0];
               setSelectedTrainerId(trainerDoc.id);
-              console.log('✅ Schedule: Owner/admin is also a trainer, using:', trainerDoc.id);
             } else if (trainers.length > 0) {
               // Owner is not a trainer, use first trainer in list
               setSelectedTrainerId(trainers[0].id);
-              console.log('✅ Schedule: Owner/admin using first trainer:', trainers[0].id);
-            } else {
-              console.log('⚠️ Schedule: No trainers available yet for admin/owner');
             }
           } catch (error) {
             console.error('❌ Schedule: Error finding owner as trainer:', error);
@@ -241,7 +235,6 @@ export default function SchedulePage() {
         );
     
     const unsubBookings = onSnapshot(bookingsQuery, async (snapshot) => {
-      console.log(`📅 Schedule: Loaded ${snapshot.docs.length} bookings for trainer: ${selectedTrainerId}`);
       const bookingsData: Booking[] = [];
       
       for (const bookingDoc of snapshot.docs) {
@@ -299,7 +292,6 @@ export default function SchedulePage() {
         });
       }
       setBookings(bookingsData);
-      console.log(`📅 Schedule: Processed bookings:`, bookingsData.map(b => ({ client: b.clientName, time: b.startTime })));
       setLoading(false);
     });
 
@@ -325,8 +317,6 @@ export default function SchedulePage() {
         startTime: doc.data().startTime.toDate(),
         endTime: doc.data().endTime.toDate(),
       })) as GroupClass[];
-      console.log(`Classes loaded for trainer ${selectedTrainerId}:`, classesData.length, 'classes');
-      classesData.forEach(c => console.log(`  - ${c.title} (trainerId: ${(c as any).trainerId})`));
       setClasses(classesData);
     });
 
@@ -350,7 +340,6 @@ export default function SchedulePage() {
           startTime: doc.data().startTime.toDate(),
           endTime: doc.data().endTime.toDate(),
         })) as AvailabilitySlot[];
-        console.log(`📅 Schedule: Loaded ${availabilityData.length} availability slots for trainer: ${selectedTrainerId}`);
         setAvailabilitySlots(availabilityData);
       });
     } else {
@@ -426,11 +415,6 @@ export default function SchedulePage() {
       const startTime = setMinutes(setHours(editingSlot.day, editingSlot.hour), slotMinute);
       const endTime = new Date(startTime.getTime() + slotDuration * 60 * 1000); // Duration in minutes
 
-      console.log('Schedule: Creating slot for trainer:', targetTrainerId);
-      console.log('Schedule: Start time:', startTime);
-      console.log('Schedule: End time:', endTime);
-      console.log('Schedule: Status:', slotStatus);
-
       // Helper function to generate deterministic slot ID with minutes (matches iOS/Cloud Functions)
       const generateScheduleDocId = (date: Date): string => {
         const utcDate = new Date(date);
@@ -452,7 +436,6 @@ export default function SchedulePage() {
 
       if (editingSlot.existingSlot) {
         // Update existing slot
-        console.log('Schedule: Updating existing slot:', editingSlot.existingSlot.id);
         await updateDoc(doc(db, 'trainers', targetTrainerId, 'schedules', editingSlot.existingSlot.id), {
           startTime: Timestamp.fromDate(startTime),
           endTime: Timestamp.fromDate(endTime),
@@ -462,7 +445,6 @@ export default function SchedulePage() {
         });
       } else if (isRecurring) {
         // Create recurring slots
-        console.log('Schedule: Creating recurring slots for', recurringWeeks, 'weeks');
         const batch = [];
         for (let week = 0; week < recurringWeeks; week++) {
           const weekOffset = week * 7 * 24 * 60 * 60 * 1000;
@@ -470,7 +452,6 @@ export default function SchedulePage() {
           const slotEnd = new Date(endTime.getTime() + weekOffset);
           const slotId = generateScheduleDocId(slotStart);
           
-          console.log('Schedule: Creating slot with ID:', slotId);
           batch.push(
             setDoc(doc(db, 'trainers', selectedTrainerId, 'schedules', slotId), {
               trainerId: selectedTrainerId,
@@ -486,12 +467,9 @@ export default function SchedulePage() {
           );
         }
         await Promise.all(batch);
-        console.log('Schedule: Recurring slots created successfully');
       } else {
         // Create single slot with deterministic ID
         const slotId = generateScheduleDocId(startTime);
-        console.log('Schedule: Creating single slot with ID:', slotId);
-        console.log('Schedule: Full path: trainers/' + targetTrainerId + '/schedules/' + slotId);
         
         await setDoc(doc(db, 'trainers', targetTrainerId, 'schedules', slotId), {
           trainerId: targetTrainerId,
@@ -504,8 +482,6 @@ export default function SchedulePage() {
           trainerName: trainerFullName,
           createdAt: Timestamp.now(),
         }, { merge: true });
-        
-        console.log('Schedule: Single slot created successfully');
       }
 
       setShowAvailabilityDialog(false);
