@@ -791,6 +791,27 @@ export const registerForClass = onCall(
           registeredAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
+        // Create booking document so class appears in client's schedule/bookings
+        const bookingRef = db.collection("bookings").doc();
+        transaction.set(bookingRef, {
+          clientUID: userId,
+          trainerId: classData.trainerId || "",
+          trainerName: classData.trainerName || "Unknown Trainer",
+          orgId: clientOrgId,
+          startTime: classData.startTime,
+          endTime: classData.endTime,
+          status: "booked",
+          isClassBooking: true,
+          classId: classId,
+          packageId: classPassPackageId,
+          lessonPackageId: classPassPackageId, // For backward compatibility
+          athleteName: primaryAthleteName,
+          secondAthleteName: secondAthleteName || null,
+          athleteNames: secondAthleteName ? [primaryAthleteName, secondAthleteName] : [primaryAthleteName],
+          location: classData.location || "",
+          bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
         // Log activity
         const clientFullName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client";
         const className = classData.title || "Unknown Class";
@@ -2191,6 +2212,29 @@ export const manualRegisterForClass = onCall(
 
       // Create registration
       await db.collection("classRegistrations").add(registrationData);
+
+      // Create booking document so class appears in client's schedule
+      if (userId) {
+        // Only create booking for existing clients (not manual entries)
+        const classDoc = await db.collection("classes").doc(classId).get();
+        const classData = classDoc.data()!;
+        
+        await db.collection("bookings").add({
+          clientUID: userId,
+          trainerId: classData.trainerId || "",
+          trainerName: classData.trainerName || "Unknown Trainer",
+          orgId: orgId,
+          startTime: classData.startTime,
+          endTime: classData.endTime,
+          status: "booked",
+          isClassBooking: true,
+          classId: classId,
+          packageId: classPassPackageId || "",
+          lessonPackageId: classPassPackageId || "", // For backward compatibility
+          location: classData.location || "",
+          bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
 
       // Increment current participants
       await db.collection("classes").doc(classId).update({
