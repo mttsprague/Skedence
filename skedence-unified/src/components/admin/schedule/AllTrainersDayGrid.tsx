@@ -323,16 +323,18 @@ export function AllTrainersDayGrid({
                           }}
                           className={`absolute inset-x-1 rounded cursor-pointer transition-colors pointer-events-auto ${
                             slot.status === 'open'
-                              ? 'bg-gray-200 hover:bg-gray-300'
-                              : 'bg-gray-400 hover:bg-gray-500'
+                              ? 'bg-green-100 border border-green-300 hover:bg-green-200'
+                              : 'bg-gray-100 border border-gray-300 hover:bg-gray-200'
                           }`}
                           style={{
                             top: `${yOffset}px`,
                             height: `${Math.max(height, 20)}px`,
                           }}
                         >
-                          <div className="text-[9px] sm:text-[10px] text-foreground font-medium text-center py-1 truncate px-1">
-                            {slot.status === 'open' ? 'Open' : 'Unavailable'}
+                          <div className={`text-[9px] sm:text-[10px] font-medium text-center py-1 truncate px-1 ${
+                            slot.status === 'open' ? 'text-green-700' : 'text-gray-600'
+                          }`}>
+                            {slot.status === 'open' ? 'Available' : 'Unavailable'}
                           </div>
                         </div>
                       );

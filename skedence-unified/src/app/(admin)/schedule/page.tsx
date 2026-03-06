@@ -80,8 +80,8 @@ export default function SchedulePage() {
   const trainersRef = useRef<Trainer[]>([]);
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  // Default owners/admins to "All Trainers" view on mobile to show all data
-  const [viewMode, setViewMode] = useState<'week' | 'allTrainersDay'>('allTrainersDay');
+  // Default to week view to show logged-in trainer's schedule
+  const [viewMode, setViewMode] = useState<'week' | 'allTrainersDay'>('week');
   
   // Availability editor
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
@@ -127,13 +127,36 @@ export default function SchedulePage() {
         };
         findTrainerId();
       } else {
-        // For admins/owners, use first trainer in list
-        if (trainers.length > 0) {
-          setSelectedTrainerId(trainers[0].id);
-          console.log('✅ Schedule: Admin/owner using first trainer:', trainers[0].id);
-        } else {
-          console.log('⚠️ Schedule: No trainers available yet for admin/owner');
-        }
+        // For admins/owners, try to find their trainer document first (they might also be a trainer)
+        const findOwnerAsTrainer = async () => {
+          try {
+            const trainersQuery = query(
+              collection(db, 'trainers'),
+              where('orgId', '==', orgId),
+              where('email', '==', userData.email || user.email)
+            );
+            const snapshot = await getDocs(trainersQuery);
+            if (!snapshot.empty) {
+              // Owner/admin is also a trainer
+              const trainerDoc = snapshot.docs[0];
+              setSelectedTrainerId(trainerDoc.id);
+              console.log('✅ Schedule: Owner/admin is also a trainer, using:', trainerDoc.id);
+            } else if (trainers.length > 0) {
+              // Owner is not a trainer, use first trainer in list
+              setSelectedTrainerId(trainers[0].id);
+              console.log('✅ Schedule: Owner/admin using first trainer:', trainers[0].id);
+            } else {
+              console.log('⚠️ Schedule: No trainers available yet for admin/owner');
+            }
+          } catch (error) {
+            console.error('❌ Schedule: Error finding owner as trainer:', error);
+            // Fallback to first trainer
+            if (trainers.length > 0) {
+              setSelectedTrainerId(trainers[0].id);
+            }
+          }
+        };
+        findOwnerAsTrainer();
       }
     }
   }, [user, orgId, userData, selectedTrainerId, trainers]);
