@@ -579,7 +579,7 @@ struct ClassRegistrationSheet: View {
     
     private var participantCountUI: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Is she the only one attending?")
+            Text("Is this athlete the only one attending?")
                 .font(.headingMedium)
                 .foregroundStyle(AppTheme.textPrimary)
             
@@ -626,7 +626,7 @@ struct ClassRegistrationSheet: View {
             }
         } label: {
             HStack {
-                Text(isYes ? "Yes, just her" : "No, multiple")
+                Text(isYes ? "Yes" : "No, multiple")
                     .font(.headingSmall)
                 Spacer()
                 if isOnlyParticipant == isYes {
