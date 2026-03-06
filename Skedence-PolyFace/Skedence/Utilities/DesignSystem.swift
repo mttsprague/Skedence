@@ -7,19 +7,19 @@
 
 import SwiftUI
 
-// MARK: - Brand Colors
+// MARK: - Brand Colors (Polyface Volleyball Academy)
 enum AppTheme {
-    // Primary: Royal Blue (#3258A3)
-    static let primary = Color(red: 0.196, green: 0.345, blue: 0.639)
-    static let primaryDark = Color(red: 0.102, green: 0.169, blue: 0.427) // Deep Navy
-    static let primaryLight = Color(red: 0.25, green: 0.45, blue: 0.75)
+    // Primary: Blue Mid (#2D5894)
+    static let primary = Color(red: 0.176, green: 0.345, blue: 0.580)
+    static let primaryDark = Color(red: 0.102, green: 0.200, blue: 0.384) // Blue Dark (#1A3362)
+    static let primaryLight = Color(red: 0.290, green: 0.565, blue: 0.761) // Blue Light (#4A90C2)
     
-    // Secondary: Vibrant Orange (#F27121)
-    static let secondary = Color(red: 0.949, green: 0.443, blue: 0.129)
-    static let secondaryLight = Color(red: 0.976, green: 0.627, blue: 0.369) // Soft Orange
+    // Secondary: Yellow/Orange Mid (#E68A2E)
+    static let secondary = Color(red: 0.902, green: 0.541, blue: 0.180)
+    static let secondaryLight = Color(red: 0.976, green: 0.698, blue: 0.200) // Yellow/Orange Light (#F9B233)
     
-    // Accent: Deep Navy (#1A2B6D)
-    static let accent = Color(red: 0.102, green: 0.169, blue: 0.427)
+    // Accent: Green Mid (#7FB141)
+    static let accent = Color(red: 0.498, green: 0.694, blue: 0.255)
     
     // Silver Gray (#B1B3B6)
     static let silver = Color(red: 0.694, green: 0.702, blue: 0.714)
