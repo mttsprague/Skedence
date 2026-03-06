@@ -98,12 +98,38 @@ export default function SchedulePage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
   const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set());
 
-  // Set initial trainer to current user
+  // Set initial trainer to current user (must resolve trainer doc ID, not Auth UID)
   useEffect(() => {
-    if (user && !selectedTrainerId) {
-      setSelectedTrainerId(user.uid);
+    if (user && !selectedTrainerId && orgId && userData) {
+      // For trainers, we need to find their trainer document ID (not Auth UID)
+      if (userData.role === 'trainer') {
+        // Query trainers collection to find document by email
+        const findTrainerId = async () => {
+          try {
+            const trainersQuery = query(
+              collection(db, 'trainers'),
+              where('orgId', '==', orgId),
+              where('email', '==', userData.email || user.email)
+            );
+            const snapshot = await getDocs(trainersQuery);
+            if (!snapshot.empty) {
+              const trainerDoc = snapshot.docs[0];
+              setSelectedTrainerId(trainerDoc.id); // Use trainer document ID
+              console.log('Schedule: Resolved trainer ID:', trainerDoc.id, 'for user:', user.uid);
+            }
+          } catch (error) {
+            console.error('Error finding trainer ID:', error);
+          }
+        };
+        findTrainerId();
+      } else {
+        // For admins/owners, use first trainer in list
+        if (trainers.length > 0) {
+          setSelectedTrainerId(trainers[0].id);
+        }
+      }
     }
-  }, [user]);
+  }, [user, orgId, userData, selectedTrainerId, trainers]);
 
   // Load required fields from org settings
   useEffect(() => {
