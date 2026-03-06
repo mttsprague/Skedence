@@ -37,6 +37,7 @@ struct BookView: View {
     
     @Binding var initialMode: Int
     @Binding var selectedTab: Int
+    @Binding var selectedClassId: String?
     @Binding var profileTab: String?
 
     @State private var mode: Mode = .lessons
@@ -335,6 +336,11 @@ struct BookView: View {
             }
             .onChangeCompat(of: packagesService.packages) { _, _ in
                 updateSelectedPackage()
+            }
+            .onChangeCompat(of: selectedClassId) { _, newClassId in
+                if let classId = newClassId {
+                    handlePreselectedClass(classId: classId)
+                }
             }
     }
     
@@ -1250,6 +1256,31 @@ struct BookView: View {
     private func loadMonthIfPossible() async {
         guard let trainerId = selectedTrainer?.id, let orgId = auth.currentOrgId else { return }
         await scheduleService.loadMonthAvailability(for: trainerId, monthStart: monthStart, orgId: orgId)
+    }
+    
+    private func handlePreselectedClass(classId: String) {
+        // Switch to classes mode
+        mode = .classes
+        
+        // Load classes if not already loaded
+        if classesService.openClasses.isEmpty, let orgId = auth.currentOrgId {
+            Task {
+                await classesService.loadOpenClasses(orgId: orgId)
+                // After loading, find and select the class
+                if let classToSelect = classesService.openClasses.first(where: { $0.id == classId }) {
+                    selectedClass = classToSelect
+                }
+                // Clear the selectedClassId so it doesn't retrigger
+                selectedClassId = nil
+            }
+        } else {
+            // Classes already loaded, find and select immediately
+            if let classToSelect = classesService.openClasses.first(where: { $0.id == classId }) {
+                selectedClass = classToSelect
+            }
+            // Clear the selectedClassId so it doesn't retrigger
+            selectedClassId = nil
+        }
     }
     
     private func searchTrainersWithAvailability() async {

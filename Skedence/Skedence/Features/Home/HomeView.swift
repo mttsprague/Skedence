@@ -21,6 +21,7 @@ struct HomeView: View {
     
     @Binding var selectedTab: Int
     @Binding var bookViewMode: Int
+    @Binding var selectedClassId: String?
     @Binding var profileTab: String?
     
     @State private var hasLoadedInitialData = false
@@ -52,7 +53,8 @@ struct HomeView: View {
                     UpcomingClassesSection(
                         classesService: classesService,
                         bookViewMode: $bookViewMode,
-                        selectedTab: $selectedTab
+                        selectedTab: $selectedTab,
+                        selectedClassId: $selectedClassId
                     )
 
                     // CTA Button

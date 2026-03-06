@@ -22,6 +22,7 @@ struct AppRootView: View {
     
     @State private var selectedTab = 0
     @State private var bookViewMode = 0
+    @State private var selectedClassId: String? = nil
     @State private var profileTab: String? = nil
     @State private var organizationIsActive = true
     @State private var hasSetInitialTab = false
@@ -35,6 +36,7 @@ struct AppRootView: View {
                              classesService: classesService,
                              selectedTab: $selectedTab,
                              bookViewMode: $bookViewMode,
+                             selectedClassId: $selectedClassId,
                              profileTab: $profileTab)
                         .tabItem {
                             Label("Home", systemImage: "house.fill")
@@ -49,6 +51,7 @@ struct AppRootView: View {
                              bookingsService: bookingsService,
                              initialMode: $bookViewMode,
                              selectedTab: $selectedTab,
+                             selectedClassId: $selectedClassId,
                              profileTab: $profileTab)
                         .tabItem {
                             Label("Book", systemImage: "calendar.badge.plus")
