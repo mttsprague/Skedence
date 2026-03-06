@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -326,8 +325,7 @@ function ClientDetailContent() {
   ];
 
   return (
-    <SchedulingSubmenu>
-      <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-4">
@@ -397,7 +395,6 @@ function ClientDetailContent() {
         </div>
       </div>
     </div>
-    </SchedulingSubmenu>
   );
 }
 

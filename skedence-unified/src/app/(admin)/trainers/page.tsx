@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { collection, query, where, getDocs, orderBy, updateDoc, getDoc } from 'firebase/firestore';
@@ -393,7 +392,7 @@ export default function TrainersPage() {
   };
 
   return (
-    <SchedulingSubmenu>
+    <>
       <div className="p-6 lg:p-8">
         <div className="space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between">
@@ -804,6 +803,6 @@ export default function TrainersPage() {
           </div>
         </SheetContent>
       </Sheet>
-    </SchedulingSubmenu>
+    </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp, orderBy } from 'firebase/firestore';
@@ -283,8 +282,7 @@ export default function BookingsPage() {
   const selectedSlotData = slots.find(s => s.id === selectedSlot);
 
   return (
-    <SchedulingSubmenu>
-      <div className="p-6 lg:p-8">
+    <div className="p-6 lg:p-8">
         <div className="space-y-4 sm:space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Create Booking</h1>
@@ -515,6 +513,5 @@ export default function BookingsPage() {
         )}
         </div>
       </div>
-    </SchedulingSubmenu>
   );
 }
