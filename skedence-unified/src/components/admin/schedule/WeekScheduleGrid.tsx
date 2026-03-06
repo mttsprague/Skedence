@@ -259,9 +259,6 @@ export function WeekScheduleGrid({
                         // Only render if this is the starting cell for the booking
                         if (startMinutes === cellStartMinutes) {
                           const heightInCells = duration / 30; // 30-min cells
-                          // Mobile: 28px per cell (h-7), Desktop: 56px per cell (h-14)
-                          const mobileHeight = heightInCells * 28;
-                          const desktopHeight = heightInCells * 56;
                           
                           return (
                             <div
@@ -272,17 +269,10 @@ export function WeekScheduleGrid({
                               }}
                               className="absolute left-0.5 right-0.5 bg-blue-500 text-white rounded px-1 py-0.5 text-[10px] sm:text-xs font-medium overflow-hidden cursor-pointer hover:bg-blue-600 transition-colors z-10"
                               style={{ 
-                                height: `${mobileHeight}px`,
+                                height: `calc(${heightInCells} * 1.75rem)`,
                                 top: 0 
                               }}
                             >
-                              <style jsx>{`
-                                @media (min-width: 640px) {
-                                  div {
-                                    height: ${desktopHeight}px !important;
-                                  }
-                                }
-                              `}</style>
                               <div className="truncate">{booking.clientName || 'Booking'}</div>
                               <div className="text-[8px] sm:text-[10px] opacity-90 truncate">
                                 {format(startTime, 'h:mm')} - {format(endTime, 'h:mm a')}
@@ -305,8 +295,6 @@ export function WeekScheduleGrid({
                         // Only render if this is the starting cell for the class
                         if (startMinutes === cellStartMinutes) {
                           const heightInCells = duration / 30;
-                          const mobileHeight = heightInCells * 28;
-                          const desktopHeight = heightInCells * 56;
                           
                           return (
                             <div
@@ -317,17 +305,10 @@ export function WeekScheduleGrid({
                               }}
                               className="absolute left-0.5 right-0.5 bg-purple-500 text-white rounded px-1 py-0.5 text-[10px] sm:text-xs font-medium overflow-hidden cursor-pointer hover:bg-purple-600 transition-colors z-10"
                               style={{ 
-                                height: `${mobileHeight}px`,
+                                height: `calc(${heightInCells} * 1.75rem)`,
                                 top: 0 
                               }}
                             >
-                              <style jsx>{`
-                                @media (min-width: 640px) {
-                                  div {
-                                    height: ${desktopHeight}px !important;
-                                  }
-                                }
-                              `}</style>
                               <div className="truncate">{classItem.title}</div>
                               <div className="text-[8px] sm:text-[10px] opacity-90 truncate">
                                 {classItem.currentParticipants}/{classItem.maxParticipants} • {format(startTime, 'h:mm a')}
@@ -350,8 +331,6 @@ export function WeekScheduleGrid({
                         // Only render if this is the starting cell for the availability
                         if (startMinutes === cellStartMinutes) {
                           const heightInCells = duration / 30;
-                          const mobileHeight = heightInCells * 28;
-                          const desktopHeight = heightInCells * 56;
                           
                           return (
                             <div
@@ -366,17 +345,10 @@ export function WeekScheduleGrid({
                                   : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
                               }`}
                               style={{ 
-                                height: `${mobileHeight}px`,
+                                height: `calc(${heightInCells} * 1.75rem)`,
                                 top: 0 
                               }}
                             >
-                              <style jsx>{`
-                                @media (min-width: 640px) {
-                                  div {
-                                    height: ${desktopHeight}px !important;
-                                  }
-                                }
-                              `}</style>
                               <div className="truncate font-medium">
                                 {availSlot.status === 'open' ? 'Available' : 'Unavailable'}
                               </div>
