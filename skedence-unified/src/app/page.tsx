@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Calendar, 
@@ -18,9 +19,36 @@ import {
   X
 } from 'lucide-react';
 import ROICalculator from '@/components/roi-calculator';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { userData, loading } = useAuth();
+  const router = useRouter();
+
+  // Redirect authenticated users to activity feed
+  useEffect(() => {
+    if (!loading && userData) {
+      router.push('/activity');
+    }
+  }, [userData, loading, router]);
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-foreground/60">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if we're about to redirect
+  if (userData) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">

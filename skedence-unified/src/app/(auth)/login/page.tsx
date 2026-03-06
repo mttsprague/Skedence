@@ -1,18 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { trackAuth } from "@/lib/analytics";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { userData, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Redirect authenticated users to activity or their intended destination
+  useEffect(() => {
+    if (!authLoading && userData) {
+      const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/activity';
+      sessionStorage.removeItem('redirectAfterLogin');
+      router.push(redirectTo);
+    }
+  }, [userData, authLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,13 +36,28 @@ export default function LoginPage() {
       // Track successful login
       trackAuth.login(email);
       
-      router.push("/activity");
+      // Get redirect destination (stored in session if came from protected route)
+      const redirectTo = sessionStorage.getItem('redirectAfterLogin') || '/activity';
+      sessionStorage.removeItem('redirectAfterLogin');
+      router.push(redirectTo);
     } catch (err: any) {
       setError(err.message || "Failed to login");
     } finally {
       setLoading(false);
     }
   };
+
+  // Show loading if already authenticated
+  if (authLoading || userData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-foreground/60">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
