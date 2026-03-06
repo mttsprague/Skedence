@@ -1263,11 +1263,11 @@ struct BookView: View {
         mode = .classes
         
         // Load classes if not already loaded
-        if classesService.openClasses.isEmpty, let orgId = auth.currentOrgId {
+        if classesService.items.isEmpty, let orgId = auth.currentOrgId {
             Task {
                 await classesService.loadOpenClasses(orgId: orgId)
                 // After loading, find and select the class
-                if let classToSelect = classesService.openClasses.first(where: { $0.id == classId }) {
+                if let classToSelect = classesService.items.first(where: { $0.id == classId }) {
                     selectedClass = classToSelect
                 }
                 // Clear the selectedClassId so it doesn't retrigger
@@ -1275,7 +1275,7 @@ struct BookView: View {
             }
         } else {
             // Classes already loaded, find and select immediately
-            if let classToSelect = classesService.openClasses.first(where: { $0.id == classId }) {
+            if let classToSelect = classesService.items.first(where: { $0.id == classId }) {
                 selectedClass = classToSelect
             }
             // Clear the selectedClassId so it doesn't retrigger
