@@ -80,7 +80,8 @@ export default function SchedulePage() {
   const trainersRef = useRef<Trainer[]>([]);
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'week' | 'allTrainersDay'>('week');
+  // Default owners/admins to "All Trainers" view on mobile to show all data
+  const [viewMode, setViewMode] = useState<'week' | 'allTrainersDay'>('allTrainersDay');
   
   // Availability editor
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
@@ -101,6 +102,7 @@ export default function SchedulePage() {
   // Set initial trainer to current user (must resolve trainer doc ID, not Auth UID)
   useEffect(() => {
     if (user && !selectedTrainerId && orgId && userData) {
+      console.log('📅 Schedule: Resolving trainer ID for user:', user.uid, 'role:', userData.role);
       // For trainers, we need to find their trainer document ID (not Auth UID)
       if (userData.role === 'trainer') {
         // Query trainers collection to find document by email
@@ -115,10 +117,12 @@ export default function SchedulePage() {
             if (!snapshot.empty) {
               const trainerDoc = snapshot.docs[0];
               setSelectedTrainerId(trainerDoc.id); // Use trainer document ID
-              console.log('Schedule: Resolved trainer ID:', trainerDoc.id, 'for user:', user.uid);
+              console.log('✅ Schedule: Resolved trainer ID:', trainerDoc.id, 'for user:', user.uid);
+            } else {
+              console.error('❌ Schedule: No trainer document found for email:', userData.email || user.email);
             }
           } catch (error) {
-            console.error('Error finding trainer ID:', error);
+            console.error('❌ Schedule: Error finding trainer ID:', error);
           }
         };
         findTrainerId();
@@ -126,6 +130,9 @@ export default function SchedulePage() {
         // For admins/owners, use first trainer in list
         if (trainers.length > 0) {
           setSelectedTrainerId(trainers[0].id);
+          console.log('✅ Schedule: Admin/owner using first trainer:', trainers[0].id);
+        } else {
+          console.log('⚠️ Schedule: No trainers available yet for admin/owner');
         }
       }
     }
@@ -211,6 +218,7 @@ export default function SchedulePage() {
         );
     
     const unsubBookings = onSnapshot(bookingsQuery, async (snapshot) => {
+      console.log(`📅 Schedule: Loaded ${snapshot.docs.length} bookings for trainer: ${selectedTrainerId}`);
       const bookingsData: Booking[] = [];
       
       for (const bookingDoc of snapshot.docs) {
@@ -268,6 +276,7 @@ export default function SchedulePage() {
         });
       }
       setBookings(bookingsData);
+      console.log(`📅 Schedule: Processed bookings:`, bookingsData.map(b => ({ client: b.clientName, time: b.startTime })));
       setLoading(false);
     });
 
@@ -318,6 +327,7 @@ export default function SchedulePage() {
           startTime: doc.data().startTime.toDate(),
           endTime: doc.data().endTime.toDate(),
         })) as AvailabilitySlot[];
+        console.log(`📅 Schedule: Loaded ${availabilityData.length} availability slots for trainer: ${selectedTrainerId}`);
         setAvailabilitySlots(availabilityData);
       });
     } else {

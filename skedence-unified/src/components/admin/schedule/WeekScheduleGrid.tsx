@@ -84,6 +84,18 @@ export function WeekScheduleGrid({
   // Format week range for header
   const weekTitle = `${format(weekDays[0], 'MMM d')} - ${format(weekDays[6], 'MMM d, yyyy')}`;
 
+  // Debug logging
+  useEffect(() => {
+    console.log('📊 WeekScheduleGrid: Props received:', {
+      trainerId,
+      bookingsCount: bookings.length,
+      classesCount: classes.length,
+      availabilitySlotsCount: availabilitySlots.length,
+      bookings: bookings.map(b => ({ client: b.clientName, start: b.startTime })),
+      availabilitySlots: availabilitySlots.map(a => ({ status: a.status, start: a.startTime }))
+    });
+  }, [bookings, classes, availabilitySlots, trainerId]);
+
   // Get current time position for red line
   const getCurrentTimePosition = () => {
     const now = new Date();
@@ -233,6 +245,18 @@ export function WeekScheduleGrid({
                   const { cellBookings, cellClasses, cellAvailability } = getEventsForCell(day, slot.hour);
                   const isCurrentTimeSlot = isToday(day) && slot.hour === currentHour;
                   
+                  // Debug: Log when we find events
+                  if (cellBookings.length > 0 || cellClasses.length > 0 || cellAvailability.length > 0) {
+                    console.log(`📍 Cell has events:`, {
+                      day: format(day, 'EEE MMM d'),
+                      hour: slot.hour,
+                      minute: slot.minute,
+                      bookings: cellBookings.length,
+                      classes: cellClasses.length,
+                      availability: cellAvailability.length
+                    });
+                  }
+                  
                   return (
                     <div
                       key={slotIdx}
@@ -262,6 +286,16 @@ export function WeekScheduleGrid({
                           // Mobile: 28px per cell (h-7), Desktop: 56px per cell (h-14)
                           const mobileHeight = heightInCells * 28;
                           const desktopHeight = heightInCells * 56;
+                          
+                          console.log(`🔵 Rendering booking:`, {
+                            id: booking.id,
+                            client: booking.clientName,
+                            startMinutes,
+                            duration,
+                            heightInCells,
+                            mobileHeight,
+                            desktopHeight
+                          });
                           
                           return (
                             <div
