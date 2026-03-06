@@ -259,20 +259,29 @@ export function WeekScheduleGrid({
                         // Only render if this is the starting cell for the booking
                         if (startMinutes === cellStartMinutes) {
                           const heightInCells = duration / 30; // 30-min cells
+                          // Mobile: 28px per cell (h-7), Desktop: 56px per cell (h-14)
+                          const mobileHeight = heightInCells * 28;
+                          const desktopHeight = heightInCells * 56;
                           
                           return (
                             <div
                               key={booking.id}
+                              data-booking-id={booking.id}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onBookingClick(booking);
                               }}
                               className="absolute left-0.5 right-0.5 bg-blue-500 text-white rounded px-1 py-0.5 text-[10px] sm:text-xs font-medium overflow-hidden cursor-pointer hover:bg-blue-600 transition-colors z-10"
                               style={{ 
-                                height: `calc(${heightInCells} * 1.75rem)`,
+                                height: `${mobileHeight}px`,
                                 top: 0 
                               }}
                             >
+                              <style dangerouslySetInnerHTML={{__html: `
+                                @media (min-width: 640px) {
+                                  [data-booking-id="${booking.id}"] { height: ${desktopHeight}px !important; }
+                                }
+                              `}} />
                               <div className="truncate">{booking.clientName || 'Booking'}</div>
                               <div className="text-[8px] sm:text-[10px] opacity-90 truncate">
                                 {format(startTime, 'h:mm')} - {format(endTime, 'h:mm a')}
@@ -295,20 +304,28 @@ export function WeekScheduleGrid({
                         // Only render if this is the starting cell for the class
                         if (startMinutes === cellStartMinutes) {
                           const heightInCells = duration / 30;
+                          const mobileHeight = heightInCells * 28;
+                          const desktopHeight = heightInCells * 56;
                           
                           return (
                             <div
                               key={classItem.id}
+                              data-class-id={classItem.id}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onClassClick(classItem);
                               }}
                               className="absolute left-0.5 right-0.5 bg-purple-500 text-white rounded px-1 py-0.5 text-[10px] sm:text-xs font-medium overflow-hidden cursor-pointer hover:bg-purple-600 transition-colors z-10"
                               style={{ 
-                                height: `calc(${heightInCells} * 1.75rem)`,
+                                height: `${mobileHeight}px`,
                                 top: 0 
                               }}
                             >
+                              <style dangerouslySetInnerHTML={{__html: `
+                                @media (min-width: 640px) {
+                                  [data-class-id="${classItem.id}"] { height: ${desktopHeight}px !important; }
+                                }
+                              `}} />
                               <div className="truncate">{classItem.title}</div>
                               <div className="text-[8px] sm:text-[10px] opacity-90 truncate">
                                 {classItem.currentParticipants}/{classItem.maxParticipants} • {format(startTime, 'h:mm a')}
@@ -331,10 +348,13 @@ export function WeekScheduleGrid({
                         // Only render if this is the starting cell for the availability
                         if (startMinutes === cellStartMinutes) {
                           const heightInCells = duration / 30;
+                          const mobileHeight = heightInCells * 28;
+                          const desktopHeight = heightInCells * 56;
                           
                           return (
                             <div
                               key={availSlot.id}
+                              data-avail-id={availSlot.id}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onAvailabilityClick(availSlot);
@@ -345,10 +365,15 @@ export function WeekScheduleGrid({
                                   : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
                               }`}
                               style={{ 
-                                height: `calc(${heightInCells} * 1.75rem)`,
+                                height: `${mobileHeight}px`,
                                 top: 0 
                               }}
                             >
+                              <style dangerouslySetInnerHTML={{__html: `
+                                @media (min-width: 640px) {
+                                  [data-avail-id="${availSlot.id}"] { height: ${desktopHeight}px !important; }
+                                }
+                              `}} />
                               <div className="truncate font-medium">
                                 {availSlot.status === 'open' ? 'Available' : 'Unavailable'}
                               </div>
