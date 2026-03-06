@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
@@ -641,7 +642,7 @@ export default function ClassesPage() {
   const displayedClasses = activeTab === 'upcoming' ? upcomingClasses : completedClasses;
 
   return (
-    <>
+    <SchedulingSubmenu>
       <div className="p-6 lg:p-8">
         <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -1334,6 +1335,6 @@ export default function ClassesPage() {
         </div>
       )}
       </div>
-    </>
+    </SchedulingSubmenu>
   );
 }

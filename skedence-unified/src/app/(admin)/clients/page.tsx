@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ClientCardSkeleton } from '@/components/ui/skeleton';
@@ -632,7 +633,8 @@ export default function ClientsPage() {
 
   if (loading) {
     return (
-      <div className="p-6 lg:p-8">
+      <SchedulingSubmenu>
+        <div className="p-6 lg:p-8">
           <div className="space-y-6">
             {/* Header skeleton */}
             <div className="space-y-2">
@@ -651,11 +653,12 @@ export default function ClientsPage() {
             </div>
           </div>
         </div>
+      </SchedulingSubmenu>
     );
   }
 
   return (
-    <>
+    <SchedulingSubmenu>
       <div className="p-6 lg:p-8">
         <div className="space-y-4 sm:space-y-6">
         <div>
@@ -1226,6 +1229,6 @@ export default function ClientsPage() {
           )}
         </SheetContent>
       </Sheet>
-    </>
+    </SchedulingSubmenu>
   );
 }

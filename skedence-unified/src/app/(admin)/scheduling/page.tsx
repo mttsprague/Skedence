@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
@@ -758,7 +759,7 @@ export default function SchedulingPage() {
   }
 
   return (
-    <>
+    <SchedulingSubmenu selectedDate={selectedDate} onDateSelect={setSelectedDate}>
       <div className="h-full bg-white flex relative">
         {/* Main Schedule Content */}
         <div className={cn("flex-1 flex flex-col transition-all duration-300", selectedItem ? "mr-[600px]" : "")}>
@@ -1434,6 +1435,6 @@ export default function SchedulingPage() {
           onSuccess={reloadSchedule}
         />
       )}
-    </>
+    </SchedulingSubmenu>
   );
 }

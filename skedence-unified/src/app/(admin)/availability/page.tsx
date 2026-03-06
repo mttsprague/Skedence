@@ -9,6 +9,7 @@ import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Calendar, Clock, Plus, Trash2, User, MapPin } from 'lucide-react';
 import { format, addDays } from 'date-fns';
+import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { toast } from '@/lib/toast';
 
 interface Trainer {
@@ -202,7 +203,8 @@ export default function AvailabilityPage() {
   const selectedTrainerData = trainers.find(t => t.id === selectedTrainer);
 
   return (
-    <div className="p-6 lg:p-8">
+    <SchedulingSubmenu>
+      <div className="p-6 lg:p-8">
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Availability Management</h1>
@@ -454,5 +456,6 @@ export default function AvailabilityPage() {
         )}
         </div>
       </div>
+    </SchedulingSubmenu>
   );
 }
