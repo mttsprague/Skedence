@@ -128,16 +128,10 @@ export function TrialBanner({ orgId }: TrialBannerProps) {
   }
 
   // SCENARIO 2: Active trial - show countdown
+  // Always use calm, reassuring messaging regardless of days remaining
   if (subscriptionStatus?.status === 'trialing' && daysRemaining !== null) {
-    const isEnding = daysRemaining <= 3;
-    const isWarning = daysRemaining <= 7 && daysRemaining > 3;
-
     return (
-      <div className={`relative rounded-lg p-4 ${
-        isEnding ? 'bg-blue-50 border-2 border-blue-200' :
-        isWarning ? 'bg-blue-50 border-2 border-blue-200' :
-        'bg-blue-50 border-2 border-blue-200'
-      }`}>
+      <div className="relative rounded-lg p-4 bg-blue-50 border-2 border-blue-200">
         <div className="flex items-start gap-3">
           <Crown className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           
@@ -152,7 +146,7 @@ export function TrialBanner({ orgId }: TrialBannerProps) {
               )}
             </h3>
             <p className="text-sm mt-1 text-blue-700">
-              {isEnding ? (
+              {daysRemaining <= 3 ? (
                 <>Your subscription is active and will automatically continue after your trial. No action needed!</>
               ) : (
                 <>You're subscribed! After your trial, billing will begin automatically. You can manage your subscription anytime.</>
