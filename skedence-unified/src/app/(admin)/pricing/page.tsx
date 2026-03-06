@@ -90,23 +90,30 @@ export default function PricingPage() {
   };
 
   const updateTierName = (tierIndex: number, name: string) => {
-    const newTiers = [...tiers];
-    newTiers[tierIndex].tierName = name;
+    const newTiers = tiers.map((tier, idx) => 
+      idx === tierIndex ? { ...tier, tierName: name } : tier
+    );
     setTiers(newTiers);
   };
 
   const addPackage = (tierIndex: number) => {
-    const newTiers = [...tiers];
-    newTiers[tierIndex].packages.push({
-      id: Date.now().toString(),
-      title: '',
-      description: '',
-      priceInCents: 0,
-      packageType: '', // Will be auto-generated from title
-      lessonCount: 1,
-      packageCategory: 'oneAthlete',
-      expirationDays: 365, // Default to 1 year
-      active: true // Default to active
+    const newTiers = tiers.map((tier, idx) => {
+      if (idx !== tierIndex) return tier;
+      
+      return {
+        ...tier,
+        packages: [...tier.packages, {
+          id: Date.now().toString(),
+          title: '',
+          description: '',
+          priceInCents: 0,
+          packageType: '', // Will be auto-generated from title
+          lessonCount: 1,
+          packageCategory: 'oneAthlete' as const,
+          expirationDays: 365, // Default to 1 year
+          active: true // Default to active
+        }]
+      };
     });
     setTiers(newTiers);
   };
@@ -146,8 +153,14 @@ export default function PricingPage() {
       const data = result.data as { success: boolean; deletedCount: number; message: string };
       
       // Remove from local state
-      const newTiers = [...tiers];
-      newTiers[tierIndex].packages = newTiers[tierIndex].packages.filter((_, i) => i !== packageIndex);
+      const newTiers = tiers.map((tier, tIdx) => {
+        if (tIdx !== tierIndex) return tier;
+        
+        return {
+          ...tier,
+          packages: tier.packages.filter((_, i) => i !== packageIndex)
+        };
+      });
       setTiers(newTiers);
 
       setMessage({ 
@@ -172,28 +185,56 @@ export default function PricingPage() {
       return;
     }
 
-    const newTiers = [...tiers];
-    newTiers[tierIndex].packages[packageIndex].active = false;
+    const newTiers = tiers.map((tier, tIdx) => {
+      if (tIdx !== tierIndex) return tier;
+      
+      return {
+        ...tier,
+        packages: tier.packages.map((pkg, pIdx) => 
+          pIdx === packageIndex ? { ...pkg, active: false } : pkg
+        )
+      };
+    });
     setTiers(newTiers);
     setMessage({ type: 'info', text: 'Package deactivated. Click Save to apply changes.' });
   };
 
   const reactivatePackage = (tierIndex: number, packageIndex: number) => {
-    const newTiers = [...tiers];
-    newTiers[tierIndex].packages[packageIndex].active = true;
+    const newTiers = tiers.map((tier, tIdx) => {
+      if (tIdx !== tierIndex) return tier;
+      
+      return {
+        ...tier,
+        packages: tier.packages.map((pkg, pIdx) => 
+          pIdx === packageIndex ? { ...pkg, active: true } : pkg
+        )
+      };
+    });
     setTiers(newTiers);
     setMessage({ type: 'info', text: 'Package reactivated. Click Save to apply changes.' });
   };
 
   const updatePackage = (tierIndex: number, packageIndex: number, field: string, value: any) => {
-    const newTiers = [...tiers];
-    (newTiers[tierIndex].packages[packageIndex] as any)[field] = value;
-    
-    // Auto-generate packageType from title when title changes
-    if (field === 'title') {
-      const packageType = value.toLowerCase().replace(/\s+/g, '_');
-      (newTiers[tierIndex].packages[packageIndex] as any)['packageType'] = packageType;
-    }
+    // Create proper immutable copies at each level
+    const newTiers = tiers.map((tier, tIdx) => {
+      if (tIdx !== tierIndex) return tier;
+      
+      return {
+        ...tier,
+        packages: tier.packages.map((pkg, pIdx) => {
+          if (pIdx !== packageIndex) return pkg;
+          
+          const updatedPkg = { ...pkg, [field]: value };
+          
+          // Auto-generate packageType from title when title changes
+          if (field === 'title') {
+            updatedPkg.packageType = value.toLowerCase().replace(/\s+/g, '_');
+          }
+          
+          return updatedPkg;
+        })
+      };
+    });
     
     setTiers(newTiers);
   };
