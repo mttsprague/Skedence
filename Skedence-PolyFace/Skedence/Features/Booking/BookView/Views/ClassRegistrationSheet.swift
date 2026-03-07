@@ -429,11 +429,8 @@ struct ClassRegistrationSheet: View {
                 }
             }
             .buttonStyle(PrimaryButtonStyle())
-            .disabled(isRegistering || selectedClassPass == nil || 
-                     (!allAthletes.isEmpty && selectedAthleteName == nil) || 
-                     !isAthleteInfoComplete || !hasEnoughPasses)
-            .opacity((selectedClassPass != nil && (allAthletes.isEmpty || selectedAthleteName != nil) && 
-                     isAthleteInfoComplete && hasEnoughPasses) ? 1.0 : 0.5)
+            .disabled(isRegistering)
+            .opacity(isRegistering ? 0.5 : 1.0)
         }
     }
     
@@ -1031,6 +1028,27 @@ struct ClassRegistrationSheet: View {
     }
     
     private func registerWithClassPass() async {
+        // Validate all requirements before proceeding
+        if selectedClassPass == nil {
+            errorMessage = "Please select a class pass to use for registration"
+            return
+        }
+        
+        if !allAthletes.isEmpty && selectedAthleteName == nil {
+            errorMessage = "Please select which athlete is attending this class"
+            return
+        }
+        
+        if !isAthleteInfoComplete {
+            errorMessage = "Please complete all required athlete information fields"
+            return
+        }
+        
+        if !hasEnoughPasses {
+            errorMessage = "You don't have enough class passes available. Please purchase more passes."
+            return
+        }
+        
         guard classItem.id != nil else { return }
         let passToUse = selectedClassPass ?? availableClassPasses.first
         guard let classPass = passToUse, classPass.id != nil else {
