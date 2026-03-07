@@ -68,6 +68,8 @@ export default function BaseballPage() {
         subheadline="Sell lesson packages, automate scheduling, and stop chasing payments. Built for baseball training businesses."
         primaryKeyword="baseball scheduling software"
         secondaryKeyword="baseball booking system"
+        videoUrl="https://firebasestorage.googleapis.com/v0/b/polyface-ae6d3.firebasestorage.app/o/marketing-videos%2Fbaseball.mp4?alt=media"
+        videoTitle="See Baseball Training Management in Action"
         benefits={[
           {
             title: 'Sell lesson packages',

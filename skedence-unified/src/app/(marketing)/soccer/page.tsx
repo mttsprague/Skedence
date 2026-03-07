@@ -68,6 +68,8 @@ export default function SoccerPage() {
         subheadline="Sell packages, automate bookings, and get paid without the chaos. Built for soccer trainers and clubs."
         primaryKeyword="soccer scheduling software"
         secondaryKeyword="soccer booking system"
+        videoUrl="https://firebasestorage.googleapis.com/v0/b/polyface-ae6d3.firebasestorage.app/o/marketing-videos%2Fsoccer.mp4?alt=media"
+        videoTitle="See Soccer Training Management in Action"
         benefits={[
           {
             title: 'Package sales',

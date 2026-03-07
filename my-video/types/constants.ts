@@ -130,3 +130,47 @@ export const BASKETBALL_COLORS = {
   text: '#ffffff',
   textSecondary: '#9ca3af',
 };
+
+// Soccer Video Constants
+export const SOCCER_COMP_NAME = "Soccer";
+export const SOCCER_FPS = 30;
+export const SOCCER_WIDTH = 1920;
+export const SOCCER_HEIGHT = 1080;
+export const SOCCER_DURATION = 57 * SOCCER_FPS; // 57 seconds
+
+// Scene durations (in frames)
+export const SC_SCENE1_DURATION = 5 * SOCCER_FPS; // 5 seconds - The Hook
+export const SC_SCENE2_DURATION = 13 * SOCCER_FPS; // 13 seconds - The Reality
+export const SC_SCENE3_DURATION = 20 * SOCCER_FPS; // 20 seconds - The Operating System
+export const SC_SCENE4_DURATION = 14 * SOCCER_FPS; // 14 seconds - The Math
+export const SC_SCENE5_DURATION = 5 * SOCCER_FPS; // 5 seconds - The Close
+
+// Brand colors
+export const SOCCER_COLORS = {
+  background: '#0f1115',
+  accent: '#ff6b35', // Orange
+  text: '#ffffff',
+  textSecondary: '#9ca3af',
+};
+
+// Baseball Video Constants
+export const BASEBALL_COMP_NAME = "Baseball";
+export const BASEBALL_FPS = 30;
+export const BASEBALL_WIDTH = 1920;
+export const BASEBALL_HEIGHT = 1080;
+export const BASEBALL_DURATION = 57 * BASEBALL_FPS; // 57 seconds
+
+// Scene durations (in frames)
+export const BS_SCENE1_DURATION = 5 * BASEBALL_FPS; // 5 seconds - The Hook
+export const BS_SCENE2_DURATION = 13 * BASEBALL_FPS; // 13 seconds - The Reality
+export const BS_SCENE3_DURATION = 20 * BASEBALL_FPS; // 20 seconds - The Operating System
+export const BS_SCENE4_DURATION = 14 * BASEBALL_FPS; // 14 seconds - The Math
+export const BS_SCENE5_DURATION = 5 * BASEBALL_FPS; // 5 seconds - The Close
+
+// Brand colors
+export const BASEBALL_COLORS = {
+  background: '#0f1115',
+  accent: '#ff6b35', // Orange
+  text: '#ffffff',
+  textSecondary: '#9ca3af',
+};

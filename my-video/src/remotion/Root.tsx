@@ -31,6 +31,16 @@ import {
   BASKETBALL_FPS,
   BASKETBALL_WIDTH,
   BASKETBALL_HEIGHT,
+  SOCCER_COMP_NAME,
+  SOCCER_DURATION,
+  SOCCER_FPS,
+  SOCCER_WIDTH,
+  SOCCER_HEIGHT,
+  BASEBALL_COMP_NAME,
+  BASEBALL_DURATION,
+  BASEBALL_FPS,
+  BASEBALL_WIDTH,
+  BASEBALL_HEIGHT,
 } from "../../types/constants";
 import { Main } from "./MyComp/Main";
 import { NextLogo } from "./MyComp/NextLogo";
@@ -39,6 +49,8 @@ import { VolleyballMain } from "./Volleyball/Main";
 import { Main as HowItWorksMain } from "./HowItWorks/Main";
 import { Main as JourneyMain } from "./TheJourney/Main";
 import { BasketballMain } from "./Basketball/Main";
+import { SoccerMain } from "./Soccer/Main";
+import { BaseballMain } from "./Baseball/Main";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -106,6 +118,24 @@ export const RemotionRoot: React.FC = () => {
         fps={BASKETBALL_FPS}
         width={BASKETBALL_WIDTH}
         height={BASKETBALL_HEIGHT}
+        defaultProps={{}}
+      />
+      <Composition
+        id={SOCCER_COMP_NAME}
+        component={SoccerMain}
+        durationInFrames={SOCCER_DURATION}
+        fps={SOCCER_FPS}
+        width={SOCCER_WIDTH}
+        height={SOCCER_HEIGHT}
+        defaultProps={{}}
+      />
+      <Composition
+        id={BASEBALL_COMP_NAME}
+        component={BaseballMain}
+        durationInFrames={BASEBALL_DURATION}
+        fps={BASEBALL_FPS}
+        width={BASEBALL_WIDTH}
+        height={BASEBALL_HEIGHT}
         defaultProps={{}}
       />
     </>
