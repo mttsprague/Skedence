@@ -108,3 +108,25 @@ export const JOURNEY_COLORS = {
   text: '#ffffff',
   textSecondary: '#9ca3af',
 };
+
+// Basketball Video Constants
+export const BASKETBALL_COMP_NAME = "Basketball";
+export const BASKETBALL_FPS = 30;
+export const BASKETBALL_WIDTH = 1920;
+export const BASKETBALL_HEIGHT = 1080;
+export const BASKETBALL_DURATION = 57 * BASKETBALL_FPS; // 57 seconds
+
+// Scene durations (in frames)
+export const BB_SCENE1_DURATION = 5 * BASKETBALL_FPS; // 5 seconds - The Hook
+export const BB_SCENE2_DURATION = 13 * BASKETBALL_FPS; // 13 seconds - The Reality
+export const BB_SCENE3_DURATION = 20 * BASKETBALL_FPS; // 20 seconds - The Operating System
+export const BB_SCENE4_DURATION = 14 * BASKETBALL_FPS; // 14 seconds - The Math
+export const BB_SCENE5_DURATION = 5 * BASKETBALL_FPS; // 5 seconds - The Close
+
+// Brand colors
+export const BASKETBALL_COLORS = {
+  background: '#0f1115',
+  accent: '#ff6b35', // Orange
+  text: '#ffffff',
+  textSecondary: '#9ca3af',
+};

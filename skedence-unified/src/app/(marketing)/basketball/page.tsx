@@ -68,6 +68,8 @@ export default function BasketballPage() {
         subheadline="Sell packages, fill your calendar, and get paid without the admin work. Designed for private basketball training."
         primaryKeyword="basketball scheduling software"
         secondaryKeyword="basketball booking system"
+        videoUrl="https://firebasestorage.googleapis.com/v0/b/polyface-ae6d3.firebasestorage.app/o/marketing-videos%2Fbasketball.mp4?alt=media"
+        videoTitle="See Basketball Training Management in Action"
         benefits={[
           {
             title: 'Package sales',

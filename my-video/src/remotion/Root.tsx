@@ -26,6 +26,11 @@ import {
   JOURNEY_FPS,
   JOURNEY_WIDTH,
   JOURNEY_HEIGHT,
+  BASKETBALL_COMP_NAME,
+  BASKETBALL_DURATION,
+  BASKETBALL_FPS,
+  BASKETBALL_WIDTH,
+  BASKETBALL_HEIGHT,
 } from "../../types/constants";
 import { Main } from "./MyComp/Main";
 import { NextLogo } from "./MyComp/NextLogo";
@@ -33,6 +38,7 @@ import { SkedenceMain } from "./Skedence/Main";
 import { VolleyballMain } from "./Volleyball/Main";
 import { Main as HowItWorksMain } from "./HowItWorks/Main";
 import { Main as JourneyMain } from "./TheJourney/Main";
+import { BasketballMain } from "./Basketball/Main";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -91,6 +97,15 @@ export const RemotionRoot: React.FC = () => {
         fps={JOURNEY_FPS}
         width={JOURNEY_WIDTH}
         height={JOURNEY_HEIGHT}
+        defaultProps={{}}
+      />
+      <Composition
+        id={BASKETBALL_COMP_NAME}
+        component={BasketballMain}
+        durationInFrames={BASKETBALL_DURATION}
+        fps={BASKETBALL_FPS}
+        width={BASKETBALL_WIDTH}
+        height={BASKETBALL_HEIGHT}
         defaultProps={{}}
       />
     </>

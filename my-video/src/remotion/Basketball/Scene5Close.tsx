@@ -1,8 +1,8 @@
 import React from 'react';
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame } from 'remotion';
-import { JOURNEY_COLORS } from '../../../types/constants';
+import { BASKETBALL_COLORS } from '../../../types/constants';
 
-export const Scene8Closing: React.FC = () => {
+export const Scene5Close: React.FC = () => {
   const frame = useCurrentFrame();
 
   // Logo appearance
@@ -26,7 +26,7 @@ export const Scene8Closing: React.FC = () => {
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: JOURNEY_COLORS.background,
+        backgroundColor: BASKETBALL_COLORS.background,
       }}
     >
       {/* Vignette */}
@@ -80,14 +80,14 @@ export const Scene8Closing: React.FC = () => {
           {/* Headline */}
           <div
             style={{
-              color: JOURNEY_COLORS.accent,
+              color: BASKETBALL_COLORS.accent,
               fontSize: 52,
               fontWeight: 600,
               textAlign: 'center',
               opacity: headlineOpacity,
             }}
           >
-            Training business, perfected
+            The operating system for basketball training
           </div>
         </div>
       </AbsoluteFill>
