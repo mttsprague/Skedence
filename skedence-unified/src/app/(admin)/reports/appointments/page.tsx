@@ -192,8 +192,24 @@ export default function AppointmentsReportPage() {
           status = 'scheduled';
         }
         
+        // Build athlete names array - check all formats
+        let athleteNames: string[] = [];
+        
+        // New format: athleteNames array
+        if (data.athleteNames && Array.isArray(data.athleteNames)) {
+          athleteNames = data.athleteNames.filter((name: string) => name && name.trim());
+        }
+        // Legacy format: athleteName + secondAthleteName
+        else {
+          if (data.athleteName && typeof data.athleteName === 'string' && data.athleteName.trim()) {
+            athleteNames.push(data.athleteName.trim());
+          }
+          if (data.secondAthleteName && typeof data.secondAthleteName === 'string' && data.secondAthleteName.trim()) {
+            athleteNames.push(data.secondAthleteName.trim());
+          }
+        }
+        
         // Build type and category
-        const athleteNames = data.athleteNames || [];
         const athleteCount = athleteNames.length || 1;
         let type = 'Private Lesson';
         let typeCategory = 'private';
