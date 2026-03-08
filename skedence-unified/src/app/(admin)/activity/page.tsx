@@ -1672,16 +1672,16 @@ export default function ActivityPage() {
                         <div className="bg-card p-3 border border-border rounded shadow-lg text-foreground">
                           <p className="font-semibold mb-2">{data.day}</p>
                           <div className="space-y-1 text-sm">
-                            <p className="text-blue-400">
+                            <p className="text-emerald-500 font-medium">
                               {range1Label} ({data.date1}): {data.range1Bookings} bookings
                             </p>
-                            <p className="text-purple-400">
+                            <p className="text-blue-500 font-medium">
                               {range2Label} ({data.date2}): {data.range2Bookings} bookings
                             </p>
-                            <p className="text-red-600">
+                            <p className="text-amber-500 font-medium">
                               {range1Label}: {data.range1Cancellations} cancellations
                             </p>
-                            <p className="text-orange-600">
+                            <p className="text-red-500 font-medium">
                               {range2Label}: {data.range2Cancellations} cancellations
                             </p>
                           </div>
@@ -1698,36 +1698,40 @@ export default function ActivityPage() {
                 <Line 
                   type="monotone" 
                   dataKey="range1Bookings" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
+                  stroke="#10b981" 
+                  strokeWidth={3}
                   name={`${range1Label} Bookings`}
-                  dot={{ r: 3 }}
+                  dot={{ r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 7 }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="range2Bookings" 
-                  stroke="#a855f7" 
-                  strokeWidth={2}
+                  stroke="#3b82f6" 
+                  strokeWidth={3}
                   name={`${range2Label} Bookings`}
-                  dot={{ r: 3 }}
+                  dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 7 }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="range1Cancellations" 
-                  stroke="#ef4444" 
-                  strokeWidth={2}
+                  stroke="#f59e0b" 
+                  strokeWidth={3}
                   name={`${range1Label} Cancellations`}
-                  dot={{ r: 3 }}
-                  strokeDasharray="5 5"
+                  dot={{ r: 6, fill: '#f59e0b', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 7 }}
+                  strokeDasharray="8 4"
                 />
                 <Line 
                   type="monotone" 
                   dataKey="range2Cancellations" 
-                  stroke="#f97316" 
-                  strokeWidth={2}
+                  stroke="#ef4444" 
+                  strokeWidth={3}
                   name={`${range2Label} Cancellations`}
-                  dot={{ r: 3 }}
-                  strokeDasharray="5 5"
+                  dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 7 }}
+                  strokeDasharray="8 4"
                 />
               </LineChart>
             </ResponsiveContainer>

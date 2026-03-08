@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye, Download } from 'lucide-react';
+import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye, Download, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { Location } from '@/types/location';
 import { logClassCreated, logClassUpdated, logClassDeleted } from '@/lib/activity-logger';
@@ -76,6 +76,7 @@ export default function ClassesPage() {
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Form state
   const [form, setForm] = useState({
@@ -640,6 +641,15 @@ export default function ClassesPage() {
   const upcomingClasses = classes.filter(cls => cls.endTime.toDate() > now);
   const completedClasses = classes.filter(cls => cls.endTime.toDate() <= now);
   const displayedClasses = activeTab === 'upcoming' ? upcomingClasses : completedClasses;
+  
+  // Filter by search term
+  const filteredClasses = searchTerm.trim() === '' 
+    ? displayedClasses 
+    : displayedClasses.filter(cls => 
+        cls.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cls.trainerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (cls.location && cls.location.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
 
   return (
     <SchedulingSubmenu>
@@ -957,22 +967,44 @@ export default function ClassesPage() {
               </div>
             </div>
 
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search classes by title, trainer, or location..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
             {/* Classes List */}
             <div className="grid grid-cols-1 gap-4">
-              {displayedClasses.length === 0 ? (
+              {filteredClasses.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-12">
                     <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-muted-foreground">
-                      {activeTab === 'upcoming' ? 'No upcoming classes scheduled' : 'No completed classes'}
+                      {searchTerm ? 'No classes found matching your search' : 
+                        (activeTab === 'upcoming' ? 'No upcoming classes scheduled' : 'No completed classes')}
                     </p>
                     <p className="text-sm text-gray-400 mt-1">
-                      {activeTab === 'upcoming' && 'Click "New Class" to create one'}
+                      {searchTerm ? 'Try a different search term' : 
+                        (activeTab === 'upcoming' && 'Click "New Class" to create one')}
                     </p>
                   </CardContent>
                 </Card>
               ) : (
-                displayedClasses.map((cls) => (
+                filteredClasses.map((cls) => (
                   <Card key={cls.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       {editingClass?.id === cls.id ? (

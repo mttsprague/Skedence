@@ -92,40 +92,53 @@ export default function IntakeFormsPage() {
     }
   }, [orgId]);
 
-  const addField = () => {
+  const addField = (formType: 'private' | 'class') => {
+    const currentFields = formType === 'private' ? privateFields : classFields;
+    const setCurrentFields = formType === 'private' ? setPrivateFields : setClassFields;
+    
     const newField: IntakeField = {
       id: `custom_${Date.now()}`,
       label: 'New Field',
       fieldType: 'text',
       required: false,
-      order: fields.length,
+      order: currentFields.length,
       section: 'other',
     };
-    const newFields = [...fields, newField];
-    setFields(newFields);
+    const newFields = [...currentFields, newField];
+    setCurrentFields(newFields);
     setEditingField(newField.id);
-    saveFields(newFields, activeTab);
+    setActiveTab(formType);
+    saveFields(newFields, formType);
   };
 
-  const updateField = (id: string, updates: Partial<IntakeField>) => {
-    const newFields = fields.map(f => f.id === id ? { ...f, ...updates } : f);
-    setFields(newFields);
-    saveFields(newFields, activeTab);
+  const updateField = (id: string, updates: Partial<IntakeField>, formType: 'private' | 'class') => {
+    const currentFields = formType === 'private' ? privateFields : classFields;
+    const setCurrentFields = formType === 'private' ? setPrivateFields : setClassFields;
+    
+    const newFields = currentFields.map(f => f.id === id ? { ...f, ...updates } : f);
+    setCurrentFields(newFields);
+    saveFields(newFields, formType);
   };
 
-  const deleteField = (id: string) => {
-    const newFields = fields.filter(f => f.id !== id);
-    setFields(newFields);
-    saveFields(newFields, activeTab);
+  const deleteField = (id: string, formType: 'private' | 'class') => {
+    const currentFields = formType === 'private' ? privateFields : classFields;
+    const setCurrentFields = formType === 'private' ? setPrivateFields : setClassFields;
+    
+    const newFields = currentFields.filter(f => f.id !== id);
+    setCurrentFields(newFields);
+    saveFields(newFields, formType);
   };
 
-  const moveField = (id: string, direction: 'up' | 'down') => {
-    const index = fields.findIndex(f => f.id === id);
+  const moveField = (id: string, direction: 'up' | 'down', formType: 'private' | 'class') => {
+    const currentFields = formType === 'private' ? privateFields : classFields;
+    const setCurrentFields = formType === 'private' ? setPrivateFields : setClassFields;
+    
+    const index = currentFields.findIndex(f => f.id === id);
     if (index === -1) return;
     if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === fields.length - 1) return;
+    if (direction === 'down' && index === currentFields.length - 1) return;
 
-    const newFields = [...fields];
+    const newFields = [...currentFields];
     const swapIndex = direction === 'up' ? index - 1 : index + 1;
     [newFields[index], newFields[swapIndex]] = [newFields[swapIndex], newFields[index]];
     
@@ -134,14 +147,17 @@ export default function IntakeFormsPage() {
       field.order = idx;
     });
     
-    setFields(newFields);
-    saveFields(newFields, activeTab);
+    setCurrentFields(newFields);
+    saveFields(newFields, formType);
   };
 
-  const resetToDefaults = () => {
-    if (confirm(`Reset ${activeTab === 'private' ? 'private lesson' : 'class'} intake form fields to defaults?`)) {
-      setFields(defaultFields);
-      saveFields(defaultFields, activeTab);
+  const resetToDefaults = (formType: 'private' | 'class') => {
+    const setCurrentFields = formType === 'private' ? setPrivateFields : setClassFields;
+    
+    if (confirm(`Reset ${formType === 'private' ? 'private lesson' : 'class'} intake form fields to defaults?`)) {
+      setCurrentFields(defaultFields);
+      setActiveTab(formType);
+      saveFields(defaultFields, formType);
     }
   };
 
@@ -221,19 +237,13 @@ export default function IntakeFormsPage() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    setActiveTab('private');
-                    resetToDefaults();
-                  }}
+                  onClick={() => resetToDefaults('private')}
                   className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
                 >
                   Reset to Defaults
                 </button>
                 <button
-                  onClick={() => {
-                    setActiveTab('private');
-                    addField();
-                  }}
+                  onClick={() => addField('private')}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-primary rounded-lg hover:bg-blue-50 transition-colors font-medium text-sm"
                 >
                   <Plus className="h-4 w-4" />
@@ -256,18 +266,9 @@ export default function IntakeFormsPage() {
                     index={index}
                     isEditing={editingField === field.id}
                     onEdit={() => setEditingField(editingField === field.id ? null : field.id)}
-                    onUpdate={(updates) => {
-                      setActiveTab('private');
-                      updateField(field.id, updates);
-                    }}
-                    onDelete={() => {
-                      setActiveTab('private');
-                      deleteField(field.id);
-                    }}
-                    onMove={(direction) => {
-                      setActiveTab('private');
-                      moveField(field.id, direction);
-                    }}
+                    onUpdate={(updates) => updateField(field.id, updates, 'private')}
+                    onDelete={() => deleteField(field.id, 'private')}
+                    onMove={(direction) => moveField(field.id, direction, 'private')}
                     canMoveUp={index > 0}
                     canMoveDown={index < privateFields.length - 1}
                   />
@@ -287,19 +288,13 @@ export default function IntakeFormsPage() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    setActiveTab('class');
-                    resetToDefaults();
-                  }}
+                  onClick={() => resetToDefaults('class')}
                   className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
                 >
                   Reset to Defaults
                 </button>
                 <button
-                  onClick={() => {
-                    setActiveTab('class');
-                    addField();
-                  }}
+                  onClick={() => addField('class')}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-orange-600 rounded-lg hover:bg-orange-50 transition-colors font-medium text-sm"
                 >
                   <Plus className="h-4 w-4" />
@@ -322,18 +317,9 @@ export default function IntakeFormsPage() {
                     index={index}
                     isEditing={editingField === field.id}
                     onEdit={() => setEditingField(editingField === field.id ? null : field.id)}
-                    onUpdate={(updates) => {
-                      setActiveTab('class');
-                      updateField(field.id, updates);
-                    }}
-                    onDelete={() => {
-                      setActiveTab('class');
-                      deleteField(field.id);
-                    }}
-                    onMove={(direction) => {
-                      setActiveTab('class');
-                      moveField(field.id, direction);
-                    }}
+                    onUpdate={(updates) => updateField(field.id, updates, 'class')}
+                    onDelete={() => deleteField(field.id, 'class')}
+                    onMove={(direction) => moveField(field.id, direction, 'class')}
                     canMoveUp={index > 0}
                     canMoveDown={index < classFields.length - 1}
                   />
@@ -471,8 +457,8 @@ function FieldEditor({
                   </label>
                   <input
                     type="text"
-                    value={field.options?.join(', ') || ''}
-                    onChange={(e) => onUpdate({ options: e.target.value.split(',').map(o => o.trim()).filter(o => o) })}
+                    defaultValue={field.options?.join(', ') || ''}
+                    onBlur={(e) => onUpdate({ options: e.target.value.split(',').map(o => o.trim()).filter(o => o) })}
                     placeholder="e.g., Beginner, Intermediate, Advanced"
                     className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
                   />
