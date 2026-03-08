@@ -1107,66 +1107,65 @@ struct BookView: View {
     }
     
     private var bookingButton: some View {
-            Button {
-                // Validate all requirements and show specific error messages
-                if selectedTrainer == nil {
-                    bookingAlert = .init(
-                        title: "Trainer Required",
-                        message: "Please select a trainer to continue booking."
-                    )
-                    return
-                }
-                
-                if selectedSlot == nil {
-                    bookingAlert = .init(
-                        title: "Time Slot Required",
-                        message: "Please select a time slot to continue booking."
-                    )
-                    return
-                }
-                
-                if !packagesService.hasAvailableLessons {
-                    bookingAlert = .init(
-                        title: "No Available Passes",
-                        message: "Please purchase lesson passes to continue booking. Visit the Profile tab to buy lessons."
-                    )
-                    return
-                }
-                
-                if availableLessonPackages.count > 0 && selectedPackage == nil {
-                    bookingAlert = .init(
-                        title: "Pass Selection Required",
-                        message: "Please select which pass you'd like to use for this booking."
-                    )
-                    return
-                }
-                
-                if !isAthleteInfoComplete {
-                    bookingAlert = .init(
-                        title: "Athlete Information Required",
-                        message: "Please complete all required athlete information fields to continue."
-                    )
-                    return
-                }
-                
-                // All validations passed, proceed with booking
-                Task { await performBooking() }
+        Button {
+            // Validate all requirements and show specific error messages
+            if selectedTrainer == nil {
+                bookingAlert = .init(
+                    title: "Trainer Required",
+                    message: "Please select a trainer to continue booking."
+                )
+                return
             }
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    if bookingInFlight {
-                        ProgressView().tint(.white)
-                    } else if !packagesService.hasAvailableLessons {
-                        Image(systemName: "cart.badge.plus")
-                    }
-                    Text(bookButtonText)
-                }
+            
+            if selectedSlot == nil {
+                bookingAlert = .init(
+                    title: "Time Slot Required",
+                    message: "Please select a time slot to continue booking."
+                )
+                return
             }
-            .buttonStyle(PrimaryButtonStyle())
-            .disabled(bookingInFlight)
-            .opacity(bookingInFlight ? 0.5 : 1.0)
-            .padding(.horizontal, Spacing.lg)
-            .padding(.top, Spacing.md)
+            
+            if !packagesService.hasAvailableLessons {
+                bookingAlert = .init(
+                    title: "No Available Passes",
+                    message: "Please purchase lesson passes to continue booking. Visit the Profile tab to buy lessons."
+                )
+                return
+            }
+            
+            if availableLessonPackages.count > 0 && selectedPackage == nil {
+                bookingAlert = .init(
+                    title: "Pass Selection Required",
+                    message: "Please select which pass you'd like to use for this booking."
+                )
+                return
+            }
+            
+            if !isAthleteInfoComplete {
+                bookingAlert = .init(
+                    title: "Athlete Information Required",
+                    message: "Please complete all required athlete information fields to continue."
+                )
+                return
+            }
+            
+            // All validations passed, proceed with booking
+            Task { await performBooking() }
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                if bookingInFlight {
+                    ProgressView().tint(.white)
+                } else if !packagesService.hasAvailableLessons {
+                    Image(systemName: "cart.badge.plus")
+                }
+                Text(bookButtonText)
+            }
+        }
+        .buttonStyle(PrimaryButtonStyle())
+        .disabled(bookingInFlight)
+        .opacity(bookingInFlight ? 0.5 : 1.0)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.top, Spacing.md)
     }
     
     private var noPassesWarning: some View {

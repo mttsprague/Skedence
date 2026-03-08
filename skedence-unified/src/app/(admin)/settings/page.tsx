@@ -11,10 +11,16 @@ import { Clock, Calendar, MapPin } from 'lucide-react';
 interface OrgSettings {
   minBookingHours: number;
   minCancellationHours: number;
-  maxBookingsPerLocation: number;
+  maxBookingsPerLocation?: number; // Legacy field - kept for backwards compatibility
+  locationLimits?: { [locationId: string]: number }; // New per-location limits
   defaultSessionLength: number;
   allowSameDayBooking: boolean;
   requireWaiver: boolean;
+}
+
+interface SimpleLocation {
+  id: string;
+  name: string;
 }
 
 export default function SettingsPage() {
@@ -22,11 +28,13 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<OrgSettings>({
     minBookingHours: 4,
     minCancellationHours: 24,
-    maxBookingsPerLocation: 10,
+    locationLimits: {},
     defaultSessionLength: 60,
     allowSameDayBooking: false,
     requireWaiver: false,
   });
+  const [locations, setLocations] = useState<SimpleLocation[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
@@ -39,15 +47,48 @@ export default function SettingsPage() {
         const orgDoc = await getDoc(doc(db, 'organizations', orgId!));
         if (orgDoc.exists()) {
           const data = orgDoc.data();
+          
+          // Migrate old format to new format if needed
+          let locationLimits = data.locationLimits || {};
+          if (data.maxBookingsPerLocation && !data.locationLimits) {
+            // Migration: if old format exists, apply it to all locations
+            const locationsQuery = query(
+              collection(db, 'locations'),
+              where('orgId', '==', orgId),
+              where('isActive', '==', true)
+            );
+            const locationsSnap = await getDocs(locationsQuery);
+            locationLimits = {};
+            locationsSnap.forEach(doc => {
+              locationLimits[doc.id] = data.maxBookingsPerLocation;
+            });
+          }
+          
           // Settings are stored as fields in the organization document
           setSettings({
             minBookingHours: data.minBookingHours || 4,
             minCancellationHours: data.minCancellationHours || 24,
-            maxBookingsPerLocation: data.maxBookingsPerLocation || 10,
+            locationLimits: locationLimits,
             defaultSessionLength: data.defaultSessionLength || 60,
             allowSameDayBooking: data.allowSameDayBooking || false,
             requireWaiver: data.requireWaiver === true,
           });
+        }
+        
+        // Load locations
+        const locationsQuery = query(
+          collection(db, 'locations'),
+          where('orgId', '==', orgId),
+          where('isActive', '==', true)
+        );
+        const locationsSnap = await getDocs(locationsQuery);
+        const locsData = locationsSnap.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name as string
+        }));
+        setLocations(locsData);
+        if (locsData.length > 0 && !selectedLocationId) {
+          setSelectedLocationId(locsData[0].id);
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -214,22 +255,55 @@ export default function SettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Max Bookings Per Location (for an individual hour)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={settings.maxBookingsPerLocation}
-                    onChange={(e) => updateSetting({ maxBookingsPerLocation: parseInt(e.target.value) || 1 })}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Maximum simultaneous bookings at the same location
-                  </p>
-                </div>
+                {locations.length === 0 ? (
+                  <div className="text-center py-6">
+                    <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      No locations configured. Add locations in the Locations page to set booking limits.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Select Location
+                      </label>
+                      <select
+                        value={selectedLocationId}
+                        onChange={(e) => setSelectedLocationId(e.target.value)}
+                        className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                      >
+                        {locations.map(loc => (
+                          <option key={loc.id} value={loc.id}>
+                            {loc.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {selectedLocationId && (
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Max Bookings Per Hour at {locations.find(l => l.id === selectedLocationId)?.name}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          value={settings.locationLimits?.[selectedLocationId] || 10}
+                          onChange={(e) => {
+                            const newLimits = { ...settings.locationLimits, [selectedLocationId]: parseInt(e.target.value) || 1 };
+                            updateSetting({ locationLimits: newLimits });
+                          }}
+                          className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Maximum simultaneous bookings at this location during the same hour
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>

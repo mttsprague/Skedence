@@ -102,6 +102,14 @@ struct ClassRegistrationSheet: View {
     
     private var availableClassPass: LessonPackage? { availableClassPasses.first }
     
+    // Shared computed helper: whether currently selected pass has enough lessons for selected number of athletes
+    private var hasEnoughPasses: Bool {
+        let athleteCount = (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
+        let passesNeeded = athleteCount
+        let availablePasses = selectedClassPass?.lessonsRemaining ?? 0
+        return availablePasses >= passesNeeded
+    }
+    
     // Get all athletes from user profile (both new and legacy format)
     private var allAthletes: [String] {
         var athletes: [String] = []

@@ -75,7 +75,8 @@ final class SettingsRepository: RepositoryProtocol {
     private func decodeSettings(orgId: String, data: [String: Any]) -> OrgSettings? {
         let minBookingHours = data["minBookingHours"] as? Int ?? 4
         let minCancellationHours = data["minCancellationHours"] as? Int ?? 24
-        let maxBookingsPerLocation = data["maxBookingsPerLocation"] as? Int ?? 5
+        let maxBookingsPerLocation = data["maxBookingsPerLocation"] as? Int
+        let locationLimits = data["locationLimits"] as? [String: Int]
         let requireWaiver = data["requireWaiver"] as? Bool ?? true
         let waiverText = data["waiverText"] as? String ?? ""
         let updatedAt = data["updatedAt"] as? Timestamp
@@ -86,6 +87,7 @@ final class SettingsRepository: RepositoryProtocol {
             minBookingHours: minBookingHours,
             minCancellationHours: minCancellationHours,
             maxBookingsPerLocation: maxBookingsPerLocation,
+            locationLimits: locationLimits,
             requireWaiver: requireWaiver,
             waiverText: waiverText,
             updatedAt: updatedAt
@@ -93,13 +95,22 @@ final class SettingsRepository: RepositoryProtocol {
     }
     
     private func encodeSettings(_ settings: OrgSettings) -> [String: Any] {
-        return [
+        var data: [String: Any] = [
             "minBookingHours": settings.minBookingHours,
             "minCancellationHours": settings.minCancellationHours,
-            "maxBookingsPerLocation": settings.maxBookingsPerLocation,
             "requireWaiver": settings.requireWaiver,
             "waiverText": settings.waiverText,
             "updatedAt": Timestamp(date: Date())
         ]
+        
+        // Only include if set (for backwards compatibility)
+        if let limits = settings.locationLimits {
+            data["locationLimits"] = limits
+        }
+        if let maxBookings = settings.maxBookingsPerLocation {
+            data["maxBookingsPerLocation"] = maxBookings
+        }
+        
+        return data
     }
 }

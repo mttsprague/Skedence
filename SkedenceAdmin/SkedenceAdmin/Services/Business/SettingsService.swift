@@ -66,14 +66,16 @@ final class SettingsService: ObservableObject {
                 // Manual mapping without FirebaseFirestoreSwift Codable helpers
                 let minBooking = data["minBookingHours"] as? Int ?? 4
                 let minCancel = data["minCancellationHours"] as? Int ?? 24
-                let maxBookings = data["maxBookingsPerLocation"] as? Int ?? 5
+                let maxBookings = data["maxBookingsPerLocation"] as? Int
+                let locationLimits = data["locationLimits"] as? [String: Int]
                 let updatedAt = data["updatedAt"] as? Timestamp
                 var mapped = OrgSettings(
                     id: doc.documentID,
                     orgId: data["orgId"] as? String ?? orgId,
                     minBookingHours: minBooking,
                     minCancellationHours: minCancel,
-                    maxBookingsPerLocation: maxBookings
+                    maxBookingsPerLocation: maxBookings,
+                    locationLimits: locationLimits
                 )
                 mapped.updatedAt = updatedAt
                 settingsState = .loaded(mapped)
@@ -100,9 +102,7 @@ final class SettingsService: ObservableObject {
         guard settings.minCancellationHours > 0 else {
             throw SettingsServiceError.invalidHoursValue("minimum cancellation hours")
         }
-        guard settings.maxBookingsPerLocation > 0 else {
-            throw SettingsServiceError.invalidMaxBookings
-        }
+        // Removed maxBookingsPerLocation validation - now optional
         
         do {
             // Manual write without FirebaseFirestoreSwift Codable helpers
@@ -118,7 +118,7 @@ final class SettingsService: ObservableObject {
                 "orgId": settings.orgId,
                 "minBookingHours": settings.minBookingHours,
                 "minCancellationHours": settings.minCancellationHours,
-                "maxBookingsPerLocation": settings.maxBookingsPerLocation,
+                "locationLimits": settings.locationLimits as Any,
                 "updatedAt": updatedSettings.updatedAt as Any
             ]
             

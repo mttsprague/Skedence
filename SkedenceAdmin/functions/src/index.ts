@@ -333,7 +333,43 @@ export const bookLesson = onCall(
 
             // Check location booking limit if location is specified
             if (trainerSlotData.location) {
-              const maxBookingsPerLocation = settings?.maxBookingsPerLocation ?? 5;
+              // Get location-specific limit or fall back to global limit
+              let maxBookingsForLocation = 5; // default
+              
+              // Try new per-location format first
+              if (settings?.locationLimits && typeof settings.locationLimits === 'object') {
+                // location field might be location name or ID - try to match
+                const locationLimits = settings.locationLimits as { [key: string]: number };
+                
+                // Direct match by location name
+                if (locationLimits[trainerSlotData.location]) {
+                  maxBookingsForLocation = locationLimits[trainerSlotData.location];
+                } else {
+                  // Try to find location by name to get ID
+                  const locationQuery = await db.collection('locations')
+                    .where('orgId', '==', orgId)
+                    .where('name', '==', trainerSlotData.location)
+                    .where('isActive', '==', true)
+                    .limit(1)
+                    .get();
+                  
+                  if (!locationQuery.empty) {
+                    const locationId = locationQuery.docs[0].id;
+                    if (locationLimits[locationId]) {
+                      maxBookingsForLocation = locationLimits[locationId];
+                    } else {
+                      // No limit set for this location, use default
+                      maxBookingsForLocation = 10;
+                    }
+                  } else {
+                    // Location not found in database, use default
+                    maxBookingsForLocation = 10;
+                  }
+                }
+              } else if (settings?.maxBookingsPerLocation) {
+                // Fall back to old global limit for backwards compatibility
+                maxBookingsForLocation = settings.maxBookingsPerLocation;
+              }
 
               // Get the start time of this slot
               const slotStartTime = trainerSlotData.startTime?.toDate();
@@ -350,10 +386,10 @@ export const bookLesson = onCall(
 
                 const currentConcurrentBookings = locationBookingsQuery.size;
 
-                if (currentConcurrentBookings >= maxBookingsPerLocation) {
+                if (currentConcurrentBookings >= maxBookingsForLocation) {
                   throw new HttpsError(
                     "resource-exhausted",
-                    `This location has reached its booking capacity (${maxBookingsPerLocation} concurrent sessions). Please choose a different time or location.`
+                    `This location has reached its booking capacity (${maxBookingsForLocation} concurrent sessions). Please choose a different time or location.`
                   );
                 }
               }
