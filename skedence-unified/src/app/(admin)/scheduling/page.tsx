@@ -47,6 +47,8 @@ interface ScheduleItem {
   secondAthleteName?: string; // Legacy
   athleteNames?: string[]; // New array format
   lessonNotes?: string;
+  packageId?: string; // Lesson package ID
+  packageType?: string; // Package type display (e.g., "1 Athlete Private", "2 Athlete Private")
 }
 
 interface AthleteInfo {
@@ -273,6 +275,34 @@ export default function SchedulingPage() {
             }
           }
           
+          // Get package type
+          let packageType: string | undefined;
+          if (data.packageId && actualClientId) {
+            try {
+              // Try new path first
+              let packageDoc = await getDoc(doc(db, 'organizations', orgId, 'users', actualClientId, 'packages', data.packageId));
+              if (!packageDoc.exists()) {
+                // Try legacy path
+                packageDoc = await getDoc(doc(db, 'users', actualClientId, 'lessonPackages', data.packageId));
+              }
+              if (packageDoc.exists()) {
+                const packageData = packageDoc.data();
+                const packageName = packageData.packageName || packageData.packageType;
+                const category = packageData.packageCategory;
+                
+                // Generate friendly display name
+                if (category === 'oneAthlete') packageType = '1 Athlete Private';
+                else if (category === 'twoAthlete') packageType = '2 Athlete Private';
+                else if (category === 'threeAthlete') packageType = '3 Athlete Private';
+                else if (category === 'fourAthlete') packageType = '4 Athlete Private';
+                else if (category === 'classPass' || category === 'class') packageType = 'Class Pass';
+                else packageType = packageName || 'Private Lesson';
+              }
+            } catch (err) {
+              console.error('Error fetching package:', err);
+            }
+          }
+          
           items.push({
             id: docSnap.id,
             type: 'lesson',
@@ -293,6 +323,8 @@ export default function SchedulingPage() {
             secondAthleteName: data.secondAthleteName, // Legacy
             athleteNames: data.athleteNames, // New array format
             lessonNotes: data.lessonNotes,
+            packageId: data.packageId,
+            packageType,
           });
         }
 
@@ -447,6 +479,34 @@ export default function SchedulingPage() {
               }
             }
             
+            // Get package type
+            let packageType: string | undefined;
+            if (data.packageId && actualClientId) {
+              try {
+                // Try new path first
+                let packageDoc = await getDoc(doc(db, 'organizations', orgId, 'users', actualClientId, 'packages', data.packageId));
+                if (!packageDoc.exists()) {
+                  // Try legacy path
+                  packageDoc = await getDoc(doc(db, 'users', actualClientId, 'lessonPackages', data.packageId));
+                }
+                if (packageDoc.exists()) {
+                  const packageData = packageDoc.data();
+                  const packageName = packageData.packageName || packageData.packageType;
+                  const category = packageData.packageCategory;
+                  
+                  // Generate friendly display name
+                  if (category === 'oneAthlete') packageType = '1 Athlete Private';
+                  else if (category === 'twoAthlete') packageType = '2 Athlete Private';
+                  else if (category === 'threeAthlete') packageType = '3 Athlete Private';
+                  else if (category === 'fourAthlete') packageType = '4 Athlete Private';
+                  else if (category === 'classPass' || category === 'class') packageType = 'Class Pass';
+                  else packageType = packageName || 'Private Lesson';
+                }
+              } catch (err) {
+                console.error('Error fetching package:', err);
+              }
+            }
+            
             items.push({
               id: docSnap.id,
               type: 'lesson',
@@ -457,6 +517,8 @@ export default function SchedulingPage() {
               clientName,
               clientUID: data.clientUID,
               clientId: data.clientId,
+              packageId: data.packageId,
+              packageType,
             });
           }
 
@@ -1138,6 +1200,19 @@ export default function SchedulingPage() {
                     </h3>
                     <div className="text-sm text-foreground">{selectedItem.trainerName}</div>
                   </div>
+
+                  {/* Package Type */}
+                  {selectedItem.packageType && (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-foreground flex items-center gap-2">
+                        <GraduationCap className="h-4 w-4" />
+                        Pass Type
+                      </h3>
+                      <div className="text-sm text-foreground bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+                        {selectedItem.packageType}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Contact Information */}
                   {(selectedItem.clientEmail || selectedItem.clientPhone) && (
