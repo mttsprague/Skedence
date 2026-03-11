@@ -44,6 +44,8 @@ interface Booking {
   startTime: Date;
   endTime: Date;
   status: 'confirmed' | 'canceled';
+  isClassBooking?: boolean; // True if this is a class registration
+  classId?: string; // Reference to class document if isClassBooking is true
 }
 
 interface GroupClass {
@@ -80,7 +82,6 @@ export default function SchedulePage() {
   const trainersRef = useRef<Trainer[]>([]);
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  // Default to week view to show logged-in trainer's schedule
   const [viewMode, setViewMode] = useState<'week' | 'allTrainersDay'>('week');
   
   // Availability editor
@@ -99,61 +100,12 @@ export default function SchedulePage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
   const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set());
 
-  // Set initial trainer to current user (must resolve trainer doc ID, not Auth UID)
+  // Set initial trainer to current user
   useEffect(() => {
-    if (user && !selectedTrainerId && orgId && userData) {
-      // For trainers, we need to find their trainer document ID (not Auth UID)
-      if (userData.role === 'trainer') {
-        // Query trainers collection to find document by email
-        const findTrainerId = async () => {
-          try {
-            const trainersQuery = query(
-              collection(db, 'trainers'),
-              where('orgId', '==', orgId),
-              where('email', '==', userData.email || user.email)
-            );
-            const snapshot = await getDocs(trainersQuery);
-            if (!snapshot.empty) {
-              const trainerDoc = snapshot.docs[0];
-              setSelectedTrainerId(trainerDoc.id); // Use trainer document ID
-            } else {
-              console.error('❌ Schedule: No trainer document found for email:', userData.email || user.email);
-            }
-          } catch (error) {
-            console.error('❌ Schedule: Error finding trainer ID:', error);
-          }
-        };
-        findTrainerId();
-      } else {
-        // For admins/owners, try to find their trainer document first (they might also be a trainer)
-        const findOwnerAsTrainer = async () => {
-          try {
-            const trainersQuery = query(
-              collection(db, 'trainers'),
-              where('orgId', '==', orgId),
-              where('email', '==', userData.email || user.email)
-            );
-            const snapshot = await getDocs(trainersQuery);
-            if (!snapshot.empty) {
-              // Owner/admin is also a trainer
-              const trainerDoc = snapshot.docs[0];
-              setSelectedTrainerId(trainerDoc.id);
-            } else if (trainers.length > 0) {
-              // Owner is not a trainer, use first trainer in list
-              setSelectedTrainerId(trainers[0].id);
-            }
-          } catch (error) {
-            console.error('❌ Schedule: Error finding owner as trainer:', error);
-            // Fallback to first trainer
-            if (trainers.length > 0) {
-              setSelectedTrainerId(trainers[0].id);
-            }
-          }
-        };
-        findOwnerAsTrainer();
-      }
+    if (user && !selectedTrainerId) {
+      setSelectedTrainerId(user.uid);
     }
-  }, [user, orgId, userData, selectedTrainerId, trainers]);
+  }, [user]);
 
   // Load required fields from org settings
   useEffect(() => {
@@ -289,6 +241,8 @@ export default function SchedulePage() {
           secondAthleteName: data.secondAthleteName, // Legacy
           athleteNames: data.athleteNames, // New array format
           lessonNotes: data.lessonNotes,
+          isClassBooking: data.isClassBooking || false, // Class vs Lesson indicator
+          classId: data.classId, // Reference to class document
         });
       }
       setBookings(bookingsData);
@@ -317,6 +271,8 @@ export default function SchedulePage() {
         startTime: doc.data().startTime.toDate(),
         endTime: doc.data().endTime.toDate(),
       })) as GroupClass[];
+      console.log(`Classes loaded for trainer ${selectedTrainerId}:`, classesData.length, 'classes');
+      classesData.forEach(c => console.log(`  - ${c.title} (trainerId: ${(c as any).trainerId})`));
       setClasses(classesData);
     });
 
@@ -415,6 +371,11 @@ export default function SchedulePage() {
       const startTime = setMinutes(setHours(editingSlot.day, editingSlot.hour), slotMinute);
       const endTime = new Date(startTime.getTime() + slotDuration * 60 * 1000); // Duration in minutes
 
+      console.log('Schedule: Creating slot for trainer:', targetTrainerId);
+      console.log('Schedule: Start time:', startTime);
+      console.log('Schedule: End time:', endTime);
+      console.log('Schedule: Status:', slotStatus);
+
       // Helper function to generate deterministic slot ID with minutes (matches iOS/Cloud Functions)
       const generateScheduleDocId = (date: Date): string => {
         const utcDate = new Date(date);
@@ -436,6 +397,7 @@ export default function SchedulePage() {
 
       if (editingSlot.existingSlot) {
         // Update existing slot
+        console.log('Schedule: Updating existing slot:', editingSlot.existingSlot.id);
         await updateDoc(doc(db, 'trainers', targetTrainerId, 'schedules', editingSlot.existingSlot.id), {
           startTime: Timestamp.fromDate(startTime),
           endTime: Timestamp.fromDate(endTime),
@@ -445,6 +407,7 @@ export default function SchedulePage() {
         });
       } else if (isRecurring) {
         // Create recurring slots
+        console.log('Schedule: Creating recurring slots for', recurringWeeks, 'weeks');
         const batch = [];
         for (let week = 0; week < recurringWeeks; week++) {
           const weekOffset = week * 7 * 24 * 60 * 60 * 1000;
@@ -452,6 +415,7 @@ export default function SchedulePage() {
           const slotEnd = new Date(endTime.getTime() + weekOffset);
           const slotId = generateScheduleDocId(slotStart);
           
+          console.log('Schedule: Creating slot with ID:', slotId);
           batch.push(
             setDoc(doc(db, 'trainers', selectedTrainerId, 'schedules', slotId), {
               trainerId: selectedTrainerId,
@@ -467,9 +431,12 @@ export default function SchedulePage() {
           );
         }
         await Promise.all(batch);
+        console.log('Schedule: Recurring slots created successfully');
       } else {
         // Create single slot with deterministic ID
         const slotId = generateScheduleDocId(startTime);
+        console.log('Schedule: Creating single slot with ID:', slotId);
+        console.log('Schedule: Full path: trainers/' + targetTrainerId + '/schedules/' + slotId);
         
         await setDoc(doc(db, 'trainers', targetTrainerId, 'schedules', slotId), {
           trainerId: targetTrainerId,
@@ -482,6 +449,8 @@ export default function SchedulePage() {
           trainerName: trainerFullName,
           createdAt: Timestamp.now(),
         }, { merge: true });
+        
+        console.log('Schedule: Single slot created successfully');
       }
 
       setShowAvailabilityDialog(false);
@@ -659,7 +628,7 @@ export default function SchedulePage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Start Time</Label>
                 <div className="text-sm text-muted-foreground">
@@ -829,13 +798,13 @@ export default function SchedulePage() {
                 <h3 className="text-xl font-black text-red-700 mb-4 text-center animate-pulse">
                   ⚠️ CANCEL THIS SESSION
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => {
                       console.log('Early cancel clicked');
                       setShowCancelConfirm('early');
                     }}
-                    className="px-4 sm:px-6 py-3 sm:py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-md text-sm sm:text-base transform hover:scale-105 transition"
+                    className="px-6 py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-md text-base transform hover:scale-105 transition"
                   >
                     🕐 Early Cancel
                     <div className="text-xs mt-1">Refund Pass</div>
@@ -845,7 +814,7 @@ export default function SchedulePage() {
                       console.log('Late cancel clicked');
                       setShowCancelConfirm('late');
                     }}
-                    className="px-4 sm:px-6 py-3 sm:py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md text-sm sm:text-base transform hover:scale-105 transition"
+                    className="px-6 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md text-base transform hover:scale-105 transition"
                   >
                     ⏰ Late Cancel
                     <div className="text-xs mt-1">No Refund</div>

@@ -96,6 +96,10 @@ export interface Booking {
   
   // Lesson notes
   lessonNotes?: string; // Lesson-specific notes from client
+  
+  // Class booking fields
+  isClassBooking?: boolean; // True if this is a class registration, false/undefined for lesson
+  classId?: string; // Reference to class document if isClassBooking is true
 }
 
 export interface AvailabilitySlot {
