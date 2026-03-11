@@ -64,7 +64,7 @@ struct SessionDetailView: View {
                 .padding(.bottom, 24)
             }
             .background(Color.platformGroupedBackground.ignoresSafeArea())
-            .navigationTitle("\(client.fullName) Session")
+            .navigationTitle("\(client.fullName) Booking")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -174,11 +174,11 @@ struct SessionDetailView: View {
         .buttonStyle(.plain)
     }
     
-    // MARK: - Session Details Card
+    // MARK: - Booking Details Card
     private var sessionDetailsCard: some View {
         CardView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Session Details")
+                Text("Booking Details")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(AppTheme.textPrimary)
                 
@@ -203,7 +203,7 @@ struct SessionDetailView: View {
     private var athleteInformationCard: some View {
         CardView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Participants")
+                Text("Athletes")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(AppTheme.textPrimary)
                 
@@ -497,7 +497,7 @@ struct SessionDetailView: View {
         }
     }
     
-    // MARK: - Lesson Notes Card
+    // MARK: - Booking Notes Card
     private func lessonNotesCard(notes: String) -> some View {
         CardView {
             VStack(alignment: .leading, spacing: 12) {
@@ -505,7 +505,7 @@ struct SessionDetailView: View {
                     Image(systemName: "note.text")
                         .font(.system(size: 16))
                         .foregroundStyle(AppTheme.secondary)
-                    Text("Lesson Notes")
+                    Text("Booking Notes")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(AppTheme.textPrimary)
                 }

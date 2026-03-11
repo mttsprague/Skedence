@@ -92,10 +92,10 @@ struct ScheduleSection: View {
                 }
             }
             
-            // Past Lessons
+            // Completed Lessons
             CardView {
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Past Lessons")
+                    Text("Completed Lessons")
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
                     
@@ -104,7 +104,7 @@ struct ScheduleSection: View {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 32))
                                 .foregroundStyle(AppTheme.textTertiary)
-                            Text("No past lessons")
+                            Text("No completed lessons")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }

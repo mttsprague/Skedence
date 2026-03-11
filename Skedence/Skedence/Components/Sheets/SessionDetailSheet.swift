@@ -35,7 +35,7 @@ struct SessionDetailSheet: View {
                 .padding(.top, 8)
                 
                 // Title
-                Text("Session Details")
+                Text("Booking Details")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(AppTheme.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -69,7 +69,7 @@ struct SessionDetailSheet: View {
     private var sessionDetailsCard: some View {
         CardView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Session Details")
+                Text("Booking Details")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(AppTheme.textPrimary)
                 

@@ -108,7 +108,7 @@ struct NextLessonSection: View {
                                         Image(systemName: "note.text")
                                             .font(.system(size: 14))
                                             .foregroundStyle(AppTheme.secondary)
-                                        Text("Lesson Notes:")
+                                        Text("Booking Notes:")
                                             .font(.labelSmall)
                                             .fontWeight(.semibold)
                                             .foregroundStyle(AppTheme.secondary)
