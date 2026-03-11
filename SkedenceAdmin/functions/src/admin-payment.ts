@@ -45,22 +45,31 @@ export const adminProcessPayment = onCall(
 
     try {
       // Verify admin access - check orgMembers collection (source of truth)
-      // Note: orgMembers uses flat structure with composite key: {uid}_{orgId}
-      const membershipId = `${request.auth.uid}_${orgId}`;
-      const memberDoc = await db
+      // Query by authUserId field (orgMembers docs use trainerId_orgId format)
+      const memberQuery = await db
         .collection("orgMembers")
-        .doc(membershipId)
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
+      if (memberQuery.empty) {
+        console.log(`❌ Permission denied - not a member of org ${orgId}`);
+        throw new HttpsError(
+          "permission-denied",
+          "You are not a member of this organization"
+        );
+      }
+
+      const memberDoc = memberQuery.docs[0];
       const memberData = memberDoc.data();
       console.log(`🔍 Checking permissions for user ${request.auth.uid} in org ${orgId}:`, {
-        membershipId: membershipId,
-        exists: memberDoc.exists,
+        exists: true,
         role: memberData?.role,
         email: memberData?.email,
       });
 
-      if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
+      if (memberData.role !== "owner" && memberData.role !== "admin") {
         console.log(`❌ Permission denied - role: ${memberData?.role || "none"}`);
         throw new HttpsError(
           "permission-denied",
@@ -88,7 +97,7 @@ export const adminProcessPayment = onCall(
 
       // Initialize Stripe with organization's secret key
       const stripe = new Stripe(stripeData.secretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
       // Get or create Stripe customer
@@ -233,21 +242,30 @@ export const adminChargeWithSavedCard = onCall(
 
     try {
       // Verify admin access
-      // Note: orgMembers uses flat structure with composite key: {uid}_{orgId}
-      const membershipId = `${request.auth.uid}_${orgId}`;
-      const memberDoc = await db
+      // Query by authUserId field (orgMembers docs use trainerId_orgId format)
+      const memberQuery = await db
         .collection("orgMembers")
-        .doc(membershipId)
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
+      if (memberQuery.empty) {
+        console.log(`❌ Permission denied - not a member of org ${orgId}`);
+        throw new HttpsError(
+          "permission-denied",
+          "You are not a member of this organization"
+        );
+      }
+
+      const memberDoc = memberQuery.docs[0];
       const memberData = memberDoc.data();
       console.log(`🔍 Checking permissions for user ${request.auth.uid} in org ${orgId}:`, {
-        membershipId: membershipId,
-        exists: memberDoc.exists,
+        exists: true,
         role: memberData?.role,
       });
 
-      if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
+      if (memberData.role !== "owner" && memberData.role !== "admin") {
         console.log(`❌ Permission denied - role: ${memberData?.role || "none"}`);
         throw new HttpsError(
           "permission-denied",
@@ -275,7 +293,7 @@ export const adminChargeWithSavedCard = onCall(
 
       // Initialize Stripe with organization's secret key
       const stripe = new Stripe(stripeData.secretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
       // Get user data

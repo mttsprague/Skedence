@@ -24,6 +24,8 @@ struct TrainerWeekView: View {
     @State private var preloadedParticipants: [ClassParticipant]?
     @State private var classParticipantsShown: Bool = false
     @State private var editorContext: ScheduleEditorContext?
+    @State private var showMultipleSlotsSheet = false
+    @State private var multipleSlotsContext: (day: Date, slots: [TrainerScheduleSlot])?
     
     // Track if we've done initial scroll to current time
     @State private var hasScrolledToCurrentTime = false
@@ -62,6 +64,10 @@ struct TrainerWeekView: View {
                     dayColumnWidth: calculatedDayWidth,
                     viewingTrainerId: trainerId,
                     hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
+                    showMultipleSlotsSheet: $showMultipleSlotsSheet,
+                    multipleSlotsContext: $multipleSlotsContext,
+                    viewModel: viewModel,
+                    fetchParticipants: fetchParticipants,
                     onEmptyTap: { day, hour in
                         if auth.isAdmin {
                             editorContext = ScheduleEditorContext(day: day, hour: hour)
@@ -202,6 +208,20 @@ struct TrainerWeekView: View {
                     preloadedParticipants: preloadedParticipants
                 )
                 .environmentObject(dependencies)
+            }
+        }
+        .sheet(isPresented: $showMultipleSlotsSheet) {
+            if let context = multipleSlotsContext {
+                MultipleSlotsView(
+                    day: context.day,
+                    slots: context.slots,
+                    viewingTrainerId: trainerId,
+                    onSlotTap: { slot in
+                        showMultipleSlotsSheet = false
+                        let slotHour = Calendar.current.component(.hour, from: slot.startTime)
+                        handleSlotTap(slot, defaultDay: context.day, defaultHour: slotHour)
+                    }
+                )
             }
         }
         .task {
@@ -378,10 +398,13 @@ struct TrainerWeekView: View {
     private func handleSlotTap(_ slot: TrainerScheduleSlot, defaultDay: Date, defaultHour: Int) {
         // Check if this is a class booking
         if slot.isClass, let classId = slot.classId {
+            // Get class title from cache or use fallback
+            let className = viewModel.classTitlesByClassId[classId] ?? slot.clientName ?? "Group Class"
+            
             // Use cached participants if available
             if let cached = viewModel.participantsByClassId[classId] {
                 selectedClassId = classId
-                selectedClassName = slot.clientName ?? "Group Class"
+                selectedClassName = className
                 preloadedParticipants = cached
                 classParticipantsShown = true
                 return
@@ -394,14 +417,14 @@ struct TrainerWeekView: View {
                     await MainActor.run {
                         viewModel.participantsByClassId[classId] = participants
                         selectedClassId = classId
-                        selectedClassName = slot.clientName ?? "Group Class"
+                        selectedClassName = className
                         preloadedParticipants = participants
                         classParticipantsShown = true
                     }
                 } catch {
                     await MainActor.run {
                         selectedClassId = classId
-                        selectedClassName = slot.clientName ?? "Group Class"
+                        selectedClassName = className
                         preloadedParticipants = []
                         classParticipantsShown = true
                     }
@@ -545,6 +568,11 @@ private struct ScheduleGridView: View {
     let dayColumnWidth: CGFloat
     let viewingTrainerId: String?
     @Binding var hasScrolledToCurrentTime: Bool
+    @Binding var showMultipleSlotsSheet: Bool
+    @Binding var multipleSlotsContext: (day: Date, slots: [TrainerScheduleSlot])?
+    
+    let viewModel: ScheduleViewModel
+    let fetchParticipants: (String) async throws -> [ClassParticipant]
     
     let onEmptyTap: (Date, Int) -> Void
     let onSlotTap: (TrainerScheduleSlot, Date, Int) -> Void
@@ -589,7 +617,7 @@ private struct ScheduleGridView: View {
                                                 slotsForDay: [], // Empty - using overlay for taps
                                                 dayColumnWidth: dayColumnWidth,
                                                 rowHeight: rowHeight,
-                                                horizontalPadding: 2,
+                                                horizontalPadding: 0,
                                                 isToday: isToday,
                                                 viewingTrainerId: viewingTrainerId,
                                                 onEmptyTap: { }, // No-op
@@ -603,31 +631,127 @@ private struct ScheduleGridView: View {
                                     }
                                     .allowsHitTesting(false) // Purely visual background
                                     
-                                    // Absolutely positioned slots overlay
-                                    ForEach(slotsForDay) { slot in
+                                    // Absolutely positioned slots overlay - show ALL slots
+                                    ForEach(Array(slotsForDay.enumerated()), id: \.element.id) { index, slot in
                                         if let yOffset = slotYOffset(for: slot),
                                            let height = slotHeight(for: slot) {
+                                            let horizontalPadding: CGFloat = 0  // No padding - full width
+                                            let effectiveWidth = dayColumnWidth - (horizontalPadding * 2)
+                                            
+                                            // Get slots that overlap with this slot's hour
+                                            let slotHour = hourFromSlot(slot)
+                                            let overlappingSlotsInHour = slotsInHour(hour: slotHour, allSlots: slotsForDay, day: day)
+                                            
                                             Button(action: {
-                                                onSlotTap(slot, day, hourFromSlot(slot))
-                                            }) {
-                                                EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
-                                                    .frame(width: dayColumnWidth, height: height)
-                                                    .padding(.horizontal, 2)
-                                            }
-                                            .buttonStyle(PlainButtonStyle())
-                                            .offset(y: yOffset)
-                                                .contextMenu {
-                                                    // Only show delete option for open slots
-                                                    if slot.status == .open {
-                                                        Button(role: .destructive) {
-                                                            if isAdmin {
-                                                                onClear(day, hourFromSlot(slot))
+                                                // If multiple slots in this hour, show sheet instead of details
+                                                if overlappingSlotsInHour.count > 1 {
+                                                    Task {
+                                                        // Prefetch all class participants and titles FIRST
+                                                        for slot in overlappingSlotsInHour {
+                                                            if slot.isClass, let classId = slot.classId {
+                                                                // Prefetch class title if not cached
+                                                                if viewModel.classTitlesByClassId[classId] == nil {
+                                                                    _ = await viewModel.fetchClassTitle(classId: classId)
+                                                                }
+                                                                
+                                                                // Prefetch class participants if not cached
+                                                                if viewModel.participantsByClassId[classId] == nil {
+                                                                    if let participants = try? await fetchParticipants(classId) {
+                                                                        await MainActor.run {
+                                                                            viewModel.participantsByClassId[classId] = participants
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
-                                                        } label: {
-                                                            Label("Delete Availability", systemImage: "trash")
+                                                        }
+                                                        
+                                                        // NOW show sheet - all data is ready
+                                                        await MainActor.run {
+                                                            multipleSlotsContext = (day: day, slots: overlappingSlotsInHour)
+                                                            showMultipleSlotsSheet = true
                                                         }
                                                     }
+                                                } else {
+                                                    onSlotTap(slot, day, slotHour)
                                                 }
+                                            }) {
+                                                EventCell(slot: slot, viewingTrainerId: viewingTrainerId, viewModel: viewModel)
+                                                    .frame(width: effectiveWidth, height: height)
+                                                    .padding(.horizontal, horizontalPadding)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                            .contextMenu {
+                                                // Only show delete option for open slots
+                                                if slot.status == .open {
+                                                    Button(role: .destructive) {
+                                                        if isAdmin {
+                                                            onClear(day, slotHour)
+                                                        }
+                                                    } label: {
+                                                        Label("Delete Availability", systemImage: "trash")
+                                                    }
+                                                }
+                                            }
+                                            .offset(y: yOffset)
+                                        }
+                                    }
+                                    
+                                    // Render badges AFTER all events to ensure they're on top
+                                    ForEach(Array(slotsForDay.enumerated()), id: \.element.id) { index, slot in
+                                        if let yOffset = slotYOffset(for: slot),
+                                           slotHeight(for: slot) != nil {
+                                            let horizontalPadding: CGFloat = 0
+                                            let effectiveWidth = dayColumnWidth - (horizontalPadding * 2)
+                                            
+                                            // Get slots that overlap with this slot's hour
+                                            let slotHour = hourFromSlot(slot)
+                                            let overlappingSlotsInHour = slotsInHour(hour: slotHour, allSlots: slotsForDay, day: day)
+                                            
+                                            // Only show badge on the FIRST slot for each hour
+                                            let isFirstInHour = index == 0 || 
+                                                hourFromSlot(slotsForDay[index - 1]) != slotHour
+                                            let showBadge = isFirstInHour && overlappingSlotsInHour.count > 1
+                                            
+                                            if showBadge {
+                                                Button(action: {
+                                                    Task {
+                                                        // Prefetch all class participants and titles FIRST
+                                                        for slot in overlappingSlotsInHour {
+                                                            if slot.isClass, let classId = slot.classId {
+                                                                // Prefetch class title if not cached
+                                                                if viewModel.classTitlesByClassId[classId] == nil {
+                                                                    _ = await viewModel.fetchClassTitle(classId: classId)
+                                                                }
+                                                                
+                                                                // Prefetch class participants if not cached
+                                                                if viewModel.participantsByClassId[classId] == nil {
+                                                                    if let participants = try? await fetchParticipants(classId) {
+                                                                        await MainActor.run {
+                                                                            viewModel.participantsByClassId[classId] = participants
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        
+                                                        // NOW show sheet - all data is ready
+                                                        await MainActor.run {
+                                                            multipleSlotsContext = (day: day, slots: overlappingSlotsInHour)
+                                                            showMultipleSlotsSheet = true
+                                                        }
+                                                    }
+                                                }) {
+                                                    Text("\(overlappingSlotsInHour.count)")
+                                                        .font(.system(size: 12, weight: .bold))
+                                                        .foregroundStyle(.white)
+                                                        .frame(width: 24, height: 24)
+                                                        .background(Circle().fill(Color.red))
+                                                        .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
+                                                }
+                                                .buttonStyle(PlainButtonStyle())
+                                                .position(x: effectiveWidth - 4, y: yOffset + 12)
+                                                .zIndex(1000)
+                                            }
                                         }
                                     }
                                     
@@ -636,13 +760,16 @@ private struct ScheduleGridView: View {
                                         Color.clear
                                             .contentShape(Rectangle())
                                             .onTapGesture { location in
-                                                // Check if tap hit any slot - if so, handle it
+                                                // Check if tap hit any slot
                                                 var hitSlot: TrainerScheduleSlot? = nil
+                                                let horizontalPadding: CGFloat = 0
+                                                let effectiveWidth = dayColumnWidth - (horizontalPadding * 2)
+                                                
                                                 for slot in slotsForDay {
                                                     if let yOffset = slotYOffset(for: slot),
                                                        let height = slotHeight(for: slot) {
-                                                        let slotFrame = CGRect(x: 2, y: yOffset,
-                                                                               width: dayColumnWidth - 4, height: height)
+                                                        let slotFrame = CGRect(x: horizontalPadding, y: yOffset,
+                                                                               width: effectiveWidth, height: height)
                                                         if slotFrame.contains(location) {
                                                             hitSlot = slot
                                                             break
@@ -767,6 +894,141 @@ private struct ScheduleGridView: View {
     /// Extract hour from slot start time
     private func hourFromSlot(_ slot: TrainerScheduleSlot) -> Int {
         return Calendar.current.component(.hour, from: slot.startTime)
+    }
+    
+    /// Get all slots that overlap with a specific hour
+    private func slotsInHour(hour: Int, allSlots: [TrainerScheduleSlot], day: Date) -> [TrainerScheduleSlot] {
+        let calendar = Calendar.current
+        guard let hourStart = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day),
+              let hourEnd = calendar.date(byAdding: .hour, value: 1, to: hourStart) else {
+            return []
+        }
+        
+        return allSlots.filter { slot in
+            // Slot overlaps with hour if:
+            // slot starts before hour ends AND slot ends after hour starts
+            slot.startTime < hourEnd && slot.endTime > hourStart
+        }
+    }
+}
+
+// MARK: - Multiple Slots View
+
+struct MultipleSlotsView: View {
+    let day: Date
+    let slots: [TrainerScheduleSlot]
+    let viewingTrainerId: String?
+    let onSlotTap: (TrainerScheduleSlot) -> Void
+    
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        let sortedSlots = slots.sorted(by: { $0.startTime < $1.startTime })
+        
+        return NavigationView {
+            List(sortedSlots) { slot in
+                Button(action: {
+                    onSlotTap(slot)
+                }) {
+                    MultipleSlotsRowView(slot: slot, viewingTrainerId: viewingTrainerId)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .listStyle(.plain)
+            .navigationTitle("Sessions on \(day.formatted(date: .abbreviated, time: .omitted))")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .presentationDetents([.medium, .large])
+    }
+}
+
+// MARK: - Multiple Slots Row View
+
+struct MultipleSlotsRowView: View {
+    let slot: TrainerScheduleSlot
+    let viewingTrainerId: String?
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.md) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                // Show class type badge if it's a class
+                if slot.isClass {
+                    Text("GROUP CLASS")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.orange))
+                }
+                
+                // Title
+                Text(slot.isClass ? (slot.clientName ?? "Group Class") : (slot.clientName ?? "Booked"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                
+                // Time
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: "clock")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(slot.startTime.formatted(date: .omitted, time: .shortened)) - \(slot.endTime.formatted(date: .omitted, time: .shortened))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                // Location
+                if let location = slot.location, !location.isEmpty {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "mappin.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(location)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                // Client name for non-class bookings only
+                if !slot.isClass && slot.isBooked, let clientName = slot.clientName {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "person.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(clientName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                // Show participant hint for classes
+                if slot.isClass {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "person.3.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Tap to view participants")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Color indicator
+            RoundedRectangle(cornerRadius: 4)
+                .fill(slot.visualColor(viewingTrainerId: viewingTrainerId))
+                .frame(width: 4, height: 60)
+        }
+        .padding(.vertical, Spacing.xs)
     }
 }
 

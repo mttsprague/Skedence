@@ -74,8 +74,7 @@ export function Sidebar() {
            pathname.startsWith('/clients') ||
            pathname.startsWith('/trainers') ||
            pathname.startsWith('/bookings') ||
-           pathname.startsWith('/classes') ||
-           pathname.startsWith('/schedule');
+           pathname.startsWith('/classes');
   };
 
   const isReportsActive = () => {

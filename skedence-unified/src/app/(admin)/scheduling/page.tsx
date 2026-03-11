@@ -79,6 +79,7 @@ export default function SchedulingPage() {
   // Modal states
   const [showBookLessonModal, setShowBookLessonModal] = useState(false);
   const [showCreateAvailabilityModal, setShowCreateAvailabilityModal] = useState(false);
+  const [showSlotActionDialog, setShowSlotActionDialog] = useState(false);
   const [modalSlotDate, setModalSlotDate] = useState<Date | null>(null);
   const [modalSlotHour, setModalSlotHour] = useState<number>(9);
   const [modalSlotId, setModalSlotId] = useState<string>(''); // Actual slot document ID
@@ -697,7 +698,7 @@ export default function SchedulingPage() {
     }
   };
 
-  // Handle clicking an available (green) shift to book
+  // Handle clicking an available (green) shift to book or mark unavailable
   const handleAvailableShiftClick = (item: ScheduleItem) => {
     if (item.type === 'shift' && item.status === 'open' && item.trainerId) {
       setModalSlotDate(item.startTime);
@@ -705,9 +706,30 @@ export default function SchedulingPage() {
       setModalSlotId(item.id); // Pass the actual slot document ID
       setModalTrainerId(item.trainerId);
       setModalTrainerName(item.trainerName);
-      setShowBookLessonModal(true);
+      setShowSlotActionDialog(true); // Show choice dialog instead of directly opening booking
     } else {
       setSelectedItem(item);
+    }
+  };
+
+  // Mark slot as unavailable
+  const handleMarkUnavailable = async () => {
+    if (!modalSlotId || !modalTrainerId || !orgId) return;
+    
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const scheduleRef = doc(db, `trainers/${modalTrainerId}/schedules/${modalSlotId}`);
+      
+      await updateDoc(scheduleRef, {
+        status: 'unavailable',
+        isBooked: false
+      });
+      
+      setShowSlotActionDialog(false);
+      reloadSchedule();
+    } catch (error) {
+      console.error('Error marking slot unavailable:', error);
+      alert('Failed to mark slot as unavailable. Please try again.');
     }
   };
 
@@ -751,6 +773,92 @@ export default function SchedulingPage() {
   // Get items for a specific day
   const getItemsForDay = (day: Date) => {
     return scheduleItems.filter(item => isSameDay(item.startTime, day));
+  };
+
+  // Detect overlapping items and calculate their horizontal positioning
+  const calculateItemPositions = (items: ScheduleItem[]) => {
+    const positions = new Map<string, { left: number; width: number; column: number }>();
+    
+    // Helper: Check if two items overlap in time
+    const itemsOverlap = (a: ScheduleItem, b: ScheduleItem): boolean => {
+      return a.startTime < b.endTime && a.endTime > b.startTime;
+    };
+    
+    // Find overlap groups - items that actually overlap with each other
+    const processed = new Set<string>();
+    const overlapGroups: ScheduleItem[][] = [];
+    
+    for (const item of items) {
+      if (processed.has(item.id)) continue;
+      
+      // Find all items that overlap with this one
+      const group: ScheduleItem[] = [item];
+      processed.add(item.id);
+      
+      // Check all other unprocessed items
+      for (const other of items) {
+        if (processed.has(other.id)) continue;
+        
+        // Check if this item overlaps with any item in the current group
+        const overlapsWithGroup = group.some(groupItem => itemsOverlap(groupItem, other));
+        if (overlapsWithGroup) {
+          group.push(other);
+          processed.add(other.id);
+        }
+      }
+      
+      overlapGroups.push(group);
+    }
+    
+    // Calculate positions for each overlap group
+    for (const group of overlapGroups) {
+      if (group.length === 1) {
+        // Solo item - full width
+        positions.set(group[0].id, {
+          left: 0,
+          width: 100,
+          column: 0
+        });
+      } else {
+        // Multiple overlapping items - arrange in columns
+        const sortedGroup = [...group].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+        const columns: ScheduleItem[][] = [];
+        
+        for (const item of sortedGroup) {
+          // Find the first column where this item doesn't overlap with any item in that column
+          let placed = false;
+          for (let i = 0; i < columns.length; i++) {
+            const overlapsWithColumn = columns[i].some(colItem => itemsOverlap(item, colItem));
+            if (!overlapsWithColumn) {
+              columns[i].push(item);
+              placed = true;
+              break;
+            }
+          }
+          
+          if (!placed) {
+            // Need a new column
+            columns.push([item]);
+          }
+        }
+        
+        // Calculate positions based on columns
+        const totalColumns = columns.length;
+        const columnWidth = 100 / totalColumns;
+        
+        columns.forEach((column, columnIndex) => {
+          column.forEach(item => {
+            positions.set(item.id, {
+              left: columnIndex * columnWidth,
+              width: columnWidth,
+              column: columnIndex
+            });
+          });
+        });
+      }
+    }
+    
+    return positions;
   };
 
   // Time slots (6 AM to 10 PM)
@@ -914,7 +1022,7 @@ export default function SchedulingPage() {
                 onTouchEnd={handleTouchEnd}
               >
                 {/* Week Days Header */}
-                <div className="grid grid-cols-8 border-b border-gray-200 bg-white sticky top-0 z-10">
+                <div className="grid grid-cols-8 border-b border-gray-200 bg-white sticky top-0" style={{ zIndex: 100 }}>
                   <div className="p-3 text-xs font-medium text-gray-600">Time</div>
                   {weekDays.map(day => (
                     <div
@@ -966,6 +1074,7 @@ export default function SchedulingPage() {
                         {weekDays.map(day => {
                           const dayItems = getItemsForDay(day);
                           const hasItemsInThisHour = dayItems.some(item => itemOverlapsHour(item, hour));
+                          const itemPositions = calculateItemPositions(dayItems);
                           
                           return (
                             <div
@@ -982,6 +1091,7 @@ export default function SchedulingPage() {
                                 const isCompleted = currentTime && item.type === 'lesson' && item.endTime < currentTime;
                                 const yOffset = getItemYOffset(item.startTime);
                                 const height = getItemHeight(item.startTime, item.endTime);
+                                const position = itemPositions.get(item.id) || { left: 0, width: 100, column: 0 };
                                 
                                 return (
                                   <button
@@ -995,7 +1105,7 @@ export default function SchedulingPage() {
                                       }
                                     }}
                                     className={cn(
-                                      'absolute left-0 right-0 mx-1 text-left text-xs p-1.5 rounded transition-all hover:shadow-md flex flex-col justify-center pointer-events-auto z-10',
+                                      'absolute text-left text-xs p-1.5 rounded transition-all hover:shadow-md flex flex-col justify-center pointer-events-auto',
                                       item.type === 'class' && 'bg-orange-100 border border-orange-300 hover:bg-orange-200',
                                       item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                       item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
@@ -1004,7 +1114,12 @@ export default function SchedulingPage() {
                                     )}
                                     style={{
                                       top: `${yOffset}px`,
-                                      height: `${Math.max(height - 2, 30)}px` // Min height 30px, subtract 2px for margin
+                                      height: `${Math.max(height - 2, 30)}px`, // Min height 30px, subtract 2px for margin
+                                      left: `${position.left}%`,
+                                      width: `${position.width}%`,
+                                      paddingLeft: position.column > 0 ? '2px' : undefined,
+                                      paddingRight: position.width < 100 ? '2px' : undefined,
+                                      zIndex: 10 + position.column
                                     }}
                                   >
                                     <div className="font-semibold truncate">
@@ -1041,7 +1156,7 @@ export default function SchedulingPage() {
                 onTouchEnd={handleTouchEnd}
               >
                 {/* Trainers Header */}
-                <div className="flex border-b border-gray-200 bg-white sticky top-0 z-10">
+                <div className="flex border-b border-gray-200 bg-white sticky top-0" style={{ zIndex: 100 }}>
                   <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-600 border-r border-gray-200">Time</div>
                     {trainers.map(trainer => (
                       <div
@@ -1089,6 +1204,7 @@ export default function SchedulingPage() {
                           {trainers.map(trainer => {
                             const trainerItems = allTrainersSchedule.get(trainer.id) || [];
                             const hasItemsInThisHour = trainerItems.some(item => itemOverlapsHour(item, hour));
+                            const itemPositions = calculateItemPositions(trainerItems);
                             
                             return (
                               <div
@@ -1105,6 +1221,7 @@ export default function SchedulingPage() {
                                   const isCompleted = currentTime && item.type === 'lesson' && item.endTime < currentTime;
                                   const yOffset = getItemYOffset(item.startTime);
                                   const height = getItemHeight(item.startTime, item.endTime);
+                                  const position = itemPositions.get(item.id) || { left: 0, width: 100, column: 0 };
                                   
                                   return (
                                     <button
@@ -1118,7 +1235,7 @@ export default function SchedulingPage() {
                                         }
                                       }}
                                       className={cn(
-                                        'absolute left-0 right-0 mx-1 text-left text-xs p-1.5 rounded transition-all hover:shadow-md flex flex-col justify-center pointer-events-auto z-10',
+                                        'absolute text-left text-xs p-1.5 rounded transition-all hover:shadow-md flex flex-col justify-center pointer-events-auto',
                                         item.type === 'class' && 'bg-orange-100 border border-orange-300 hover:bg-orange-200',
                                         item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                         item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
@@ -1127,7 +1244,12 @@ export default function SchedulingPage() {
                                       )}
                                       style={{
                                         top: `${yOffset}px`,
-                                        height: `${Math.max(height - 2, 30)}px`
+                                        height: `${Math.max(height - 2, 30)}px`,
+                                        left: `${position.left}%`,
+                                        width: `${position.width}%`,
+                                        paddingLeft: position.column > 0 ? '2px' : undefined,
+                                        paddingRight: position.width < 100 ? '2px' : undefined,
+                                        zIndex: 10 + position.column
                                       }}
                                     >
                                       <div className="font-semibold truncate">
@@ -1482,6 +1604,58 @@ export default function SchedulingPage() {
           </div>
         )}
       </div>
+
+      {/* Slot Action Choice Dialog */}
+      {showSlotActionDialog && modalSlotDate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">What would you like to do?</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              {format(modalSlotDate, 'EEEE, MMMM d, yyyy')} at {format(modalSlotDate, 'h:mm a')}
+              <br />
+              <span className="font-medium">{modalTrainerName}</span>
+            </p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setShowSlotActionDialog(false);
+                  setShowBookLessonModal(true);
+                }}
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 2v4"/>
+                  <path d="M16 2v4"/>
+                  <rect width="18" height="18" x="3" y="4" rx="2"/>
+                  <path d="M3 10h18"/>
+                  <path d="m9 16 2 2 4-4"/>
+                </svg>
+                Book Lesson for Client
+              </button>
+              
+              <button
+                onClick={handleMarkUnavailable}
+                className="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="m15 9-6 6"/>
+                  <path d="m9 9 6 6"/>
+                </svg>
+                Mark as Unavailable
+              </button>
+              
+              <button
+                onClick={() => setShowSlotActionDialog(false)}
+                className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {modalSlotDate && (

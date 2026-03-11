@@ -160,7 +160,7 @@ struct AvailabilityEditorSheet: View {
                 Button("Cancel", role: .cancel) {
                     pendingSaveAction = nil
                 }
-                Button("Create Anyway") {
+                Button(singleStatus == .unavailable ? "Close Slot Anyway" : "Create Anyway") {
                     if let action = pendingSaveAction {
                         action()
                     }
@@ -742,7 +742,14 @@ struct AvailabilityEditorSheet: View {
                 await MainActor.run {
                     let formatter = DateFormatter()
                     formatter.dateFormat = "h:mm a"
-                    overlapMessage = "This time slot (\(formatter.string(from: startOnDay)) - \(formatter.string(from: endOnDay))) overlaps with an existing slot. Do you want to create it anyway?"
+                    
+                    // Context-aware message based on status
+                    if singleStatus == .unavailable {
+                        overlapMessage = "Marking this time slot (\(formatter.string(from: startOnDay)) - \(formatter.string(from: endOnDay))) as unavailable will close a previously open slot. Would you like to proceed?"
+                    } else {
+                        overlapMessage = "This time slot (\(formatter.string(from: startOnDay)) - \(formatter.string(from: endOnDay))) overlaps with an existing slot. Do you want to create it anyway?"
+                    }
+                    
                     pendingSaveAction = {
                         self.onSaveSingle(self.singleDay, startOnDay, endOnDay, self.singleStatus, self.applyToAllTrainers, self.selectedLocation?.name)
                     }

@@ -101,7 +101,6 @@ final class DocumentsService: ObservableObject {
             type: "waiver",
             metadata: metadata
         )
-        print("✅ Waiver document saved successfully")
         
         return document
     }

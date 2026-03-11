@@ -10,11 +10,27 @@ import SwiftUI
 
 struct AdminClassCard: View {
     let classItem: GroupClass
+    let seriesClasses: [GroupClass] // All classes in the series (for multi-day)
     let onTap: () -> Void
     let onToggleRegistration: (Bool) -> Void
     let onDelete: () -> Void
     
     @State private var showingDeleteAlert = false
+    
+    // Initialize with empty series by default for backward compatibility
+    init(
+        classItem: GroupClass,
+        seriesClasses: [GroupClass] = [],
+        onTap: @escaping () -> Void,
+        onToggleRegistration: @escaping (Bool) -> Void,
+        onDelete: @escaping () -> Void
+    ) {
+        self.classItem = classItem
+        self.seriesClasses = seriesClasses
+        self.onTap = onTap
+        self.onToggleRegistration = onToggleRegistration
+        self.onDelete = onDelete
+    }
     
     var body: some View {
         CardView {
@@ -24,6 +40,11 @@ struct AdminClassCard: View {
                         Text(classItem.title)
                             .font(.headingSmall)
                             .foregroundStyle(AppTheme.textPrimary)
+                        
+                        // Show multi-day indicator
+                        if classItem.isPartOfSeries == true, let total = classItem.totalSeriesClasses {
+                            BadgeView(text: "\(total)-Day Series", color: AppTheme.secondary)
+                        }
                         
                         Text(classItem.description)
                             .font(.bodySmall)
@@ -44,12 +65,23 @@ struct AdminClassCard: View {
                 
                 HStack(spacing: Spacing.md) {
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        HStack(spacing: Spacing.xxs) {
-                            Image(systemName: "calendar")
-                                .font(.labelSmall)
-                            Text(classItem.startTime.formatted(date: .abbreviated, time: .omitted))
-                                .font(.labelMedium)
-                                .lineLimit(1)
+                        // Show all dates if multi-day series
+                        if classItem.isPartOfSeries == true && !seriesClasses.isEmpty {
+                            HStack(spacing: Spacing.xxs) {
+                                Image(systemName: "calendar")
+                                    .font(.labelSmall)
+                                Text(formatSeriesDates(seriesClasses))
+                                    .font(.labelMedium)
+                                    .lineLimit(2)
+                            }
+                        } else {
+                            HStack(spacing: Spacing.xxs) {
+                                Image(systemName: "calendar")
+                                    .font(.labelSmall)
+                                Text(classItem.startTime.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.labelMedium)
+                                    .lineLimit(1)
+                            }
                         }
                         
                         HStack(spacing: Spacing.xxs) {
@@ -163,5 +195,16 @@ struct AdminClassCard: View {
         } message: {
             Text("Are you sure you want to delete this class? This action cannot be undone.")
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Format series dates as "Mon 3/10, Tue 3/11, Wed 3/12"
+    private func formatSeriesDates(_ classes: [GroupClass]) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "EEE M/d" // "Mon 3/10"
+        
+        let dates = classes.map { dateFormatter.string(from: $0.startTime) }
+        return dates.joined(separator: ", ")
     }
 }

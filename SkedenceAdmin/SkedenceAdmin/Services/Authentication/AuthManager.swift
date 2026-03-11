@@ -323,7 +323,6 @@ final class AuthManager: ObservableObject {
                     
                     if let trainerDoc = trainersSnapshot.documents.first {
                         self.trainerId = trainerDoc.documentID
-                        print("✅ Found trainerId: \(trainerDoc.documentID) for role: \(self.currentOrgRole ?? "nil")")
                     } else {
                         // Fallback to userId from orgMembers
                         self.trainerId = userIdFromDoc
@@ -358,19 +357,14 @@ final class AuthManager: ObservableObject {
     func loadTrainerId(userId: String, orgId: String) async {
         #if canImport(FirebaseFirestore)
         do {
-            print("🔍 loadTrainerId: Starting for userId: \(userId), orgId: \(orgId)")
             let db = Firestore.firestore()
             
             // Query trainers collection by orgId and email matching the userId's email
             // First get the user's email from users collection or auth
-            print("🔍 loadTrainerId: Fetching user document...")
             let userDoc = try? await db.collection("users").document(userId).getDocument()
             let userEmail = userDoc?.data()?["email"] as? String ?? userDoc?.data()?["emailAddress"] as? String ?? self.userEmail
             
-            print("🔍 loadTrainerId: User email: \(userEmail ?? "none")")
-            
             if let email = userEmail {
-                print("🔍 loadTrainerId: Querying trainers collection...")
                 let trainersSnapshot = try await db.collection("trainers")
                     .whereField("orgId", isEqualTo: orgId)
                     .whereField("email", isEqualTo: email)
@@ -379,7 +373,6 @@ final class AuthManager: ObservableObject {
                 
                 if let trainerDoc = trainersSnapshot.documents.first {
                     self.trainerId = trainerDoc.documentID
-                    print("✅ loadTrainerId: Found trainerId: \(trainerDoc.documentID)")
                 } else {
                     self.trainerId = nil
                     print("⚠️ loadTrainerId: No trainer document found")
@@ -407,9 +400,7 @@ final class AuthManager: ObservableObject {
         
         #if canImport(FirebaseFirestore)
         do {
-            print("🔍 loadOrgBranding: Starting for orgId: \(orgId)")
             let db = Firestore.firestore()
-            print("🔍 loadOrgBranding: Fetching organization document...")
             let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
             
             guard let orgData = orgDoc.data() else {
@@ -456,8 +447,6 @@ final class AuthManager: ObservableObject {
                 // Block if status is past_due, canceled, or unpaid
                 self.isBillingBlocked = ["past_due", "canceled", "unpaid"].contains(self.billingStatus)
             }
-            
-            print("✅ loadOrgBranding: Complete")
             
             // Load user profile data (firstName, lastName)
             if let authUserId = userId, !authUserId.isEmpty {

@@ -144,7 +144,10 @@ private struct SignedInProfileScreen: View {
                 await bookingsService.loadMyBookings(orgId: orgId)
             }
             if classesService.myRegisteredClasses.isEmpty {
-                await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
+                // IMPORTANT: Use currentUserDocId (Firestore doc ID like "mike_parent"), NOT currentUserId (Auth UID)
+                // ClassesRepository queries classRegistrations by clientId which is the Firestore document ID
+                guard let userDocId = auth.currentUserDocId else { return }
+                await classesService.loadMyRegisteredClasses(userId: userDocId, orgId: orgId)
             }
             if customerService.paymentMethods.isEmpty {
                 await customerService.loadPaymentMethods(orgId: orgId)
@@ -153,11 +156,16 @@ private struct SignedInProfileScreen: View {
             await pricingService.loadPricingStructure(for: orgId)
         }
         .refreshable {
-            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
+            guard let orgId = auth.currentOrgId else { return }
+            // IMPORTANT: Use currentUserDocId (Firestore doc ID like "mike_parent"), NOT currentUserId (Auth UID)
+            // ClassesRepository queries classRegistrations by clientId which is the Firestore document ID
+            let userDocId = auth.currentUserDocId
             await usersService.loadCurrentUserIfAvailable()
             await packagesService.loadMyPackages(orgId: auth.currentOrgId)
             await bookingsService.loadMyBookings(orgId: orgId)
-            await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
+            if let userDocId = userDocId {
+                await classesService.loadMyRegisteredClasses(userId: userDocId, orgId: orgId)
+            }
             await customerService.loadPaymentMethods(orgId: orgId)
             await pricingService.loadPricingStructure(for: orgId)
         }

@@ -502,8 +502,6 @@ class ClientCardViewModel: ObservableObject {
             return
         }
         
-        print("🔍 ClientCardView: Checking admin status for email: \(email), authUserId: \(authUserId), orgId: \(orgId ?? "nil")")
-        
         do {
             let db = Firestore.firestore()
             
@@ -518,11 +516,9 @@ class ClientCardViewModel: ObservableObject {
                 
                 if let memberDoc = orgMemberQuery.documents.first {
                     let role = memberDoc.data()["role"] as? String
-                    print("🔍 ClientCardView: Found orgMember role: \(role ?? "nil")")
                     
                     // Admin role has full access. Owner role kept for backward compatibility.
                     isAdmin = (role == "admin" || role == "owner")
-                    print("✅ ClientCardView: isAdmin from orgMembers = \(isAdmin)")
                     return
                 }
             }
@@ -538,13 +534,10 @@ class ClientCardViewModel: ObservableObject {
             
             if let trainerDoc = snapshot.documents.first {
                 let data = trainerDoc.data()
-                print("🔍 ClientCardView: Found trainer doc: \(trainerDoc.documentID)")
                 
                 // Check both 'admin' and 'isAdmin' fields for compatibility
                 let adminValue = data["admin"] as? Bool ?? data["isAdmin"] as? Bool ?? false
                 isAdmin = adminValue
-                
-                print("✅ ClientCardView: isAdmin from trainer doc = \(isAdmin)")
             } else {
                 print("⚠️ ClientCardView: No trainer document found for email: \(email)")
                 isAdmin = false

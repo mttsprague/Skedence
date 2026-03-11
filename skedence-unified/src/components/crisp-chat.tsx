@@ -32,7 +32,6 @@ export default function CrispChat() {
     '/clients',
     '/trainers',
     '/bookings',
-    '/schedule',
     '/scheduling',
     '/passes',
     '/pricing',

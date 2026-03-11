@@ -10,10 +10,22 @@ import SwiftUI
 struct EventCell: View {
     let slot: TrainerScheduleSlot
     let viewingTrainerId: String?
+    var viewModel: ScheduleViewModel? = nil // Optional: for class title lookup
+
+    var displayText: String {
+        // If this is a class, try to get title from cache first
+        if slot.isClass, let classId = slot.classId, let vm = viewModel {
+            if let cachedTitle = vm.classTitlesByClassId[classId] {
+                return cachedTitle
+            }
+        }
+        // Fall back to slot's displayTitle
+        return slot.displayTitle
+    }
 
     var body: some View {
         VStack(spacing: 2) {
-            Text(slot.displayTitle)
+            Text(displayText)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.white)
                 .lineLimit(2)

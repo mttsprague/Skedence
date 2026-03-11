@@ -14,6 +14,37 @@ import { logTrainerCreated, logTrainerActivated, logTrainerDeactivated } from '@
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
 import { trackPageView } from '@/lib/analytics';
 
+// Helper function to sanitize names for IDs (matches iOS IDGenerator)
+const sanitizeName = (name: string): string => {
+  return name
+    .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .toLowerCase();
+};
+
+// Generate human-readable trainer ID (firstName_lastName format)
+const generateTrainerId = async (firstName: string, lastName: string): Promise<string> => {
+  const sanitizedFirst = sanitizeName(firstName);
+  const sanitizedLast = sanitizeName(lastName);
+  const baseName = `${sanitizedFirst}_${sanitizedLast}`;
+  
+  // Check if ID exists, append number if needed
+  let id = baseName;
+  let counter = 2;
+  
+  while (true) {
+    const docRef = doc(db, 'trainers', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return id;
+    }
+    
+    id = `${baseName}_${counter}`;
+    counter++;
+  }
+};
+
 export default function TrainersPage() {
   const { orgId, user, userData } = useAuthHook();
   const [trainers, setTrainers] = useState<User[]>([]);
@@ -308,10 +339,10 @@ export default function TrainersPage() {
     setAddError(null);
 
     try {
-      // Generate a unique ID for this trainer
-      const trainerRef = doc(collection(db, 'trainers'));
-      const trainerId = trainerRef.id;
+      // Generate human-readable trainer ID (firstName_lastName format)
+      const trainerId = await generateTrainerId(newTrainer.firstName, newTrainer.lastName);
       const userId = trainerId; // Trainers use their trainerId as userId
+      const trainerRef = doc(db, 'trainers', trainerId);
 
       // Generate secure setup token (valid for 7 days)
       const setupToken = crypto.randomUUID();

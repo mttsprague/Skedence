@@ -171,6 +171,7 @@ struct AllTrainersDayView: View {
                 gridHeaderVPad: gridHeaderVPad,
                 horizontalPaddingPerCell: horizontalPaddingPerCell,
                 headerRowHeight: headerRowHeight,
+                scheduleViewModel: scheduleViewModel,
                 hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
                 slotFor: { trainerId, hour in
                     viewModel.slotFor(trainerId: trainerId, atHour: hour)
@@ -628,6 +629,7 @@ private struct AllTrainersDayGrid: View {
     let gridHeaderVPad: CGFloat
     let horizontalPaddingPerCell: CGFloat
     let headerRowHeight: CGFloat
+    let scheduleViewModel: ScheduleViewModel?
 
     @Binding var hasScrolledToCurrentTime: Bool
 
@@ -650,6 +652,7 @@ private struct AllTrainersDayGrid: View {
             calculatedTrainerWidth: calculatedTrainerWidth,
             horizontalPaddingPerCell: horizontalPaddingPerCell,
             selectedDate: selectedDate,
+            scheduleViewModel: scheduleViewModel,
             hasScrolledToCurrentTime: $hasScrolledToCurrentTime,
             slotFor: slotFor,
             onSlotTap: onSlotTap,
@@ -689,6 +692,7 @@ private struct ScrollableGridContent: View {
     let calculatedTrainerWidth: CGFloat
     let horizontalPaddingPerCell: CGFloat
     let selectedDate: Date
+    let scheduleViewModel: ScheduleViewModel?
 
     @Binding var hasScrolledToCurrentTime: Bool
 
@@ -809,11 +813,14 @@ private struct ScrollableGridContent: View {
                                                 ForEach(slots) { slot in
                                                     if let yOffset = slotYOffset(for: slot),
                                                        let height = slotHeight(for: slot) {
+                                                        // Account for horizontal padding in width calculation
+                                                        let effectiveWidth = dynamicTrainerWidth - (horizontalPaddingPerCell * 2)
+                                                        
                                                         Button(action: {
                                                             onSlotTap(slot)
                                                         }) {
-                                                            EventCell(slot: slot, viewingTrainerId: trainerId)
-                                                                .frame(width: dynamicTrainerWidth, height: height)
+                                                            EventCell(slot: slot, viewingTrainerId: trainerId, viewModel: scheduleViewModel)
+                                                                .frame(width: effectiveWidth, height: height)
                                                                 .padding(.horizontal, horizontalPaddingPerCell)
                                                         }
                                                         .buttonStyle(PlainButtonStyle())

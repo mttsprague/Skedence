@@ -152,7 +152,10 @@ final class AdminService: ObservableObject {
         trainerId: String,
         trainerName: String,
         priceInCents: Int,
-        eligiblePackageIds: [String] = []
+        eligiblePackageIds: [String] = [],
+        seriesId: String? = nil,
+        isPartOfSeries: Bool = false,
+        totalSeriesClasses: Int = 1
     ) async throws {
         guard let uid = Auth.auth().currentUser?.uid else {
             throw AdminServiceError.notAuthenticated
@@ -178,7 +181,7 @@ final class AdminService: ObservableObject {
             throw AdminServiceError.invalidInput("End time must be after start time")
         }
         
-        let classData: [String: Any] = [
+        var classData: [String: Any] = [
             "orgId": orgId,
             "title": title,
             "description": description,
@@ -195,6 +198,13 @@ final class AdminService: ObservableObject {
             "priceInCents": priceInCents,
             "eligiblePackageIds": eligiblePackageIds
         ]
+        
+        // Add series fields if this is part of a multi-day series
+        if let seriesId = seriesId {
+            classData["seriesId"] = seriesId
+            classData["isPartOfSeries"] = isPartOfSeries
+            classData["totalSeriesClasses"] = totalSeriesClasses
+        }
         
         // Generate human-readable class ID
         let classId = try await IDGenerator.generateClassId(className: title, startTime: startTime)
@@ -296,7 +306,10 @@ final class AdminService: ObservableObject {
         trainerId: String,
         trainerName: String,
         priceInCents: Int,
-        eligiblePackageIds: [String] = []
+        eligiblePackageIds: [String] = [],
+        seriesId: String? = nil,
+        isPartOfSeries: Bool? = nil,
+        totalSeriesClasses: Int? = nil
     ) async throws {
         guard isAdmin else {
             throw AdminServiceError.notAuthorized
@@ -319,7 +332,7 @@ final class AdminService: ObservableObject {
         }
         
         // Update the class document
-        try await db.collection("classes").document(classId).updateData([
+        var updateData: [String: Any] = [
             "title": title,
             "description": description,
             "startTime": Timestamp(date: startTime),
@@ -330,7 +343,20 @@ final class AdminService: ObservableObject {
             "trainerName": trainerName,
             "priceInCents": priceInCents,
             "eligiblePackageIds": eligiblePackageIds
-        ])
+        ]
+        
+        // Add series fields if provided
+        if let seriesId = seriesId {
+            updateData["seriesId"] = seriesId
+        }
+        if let isPartOfSeries = isPartOfSeries {
+            updateData["isPartOfSeries"] = isPartOfSeries
+        }
+        if let totalSeriesClasses = totalSeriesClasses {
+            updateData["totalSeriesClasses"] = totalSeriesClasses
+        }
+        
+        try await db.collection("classes").document(classId).updateData(updateData)
         
         // Remove old bookings from the assigned trainer's schedule only
         let schedulesQuery = db.collection("trainers").document(trainerId)
@@ -463,7 +489,6 @@ final class AdminService: ObservableObject {
             print("   User data: \(userDoc.data() ?? [:])")
             throw AdminServiceError.userNotFound
         }
-        print("✅ Found orgId: \(orgId)")
         
         // Load pricing structure to get packageCategory and packageName
         let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
@@ -539,7 +564,6 @@ final class AdminService: ObservableObject {
                 .collection("packages")
                 .document(packageId)
                 .setData(passData)
-            print("✅ Pass write successful!")
         } catch {
             print("❌ Pass write FAILED: \(error.localizedDescription)")
             print("   Error details: \(error)")
@@ -568,15 +592,12 @@ final class AdminService: ObservableObject {
         }
         
         // Query user document to get orgId
-        print("🔍 removePassFromClient: Fetching user document for clientId: \(clientId)")
         let userDoc = try await db.collection("users").document(clientId).getDocument()
         guard let orgId = userDoc.data()?["orgId"] as? String else {
             throw AdminServiceError.operationFailed("Could not find organization ID for client")
         }
-        print("✅ Found orgId: \(orgId)")
         
         // Query STANDARD path: organizations/{orgId}/users/{clientId}/packages
-        print("🔍 Querying packages at: organizations/\(orgId)/users/\(clientId)/packages")
         let packagesSnapshot = try await db.collection("organizations")
             .document(orgId)
             .collection("users")
@@ -585,7 +606,6 @@ final class AdminService: ObservableObject {
             .whereField("packageType", isEqualTo: passType)
             .getDocuments()
         
-        print("📦 Found \(packagesSnapshot.documents.count) packages of type: \(passType)")
         guard !packagesSnapshot.documents.isEmpty else {
             throw AdminServiceError.operationFailed("No passes of this type found for client")
         }

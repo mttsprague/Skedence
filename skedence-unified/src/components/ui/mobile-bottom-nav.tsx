@@ -46,7 +46,7 @@ const primaryNavItems: NavItem[] = [
   {
     icon: Calendar,
     label: 'Schedule',
-    href: '/schedule',
+    href: '/scheduling',
     ariaLabel: 'View and manage schedule',
   },
   {

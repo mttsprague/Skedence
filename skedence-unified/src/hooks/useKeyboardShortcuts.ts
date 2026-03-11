@@ -76,7 +76,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
           break;
         case '5':
           event.preventDefault();
-          router.push('/schedule');
+          router.push('/scheduling');
           break;
         case '6':
           event.preventDefault();
@@ -118,7 +118,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
         window.dispatchEvent(new CustomEvent('trigger-new-client'));
       } else if (pathname.includes('/trainers')) {
         window.dispatchEvent(new CustomEvent('trigger-new-trainer'));
-      } else if (pathname.includes('/schedule')) {
+      } else if (pathname.includes('/scheduling')) {
         window.dispatchEvent(new CustomEvent('trigger-new-schedule'));
       } else if (pathname.includes('/passes')) {
         window.dispatchEvent(new CustomEvent('trigger-new-pass'));

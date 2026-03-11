@@ -80,21 +80,19 @@ export const setupTrainerPassword = onCall(
     }
 
     const orgId = trainerData.orgId;
-    const userId = userRecord.uid;
+    const authUserId = userRecord.uid;
 
-    // Create or update orgMembers document (junction table)
-    const orgMemberId = `${userId}_${orgId}`;
+    // Update existing orgMembers document with authUserId
+    // Document was created by SuperAdminViewModel with format: {trainerId}_{orgId}
+    const orgMemberId = `${trainerId}_${orgId}`;
     const orgMemberRef = admin.firestore().collection("orgMembers").doc(orgMemberId);
 
-    await orgMemberRef.set({
-      userId: userId,
-      orgId: orgId,
-      role: "trainer",
-      isActive: true,
-      joinedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
+    await orgMemberRef.update({
+      authUserId: authUserId,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-    console.log(`Created orgMembers document: ${orgMemberId}`);
+    console.log(`Updated orgMembers document: ${orgMemberId} with authUserId: ${authUserId}`);
 
     // Update trainer document to remove setup token and mark as active
     await trainerRef.update({

@@ -12,6 +12,11 @@ import { format, addDays } from 'date-fns';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { toast } from '@/lib/toast';
 
+interface Location {
+  id: string;
+  name: string;
+}
+
 interface Trainer {
   id: string;
   firstName: string;
@@ -35,7 +40,9 @@ export default function AvailabilityPage() {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [selectedTrainer, setSelectedTrainer] = useState<string>('');
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingLocations, setLoadingLocations] = useState(false);
   const [adding, setAdding] = useState(false);
 
   // Form state
@@ -76,7 +83,32 @@ export default function AvailabilityPage() {
       }
     }
 
+    async function loadLocations() {
+      setLoadingLocations(true);
+      try {
+        const locationsRef = collection(db, 'locations');
+        const q = query(
+          locationsRef,
+          where('orgId', '==', orgId),
+          where('isActive', '==', true)
+        );
+        const snapshot = await getDocs(q);
+        
+        const locationsList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name || '',
+        }));
+        
+        setLocations(locationsList);
+      } catch (error) {
+        console.error('Error loading locations:', error);
+      } finally {
+        setLoadingLocations(false);
+      }
+    }
+
     loadTrainers();
+    loadLocations();
   }, [orgId]);
 
   useEffect(() => {
@@ -105,6 +137,12 @@ export default function AvailabilityPage() {
 
   const handleAddSlot = async () => {
     if (!orgId || !selectedTrainer) return;
+    
+    // Validate required fields
+    if (!newSlot.location || newSlot.location.trim() === '') {
+      alert('Location is required');
+      return;
+    }
 
     setAdding(true);
     try {
@@ -120,11 +158,8 @@ export default function AvailabilityPage() {
         slotDurationMinutes: 60,
         timezoneOffsetMinutes,
         status: 'open',
+        location: newSlot.location.trim(),
       };
-
-      if (newSlot.location) {
-        params.location = newSlot.location;
-      }
 
       if (newSlot.recurring) {
         // Recurring schedule
@@ -285,14 +320,36 @@ export default function AvailabilityPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Location</label>
-                    <input
-                      type="text"
-                      value={newSlot.location}
-                      onChange={(e) => setNewSlot({ ...newSlot, location: e.target.value })}
-                      placeholder="Optional"
-                      className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Location <span className="text-red-500">*</span>
+                    </label>
+                    {loadingLocations ? (
+                      <div className="flex items-center gap-2 text-foreground/80 py-2">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        Loading locations...
+                      </div>
+                    ) : locations.length === 0 ? (
+                      <div className="text-sm text-foreground/80 py-2 px-3 bg-background border border-input rounded-lg">
+                        No locations found. Please add locations in Business Settings → Locations.
+                      </div>
+                    ) : (
+                      <select
+                        value={newSlot.location}
+                        onChange={(e) => setNewSlot({ ...newSlot, location: e.target.value })}
+                        required
+                        className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                      >
+                        <option value="">Select location...</option>
+                        {locations.map(loc => (
+                          <option key={loc.id} value={loc.name}>
+                            {loc.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {!newSlot.location && !loadingLocations && locations.length > 0 && (
+                      <p className="text-xs text-red-600 mt-1">⚠️ Location is required</p>
+                    )}
                   </div>
 
                   {/* Recurring Options */}

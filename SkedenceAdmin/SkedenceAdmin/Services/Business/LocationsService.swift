@@ -118,11 +118,64 @@ class LocationsService: ObservableObject {
             throw LocationsServiceError.missingLocationId
         }
         
+        // Get the old location name for cascading updates
+        let oldLocationSnapshot = try await db.collection("locations").document(id).getDocument()
+        let oldLocationName = oldLocationSnapshot.data()?["name"] as? String
+        
         var updatedLocation = location
         updatedLocation.updatedAt = Timestamp(date: Date())
         
         do {
+            // Update the location document
             try db.collection("locations").document(id).setData(from: updatedLocation, merge: true)
+            
+            // CASCADE UPDATE: Update location name in all schedules, bookings, and classes
+            if let oldName = oldLocationName, oldName != location.name {
+                print("📍 Cascading location update from \"\(oldName)\" to \"\(location.name)\"")
+                
+                // Update all trainer schedules with this location
+                let trainersQuery = db.collection("trainers")
+                    .whereField("orgId", isEqualTo: location.orgId)
+                    .whereField("active", isEqualTo: true)
+                let trainersSnapshot = try await trainersQuery.getDocuments()
+                
+                var schedulesUpdated = 0
+                for trainerDoc in trainersSnapshot.documents {
+                    let schedulesQuery = trainerDoc.reference.collection("schedules")
+                        .whereField("location", isEqualTo: oldName)
+                    let schedulesSnapshot = try await schedulesQuery.getDocuments()
+                    
+                    for scheduleDoc in schedulesSnapshot.documents {
+                        try await scheduleDoc.reference.updateData(["location": location.name])
+                        schedulesUpdated += 1
+                    }
+                }
+                
+                // Update all bookings with this location
+                let bookingsQuery = db.collection("bookings")
+                    .whereField("orgId", isEqualTo: location.orgId)
+                    .whereField("location", isEqualTo: oldName)
+                let bookingsSnapshot = try await bookingsQuery.getDocuments()
+                
+                for bookingDoc in bookingsSnapshot.documents {
+                    try await bookingDoc.reference.updateData(["location": location.name])
+                }
+                let bookingsUpdated = bookingsSnapshot.documents.count
+                
+                // Update all classes with this location
+                let classesQuery = db.collection("classes")
+                    .whereField("orgId", isEqualTo: location.orgId)
+                    .whereField("location", isEqualTo: oldName)
+                let classesSnapshot = try await classesQuery.getDocuments()
+                
+                for classDoc in classesSnapshot.documents {
+                    try await classDoc.reference.updateData(["location": location.name])
+                }
+                let classesUpdated = classesSnapshot.documents.count
+                
+                let totalUpdates = schedulesUpdated + bookingsUpdated + classesUpdated
+                print("📍 Location update cascaded to \(totalUpdates) documents")
+            }
         } catch {
             throw LocationsServiceError.updateFailed(error.localizedDescription)
         }

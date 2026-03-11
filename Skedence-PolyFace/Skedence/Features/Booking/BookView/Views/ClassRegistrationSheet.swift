@@ -102,12 +102,14 @@ struct ClassRegistrationSheet: View {
     
     private var availableClassPass: LessonPackage? { availableClassPasses.first }
     
-    // Shared computed helper: whether currently selected pass has enough lessons for selected number of athletes
+    // Computed helpers for pass usage
+    private var athleteCountForSelection: Int {
+        (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
+    }
+    
     private var hasEnoughPasses: Bool {
-        let athleteCount = (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
-        let passesNeeded = athleteCount
-        let availablePasses = selectedClassPass?.lessonsRemaining ?? 0
-        return availablePasses >= passesNeeded
+        guard let pass = selectedClassPass ?? availableClassPass else { return false }
+        return pass.lessonsRemaining >= athleteCountForSelection
     }
     
     // Get all athletes from user profile (both new and legacy format)
@@ -414,14 +416,13 @@ struct ClassRegistrationSheet: View {
     }
     
     private var registrationButton: some View {
-        let athleteCount = (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
-        let passesNeeded = athleteCount
+        let athleteCount = athleteCountForSelection
         let availablePasses = selectedClassPass?.lessonsRemaining ?? 0
-        let hasEnoughPasses = availablePasses >= passesNeeded
+        let hasEnoughPassesLocal = hasEnoughPasses
         
         return VStack(spacing: Spacing.sm) {
-            if selectedClassPass != nil && !hasEnoughPasses {
-                Text("⚠️ Not enough passes. Need \(passesNeeded), have \(availablePasses)")
+            if selectedClassPass != nil && !hasEnoughPassesLocal {
+                Text("⚠️ Not enough passes. Need \(athleteCount), have \(availablePasses)")
                     .font(.bodySmall)
                     .foregroundStyle(AppTheme.error)
             }
@@ -1300,8 +1301,6 @@ struct ClassRegistrationSheet: View {
                 ] as [String: Any]
             }
         ], merge: true)
-        
-        print("✅ Saved new athlete: \(firstName) \(lastName) to profile from class registration")
         
         // Reload user profile to reflect changes
         await usersService.loadCurrentUserIfAvailable()

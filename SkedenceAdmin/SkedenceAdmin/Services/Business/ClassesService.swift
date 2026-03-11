@@ -232,6 +232,11 @@ final class ClassesService: ObservableObject {
         // Eligible package IDs (defaults to empty array for backward compatibility)
         let eligiblePackageIds = data["eligiblePackageIds"] as? [String] ?? []
         
+        // Multi-day series fields (optional)
+        let seriesId = data["seriesId"] as? String
+        let isPartOfSeries = data["isPartOfSeries"] as? Bool
+        let totalSeriesClasses = data["totalSeriesClasses"] as? Int
+        
         return GroupClass(
             id: id,
             title: title,
@@ -247,7 +252,10 @@ final class ClassesService: ObservableObject {
             createdBy: createdBy,
             createdAt: createdAt,
             priceInCents: priceInCents,
-            eligiblePackageIds: eligiblePackageIds
+            eligiblePackageIds: eligiblePackageIds,
+            seriesId: seriesId,
+            isPartOfSeries: isPartOfSeries,
+            totalSeriesClasses: totalSeriesClasses
         )
     }
 }

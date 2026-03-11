@@ -405,6 +405,13 @@ struct ClassRegistrationSheet: View {
         return package.packageType.replacingOccurrences(of: "_", with: " ").capitalized
     }
     
+    // Computed property to check if there are enough passes for the selected number of athletes
+    private var hasEnoughPasses: Bool {
+        let athleteCount = (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
+        let availablePasses = (selectedClassPass ?? availableClassPass)?.lessonsRemaining ?? 0
+        return availablePasses >= athleteCount
+    }
+    
     private var registrationButton: some View {
         let athleteCount = (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
         let passesNeeded = athleteCount
@@ -1292,8 +1299,6 @@ struct ClassRegistrationSheet: View {
                 ] as [String: Any]
             }
         ], merge: true)
-        
-        print("✅ Saved new athlete: \(firstName) \(lastName) to profile from class registration")
         
         // Reload user profile to reflect changes
         await usersService.loadCurrentUserIfAvailable()

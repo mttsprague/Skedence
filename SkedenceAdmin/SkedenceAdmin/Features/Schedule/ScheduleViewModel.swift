@@ -32,6 +32,11 @@ final class ScheduleViewModel: ObservableObject {
     @Published var showSlotLimitAlert = false
     @Published var slotLimitMessage = ""
     @Published var totalOpenSlotsCount = 0
+    
+    // Overlap detection
+    @Published var showOverlapAlert = false
+    @Published var overlapConflicts: [(name: String, type: String, time: String)] = []
+    @Published var pendingSlot: (day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String?)? = nil
 
     // State used by ScheduleView
     @Published var weekDays: [Date] = []
@@ -53,6 +58,9 @@ final class ScheduleViewModel: ObservableObject {
     
     // Class participants cache for instant presentation
     @Published var participantsByClassId: [String: [ClassParticipant]] = [:]
+    
+    // Class title cache for instant presentation
+    @Published var classTitlesByClassId: [String: String] = [:]
 
     private let scheduleRepo = ScheduleRepository()
 
@@ -108,6 +116,33 @@ final class ScheduleViewModel: ObservableObject {
         
         // Paid plans: unlimited slots
         return (true, nil)
+    }
+    
+    // Overlap confirmation handlers
+    func confirmOverlap() async {
+        guard let pending = pendingSlot else { return }
+        showOverlapAlert = false
+        
+        // Clear the pending slot temporarily to skip overlap check
+        pendingSlot = nil
+        
+        // Proceed with creation
+        await setCustomSlot(
+            on: pending.day,
+            startTime: pending.startTime,
+            endTime: pending.endTime,
+            status: pending.status,
+            location: pending.location
+        )
+        
+        // Reset state
+        overlapConflicts = []
+    }
+    
+    func cancelOverlap() {
+        showOverlapAlert = false
+        overlapConflicts = []
+        pendingSlot = nil
     }
     
     // Load all trainers (for admin selector)
@@ -325,6 +360,38 @@ final class ScheduleViewModel: ObservableObject {
         
         return participants
     }
+    
+    /// Fetch class title from Firestore and cache it
+    func fetchClassTitle(classId: String) async -> String? {
+        guard !classId.isEmpty else {
+            return nil
+        }
+        
+        // Check cache first
+        if let cached = classTitlesByClassId[classId] {
+            return cached
+        }
+        
+        let db = Firestore.firestore()
+        
+        do {
+            let doc = try await db.collection("classes")
+                .document(classId)
+                .getDocument()
+            
+            if let title = doc.data()?["title"] as? String {
+                // Cache on main actor
+                await MainActor.run {
+                    classTitlesByClassId[classId] = title
+                }
+                return title
+            }
+        } catch {
+            print("Error fetching class title: \(error.localizedDescription)")
+        }
+        
+        return nil
+    }
 
     // MARK: - Editing availability (single slot at hour granularity)
     func setSlotStatus(on day: Date, hour: Int, status: TrainerScheduleSlot.Status) async {
@@ -332,6 +399,96 @@ final class ScheduleViewModel: ObservableObject {
         guard let start = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
               let end = cal.date(byAdding: .hour, value: 1, to: start) else { return }
         await setCustomSlot(on: day, startTime: start, endTime: end, status: status)
+    }
+    
+    // Check for overlapping sessions
+    func checkForOverlaps(trainerId: String, dates: [Date], startTime: Date, duration: TimeInterval) async -> [(name: String, type: String, time: String)] {
+        var conflicts: [(name: String, type: String, time: String)] = []
+        let db = Firestore.firestore()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "h:mm a"
+        
+        for date in dates {
+            let checkStart = date
+            let checkEnd = date.addingTimeInterval(duration)
+            let calendar = Calendar.current
+            
+            // Check for overlapping classes
+            do {
+                let classesSnapshot = try await db.collection("classes")
+                    .whereField("trainerId", isEqualTo: trainerId)
+                    .whereField("orgId", isEqualTo: orgId ?? "")
+                    .getDocuments()
+                
+                for classDoc in classesSnapshot.documents {
+                    let data = classDoc.data()
+                    guard let classStartTimestamp = data["startTime"] as? Timestamp,
+                          let classEndTimestamp = data["endTime"] as? Timestamp else { continue }
+                    
+                    let classStart = classStartTimestamp.dateValue()
+                    let classEnd = classEndTimestamp.dateValue()
+                    
+                    // Check if same day
+                    if calendar.isDate(classStart, inSameDayAs: checkStart) {
+                        // Check for time overlap
+                        if (checkStart >= classStart && checkStart < classEnd) ||
+                           (checkEnd > classStart && checkEnd <= classEnd) ||
+                           (checkStart <= classStart && checkEnd >= classEnd) {
+                            let title = data["title"] as? String ?? "Class"
+                            let timeStr = "\(dateFormatter.string(from: classStart)) - \(dateFormatter.string(from: classEnd))"
+                            conflicts.append((name: title, type: "Class", time: timeStr))
+                        }
+                    }
+                }
+                
+                // Check for overlapping schedule slots
+                let schedulesSnapshot = try await db.collection("trainers")
+                    .document(trainerId)
+                    .collection("schedules")
+                    .getDocuments()
+                
+                for scheduleDoc in schedulesSnapshot.documents {
+                    let data = scheduleDoc.data()
+                    guard let scheduleStartTimestamp = data["startTime"] as? Timestamp,
+                          let scheduleEndTimestamp = data["endTime"] as? Timestamp else { continue }
+                    
+                    let scheduleStart = scheduleStartTimestamp.dateValue()
+                    let scheduleEnd = scheduleEndTimestamp.dateValue()
+                    
+                    // Check if same day
+                    if calendar.isDate(scheduleStart, inSameDayAs: checkStart) {
+                        // Check for time overlap
+                        if (checkStart >= scheduleStart && checkStart < scheduleEnd) ||
+                           (checkEnd > scheduleStart && checkEnd <= scheduleEnd) ||
+                           (checkStart <= scheduleStart && checkEnd >= scheduleEnd) {
+                            let isClassBooking = data["isClassBooking"] as? Bool ?? false
+                            let status = data["status"] as? String ?? ""
+                            let clientName = data["clientName"] as? String ?? ""
+                            
+                            let name: String
+                            let type: String
+                            if isClassBooking {
+                                name = clientName.isEmpty ? "Class" : clientName
+                                type = "Class"
+                            } else if status == "booked" {
+                                name = clientName.isEmpty ? "Lesson" : clientName
+                                type = "Lesson"
+                            } else {
+                                name = "Available Time Slot"
+                                type = "Availability"
+                            }
+                            
+                            let timeStr = "\(dateFormatter.string(from: scheduleStart)) - \(dateFormatter.string(from: scheduleEnd))"
+                            conflicts.append((name: name, type: type, time: timeStr))
+                        }
+                    }
+                }
+            } catch {
+                print("Error checking overlaps: \(error)")
+            }
+        }
+        
+        return conflicts
     }
 
     // Allows custom start/end (from the wheel editor)
@@ -363,6 +520,19 @@ final class ScheduleViewModel: ObservableObject {
             if !check.allowed, let message = check.message {
                 slotLimitMessage = message
                 showSlotLimitAlert = true
+                return
+            }
+        }
+        
+        // Check for overlaps before creating (skip if already confirmed via pendingSlot)
+        if pendingSlot == nil {
+            let duration = endTime.timeIntervalSince(startTime)
+            let conflicts = await checkForOverlaps(trainerId: trainerId, dates: [startTime], startTime: startTime, duration: duration)
+            
+            if !conflicts.isEmpty {
+                overlapConflicts = conflicts
+                pendingSlot = (day: day, startTime: startTime, endTime: endTime, status: status, location: location)
+                showOverlapAlert = true
                 return
             }
         }

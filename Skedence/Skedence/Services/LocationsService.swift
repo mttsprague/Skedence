@@ -74,7 +74,6 @@ final class LocationsService: ObservableObject {
         
         do {
             let _ = try await repository.create(location, orgId: orgId)
-            print("✅ Location added successfully")
         } catch {
             throw mapRepositoryError(error)
         }
@@ -107,7 +106,6 @@ final class LocationsService: ObservableObject {
             }
             
             try await repository.update(id: id, data: updateData, orgId: orgId)
-            print("✅ Location updated successfully")
         } catch {
             throw mapRepositoryError(error)
         }
@@ -124,7 +122,6 @@ final class LocationsService: ObservableObject {
         
         do {
             try await repository.delete(id: id, orgId: orgId)
-            print("✅ Location deleted successfully")
         } catch {
             throw mapRepositoryError(error)
         }

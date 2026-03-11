@@ -159,6 +159,5 @@ class CrashlyticsService: ObservableObject {
             userInfo: [NSLocalizedDescriptionKey: "This is a test non-fatal error"]
         )
         repository.logError(testError, context: "test")
-        print("✅ Test non-fatal error logged to Crashlytics")
     }
 }

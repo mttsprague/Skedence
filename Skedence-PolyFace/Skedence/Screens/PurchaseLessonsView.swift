@@ -730,7 +730,6 @@ struct PurchaseLessonsView: View {
                     // Call backend to confirm payment and create package
                     // Using direct mode (orgId-based) - set isDirect to true
                     try await stripeService.confirmPayment(paymentIntentId: paymentIntentId, isDirect: true)
-                    print("✅ confirmPayment succeeded, package should be allocated")
                     
                     // Track package purchase event
                     AnalyticsService.shared.logPackagePurchased(
@@ -742,9 +741,7 @@ struct PurchaseLessonsView: View {
                     // Activity logging handled by cloud functions
                     
                     // Reload packages to show the new one
-                    print("📦 Reloading packages...")
                     await packagesService.loadMyPackages(orgId: auth.currentOrgId)
-                    print("✅ Packages reloaded, count: \(packagesService.packages.count)")
                 } catch {
                     print("❌ confirmPayment failed: \(error.localizedDescription)")
                     alert = .init(title: "Error", message: "Payment succeeded but package creation failed. Please contact support. \(error.localizedDescription)")

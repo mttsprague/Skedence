@@ -36,18 +36,22 @@ export const deletePricingPackageLessons = functions.https.onCall(
 
     try {
       // Verify user is owner or admin of the organization
-      const memberDoc = await db
+      // Query by authUserId field (orgMembers docs use trainerId_orgId format)
+      const memberQuery = await db
         .collection("orgMembers")
-        .doc(`${request.auth.uid}_${orgId}`)
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
-      if (!memberDoc.exists) {
+      if (memberQuery.empty) {
         throw new functions.https.HttpsError(
           "permission-denied",
           "User is not a member of this organization"
         );
       }
 
+      const memberDoc = memberQuery.docs[0];
       const memberData = memberDoc.data();
       const role = memberData?.role;
 

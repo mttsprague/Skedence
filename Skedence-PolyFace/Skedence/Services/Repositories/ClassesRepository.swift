@@ -117,7 +117,6 @@ final class ClassesRepository: QueryableRepositoryProtocol {
     
     /// Fetch classes user is registered for
     func fetchUserRegistrations(userId: String, orgId: String) async throws -> [GroupClass] {
-        print("🔍 Querying classRegistrations for userId: \(userId), orgId: \(orgId)")
         
         // First get registration IDs
         let registrationsSnapshot = try await db.collection("classRegistrations")
@@ -150,7 +149,6 @@ final class ClassesRepository: QueryableRepositoryProtocol {
             allClasses.append(contentsOf: classes)
         }
         
-        print("✅ Total classes fetched: \(allClasses.count)")
         return allClasses.sorted { $0.startTime < $1.startTime }
     }
     
@@ -179,6 +177,11 @@ final class ClassesRepository: QueryableRepositoryProtocol {
         // Eligible package IDs (defaults to empty array for backward compatibility)
         let eligiblePackageIds = data["eligiblePackageIds"] as? [String] ?? []
         
+        // Multi-day series fields
+        let seriesId = data["seriesId"] as? String
+        let isPartOfSeries = data["isPartOfSeries"] as? Bool
+        let totalSeriesClasses = data["totalSeriesClasses"] as? Int
+        
         return GroupClass(
             id: id,
             title: title,
@@ -194,12 +197,15 @@ final class ClassesRepository: QueryableRepositoryProtocol {
             createdBy: createdBy,
             createdAt: createdAt,
             priceInCents: priceInCents,
-            eligiblePackageIds: eligiblePackageIds
+            eligiblePackageIds: eligiblePackageIds,
+            seriesId: seriesId,
+            isPartOfSeries: isPartOfSeries,
+            totalSeriesClasses: totalSeriesClasses
         )
     }
     
     private func encodeClass(_ groupClass: GroupClass, orgId: String) -> [String: Any] {
-        let data: [String: Any] = [
+        var data: [String: Any] = [
             "title": groupClass.title,
             "description": groupClass.description,
             "startTime": Timestamp(date: groupClass.startTime),
@@ -215,6 +221,17 @@ final class ClassesRepository: QueryableRepositoryProtocol {
             "priceInCents": groupClass.priceInCents,
             "orgId": orgId
         ]
+        
+        // Add series fields if present
+        if let seriesId = groupClass.seriesId {
+            data["seriesId"] = seriesId
+        }
+        if let isPartOfSeries = groupClass.isPartOfSeries {
+            data["isPartOfSeries"] = isPartOfSeries
+        }
+        if let totalSeriesClasses = groupClass.totalSeriesClasses {
+            data["totalSeriesClasses"] = totalSeriesClasses
+        }
         
         return data
     }

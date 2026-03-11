@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder";
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: "2025-02-24.acacia",
+  // apiVersion: "2024-11-20" // Commented out - using SDK default,
 });
 
 const db = admin.firestore();
@@ -16,13 +16,19 @@ const db = admin.firestore();
  */
 async function isUserAdmin(userId: string, orgId: string): Promise<boolean> {
   try {
-    // Check auth-based orgMember doc
-    const memberDoc = await db.collection('orgMembers').doc(`${userId}_${orgId}`).get();
-    if (memberDoc.exists) {
-      const memberData = memberDoc.data();
-      return memberData?.role === 'admin' && memberData?.isActive === true;
+    // Query by authUserId field (orgMembers docs use trainerId_orgId format)
+    const memberQuery = await db.collection('orgMembers')
+      .where('authUserId', '==', userId)
+      .where('orgId', '==', orgId)
+      .limit(1)
+      .get();
+    
+    if (memberQuery.empty) {
+      return false;
     }
-    return false;
+    
+    const memberData = memberQuery.docs[0].data();
+    return memberData?.role === 'admin' && memberData?.isActive === true;
   } catch (error) {
     logger.error(`Error checking admin status for user ${userId} in org ${orgId}:`, error);
     return false;
@@ -798,16 +804,21 @@ export const getBillingStatus = onCall(
 
     try {
       // Verify user is org member
-      const memberDoc = await db.collection("orgMembers")
-        .doc(`${request.auth.uid}_${orgId}`)
+      // Query by authUserId field (orgMembers docs use trainerId_orgId format)
+      const memberQuery = await db.collection("orgMembers")
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
-      if (!memberDoc.exists) {
+      if (memberQuery.empty) {
         throw new HttpsError(
           "permission-denied",
           "You are not a member of this organization"
         );
       }
+
+      const memberDoc = memberQuery.docs[0];
 
       // Get organization
       const orgDoc = await db.collection("organizations").doc(orgId).get();

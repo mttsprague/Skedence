@@ -20,12 +20,16 @@ final class BookingsRepository: QueryableRepositoryProtocol {
     // MARK: - RepositoryProtocol Methods
     
     func fetchAll(orgId: String) async throws -> [Booking] {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
+        // Resolve Auth UID to user document ID first
+        let userDocId = try await resolveUserDocumentId(authUserId: authUserId, orgId: orgId)
+        
+        // Query by clientId (user document ID) to include admin-scheduled bookings
         let snapshot = try await db.collection("bookings")
-            .whereField("clientAuthUID", isEqualTo: userId)
+            .whereField("clientId", isEqualTo: userDocId)
             .whereField("orgId", isEqualTo: orgId)
             .order(by: "startTime", descending: true)
             .getDocuments()
@@ -83,14 +87,17 @@ final class BookingsRepository: QueryableRepositoryProtocol {
     }
     
     func fetch(orderedBy field: String, descending: Bool, limit: Int?, orgId: String) async throws -> [Booking] {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
-        print("🔍 BookingsRepository: Fetching bookings for authUserId: \(userId), orgId: \(orgId)")
+        // Resolve Auth UID to user document ID first
+        let userDocId = try await resolveUserDocumentId(authUserId: authUserId, orgId: orgId)
+        print("📝 BookingsRepository: Resolved to userDocId: \(userDocId)")
         
+        // Query by clientId (user document ID) to include admin-scheduled bookings
         var query: Query = db.collection("bookings")
-            .whereField("clientAuthUID", isEqualTo: userId)
+            .whereField("clientId", isEqualTo: userDocId)
             .whereField("orgId", isEqualTo: orgId)
             .order(by: field, descending: descending)
         
@@ -104,7 +111,7 @@ final class BookingsRepository: QueryableRepositoryProtocol {
         print("📊 BookingsRepository: Found \(bookings.count) bookings")
         if !bookings.isEmpty {
             for booking in bookings.prefix(3) {
-                print("   - \(booking.id ?? "nil"): clientUID=\(booking.clientUID), orgId from doc, startTime=\(booking.startTime?.description ?? "nil")")
+                print("   - \(booking.id ?? "nil"): clientUID=\(booking.clientUID), startTime=\(booking.startTime?.description ?? "nil")")
             }
         }
         
@@ -115,14 +122,18 @@ final class BookingsRepository: QueryableRepositoryProtocol {
     
     /// Fetch upcoming bookings for current user
     func fetchUpcoming(orgId: String) async throws -> [Booking] {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
         let now = Timestamp(date: Date())
         
+        // Resolve Auth UID to user document ID first
+        let userDocId = try await resolveUserDocumentId(authUserId: authUserId, orgId: orgId)
+        
+        // Query by clientId (user document ID) to include admin-scheduled bookings
         let snapshot = try await db.collection("bookings")
-            .whereField("clientAuthUID", isEqualTo: userId)
+            .whereField("clientId", isEqualTo: userDocId)
             .whereField("orgId", isEqualTo: orgId)
             .whereField("startTime", isGreaterThan: now)
             .order(by: "startTime", descending: false)
@@ -133,15 +144,19 @@ final class BookingsRepository: QueryableRepositoryProtocol {
     
     /// Fetch bookings within date range
     func fetchInRange(from startDate: Date, to endDate: Date, orgId: String) async throws -> [Booking] {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let authUserId = Auth.auth().currentUser?.uid else {
             throw RepositoryError.unauthorized
         }
         
         let startTimestamp = Timestamp(date: startDate)
         let endTimestamp = Timestamp(date: endDate)
         
+        // Resolve Auth UID to user document ID first
+        let userDocId = try await resolveUserDocumentId(authUserId: authUserId, orgId: orgId)
+        
+        // Query by clientId (user document ID) to include admin-scheduled bookings
         let snapshot = try await db.collection("bookings")
-            .whereField("clientAuthUID", isEqualTo: userId)
+            .whereField("clientId", isEqualTo: userDocId)
             .whereField("orgId", isEqualTo: orgId)
             .whereField("startTime", isGreaterThanOrEqualTo: startTimestamp)
             .whereField("startTime", isLessThanOrEqualTo: endTimestamp)
@@ -149,6 +164,23 @@ final class BookingsRepository: QueryableRepositoryProtocol {
             .getDocuments()
         
         return snapshot.documents.map { decodeBooking(id: $0.documentID, data: $0.data()) }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Resolve Firebase Auth UID to user document ID by querying users collection
+    private func resolveUserDocumentId(authUserId: String, orgId: String) async throws -> String {
+        let snapshot = try await db.collection("users")
+            .whereField("authUserId", isEqualTo: authUserId)
+            .whereField("orgId", isEqualTo: orgId)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let doc = snapshot.documents.first else {
+            throw RepositoryError.notFound
+        }
+        
+        return doc.documentID
     }
     
     // MARK: - Encoding/Decoding

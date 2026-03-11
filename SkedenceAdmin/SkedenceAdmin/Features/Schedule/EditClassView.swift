@@ -30,6 +30,11 @@ struct EditClassView: View {
     @State private var errorMessage: String?
     @State private var selectedPackageIds: Set<String> = [] // Selected class pass package types (not UUIDs)
     
+    // Multi-day series (new feature)
+    @State private var additionalDates: [Date] = [] // Additional dates for multi-day series
+    @State private var showingDatePicker = false
+    @State private var newDate = Date()
+    
     // Computed property for active class pass packages
     private var activeClassPasses: [PackageOption] {
         guard let pricing = pricingService.pricingStructure else { return [] }
@@ -63,6 +68,97 @@ struct EditClassView: View {
                 Section("Schedule") {
                     DatePicker("Start Time", selection: $startDate)
                     DatePicker("End Time", selection: $endDate)
+                }
+                
+                // Multi-Day Series Section
+                Section {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        HStack {
+                            Text("Additional Dates (Optional)")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Spacer()
+                            
+                            // Only allow adding dates if NOT already part of a series
+                            if classItem.seriesId == nil {
+                                Button {
+                                    newDate = Calendar.current.date(byAdding: .day, value: 1, to: startDate) ?? Date()
+                                    showingDatePicker = true
+                                } label: {
+                                    HStack(spacing: Spacing.xs) {
+                                        Image(systemName: "plus.circle.fill")
+                                        Text("Add Day")
+                                    }
+                                    .font(.bodyMedium.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, Spacing.sm)
+                                    .padding(.vertical, Spacing.xs)
+                                    .background(AppTheme.primary)
+                                    .cornerRadius(CornerRadius.sm)
+                                }
+                            }
+                        }
+                        
+                        if classItem.seriesId != nil {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text("This class is part of a series. Edit each class separately to modify dates.")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            .padding(Spacing.sm)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(CornerRadius.sm)
+                        } else {
+                            Text("Add dates to create a multi-day class series")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        
+                        if !additionalDates.isEmpty {
+                            VStack(spacing: Spacing.xs) {
+                                ForEach(Array(additionalDates.enumerated()), id: \.offset) { index, date in
+                                    HStack(spacing: Spacing.sm) {
+                                        Image(systemName: "calendar")
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                        Text(date.formatted(.dateTime.month(.wide).day().year()))
+                                            .font(.bodyMedium)
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                        Spacer()
+                                        Button {
+                                            additionalDates.remove(at: index)
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundStyle(.red)
+                                        }
+                                    }
+                                    .padding(Spacing.sm)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(CornerRadius.sm)
+                                }
+                            }
+                            
+                            // Summary info
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundStyle(AppTheme.primary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Total classes: \(1 + additionalDates.count)")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.primary)
+                                    Text("New classes will use the same time and settings")
+                                        .font(.caption2)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+                            }
+                            .padding(Spacing.sm)
+                            .background(AppTheme.primary.opacity(0.1))
+                            .cornerRadius(CornerRadius.sm)
+                        }
+                    }
+                } header: {
+                    Text("Multi-Day Series")
                 }
                 
                 Section("Capacity") {
@@ -162,6 +258,40 @@ struct EditClassView: View {
             .navigationTitle("Edit Class")
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDismissToolbar()
+            .sheet(isPresented: $showingDatePicker) {
+                NavigationView {
+                    VStack(spacing: Spacing.md) {
+                        DatePicker("Select Date", selection: $newDate, in: Date()..., displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .padding()
+                        
+                        Spacer()
+                    }
+                    .navigationTitle("Add Date")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { showingDatePicker = false }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Add") {
+                                // Check for duplicates
+                                let calendar = Calendar.current
+                                let isDuplicate = additionalDates.contains { existingDate in
+                                    calendar.isDate(existingDate, inSameDayAs: newDate)
+                                } || calendar.isDate(startDate, inSameDayAs: newDate)
+                                
+                                if !isDuplicate {
+                                    additionalDates.append(newDate)
+                                    additionalDates.sort()
+                                }
+                                showingDatePicker = false
+                            }
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -252,20 +382,72 @@ struct EditClassView: View {
                 return
             }
             
-            try await adminService.updateClass(
-                classId: classId,
-                orgId: orgId,
-                title: title,
-                description: description,
-                startTime: startDate,
-                endTime: endDate,
-                maxParticipants: maxParticipants,
-                location: location,
-                trainerId: trainerId,
-                trainerName: trainerName,
-                priceInCents: 0,
-                eligiblePackageIds: Array(selectedPackageIds)
-            )
+            // If additional dates were added, create a multi-day series
+            if !additionalDates.isEmpty {
+                // Generate a series ID for the new multi-day series
+                let seriesId = "series_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(9))"
+                let duration = endDate.timeIntervalSince(startDate)
+                let totalClasses = 1 + additionalDates.count
+                
+                // Update the original class to be part of the series
+                try await adminService.updateClass(
+                    classId: classId,
+                    orgId: orgId,
+                    title: title,
+                    description: description,
+                    startTime: startDate,
+                    endTime: endDate,
+                    maxParticipants: maxParticipants,
+                    location: location,
+                    trainerId: trainerId,
+                    trainerName: trainerName,
+                    priceInCents: 0,
+                    eligiblePackageIds: Array(selectedPackageIds),
+                    seriesId: seriesId,
+                    isPartOfSeries: true,
+                    totalSeriesClasses: totalClasses
+                )
+                
+                // Create new classes for additional dates
+                for date in additionalDates {
+                    let classStartTime = date
+                    let classEndTime = date.addingTimeInterval(duration)
+                    
+                    try await adminService.createClass(
+                        orgId: orgId,
+                        title: title,
+                        description: description,
+                        startTime: classStartTime,
+                        endTime: classEndTime,
+                        maxParticipants: maxParticipants,
+                        location: location,
+                        trainerId: trainerId,
+                        trainerName: trainerName,
+                        priceInCents: 0,
+                        eligiblePackageIds: Array(selectedPackageIds),
+                        seriesId: seriesId,
+                        isPartOfSeries: true,
+                        totalSeriesClasses: totalClasses
+                    )
+                }
+            } else {
+                // Normal update without series
+                try await adminService.updateClass(
+                    classId: classId,
+                    orgId: orgId,
+                    title: title,
+                    description: description,
+                    startTime: startDate,
+                    endTime: endDate,
+                    maxParticipants: maxParticipants,
+                    location: location,
+                    trainerId: trainerId,
+                    trainerName: trainerName,
+                    priceInCents: 0,
+                    eligiblePackageIds: Array(selectedPackageIds)
+                )
+            }
+            
             onUpdated()
             dismiss()
         } catch {

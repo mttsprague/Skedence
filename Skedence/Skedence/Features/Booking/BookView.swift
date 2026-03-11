@@ -98,12 +98,33 @@ struct BookView: View {
         return sorted
     }
     
-    // Get available classes (excluding past classes)
+    // Get available classes (excluding past classes, only first class of multi-day series)
     private var availableClasses: [GroupClass] {
         let now = Date()
-        return classesService.classes.filter { classItem in
+        let futureClasses = classesService.classes.filter { classItem in
             classItem.startTime >= now
         }
+        
+        // Filter to only show first class of multi-day series
+        var seenSeries = Set<String>()
+        var filtered: [GroupClass] = []
+        
+        for classItem in futureClasses {
+            if let seriesId = classItem.seriesId, classItem.isPartOfSeries == true {
+                // This is part of a multi-day series
+                if !seenSeries.contains(seriesId) {
+                    // First occurrence of this series - include it
+                    seenSeries.insert(seriesId)
+                    filtered.append(classItem)
+                }
+                // Skip subsequent classes in the same series
+            } else {
+                // Single-day class or no series - always include
+                filtered.append(classItem)
+            }
+        }
+        
+        return filtered
     }
     
     // Filter classes by search text
@@ -483,8 +504,6 @@ struct BookView: View {
                 ] as [String: Any]
             }
         ], merge: true)
-        
-        print("✅ Saved new athlete: \(firstName) \(lastName) to profile")
         
         // Reload user profile to reflect changes
         await usersService.loadCurrentUserIfAvailable()
@@ -1107,66 +1126,65 @@ struct BookView: View {
     }
     
     private var bookingButton: some View {
-            Button {
-                // Validate all requirements and show specific error messages
-                if selectedTrainer == nil {
-                    bookingAlert = .init(
-                        title: "Trainer Required",
-                        message: "Please select a trainer to continue booking."
-                    )
-                    return
-                }
-                
-                if selectedSlot == nil {
-                    bookingAlert = .init(
-                        title: "Time Slot Required",
-                        message: "Please select a time slot to continue booking."
-                    )
-                    return
-                }
-                
-                if !packagesService.hasAvailableLessons {
-                    bookingAlert = .init(
-                        title: "No Available Passes",
-                        message: "Please purchase lesson passes to continue booking. Visit the Profile tab to buy lessons."
-                    )
-                    return
-                }
-                
-                if availableLessonPackages.count > 0 && selectedPackage == nil {
-                    bookingAlert = .init(
-                        title: "Pass Selection Required",
-                        message: "Please select which pass you'd like to use for this booking."
-                    )
-                    return
-                }
-                
-                if !isAthleteInfoComplete {
-                    bookingAlert = .init(
-                        title: "Athlete Information Required",
-                        message: "Please complete all required athlete information fields to continue."
-                    )
-                    return
-                }
-                
-                // All validations passed, proceed with booking
-                Task { await performBooking() }
+        Button {
+            // Validate all requirements and show specific error messages
+            if selectedTrainer == nil {
+                bookingAlert = .init(
+                    title: "Trainer Required",
+                    message: "Please select a trainer to continue booking."
+                )
+                return
             }
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    if bookingInFlight {
-                        ProgressView().tint(.white)
-                    } else if !packagesService.hasAvailableLessons {
-                        Image(systemName: "cart.badge.plus")
-                    }
-                    Text(bookButtonText)
-                }
+            
+            if selectedSlot == nil {
+                bookingAlert = .init(
+                    title: "Time Slot Required",
+                    message: "Please select a time slot to continue booking."
+                )
+                return
             }
-            .buttonStyle(PrimaryButtonStyle())
-            .disabled(bookingInFlight)
-            .opacity(bookingInFlight ? 0.5 : 1.0)
-            .padding(.horizontal, Spacing.lg)
-            .padding(.top, Spacing.md)
+            
+            if !packagesService.hasAvailableLessons {
+                bookingAlert = .init(
+                    title: "No Available Passes",
+                    message: "Please purchase lesson passes to continue booking. Visit the Profile tab to buy lessons."
+                )
+                return
+            }
+            
+            if availableLessonPackages.count > 0 && selectedPackage == nil {
+                bookingAlert = .init(
+                    title: "Pass Selection Required",
+                    message: "Please select which pass you'd like to use for this booking."
+                )
+                return
+            }
+            
+            if !isAthleteInfoComplete {
+                bookingAlert = .init(
+                    title: "Athlete Information Required",
+                    message: "Please complete all required athlete information fields to continue."
+                )
+                return
+            }
+            
+            // All validations passed, proceed with booking
+            Task { await performBooking() }
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                if bookingInFlight {
+                    ProgressView().tint(.white)
+                } else if !packagesService.hasAvailableLessons {
+                    Image(systemName: "cart.badge.plus")
+                }
+                Text(bookButtonText)
+            }
+        }
+        .buttonStyle(PrimaryButtonStyle())
+        .disabled(bookingInFlight)
+        .opacity(bookingInFlight ? 0.5 : 1.0)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.top, Spacing.md)
     }
     
     private var noPassesWarning: some View {
@@ -1737,8 +1755,6 @@ struct BookView: View {
                     ] as [String: Any]
                 }
             ], merge: true)
-            
-            print("✅ Updated athlete info for: \(athleteName)")
         } else {
             // Check legacy athlete fields
             var updates: [String: Any] = [:]

@@ -168,7 +168,8 @@ struct SettingsView: View {
         if let settings = settingsService.settings {
             minBookingHours = settings.minBookingHours
             minCancellationHours = settings.minCancellationHours
-            maxBookingsPerLocation = settings.maxBookingsPerLocation
+            // maxBookingsPerLocation is optional in OrgSettings, coalesce to a default for UI
+            maxBookingsPerLocation = settings.maxBookingsPerLocation ?? maxBookingsPerLocation
         }
     }
     
@@ -200,3 +201,4 @@ struct SettingsView: View {
     SettingsView()
         .environmentObject(AuthManager())
 }
+

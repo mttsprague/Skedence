@@ -21,7 +21,7 @@ interface CreatePaymentIntentDirectData {
  * No platform fees or Connect involved
  */
 export const createPaymentIntentDirect = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Temporarily disabled until AppCheck is configured for production
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -91,7 +91,7 @@ export const createPaymentIntentDirect = onCall(
 
       // Initialize Stripe with organization's secret key
       const stripe = new Stripe(orgData.stripe.secretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
       // Validate amount against organization's pricing
@@ -250,7 +250,7 @@ export const createPaymentIntentDirect = onCall(
       // Create ephemeral key for customer to enable saved payment methods
       const ephemeralKey = await stripe.ephemeralKeys.create(
         {customer: customerId},
-        {apiVersion: "2025-02-24"}
+        {apiVersion: "2025-02-24.acacia"}
       );
 
       return {
@@ -286,7 +286,7 @@ export const createPaymentIntentDirect = onCall(
  * Create and confirm payment intent using saved payment method
  */
 export const createAndConfirmPaymentDirect = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Temporarily disabled until AppCheck is configured for production
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -357,7 +357,7 @@ export const createAndConfirmPaymentDirect = onCall(
 
       // Initialize Stripe with organization's secret key
       const stripe = new Stripe(orgData.stripe.secretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
 
@@ -633,7 +633,7 @@ export const createAndConfirmPaymentDirect = onCall(
  * Used after Payment Sheet completes a payment created with createPaymentIntentDirect
  */
 export const confirmPaymentAndCreatePackageDirect = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false }, // Temporarily disabled until AppCheck is configured for production
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -674,7 +674,7 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
           if (!orgData?.stripe?.secretKey) continue;
 
           const orgStripe = new Stripe(orgData.stripe.secretKey, {
-            apiVersion: "2025-02-24.acacia",
+            // apiVersion: "2024-11-20" // Commented out - using SDK default,
           });
 
           const pi = await orgStripe.paymentIntents.retrieve(paymentIntentId);

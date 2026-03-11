@@ -203,21 +203,15 @@ struct PasswordSetupView: View {
             ])
             
             
-            // 4. Update orgMembers - create/update auth-based document only
+            // 4. Update orgMembers with authUserId
             if let orgId = trainerData["orgId"] as? String {
-                // Create auth-based orgMember document (ONLY pattern)
-                let authBasedDocId = "\(firebaseUid)_\(orgId)"
+                // Update existing orgMember document (trainerId_orgId format) with authUserId
+                let memberDocId = "\(trainerId)_\(orgId)"
                 
-                let memberData: [String: Any] = [
-                    "userId": trainerId,
+                try await db.collection("orgMembers").document(memberDocId).updateData([
                     "authUserId": firebaseUid,
-                    "orgId": orgId,
-                    "role": trainerData["role"] as? String ?? "trainer",
-                    "isActive": trainerData["active"] as? Bool ?? true,
-                    "updatedAt": Timestamp()
-                ]
-                
-                try await db.collection("orgMembers").document(authBasedDocId).setData(memberData, merge: true)
+                    "updatedAt": Timestamp(date: Date())
+                ])
             }
             
             // 5. Success - auth listener will handle navigation

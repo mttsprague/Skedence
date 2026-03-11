@@ -36,7 +36,6 @@ final class PackagesRepository: QueryableRepositoryProtocol {
         }
         
         let userId = userDoc.documentID  // This is the name-based document ID
-        print("✅ PackagesRepository: Found userId: \(userId) for authUserId: \(authUserId)")
         
         // Query STANDARD path: organizations/{orgId}/users/{userId}/packages
         let snapshot = try await db.collection("organizations")
@@ -47,7 +46,6 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             .order(by: "purchaseDate", descending: true)
             .getDocuments()
         
-        print("✅ PackagesRepository: Loaded \(snapshot.documents.count) packages")
         return snapshot.documents.compactMap { doc in
             decodePackage(id: doc.documentID, data: doc.data())
         }

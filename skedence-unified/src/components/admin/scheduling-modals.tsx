@@ -177,7 +177,7 @@ export function BookLessonModal({
         trainerId,
         slotId, // Use the slot ID passed from the parent (actual document ID)
         lessonPackageId: selectedPackageId,
-        clientId: selectedClientId, // Pass the selected client's ID
+        clientId: selectedClientId, // ✅ Passes client document ID (firstName_lastName format)
       });
 
       onSuccess();
@@ -363,6 +363,9 @@ export function CreateAvailabilityModal({
   const [recurringStartDate, setRecurringStartDate] = useState('');
   const [recurringEndDate, setRecurringEndDate] = useState('');
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
+  const [showOverlapDialog, setShowOverlapDialog] = useState(false);
+  const [overlapConflicts, setOverlapConflicts] = useState<Array<{ name: string; type: string; time: string }>>([]);
+  const [pendingCreation, setPendingCreation] = useState(false);
 
   useEffect(() => {
     if (isOpen && orgId) {
@@ -407,6 +410,86 @@ export function CreateAvailabilityModal({
     }
   };
 
+  // Check for overlapping sessions
+  const checkForOverlaps = async (dates: string[], startHour: number, startMin: number, endHour: number, endMin: number): Promise<Array<{ name: string; type: string; time: string }>> => {
+    // Guard: trainerId is required for overlap checking
+    if (!trainerId) {
+      console.warn('trainerId is undefined, skipping overlap check');
+      return [];
+    }
+    
+    const conflicts: Array<{ name: string; type: string; time: string }> = [];
+    
+    for (const dateStr of dates) {
+      const checkStart = new Date(dateStr);
+      checkStart.setHours(startHour, startMin, 0, 0);
+      const checkEnd = new Date(dateStr);
+      checkEnd.setHours(endHour, endMin, 0, 0);
+      
+      // Check for overlapping classes
+      const classesQuery = query(
+        collection(db, 'classes'),
+        where('trainerId', '==', trainerId),
+        where('orgId', '==', orgId)
+      );
+      const classesSnapshot = await getDocs(classesQuery);
+      
+      for (const classDoc of classesSnapshot.docs) {
+        const classData = classDoc.data();
+        const classStart = classData.startTime.toDate();
+        const classEnd = classData.endTime.toDate();
+        
+        // Check if times overlap on the same day
+        if (format(classStart, 'yyyy-MM-dd') === dateStr) {
+          if (
+            (checkStart >= classStart && checkStart < classEnd) ||
+            (checkEnd > classStart && checkEnd <= classEnd) ||
+            (checkStart <= classStart && checkEnd >= classEnd)
+          ) {
+            conflicts.push({
+              name: classData.title,
+              type: 'Class',
+              time: `${format(classStart, 'h:mm a')} - ${format(classEnd, 'h:mm a')}`
+            });
+          }
+        }
+      }
+      
+      // Check for overlapping schedule slots (lessons/availability)
+      const schedulesRef = collection(db, 'trainers', trainerId, 'schedules');
+      const schedulesSnapshot = await getDocs(schedulesRef);
+      
+      for (const scheduleDoc of schedulesSnapshot.docs) {
+        const scheduleData = scheduleDoc.data();
+        const scheduleStart = scheduleData.startTime.toDate();
+        const scheduleEnd = scheduleData.endTime.toDate();
+        
+        // Check if times overlap on the same day
+        if (format(scheduleStart, 'yyyy-MM-dd') === dateStr) {
+          if (
+            (checkStart >= scheduleStart && checkStart < scheduleEnd) ||
+            (checkEnd > scheduleStart && checkEnd <= scheduleEnd) ||
+            (checkStart <= scheduleStart && checkEnd >= scheduleEnd)
+          ) {
+            const conflictName = scheduleData.isClassBooking 
+              ? scheduleData.clientName || 'Class'
+              : scheduleData.status === 'booked'
+                ? scheduleData.clientName || 'Lesson'
+                : 'Available Time Slot';
+            
+            conflicts.push({
+              name: conflictName,
+              type: scheduleData.isClassBooking ? 'Class' : (scheduleData.status === 'booked' ? 'Lesson' : 'Availability'),
+              time: `${format(scheduleStart, 'h:mm a')} - ${format(scheduleEnd, 'h:mm a')}`
+            });
+          }
+        }
+      }
+    }
+    
+    return conflicts;
+  };
+
   const handleCreate = async () => {
     if (!trainerId || !orgId) {
       setError('Missing trainer or organization');
@@ -421,6 +504,34 @@ export function CreateAvailabilityModal({
     if (isRecurring && selectedWeekdays.length === 0) {
       setError('Please select at least one day of the week');
       return;
+    }
+
+    // Check for overlaps before creating (skip if already confirmed)
+    if (!pendingCreation) {
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      
+      // Generate list of dates to check
+      const datesToCheck: string[] = [];
+      if (isRecurring && recurringStartDate && recurringEndDate) {
+        const start = new Date(recurringStartDate);
+        const end = new Date(recurringEndDate);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          if (selectedWeekdays.length === 0 || selectedWeekdays.includes(d.getDay())) {
+            datesToCheck.push(format(d, 'yyyy-MM-dd'));
+          }
+        }
+      } else {
+        datesToCheck.push(format(slotDate, 'yyyy-MM-dd'));
+      }
+      
+      const conflicts = await checkForOverlaps(datesToCheck, startHour, startMin, endHour, endMin);
+      
+      if (conflicts.length > 0) {
+        setOverlapConflicts(conflicts);
+        setShowOverlapDialog(true);
+        return;
+      }
     }
 
     setLoading(true);
@@ -484,13 +595,87 @@ export function CreateAvailabilityModal({
       setError(err.message || 'Failed to create availability');
     } finally {
       setLoading(false);
+      setPendingCreation(false);
     }
+  };
+
+  const handleConfirmOverlap = async () => {
+    setShowOverlapDialog(false);
+    setPendingCreation(true);
+    await handleCreate();
+    setOverlapConflicts([]);
+  };
+
+  const handleCancelOverlap = () => {
+    setShowOverlapDialog(false);
+    setOverlapConflicts([]);
+    setPendingCreation(false);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <>
+      {/* Overlap Confirmation Dialog */}
+      {showOverlapDialog && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-foreground">Schedule Conflict Detected</h3>
+                <p className="text-sm text-foreground/80 mt-1">
+                  This availability overlaps with existing session(s):
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-6 max-h-60 overflow-y-auto">
+              {overlapConflicts.map((conflict, index) => (
+                <div key={index} className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm text-foreground">{conflict.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300">
+                          {conflict.type}
+                        </span>
+                        <span className="text-xs text-foreground/60">{conflict.time}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-sm text-foreground/70 mb-6">
+              Do you want to create this availability anyway? Both sessions will appear side-by-side on the schedule.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelOverlap}
+                className="flex-1 px-4 py-2 border border-input text-foreground rounded-lg hover:bg-background transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmOverlap}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Confirm & Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+        
+      {/* Main Modal */}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-foreground">Create Availability</h2>
@@ -705,6 +890,7 @@ export function CreateAvailabilityModal({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

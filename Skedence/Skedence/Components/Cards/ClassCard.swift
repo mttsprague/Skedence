@@ -13,6 +13,7 @@ struct ClassCard: View {
     let onTap: () -> Void
     @ObservedObject var classesService: ClassesService
     @State private var isRegistered = false
+    @State private var seriesClasses: [GroupClass] = []
     
     var body: some View {
         Button(action: onTap) {
@@ -27,6 +28,10 @@ struct ClassCard: View {
                                 .fontWeight(.semibold)
                             if isRegistered {
                                 BadgeView(text: "✓ You're Registered", color: AppTheme.success)
+                            }
+                            // Show multi-day indicator
+                            if classItem.isPartOfSeries == true, let total = classItem.totalSeriesClasses {
+                                BadgeView(text: "\(total)-Day Series", color: AppTheme.secondary)
                             }
                         }
                         Spacer()
@@ -50,8 +55,21 @@ struct ClassCard: View {
                     
                     // Class details
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        DetailRow(icon: "calendar", text: classItem.startTime.formatted(date: .abbreviated, time: .omitted))
-                        DetailRow(icon: "clock", text: classItem.startTime.formatted(date: .omitted, time: .shortened))
+                        // Show all dates if multi-day series
+                        if classItem.isPartOfSeries == true && !seriesClasses.isEmpty {
+                            DetailRow(
+                                icon: "calendar",
+                                text: formatSeriesDates(seriesClasses)
+                            )
+                            DetailRow(
+                                icon: "clock",
+                                text: formatSeriesTimes(seriesClasses)
+                            )
+                        } else {
+                            // Single day class
+                            DetailRow(icon: "calendar", text: classItem.startTime.formatted(date: .abbreviated, time: .omitted))
+                            DetailRow(icon: "clock", text: classItem.startTime.formatted(date: .omitted, time: .shortened))
+                        }
                         DetailRow(icon: "mappin.circle", text: classItem.location)
                         DetailRow(icon: "person.fill", text: classItem.trainerName)
                     }
@@ -83,7 +101,47 @@ struct ClassCard: View {
             } else {
                 isRegistered = false
             }
+            
+            // Load all classes in the series if this is a multi-day class
+            if classItem.isPartOfSeries == true, let seriesId = classItem.seriesId {
+                await loadSeriesClasses(seriesId)
+            }
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Load all classes in the series for displaying multiple dates
+    private func loadSeriesClasses(_ seriesId: String) async {
+        // Get all classes with this seriesId from the service's loaded classes
+        let allClasses = classesService.classes.filter { cls in
+            cls.seriesId == seriesId
+        }
+        
+        // Sort by start time to show in chronological order
+        seriesClasses = allClasses.sorted { $0.startTime < $1.startTime }
+    }
+    
+    /// Format series dates as "Mon 3/10, Tue 3/11, Wed 3/12"
+    private func formatSeriesDates(_ classes: [GroupClass]) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "EEE M/d" // "Mon 3/10"
+        
+        let dates = classes.map { dateFormatter.string(from: $0.startTime) }
+        return dates.joined(separator: ", ")
+    }
+    
+    /// Format series times as "9:00 AM - 10:00 AM" (assumes same time each day)
+    private func formatSeriesTimes(_ classes: [GroupClass]) -> String {
+        guard let firstClass = classes.first else { return "" }
+        
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "h:mm a"
+        
+        let startTime = timeFormatter.string(from: firstClass.startTime)
+        let endTime = timeFormatter.string(from: firstClass.endTime)
+        
+        return "\(startTime) - \(endTime)"
     }
 }
 

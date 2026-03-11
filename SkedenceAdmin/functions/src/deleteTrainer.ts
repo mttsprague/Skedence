@@ -61,17 +61,21 @@ export const deleteTrainer = onCall(
       const orgId = trainerData.orgId;
 
       // Verify the caller is an admin of the organization
-      const callerMembershipId = `${request.auth.uid}_${orgId}`;
-      const callerMemberDoc = await db.collection("orgMembers")
-        .doc(callerMembershipId)
+      // Query by authUserId field (orgMembers docs use trainerId_orgId format)
+      const callerMemberQuery = await db.collection("orgMembers")
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
-      if (!callerMemberDoc.exists) {
+      if (callerMemberQuery.empty) {
         throw new HttpsError(
           "permission-denied",
           "You are not a member of this organization"
         );
       }
+
+      const callerMemberDoc = callerMemberQuery.docs[0];
 
       const callerRole = callerMemberDoc.data()?.role;
       if (callerRole !== "owner" && callerRole !== "admin") {

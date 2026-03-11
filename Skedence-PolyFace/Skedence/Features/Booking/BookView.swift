@@ -98,12 +98,33 @@ struct BookView: View {
         return sorted
     }
     
-    // Get available classes (excluding past classes)
+    // Get available classes (excluding past classes, only first class of multi-day series)
     private var availableClasses: [GroupClass] {
         let now = Date()
-        return classesService.classes.filter { classItem in
+        let futureClasses = classesService.classes.filter { classItem in
             classItem.startTime >= now
         }
+        
+        // Filter to only show first class of multi-day series
+        var seenSeries = Set<String>()
+        var filtered: [GroupClass] = []
+        
+        for classItem in futureClasses {
+            if let seriesId = classItem.seriesId, classItem.isPartOfSeries == true {
+                // This is part of a multi-day series
+                if !seenSeries.contains(seriesId) {
+                    // First occurrence of this series - include it
+                    seenSeries.insert(seriesId)
+                    filtered.append(classItem)
+                }
+                // Skip subsequent classes in the same series
+            } else {
+                // Single-day class or no series - always include
+                filtered.append(classItem)
+            }
+        }
+        
+        return filtered
     }
     
     // Filter classes by search text
@@ -483,8 +504,6 @@ struct BookView: View {
                 ] as [String: Any]
             }
         ], merge: true)
-        
-        print("✅ Saved new athlete: \(firstName) \(lastName) to profile")
         
         // Reload user profile to reflect changes
         await usersService.loadCurrentUserIfAvailable()
@@ -1736,8 +1755,6 @@ struct BookView: View {
                     ] as [String: Any]
                 }
             ], merge: true)
-            
-            print("✅ Updated athlete info for: \(athleteName)")
         } else {
             // Check legacy athlete fields
             var updates: [String: Any] = [:]

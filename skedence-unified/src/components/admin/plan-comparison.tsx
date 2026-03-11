@@ -94,7 +94,7 @@ const comparisonFeatures: PlanFeature[] = [
     enterprise: true,
   },
   {
-    name: 'Custom Branding',
+    name: 'API Access',
     free: false,
     starter: false,
     studio: false,
@@ -110,7 +110,7 @@ const comparisonFeatures: PlanFeature[] = [
     enterprise: true,
   },
   {
-    name: 'API Access',
+    name: 'Custom Branding',
     free: false,
     starter: false,
     studio: false,

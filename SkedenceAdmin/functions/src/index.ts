@@ -70,6 +70,9 @@ export * from "./wallet";
 // Export password reset functions
 export * from "./passwordReset";
 
+// Export REST API for enterprise clients
+export * from "./api";
+
 const db = admin.firestore();
 
 /**
@@ -161,8 +164,22 @@ export const bookLesson = onCall(
     // - If clientId is provided (admin booking), use it directly as document ID
     // - Otherwise, query users collection by authUserId field to find document ID
     let userId: string;
+    let clientAuthUID: string = authUserId; // Default to caller's auth UID
+    
     if (clientId) {
       userId = clientId;
+      // For admin bookings, fetch the client's actual authUserId from users collection
+      const clientUserDoc = await db.collection("users").doc(clientId).get();
+      if (clientUserDoc.exists) {
+        const clientData = clientUserDoc.data();
+        if (clientData?.authUserId) {
+          clientAuthUID = clientData.authUserId as string;
+          console.log(`📝 Admin booking: Using client's authUserId: ${clientAuthUID} (not admin's: ${authUserId})`);
+        } else {
+          console.warn(`⚠️ Client document ${clientId} missing authUserId field, using clientId for queries`);
+          // If client doesn't have authUserId, queries should use clientId instead
+        }
+      }
     } else {
       // Query users collection to find document ID by authUserId field
       const userQuery = await db.collection("users")
@@ -492,7 +509,7 @@ export const bookLesson = onCall(
 
         transaction.set(newBookingRef, {
           clientUID: userId, // User document ID (firstName_lastName)
-          clientAuthUID: authUserId, // Firebase Auth UID for permission checks
+          clientAuthUID: clientAuthUID, // Client's Firebase Auth UID (NOT admin's UID)
           clientId: userId, // Add for backward compatibility with queries
           trainerId: trainerId,
           slotId: slotId, // deterministic schedule slot id
@@ -666,6 +683,14 @@ export const registerForClass = onCall(
     }
 
     try {
+      // First, get the class data to check for series (outside transaction)
+      const initialClassDoc = await classRef.get();
+      if (!initialClassDoc.exists) {
+        throw new HttpsError("not-found", "Class not found.");
+      }
+      const initialClassData = initialClassDoc.data()!;
+      const seriesId = initialClassData.seriesId as string | undefined;
+      
       await db.runTransaction(async (transaction) => {
         // Re-fetch documents in transaction
         const userDocTx = await transaction.get(userRef);
@@ -694,6 +719,38 @@ export const registerForClass = onCall(
         const userData = userDocTx.data();
         const classPassData = classPassDocTx.data();
         const classData = classDoc.data();
+
+        // Use the seriesId detected before transaction
+        let classesToRegister: Array<{id: string; ref: admin.firestore.DocumentReference; data: admin.firestore.DocumentData}> = [];
+        
+        if (seriesId) {
+          // Find all classes in this series
+          const seriesClasses = await db.collection("classes")
+            .where("seriesId", "==", seriesId)
+            .where("orgId", "==", classData.orgId)
+            .get();
+          
+          // Fetch all class documents in transaction
+          for (const doc of seriesClasses.docs) {
+            const classDocInTx = await transaction.get(doc.ref);
+            if (classDocInTx.exists) {
+              classesToRegister.push({
+                id: doc.id,
+                ref: doc.ref,
+                data: classDocInTx.data()!
+              });
+            }
+          }
+          
+          console.log(`📅 Multi-day series detected! Found ${classesToRegister.length} classes in series ${seriesId}`);
+        } else {
+          // Single class registration
+          classesToRegister = [{
+            id: classId,
+            ref: classRef,
+            data: classData
+          }];
+        }
 
         if (!userData || !classPassData || !classData) {
           throw new HttpsError(
@@ -737,122 +794,141 @@ export const registerForClass = onCall(
 
         // Count number of athletes (1 primary + optional second)
         const athleteCount = secondAthleteName ? 2 : 1;
+        
+        // Calculate total passes needed (only based on athletes, not classes)
+        // Multi-day series uses ONE pass per athlete for the entire series
+        const totalClassesInSeries = classesToRegister.length;
+        const totalPassesNeeded = athleteCount; // Changed: 1 pass covers all days
 
-        // Check if pass has enough lessons for all athletes (1 pass per athlete)
+        // Check if pass has enough lessons for athletes (not multiplied by class count)
         const remainingLessons = classPassData.totalLessons - classPassData.lessonsUsed;
-        if (remainingLessons < athleteCount) {
+        if (remainingLessons < totalPassesNeeded) {
           throw new HttpsError(
             "failed-precondition",
-            `Not enough class passes. You need ${athleteCount} pass(es), but only ${remainingLessons} remaining.`
+            `Not enough class passes. You need ${totalPassesNeeded} pass(es), but only ${remainingLessons} remaining.`
           );
         }
 
-        // Check if class has enough space for all athletes
-        const spotsRemaining = classData.maxParticipants - classData.currentParticipants;
-        if (spotsRemaining < athleteCount) {
-          throw new HttpsError(
-            "failed-precondition",
-            `Class does not have enough space. ${spotsRemaining} spot(s) remaining, but ${athleteCount} needed.`
-          );
-        }
-
-        // Check if user is already registered for this specific athlete
-        if (athleteName) {
-          const athleteParticipantId = `${userId}_${athleteName.replace(/\s+/g, "_")}`;
-          const athleteParticipantRef = classRef.collection("participants").doc(athleteParticipantId);
-          const athleteParticipantDoc = await transaction.get(athleteParticipantRef);
-          if (athleteParticipantDoc.exists) {
+        // Check if all classes have enough space
+        for (const cls of classesToRegister) {
+          const spotsRemaining = cls.data.maxParticipants - cls.data.currentParticipants;
+          if (spotsRemaining < athleteCount) {
+            const classDate = cls.data.startTime ? cls.data.startTime.toDate().toLocaleDateString() : 'Unknown';
             throw new HttpsError(
-              "already-exists",
-              `${athleteName} is already registered for this class.`
+              "failed-precondition",
+              `Class on ${classDate} does not have enough space. ${spotsRemaining} spot(s) remaining, but ${athleteCount} needed.`
             );
+          }
+          
+          // Check if already registered for this athlete
+          if (athleteName) {
+            const athleteParticipantId = `${userId}_${athleteName.replace(/\s+/g, "_")}`;
+            const athleteParticipantRef = cls.ref.collection("participants").doc(athleteParticipantId);
+            const athleteParticipantDoc = await transaction.get(athleteParticipantRef);
+            if (athleteParticipantDoc.exists) {
+              const classDate = cls.data.startTime ? cls.data.startTime.toDate().toLocaleDateString() : 'this class';
+              throw new HttpsError(
+                "already-exists",
+                `${athleteName} is already registered for the class on ${classDate}.`
+              );
+            }
           }
         }
 
-        // Increment lessonsUsed on the class pass by athleteCount (1 pass per athlete)
+        // All validations passed - now register for all classes
+        // Increment lessonsUsed by athlete count only (ONE pass per athlete for entire series)
         transaction.update(classPassRef, {
-          lessonsUsed: admin.firestore.FieldValue.increment(athleteCount),
+          lessonsUsed: admin.firestore.FieldValue.increment(totalPassesNeeded), // totalPassesNeeded = athleteCount
         });
 
-        // Increment class participants by number of athletes
-        transaction.update(classRef, {
-          currentParticipants: admin.firestore.FieldValue.increment(athleteCount),
-        });
-
-        // Add primary athlete to participants subcollection
+        // Process each class in the series
         const primaryAthleteName = athleteName || `${userData.firstName || "Unknown"} ${userData.lastName || "User"}`.trim();
-        const primaryParticipantId = `${userId}_${primaryAthleteName.replace(/\s+/g, "_")}`;
-        const primaryParticipantRef = classRef.collection("participants").doc(primaryParticipantId);
+        const clientOrgId = userData.orgId || null;
+        
+        for (const cls of classesToRegister) {
+          // Increment class participants by number of athletes
+          transaction.update(cls.ref, {
+            currentParticipants: admin.firestore.FieldValue.increment(athleteCount),
+          });
 
-        transaction.set(primaryParticipantRef, {
-          userId: userId, // User document ID
-          authUserId: authUserId, // Firebase Auth UID for permission checks
-          firstName: userData.firstName || "Unknown",
-          lastName: userData.lastName || "User",
-          athleteName: primaryAthleteName,
-          registeredAt: admin.firestore.FieldValue.serverTimestamp(),
-          classPassPackageId: classPassPackageId,
-        });
+          // Add primary athlete to participants subcollection
+          const primaryParticipantId = `${userId}_${primaryAthleteName.replace(/\s+/g, "_")}`;
+          const primaryParticipantRef = cls.ref.collection("participants").doc(primaryParticipantId);
 
-        // Add second athlete if provided
-        if (secondAthleteName) {
-          const secondParticipantId = `${userId}_${secondAthleteName.replace(/\s+/g, "_")}`;
-          const secondParticipantRef = classRef.collection("participants").doc(secondParticipantId);
-
-          transaction.set(secondParticipantRef, {
-            userId: userId, // User document ID
-            authUserId: authUserId, // Firebase Auth UID for permission checks
+          transaction.set(primaryParticipantRef, {
+            userId: userId,
+            authUserId: authUserId,
             firstName: userData.firstName || "Unknown",
             lastName: userData.lastName || "User",
-            athleteName: secondAthleteName,
+            athleteName: primaryAthleteName,
             registeredAt: admin.firestore.FieldValue.serverTimestamp(),
             classPassPackageId: classPassPackageId,
           });
+
+          // Add second athlete if provided
+          if (secondAthleteName) {
+            const secondParticipantId = `${userId}_${secondAthleteName.replace(/\s+/g, "_")}`;
+            const secondParticipantRef = cls.ref.collection("participants").doc(secondParticipantId);
+
+            transaction.set(secondParticipantRef, {
+              userId: userId,
+              authUserId: authUserId,
+              firstName: userData.firstName || "Unknown",
+              lastName: userData.lastName || "User",
+              athleteName: secondAthleteName,
+              registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+              classPassPackageId: classPassPackageId,
+            });
+          }
+
+          // Create classRegistration document for tracking
+          const registrationId = `${userId}_${cls.id}`;
+          const registrationRef = db.collection("classRegistrations").doc(registrationId);
+          transaction.set(registrationRef, {
+            userId: userId,
+            clientId: userId,
+            classId: cls.id,
+            orgId: clientOrgId,
+            athleteName: primaryAthleteName,
+            secondAthleteName: secondAthleteName || null,
+            athleteCount: athleteCount,
+            classPassPackageId: classPassPackageId,
+            seriesId: seriesId || null,
+            isPartOfSeries: !!seriesId,
+            registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          // Create booking document so class appears in client's schedule
+          const bookingRef = db.collection("bookings").doc();
+          transaction.set(bookingRef, {
+            clientUID: userId,
+            trainerId: cls.data.trainerId || "",
+            trainerName: cls.data.trainerName || "Unknown Trainer",
+            orgId: clientOrgId,
+            startTime: cls.data.startTime,
+            endTime: cls.data.endTime,
+            status: "booked",
+            isClassBooking: true,
+            classId: cls.id,
+            packageId: classPassPackageId,
+            lessonPackageId: classPassPackageId,
+            athleteName: primaryAthleteName,
+            secondAthleteName: secondAthleteName || null,
+            athleteNames: secondAthleteName ? [primaryAthleteName, secondAthleteName] : [primaryAthleteName],
+            location: cls.data.location || "",
+            seriesId: seriesId || null,
+            isPartOfSeries: !!seriesId,
+            bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
         }
 
-        // Create classRegistration document for tracking user's registered classes
-        // This allows the client app to query which classes a user is registered for
-        const clientOrgId = userData.orgId || null;
-        const registrationId = `${userId}_${classId}`;
-        const registrationRef = db.collection("classRegistrations").doc(registrationId);
-        transaction.set(registrationRef, {
-          userId: userId,
-          clientId: userId, // For backward compatibility with existing queries
-          classId: classId,
-          orgId: clientOrgId,
-          athleteName: primaryAthleteName,
-          secondAthleteName: secondAthleteName || null,
-          athleteCount: athleteCount,
-          classPassPackageId: classPassPackageId,
-          registeredAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        // Create booking document so class appears in client's schedule/bookings
-        const bookingRef = db.collection("bookings").doc();
-        transaction.set(bookingRef, {
-          clientUID: userId,
-          trainerId: classData.trainerId || "",
-          trainerName: classData.trainerName || "Unknown Trainer",
-          orgId: clientOrgId,
-          startTime: classData.startTime,
-          endTime: classData.endTime,
-          status: "booked",
-          isClassBooking: true,
-          classId: classId,
-          packageId: classPassPackageId,
-          lessonPackageId: classPassPackageId, // For backward compatibility
-          athleteName: primaryAthleteName,
-          secondAthleteName: secondAthleteName || null,
-          athleteNames: secondAthleteName ? [primaryAthleteName, secondAthleteName] : [primaryAthleteName],
-          location: classData.location || "",
-          bookedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        // Log activity
+        // Log activity (only once for the series or single class)
         const clientFullName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client";
         const className = classData.title || "Unknown Class";
-        // athleteCount already declared above
         const athleteNames = secondAthleteName ? `${primaryAthleteName} and ${secondAthleteName}` : primaryAthleteName;
+        const activityDescription = seriesId 
+          ? `${clientFullName} registered ${athleteNames} for ${totalClassesInSeries}-day ${className} series`
+          : `${clientFullName} registered ${athleteNames} for ${className}`;
 
         const activityTimestamp = Math.floor(Date.now() / 1000);
         const activityId = `${userId}_${ActivityTypes.CLASS_REGISTERED}_${activityTimestamp}`;
@@ -865,13 +941,16 @@ export const registerForClass = onCall(
           targetId: classId,
           targetName: className,
           targetType: "class",
-          description: `${clientFullName} registered ${athleteNames} for ${className}`,
+          description: activityDescription,
           metadata: {
             classId: classId,
             classPassPackageId: classPassPackageId,
             athleteName: primaryAthleteName,
             secondAthleteName: secondAthleteName || null,
             athleteCount: athleteCount,
+            seriesId: seriesId || null,
+            totalClassesInSeries: totalClassesInSeries,
+            totalPassesUsed: totalPassesNeeded, // 1 pass per athlete (not per class)
             startTime: classData.startTime || null,
             endTime: classData.endTime || null,
             location: classData.location || null,
@@ -882,12 +961,24 @@ export const registerForClass = onCall(
         });
       });
 
-      // athleteCount already calculated in transaction scope
+      // Calculate final counts using the seriesId we detected earlier
       const finalAthleteCount = secondAthleteName ? 2 : 1;
+      let totalClassesCount = 1;
+      if (seriesId) {
+        const seriesClasses = await db.collection("classes")
+          .where("seriesId", "==", seriesId)
+          .get();
+        totalClassesCount = seriesClasses.size;
+      }
+      
+      const successMessage = totalClassesCount > 1
+        ? `Successfully registered ${finalAthleteCount} athlete(s) for ${totalClassesCount}-day class series!`
+        : `Successfully registered ${finalAthleteCount} athlete(s) for class!`;
+      
       logger.info(
-        `User ${userId} registered ${finalAthleteCount} athlete(s) for class ${classId} using pass ${classPassPackageId}.`
+        `User ${userId} registered ${finalAthleteCount} athlete(s) for ${totalClassesCount} class(es) using pass ${classPassPackageId}.`
       );
-      return {message: `Successfully registered ${finalAthleteCount} athlete(s) for class!`};
+      return {message: successMessage};
     } catch (error) {
       if (error instanceof HttpsError) {
         throw error;
@@ -1179,20 +1270,23 @@ export const adminCancelLesson = onCall(
     }
 
     try {
-      // Verify admin/owner access using flat orgMembers collection
-      const membershipId = `${adminUid}_${orgId}`;
-      const memberDoc = await db
+      // Verify admin/owner access - query by authUserId field
+      // orgMembers documents use trainerId_orgId format, not authUID_orgId
+      const memberQuery = await db
         .collection("orgMembers")
-        .doc(membershipId)
+        .where("authUserId", "==", adminUid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
-      if (!memberDoc.exists) {
+      if (memberQuery.empty) {
         throw new HttpsError(
           "permission-denied",
           "You are not a member of this organization"
         );
       }
 
+      const memberDoc = memberQuery.docs[0];
       const memberData = memberDoc.data();
       const role = memberData?.role;
 
@@ -2117,19 +2211,50 @@ export const manualRegisterForClass = onCall(
         );
       }
 
+      // Check if this class is part of a multi-day series
+      const seriesId = classData.seriesId as string | undefined;
+      let classesToRegister: Array<{id: string; data: admin.firestore.DocumentData}> = [];
+      
+      if (seriesId) {
+        // Find all classes in this series
+        const seriesClasses = await db.collection("classes")
+          .where("seriesId", "==", seriesId)
+          .where("orgId", "==", orgId)
+          .get();
+        
+        for (const doc of seriesClasses.docs) {
+          classesToRegister.push({
+            id: doc.id,
+            data: doc.data()
+          });
+        }
+        
+        console.log(`📅 Multi-day series detected in manual registration! Found ${classesToRegister.length} classes in series ${seriesId}`);
+      } else {
+        // Single class registration
+        classesToRegister = [{
+          id: classId,
+          data: classData
+        }];
+      }
+
       // Check if user is admin
-      const adminMember = await db
+      // Query by authUserId field (orgMembers docs use trainerId_orgId format)
+      const adminMemberQuery = await db
         .collection("orgMembers")
-        .doc(`${request.auth.uid}_${orgId}`)
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
-      if (!adminMember.exists) {
+      if (adminMemberQuery.empty) {
         throw new HttpsError(
           "permission-denied",
           "Not a member of this organization"
         );
       }
 
+      const adminMember = adminMemberQuery.docs[0];
       const role = adminMember.data()?.role;
       if (role !== "admin" && role !== "owner") {
         throw new HttpsError(
@@ -2199,10 +2324,14 @@ export const manualRegisterForClass = onCall(
         }
 
         const packageData = packageDoc.data()!;
-        if ((packageData.lessonsRemaining || 0) <= 0) {
+        const totalClassesInSeries = classesToRegister.length;
+        const remainingLessons = packageData.lessonsRemaining || 0;
+        
+        // Check if package has at least 1 credit (multi-day series uses 1 pass total)
+        if (remainingLessons < 1) {
           throw new HttpsError(
             "failed-precondition",
-            "Package has no remaining credits"
+            `Package has no remaining credits`
           );
         }
 
@@ -2214,14 +2343,16 @@ export const manualRegisterForClass = onCall(
           registeredAt: admin.firestore.FieldValue.serverTimestamp(),
           registeredBy: request.auth.uid,
           status: "confirmed",
+          seriesId: seriesId || null,
+          isPartOfSeries: !!seriesId,
         };
 
-        // Decrement package (use the same ref we found earlier)
+        // Decrement package by 1 (multi-day series uses ONE pass for entire series)
         await packageRef.update({
           lessonsRemaining: admin.firestore.FieldValue.increment(-1),
         });
 
-        console.log(`✅ Registered user ${userId} for class ${classId} using package ${classPassPackageId}`);
+        console.log(`✅ Registered user ${userId} for ${totalClassesInSeries} class(es) in series using 1 package credit: ${classPassPackageId}`);
       } else {
         // Manual entry registration
         if (!firstName || !lastName) {
@@ -2246,47 +2377,57 @@ export const manualRegisterForClass = onCall(
         console.log(`✅ Manually registered ${firstName} ${lastName} for class ${classId}`);
       }
 
-      // Create registration
-      await db.collection("classRegistrations").add(registrationData);
+      // Create registrations and bookings for all classes in series (or single class)
+      for (const cls of classesToRegister) {
+        // Create registration for each class
+        await db.collection("classRegistrations").add({
+          ...registrationData,
+          classId: cls.id, // Override with specific class ID
+        });
 
-      // Create booking document so class appears in client's schedule
-      if (userId) {
-        // Only create booking for existing clients (not manual entries)
-        const classDoc = await db.collection("classes").doc(classId).get();
-        const classData = classDoc.data()!;
-        
-        await db.collection("bookings").add({
-          clientUID: userId,
-          trainerId: classData.trainerId || "",
-          trainerName: classData.trainerName || "Unknown Trainer",
-          orgId: orgId,
-          startTime: classData.startTime,
-          endTime: classData.endTime,
-          status: "booked",
-          isClassBooking: true,
-          classId: classId,
-          packageId: classPassPackageId || "",
-          lessonPackageId: classPassPackageId || "", // For backward compatibility
-          location: classData.location || "",
-          bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Create booking document so class appears in client's schedule
+        if (userId) {
+          // Only create booking for existing clients (not manual entries)
+          await db.collection("bookings").add({
+            clientUID: userId,
+            trainerId: cls.data.trainerId || "",
+            trainerName: cls.data.trainerName || "Unknown Trainer",
+            orgId: orgId,
+            startTime: cls.data.startTime,
+            endTime: cls.data.endTime,
+            status: "booked",
+            isClassBooking: true,
+            classId: cls.id,
+            packageId: classPassPackageId || "",
+            lessonPackageId: classPassPackageId || "",
+            location: cls.data.location || "",
+            seriesId: seriesId || null,
+            isPartOfSeries: !!seriesId,
+            bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+
+        // Increment current participants for each class
+        await db.collection("classes").doc(cls.id).update({
+          currentParticipants: admin.firestore.FieldValue.increment(1),
         });
       }
 
-      // Increment current participants
-      await db.collection("classes").doc(classId).update({
-        currentParticipants: admin.firestore.FieldValue.increment(1),
-      });
-
-      // Log activity
+      // Log activity (once for the series or single class)
       const adminDoc = await db.collection("trainers").doc(request.auth.uid).get();
       const adminData = adminDoc.exists ? adminDoc.data() : null;
       const adminName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
       
-      const classForLogging = await db.collection("classes").doc(classId).get();
-      const classDataForLogging = classForLogging.exists ? classForLogging.data() : null;
-      const className = classDataForLogging?.title || "Unknown Class";
-      
+      const className = classData.title || "Unknown Class";
       const participantName = userId ? "Unknown Client" : `${firstName} ${lastName}`;
+      const totalClassesInSeries = classesToRegister.length;
+      const activityDescription = userId 
+        ? seriesId
+          ? `${adminName} registered client for ${totalClassesInSeries}-day ${className} series`
+          : `${adminName} registered client for ${className}`
+        : seriesId
+          ? `${adminName} manually registered ${participantName} for ${totalClassesInSeries}-day ${className} series`
+          : `${adminName} manually registered ${participantName} for ${className}`;
       
       await db.collection("activities").add({
         type: ActivityTypes.CLASS_ENROLLMENT,
@@ -2296,14 +2437,14 @@ export const manualRegisterForClass = onCall(
         targetId: classId,
         targetName: className,
         targetType: "class",
-        description: userId 
-          ? `${adminName} registered client for ${className}` 
-          : `${adminName} manually registered ${participantName} for ${className}`,
+        description: activityDescription,
         metadata: {
           classId: classId,
           participantName: participantName,
           isManualEntry: !userId,
           classPassPackageId: classPassPackageId || null,
+          seriesId: seriesId || null,
+          totalClassesInSeries: totalClassesInSeries,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
         },
         orgId: orgId,

@@ -407,7 +407,6 @@ struct PassesTabView: View {
         )
         
         // Payment succeeded - package will be created by Cloud Function
-        print("✅ Payment processed successfully for client: \(client.firstName) \(client.lastName)")
     }
     
     private func removePassFromClient() async {

@@ -92,7 +92,6 @@ struct SkedenceApp: App {
             }
             
             if let orgCode = queryItems.first(where: { $0.name == "orgCode" })?.value {
-                print("✅ Organization code from deep link: \(orgCode)")
                 deepLinkManager.organizationCode = orgCode
                 deepLinkManager.shouldNavigateToRegister = true
             }

@@ -23,6 +23,9 @@ struct GroupClass: Identifiable, Codable, Hashable {
     let createdAt: Date
     let priceInCents: Int // Registration price in cents (e.g., 2000 = $20.00)
     var eligiblePackageIds: [String] // Package IDs that can be used to register for this class
+    var seriesId: String? // Links classes in a multi-day series
+    var isPartOfSeries: Bool? // Indicates if part of a multi-day series
+    var totalSeriesClasses: Int? // Total number of classes in the series
     
     var isFull: Bool {
         currentParticipants >= maxParticipants

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +38,9 @@ interface GroupClass {
   isRecurring: boolean;
   recurringPattern?: string;
   eligiblePackageIds?: string[]; // Package IDs that can be used to register for this class
+  seriesId?: string; // Links classes in a multi-day series
+  isPartOfSeries?: boolean; // Indicates if part of a multi-day series
+  totalSeriesClasses?: number; // Total number of classes in the series
 }
 
 interface Participant {
@@ -77,6 +80,9 @@ export default function ClassesPage() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showOverlapDialog, setShowOverlapDialog] = useState(false);
+  const [overlapConflicts, setOverlapConflicts] = useState<Array<{ name: string; type: string; time: string }>>([]);
+  const [pendingClassData, setPendingClassData] = useState<any>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -91,6 +97,9 @@ export default function ClassesPage() {
     isRecurring: false,
     recurringPattern: 'weekly',
   });
+
+  // Multi-day selection state
+  const [additionalDates, setAdditionalDates] = useState<string[]>([]);
 
   // Load active class pass packages
   useEffect(() => {
@@ -183,6 +192,78 @@ export default function ClassesPage() {
     loadData();
   }, [orgId]);
 
+  // Check for overlapping sessions
+  const checkForOverlaps = async (trainerId: string, dates: string[], startTime: string, endTime: string): Promise<Array<{ name: string; type: string; time: string }>> => {
+    const conflicts: Array<{ name: string; type: string; time: string }> = [];
+    
+    for (const dateStr of dates) {
+      const checkStart = new Date(`${dateStr}T${startTime}`);
+      const checkEnd = new Date(`${dateStr}T${endTime}`);
+      
+      // Check for overlapping classes
+      const classesQuery = query(
+        collection(db, 'classes'),
+        where('trainerId', '==', trainerId),
+        where('orgId', '==', orgId)
+      );
+      const classesSnapshot = await getDocs(classesQuery);
+      
+      for (const classDoc of classesSnapshot.docs) {
+        const classData = classDoc.data();
+        const classStart = classData.startTime.toDate();
+        const classEnd = classData.endTime.toDate();
+        
+        // Check if times overlap on the same day
+        if (format(classStart, 'yyyy-MM-dd') === dateStr) {
+          if (
+            (checkStart >= classStart && checkStart < classEnd) ||
+            (checkEnd > classStart && checkEnd <= classEnd) ||
+            (checkStart <= classStart && checkEnd >= classEnd)
+          ) {
+            conflicts.push({
+              name: classData.title,
+              type: 'Class',
+              time: `${format(classStart, 'h:mm a')} - ${format(classEnd, 'h:mm a')}`
+            });
+          }
+        }
+      }
+      
+      // Check for overlapping schedule slots (lessons/availability)
+      const schedulesRef = collection(db, 'trainers', trainerId, 'schedules');
+      const schedulesSnapshot = await getDocs(schedulesRef);
+      
+      for (const scheduleDoc of schedulesSnapshot.docs) {
+        const scheduleData = scheduleDoc.data();
+        const scheduleStart = scheduleData.startTime.toDate();
+        const scheduleEnd = scheduleData.endTime.toDate();
+        
+        // Check if times overlap on the same day
+        if (format(scheduleStart, 'yyyy-MM-dd') === dateStr) {
+          if (
+            (checkStart >= scheduleStart && checkStart < scheduleEnd) ||
+            (checkEnd > scheduleStart && checkEnd <= scheduleEnd) ||
+            (checkStart <= scheduleStart && checkEnd >= scheduleEnd)
+          ) {
+            const conflictName = scheduleData.isClassBooking 
+              ? scheduleData.clientName || 'Class'
+              : scheduleData.status === 'booked'
+                ? scheduleData.clientName || 'Lesson'
+                : 'Available Time Slot';
+            
+            conflicts.push({
+              name: conflictName,
+              type: scheduleData.isClassBooking ? 'Class' : (scheduleData.status === 'booked' ? 'Lesson' : 'Availability'),
+              time: `${format(scheduleStart, 'h:mm a')} - ${format(scheduleEnd, 'h:mm a')}`
+            });
+          }
+        }
+      }
+    }
+    
+    return conflicts;
+  };
+
   const handleSubmit = async () => {
     if (!orgId || !form.title || !form.trainerId || !form.locationId) {
       setNotification({ type: 'error', message: 'Please fill in all required fields' });
@@ -190,10 +271,21 @@ export default function ClassesPage() {
       return;
     }
 
+    // Check for overlaps before creating
+    const allDates = [form.date, ...additionalDates].filter(Boolean);
+    const conflicts = await checkForOverlaps(form.trainerId, allDates, form.startTime, form.endTime);
+    
+    if (conflicts.length > 0 && !pendingClassData) {
+      // Show confirmation dialog
+      setOverlapConflicts(conflicts);
+      setShowOverlapDialog(true);
+      return;
+    }
+
     setSaving(true);
     try {
-      const startDateTime = new Date(`${form.date}T${form.startTime}`);
-      const endDateTime = new Date(`${form.date}T${form.endTime}`);
+      // Collect all dates (primary date + additional dates)
+      const allDates = [form.date, ...additionalDates].filter(Boolean);
       
       // Get trainer name and location name
       const trainer = trainers.find(t => t.id === form.trainerId);
@@ -201,35 +293,36 @@ export default function ClassesPage() {
       const location = locations.find(l => l.id === form.locationId);
       const locationName = location ? location.name : '';
 
-      // Match iOS AdminService.createClass schema exactly
-      const classData = {
-        orgId,
-        title: form.title,
-        description: form.description || '',
-        startTime: Timestamp.fromDate(startDateTime),
-        endTime: Timestamp.fromDate(endDateTime),
-        maxParticipants: form.maxCapacity,
-        currentParticipants: 0,
-        location: locationName, // Location name string, not ID
-        isOpenForRegistration: true,
-        trainerId: form.trainerId,
-        trainerName: trainerName,
-        createdBy: orgId, // Using orgId as placeholder for current user
-        createdAt: Timestamp.fromDate(new Date()),
-        priceInCents: 0, // Default to free
-        isRecurring: form.isRecurring || false,
-        recurringPattern: form.isRecurring ? form.recurringPattern : null,
-        eligiblePackageIds: selectedPackageIds, // Add eligible package IDs
-      };
-
       if (editingClass) {
+        // When editing, only update the single class (don't create multiple)
+        const startDateTime = new Date(`${form.date}T${form.startTime}`);
+        const endDateTime = new Date(`${form.date}T${form.endTime}`);
+        
+        const classData = {
+          orgId,
+          title: form.title,
+          description: form.description || '',
+          startTime: Timestamp.fromDate(startDateTime),
+          endTime: Timestamp.fromDate(endDateTime),
+          maxParticipants: form.maxCapacity,
+          currentParticipants: editingClass.currentParticipants, // Preserve current count
+          location: locationName,
+          isOpenForRegistration: true,
+          trainerId: form.trainerId,
+          trainerName: trainerName,
+          createdBy: orgId,
+          createdAt: editingClass.createdAt, // Preserve original creation time
+          priceInCents: 0,
+          isRecurring: form.isRecurring || false,
+          recurringPattern: form.isRecurring ? form.recurringPattern : null,
+          eligiblePackageIds: selectedPackageIds,
+        };
+
         await updateDoc(doc(db, 'classes', editingClass.id), classData);
         
         // Log activity (non-blocking)
         if (orgId && user && userData) {
           try {
-            const trainer = trainers.find(t => t.id === form.trainerId);
-            const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
             await logClassUpdated({
               orgId: orgId,
               actorId: user.uid,
@@ -240,11 +333,10 @@ export default function ClassesPage() {
               trainerId: form.trainerId,
               trainerName: trainerName,
               startTime: startDateTime,
-              fields: ['time', 'details'], // Could be more specific
+              fields: ['time', 'details'],
             });
           } catch (logError) {
             console.error('❌ Failed to log activity:', logError);
-            // Don't block the save operation
           }
         }
         
@@ -255,102 +347,50 @@ export default function ClassesPage() {
           id: doc.id,
           ...doc.data(),
         })) as GroupClass[];
-        // Sort chronologically - earliest (next upcoming) first
         setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
         
         setNotification({ type: 'success', message: 'Class successfully updated' });
         setTimeout(() => setNotification(null), 5000);
       } else {
-        // Create class document(s)
-        if (form.isRecurring && form.recurringPattern === 'weekly') {
-          // Generate 12 weeks of recurring classes
-          const classesToCreate = [];
-          const scheduleSlots = [];
+        // Creating new class(es)
+        const createdClassIds: string[] = [];
+        
+        // Generate a unique series ID for linking all classes together
+        const seriesId = `series_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Create a class for each selected date
+        for (const dateStr of allDates) {
+          const startDateTime = new Date(`${dateStr}T${form.startTime}`);
+          const endDateTime = new Date(`${dateStr}T${form.endTime}`);
           
-          for (let week = 0; week < 12; week++) {
-            const weekStartDateTime = new Date(startDateTime);
-            weekStartDateTime.setDate(weekStartDateTime.getDate() + (week * 7));
-            const weekEndDateTime = new Date(endDateTime);
-            weekEndDateTime.setDate(weekEndDateTime.getDate() + (week * 7));
-            
-            classesToCreate.push({
-              ...classData,
-              startTime: Timestamp.fromDate(weekStartDateTime),
-              endTime: Timestamp.fromDate(weekEndDateTime),
-            });
-            
-            scheduleSlots.push({
-              startTime: Timestamp.fromDate(weekStartDateTime),
-              endTime: Timestamp.fromDate(weekEndDateTime),
-              status: 'booked',
-              clientId: 'CLASS',
-              clientName: form.title,
-              isClassBooking: true,
-              bookedAt: Timestamp.fromDate(new Date()),
-              orgId: orgId
-            });
-          }
-          
-          // Create all class instances
-          for (let i = 0; i < classesToCreate.length; i++) {
-            const docRef = await addDoc(collection(db, 'classes'), classesToCreate[i]);
-            // Link the schedule slot to the class
-            await addDoc(
-              collection(db, 'trainers', form.trainerId, 'schedules'),
-              { ...scheduleSlots[i], classId: docRef.id }
-            );
-          }
-          
-          // Log activity for recurring class series (non-blocking)
-          if (orgId && user && userData) {
-            try {
-              const trainer = trainers.find(t => t.id === form.trainerId);
-              const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
-              await logClassCreated({
-                orgId: orgId,
-                actorId: user.uid,
-                actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-                actorRole: 'admin',
-                classId: 'recurring',
-                className: `${form.title} (12-week series)`,
-                trainerId: form.trainerId,
-                trainerName: trainerName,
-                startTime: startDateTime,
-                maxParticipants: form.maxCapacity,
-                location: locationName,
-              });
-            } catch (logError) {
-              console.error('❌ Failed to log activity:', logError);
-            }
-          }
-        } else {
-          // Single class
+          const classData = {
+            orgId,
+            title: form.title,
+            description: form.description || '',
+            startTime: Timestamp.fromDate(startDateTime),
+            endTime: Timestamp.fromDate(endDateTime),
+            maxParticipants: form.maxCapacity,
+            currentParticipants: 0,
+            location: locationName,
+            isOpenForRegistration: true,
+            trainerId: form.trainerId,
+            trainerName: trainerName,
+            createdBy: orgId,
+            createdAt: Timestamp.fromDate(new Date()),
+            priceInCents: 0,
+            isRecurring: false, // Multi-day is different from recurring
+            recurringPattern: null,
+            eligiblePackageIds: selectedPackageIds,
+            seriesId: allDates.length > 1 ? seriesId : null, // Only add seriesId if multiple dates
+            isPartOfSeries: allDates.length > 1,
+            totalSeriesClasses: allDates.length,
+          };
+
+          // Create class document
           const docRef = await addDoc(collection(db, 'classes'), classData);
+          createdClassIds.push(docRef.id);
           
-          // Log activity (non-blocking)
-          if (orgId && user && userData) {
-            try {
-              const trainer = trainers.find(t => t.id === form.trainerId);
-              const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
-              await logClassCreated({
-                orgId: orgId,
-                actorId: user.uid,
-                actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-                actorRole: 'admin',
-                classId: docRef.id,
-                className: form.title,
-                trainerId: form.trainerId,
-                trainerName: trainerName,
-                startTime: startDateTime,
-                maxParticipants: form.maxCapacity,
-                location: locationName,
-              });
-            } catch (logError) {
-              console.error('❌ Failed to log activity:', logError);
-            }
-          }
-          
-          // Create trainer schedule slot to block off time (matching iOS)
+          // Create trainer schedule slot
           const bookingData = {
             startTime: Timestamp.fromDate(startDateTime),
             endTime: Timestamp.fromDate(endDateTime),
@@ -360,13 +400,40 @@ export default function ClassesPage() {
             classId: docRef.id,
             isClassBooking: true,
             bookedAt: Timestamp.fromDate(new Date()),
-            orgId: orgId
+            orgId: orgId,
+            seriesId: allDates.length > 1 ? seriesId : null, // Link schedule slots too
           };
           
           await addDoc(
             collection(db, 'trainers', form.trainerId, 'schedules'),
             bookingData
           );
+        }
+        
+        // Log activity (non-blocking)
+        if (orgId && user && userData) {
+          try {
+            const firstDate = new Date(`${allDates[0]}T${form.startTime}`);
+            const className = allDates.length > 1 
+              ? `${form.title} (${allDates.length}-day series)` 
+              : form.title;
+            
+            await logClassCreated({
+              orgId: orgId,
+              actorId: user.uid,
+              actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+              actorRole: 'admin',
+              classId: createdClassIds[0],
+              className: className,
+              trainerId: form.trainerId,
+              trainerName: trainerName,
+              startTime: firstDate,
+              maxParticipants: form.maxCapacity,
+              location: locationName,
+            });
+          } catch (logError) {
+            console.error('❌ Failed to log activity:', logError);
+          }
         }
         
         // Reload classes
@@ -376,13 +443,17 @@ export default function ClassesPage() {
           id: doc.id,
           ...doc.data(),
         })) as GroupClass[];
-        // Sort chronologically - earliest (next upcoming) first
         setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
+        
+        const successMessage = allDates.length > 1 
+          ? `Successfully created ${allDates.length} classes` 
+          : 'Class successfully created';
+        
+        setNotification({ type: 'success', message: successMessage });
+        setTimeout(() => setNotification(null), 5000);
       }
 
       resetForm();
-      setNotification({ type: 'success', message: editingClass ? 'Class successfully updated' : 'Class successfully created' });
-      setTimeout(() => setNotification(null), 5000);
     } catch (error) {
       console.error('Error saving class:', error);
       setNotification({ 
@@ -393,6 +464,24 @@ export default function ClassesPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleConfirmOverlap = async () => {
+    setShowOverlapDialog(false);
+    setPendingClassData(true); // Flag to skip overlap check
+    
+    // Re-run handleSubmit which will now proceed with creation
+    await handleSubmit();
+    
+    // Reset pending flag
+    setPendingClassData(null);
+    setOverlapConflicts([]);
+  };
+
+  const handleCancelOverlap = () => {
+    setShowOverlapDialog(false);
+    setOverlapConflicts([]);
+    setPendingClassData(null);
   };
 
   const handleEdit = (cls: GroupClass) => {
@@ -624,6 +713,7 @@ export default function ClassesPage() {
     setEditingClass(null);
     setShowForm(false);
     setSelectedPackageIds([]); // Reset selected packages
+    setAdditionalDates([]); // Reset additional dates
   };
 
   const getTrainerName = (trainerId: string) => {
@@ -641,11 +731,51 @@ export default function ClassesPage() {
   const upcomingClasses = classes.filter(cls => cls.endTime.toDate() > now);
   const completedClasses = classes.filter(cls => cls.endTime.toDate() <= now);
   const displayedClasses = activeTab === 'upcoming' ? upcomingClasses : completedClasses;
+  // Filter to only show first class of multi-day series (for display only, not admin calendar)
+  const uniqueClasses = useMemo(() => {
+    const seenSeries = new Set<string>();
+    const filtered: GroupClass[] = [];
+    
+    for (const cls of displayedClasses) {
+      if (cls.seriesId && cls.isPartOfSeries) {
+        // This is part of a multi-day series
+        if (!seenSeries.has(cls.seriesId)) {
+          // First occurrence of this series - include it
+          seenSeries.add(cls.seriesId);
+          filtered.push(cls);
+        }
+        // Skip subsequent classes in the same series
+      } else {
+        // Single-day class or no series - always include
+        filtered.push(cls);
+      }
+    }
+    
+    return filtered;
+  }, [displayedClasses]);
+
+  // Helper function to get all classes in a series
+  const getSeriesClasses = (seriesId: string): GroupClass[] => {
+    return classes
+      .filter(cls => cls.seriesId === seriesId)
+      .sort((a, b) => a.startTime.toDate().getTime() - b.startTime.toDate().getTime());
+  };
+
+  // Helper function to format series dates
+  const formatSeriesDates = (seriesClasses: GroupClass[]): string => {
+    if (seriesClasses.length <= 1) return '';
+    
+    const dates = seriesClasses.map(cls => 
+      format(cls.startTime.toDate(), 'EEE, MMM d')
+    );
+    
+    return dates.join(' • ');
+  };
   
   // Filter by search term
   const filteredClasses = searchTerm.trim() === '' 
-    ? displayedClasses 
-    : displayedClasses.filter(cls => 
+    ? uniqueClasses 
+    : uniqueClasses.filter(cls => 
         cls.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         cls.trainerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (cls.location && cls.location.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -704,6 +834,64 @@ export default function ClassesPage() {
                 >
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+            )}
+
+            {/* Overlap Confirmation Dialog */}
+            {showOverlapDialog && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-foreground">Schedule Conflict Detected</h3>
+                      <p className="text-sm text-foreground/80 mt-1">
+                        This class overlaps with existing session(s):
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mb-6 max-h-60 overflow-y-auto">
+                    {overlapConflicts.map((conflict, index) => (
+                      <div key={index} className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm text-foreground">{conflict.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300">
+                                {conflict.type}
+                              </span>
+                              <span className="text-xs text-foreground/60">{conflict.time}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-sm text-foreground/70 mb-6">
+                    Do you want to create this class anyway? Both sessions will appear side-by-side on the schedule.
+                  </p>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCancelOverlap}
+                      className="flex-1 px-4 py-2 border border-input text-foreground rounded-lg hover:bg-background transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmOverlap}
+                      className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      Confirm & Create
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -781,6 +969,72 @@ export default function ClassesPage() {
                         onChange={(e) => setForm({ ...form, date: e.target.value })}
                         className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
                       />
+                    </div>
+
+                    {/* Additional Dates Section */}
+                    <div className="md:col-span-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-foreground">
+                          Additional Dates (Optional)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Add a new date (defaults to tomorrow)
+                            const tomorrow = new Date();
+                            tomorrow.setDate(tomorrow.getDate() + 1);
+                            setAdditionalDates([...additionalDates, format(tomorrow, 'yyyy-MM-dd')]);
+                          }}
+                          className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Day
+                        </button>
+                      </div>
+                      
+                      {additionalDates.length > 0 && (
+                        <div className="space-y-2">
+                          {additionalDates.map((date, index) => (
+                            <div key={index} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                              <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <input
+                                type="date"
+                                value={date}
+                                onChange={(e) => {
+                                  const newDates = [...additionalDates];
+                                  newDates[index] = e.target.value;
+                                  setAdditionalDates(newDates);
+                                }}
+                                className="flex-1 px-3 py-1 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdditionalDates(additionalDates.filter((_, i) => i !== index));
+                                }}
+                                className="flex-shrink-0 p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                title="Remove this date"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+                          ))}
+                          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-xs font-medium text-blue-800">
+                              📅 Total classes to create: <span className="font-bold">{1 + additionalDates.length}</span>
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1">
+                              All classes will use the same time ({form.startTime} - {form.endTime}) and settings.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {additionalDates.length === 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Click "Add Day" to create a multi-day class series
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
@@ -1196,15 +1450,36 @@ export default function ClassesPage() {
                                 <p className="text-sm text-foreground/80 mt-1">{cls.description}</p>
                               )}
                               
+                              {/* Multi-day series badge */}
+                              {cls.isPartOfSeries && cls.seriesId && (
+                                <div className="mt-2">
+                                  <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                                    {cls.totalSeriesClasses}-Day Series
+                                  </span>
+                                </div>
+                              )}
+                              
                               <div className="flex flex-wrap gap-4 mt-3">
                                 <div className="flex items-center gap-1 text-sm text-foreground/80">
                                   <User className="h-4 w-4" />
                                   {cls.trainerName || getTrainerName(cls.trainerId)}
                                 </div>
-                                <div className="flex items-center gap-1 text-sm text-foreground/80">
-                                  <Calendar className="h-4 w-4" />
-                                  {format(cls.startTime.toDate(), 'EEE, MMM d, yyyy')}
-                                </div>
+                                
+                                {/* Show all dates if multi-day series */}
+                                {cls.isPartOfSeries && cls.seriesId ? (
+                                  <div className="flex items-center gap-1 text-sm text-foreground/80">
+                                    <Calendar className="h-4 w-4" />
+                                    <div className="flex flex-col">
+                                      <span>{formatSeriesDates(getSeriesClasses(cls.seriesId))}</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 text-sm text-foreground/80">
+                                    <Calendar className="h-4 w-4" />
+                                    {format(cls.startTime.toDate(), 'EEE, MMM d, yyyy')}
+                                  </div>
+                                )}
+                                
                                 <div className="flex items-center gap-1 text-sm text-foreground/80">
                                   <Clock className="h-4 w-4" />
                                   {format(cls.startTime.toDate(), 'h:mm a')} - {format(cls.endTime.toDate(), 'h:mm a')}

@@ -232,6 +232,7 @@ export default function BookingsPage() {
         trainerId: selectedTrainer,
         slotId: selectedSlot,
         lessonPackageId: selectedPackage,
+        clientId: selectedClient, // ✅ Pass client document ID (firstName_lastName format)
       });
 
       setSuccess(true);

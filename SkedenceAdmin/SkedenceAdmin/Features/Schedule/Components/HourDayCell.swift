@@ -21,6 +21,7 @@ struct HourDayCell: View {
     let onSetStatus: (TrainerScheduleSlot.Status) -> Void
     let onClear: () -> Void
     let isBackground: Bool  // When true, don't handle taps (used for absolute positioning mode)
+    var viewModel: ScheduleViewModel? = nil // Optional: for class title lookup
 
     // Computed values to avoid local lets in body builder
     private var cellStart: Date {
@@ -46,7 +47,7 @@ struct HourDayCell: View {
             // In absolute positioning mode, slots are rendered separately as an overlay
             if !isBackground {
                 ForEach(matching) { slot in
-                    EventCell(slot: slot, viewingTrainerId: viewingTrainerId)
+                    EventCell(slot: slot, viewingTrainerId: viewingTrainerId, viewModel: viewModel)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             onSlotTap(slot)

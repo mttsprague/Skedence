@@ -216,14 +216,12 @@ final class ClassesService: ObservableObject {
     
     /// Load only classes the current user is registered for
     func loadMyRegisteredClasses(userId: String, orgId: String) async {
-        print("🔍 Loading registered classes for user: \(userId), org: \(orgId)")
         error = nil
         currentOrgId = orgId
         
         do {
             let registeredClasses = try await repository.fetchUserRegistrations(userId: userId, orgId: orgId)
             myRegisteredClasses = registeredClasses
-            print("✅ Loaded \(registeredClasses.count) registered classes")
             for cls in registeredClasses {
                 print("  - \(cls.title) at \(cls.startTime)")
             }

@@ -14,6 +14,8 @@ interface Booking {
   startTime: Date;
   endTime: Date;
   status: 'confirmed' | 'canceled';
+  isClassBooking?: boolean; // True for class registrations
+  classId?: string; // Reference to class document
 }
 
 interface GroupClass {
@@ -67,7 +69,6 @@ export function AllTrainersDayGrid({
   const [hasScrolledToCurrentTime, setHasScrolledToCurrentTime] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const currentTimeRef = useRef<HTMLDivElement>(null);
-  const [multipleEventsDialog, setMultipleEventsDialog] = useState<MultipleEventsDialogData | null>(null);
   
   // Half-hour time slots (6 AM to 11:30 PM)
   const timeSlots = Array.from({ length: 36 }, (_, i) => {
@@ -75,6 +76,7 @@ export function AllTrainersDayGrid({
     const hour = Math.floor(totalMinutes / 60);
     const minute = totalMinutes % 60;
     return { hour, minute };
+  });
 
   // Day navigation
   const goToPreviousDay = () => {
@@ -132,6 +134,7 @@ export function AllTrainersDayGrid({
 
     const trainerBookings = bookings.filter(b => 
       b.trainerId === trainerId &&
+      !b.isClassBooking && // Exclude class registrations - shown as class objects
       isBefore(new Date(b.startTime), dayEnd) &&
       isAfter(new Date(b.endTime), dayStart)
     );
@@ -152,12 +155,13 @@ export function AllTrainersDayGrid({
     return { trainerBookings, trainerClasses, trainerAvailability };
   };
 
+  // Helper functions for absolute positioning
   const getSlotYOffset = (startTime: Date): number => {
     const hour = getHours(startTime);
     const minute = getMinutes(startTime);
     
-    const firstHour = 5; // 5am start
-    const rowHeight = 28; // 28px per half hour
+    const firstHour = 6; // 6 AM
+    const rowHeight = 28; // 28px per half hour (56px per hour / 2)
     
     const hourOffset = hour - firstHour;
     const minuteFraction = minute / 60;
@@ -266,14 +270,14 @@ export function AllTrainersDayGrid({
       <div ref={scrollRef} className="flex-1 overflow-auto relative">
         <div className="flex min-w-full">
           {/* Time column */}
-          <div className="w-12 sm:w-16 flex-shrink-0 bg-gray-100 border-r">
+          <div className="w-12 sm:w-16 flex-shrink-0 bg-background sticky left-0 z-10">
             {timeSlots.map((slot, idx) => (
               <div
                 key={idx}
-                className="h-7 flex items-center justify-center text-[10px] sm:text-xs text-foreground/80 border-b"
+                className="h-7 sm:h-14 flex items-start justify-center pt-1 text-[10px] sm:text-xs text-muted-foreground border-b border-border/30"
               >
                 {slot.minute === 0 ? formatTimeSlot(slot.hour, slot.minute) : (
-                  <span className="text-foreground/50">{formatTimeSlot(slot.hour, slot.minute)}</span>
+                  <span className="text-muted-foreground/60">{formatTimeSlot(slot.hour, slot.minute)}</span>
                 )}
               </div>
             ))}
@@ -292,14 +296,16 @@ export function AllTrainersDayGrid({
                   {/* Background grid cells */}
                   {timeSlots.map((slot, idx) => {
                     const hasEvents = slot.minute === 0 && hasEventsInHour(trainer.id, slot.hour);
+                    const isCurrentTimeSlot = isToday && slot.hour === getHours(new Date()) && slot.minute === 0;
                     
                     return (
                       <div
                         key={idx}
-                        className={`h-7 relative ${
-                          slot.minute === 0 ? 'border-b border-gray-300' : 'border-b border-gray-100'
+                        ref={isCurrentTimeSlot ? currentTimeRef : undefined}
+                        className={`h-7 sm:h-14 relative border-b border-border/30 ${
+                          isCurrentTimeSlot ? 'bg-yellow-50/50' : ''
                         } ${
-                          !hasEvents && slot.minute === 0 ? 'cursor-pointer hover:bg-background' : ''
+                          !hasEvents && slot.minute === 0 ? 'cursor-pointer hover:bg-accent/50' : ''
                         }`}
                         onClick={() => !hasEvents && slot.minute === 0 && onAddAvailability(trainer.id, selectedDate, slot.hour)}
                       />
@@ -320,18 +326,25 @@ export function AllTrainersDayGrid({
                             e.stopPropagation();
                             onAvailabilityClick(slot);
                           }}
-                          className={`absolute left-1 right-1 rounded cursor-pointer transition-colors pointer-events-auto ${
+                          className={`absolute inset-x-1 rounded px-1 py-0.5 cursor-pointer transition-colors pointer-events-auto ${
                             slot.status === 'open'
-                              ? 'bg-gray-200 hover:bg-gray-300'
-                              : 'bg-gray-400 hover:bg-gray-500'
+                              ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
+                              : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
                           }`}
                           style={{
                             top: `${yOffset}px`,
                             height: `${Math.max(height, 20)}px`,
                           }}
                         >
-                          <div className="text-[9px] sm:text-[10px] text-foreground font-medium text-center py-1 truncate px-1">
-                            {slot.status === 'open' ? 'Open' : 'Unavailable'}
+                          <div className={`text-[9px] sm:text-[10px] font-medium truncate px-1 ${
+                            slot.status === 'open' ? 'text-green-700' : 'text-gray-600'
+                          }`}>
+                            {slot.status === 'open' ? 'Available' : 'Unavailable'}
+                          </div>
+                          <div className={`text-[8px] sm:text-[9px] truncate px-1 ${
+                            slot.status === 'open' ? 'text-green-600 opacity-90' : 'text-gray-600 opacity-75'
+                          }`}>
+                            {format(new Date(slot.startTime), 'h:mm')} - {format(new Date(slot.endTime), 'h:mm a')}
                           </div>
                         </div>
                       );
@@ -350,10 +363,8 @@ export function AllTrainersDayGrid({
                             e.stopPropagation();
                             onBookingClick(booking);
                           }}
-                          className={`absolute left-1 right-1 text-white rounded cursor-pointer transition-colors pointer-events-auto ${
-                            booking.isClassBooking
-                              ? 'bg-orange-500 hover:bg-orange-600'
-                              : isCompleted 
+                          className={`absolute inset-x-1 text-white rounded px-1 py-0.5 cursor-pointer transition-colors pointer-events-auto font-medium overflow-hidden ${
+                            isCompleted 
                               ? 'bg-purple-500 hover:bg-purple-600' 
                               : 'bg-blue-500 hover:bg-blue-600'
                           }`}
@@ -362,8 +373,11 @@ export function AllTrainersDayGrid({
                             height: `${Math.max(height, 20)}px`,
                           }}
                         >
-                          <div className="text-[9px] sm:text-[10px] font-medium text-center py-1 truncate px-1">
+                          <div className="text-[9px] sm:text-[10px] font-medium truncate px-1">
                             {booking.clientName || 'Booking'}
+                          </div>
+                          <div className="text-[8px] sm:text-[9px] opacity-90 truncate px-1">
+                            {format(new Date(booking.startTime), 'h:mm')} - {format(new Date(booking.endTime), 'h:mm a')}
                           </div>
                         </div>
                       );
@@ -381,17 +395,17 @@ export function AllTrainersDayGrid({
                             e.stopPropagation();
                             onClassClick(classItem);
                           }}
-                          className="absolute left-1 right-1 bg-purple-500 hover:bg-purple-600 text-white rounded cursor-pointer transition-colors pointer-events-auto"
+                          className="absolute inset-x-1 bg-purple-500 hover:bg-purple-600 text-white rounded px-1 py-0.5 cursor-pointer transition-colors pointer-events-auto font-medium overflow-hidden"
                           style={{
                             top: `${yOffset}px`,
                             height: `${Math.max(height, 20)}px`,
                           }}
                         >
-                          <div className="text-[9px] sm:text-[10px] font-medium text-center py-1 truncate px-1">
+                          <div className="text-[9px] sm:text-[10px] font-medium truncate px-1">
                             {classItem.title}
                           </div>
-                          <div className="text-[8px] sm:text-[9px] text-center text-white/80 truncate px-1">
-                            {classItem.currentParticipants}/{classItem.maxParticipants}
+                          <div className="text-[8px] sm:text-[9px] opacity-90 truncate px-1">
+                            {classItem.currentParticipants}/{classItem.maxParticipants} • {format(new Date(classItem.startTime), 'h:mm a')}
                           </div>
                         </div>
                       );

@@ -25,6 +25,39 @@ struct ClassesTabView: View {
         return classesService.classes.filter { $0.startTime >= now }
     }
     
+    // Group classes by series - show one card per series
+    private var groupedClasses: [(representative: GroupClass, seriesClasses: [GroupClass])] {
+        var processedSeriesIds = Set<String>()
+        var grouped: [(representative: GroupClass, seriesClasses: [GroupClass])] = []
+        
+        for classItem in upcomingClasses {
+            // If this class is part of a series
+            if let seriesId = classItem.seriesId, classItem.isPartOfSeries == true {
+                // Skip if we already processed this series
+                if processedSeriesIds.contains(seriesId) {
+                    continue
+                }
+                processedSeriesIds.insert(seriesId)
+                
+                // Get all classes in this series
+                let seriesClasses = upcomingClasses
+                    .filter { $0.seriesId == seriesId }
+                    .sorted { $0.startTime < $1.startTime }
+                
+                // Use the first class as the representative
+                if let first = seriesClasses.first {
+                    grouped.append((representative: first, seriesClasses: seriesClasses))
+                }
+            } else {
+                // Single class (not part of a series)
+                grouped.append((representative: classItem, seriesClasses: []))
+            }
+        }
+        
+        // Sort by start time
+        return grouped.sorted { $0.representative.startTime < $1.representative.startTime }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             // Header
@@ -35,7 +68,7 @@ struct ClassesTabView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(AppTheme.textPrimary)
                     
-                    Text("\(upcomingClasses.count) upcoming classes")
+                    Text("\(groupedClasses.count) upcoming \(groupedClasses.count == 1 ? "class" : "classes")")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
@@ -67,7 +100,7 @@ struct ClassesTabView: View {
             if classesService.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if upcomingClasses.isEmpty {
+            } else if groupedClasses.isEmpty {
                 VStack(spacing: Spacing.lg) {
                     Image(systemName: "calendar.badge.plus")
                         .font(.system(size: 60))
@@ -104,22 +137,23 @@ struct ClassesTabView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: Spacing.md) {
-                        ForEach(upcomingClasses) { classItem in
+                        ForEach(groupedClasses, id: \.representative.id) { group in
                             AdminClassCard(
-                                classItem: classItem,
+                                classItem: group.representative,
+                                seriesClasses: group.seriesClasses,
                                 onTap: {
-                                    classToEdit = classItem
+                                    classToEdit = group.representative
                                 },
                                 onToggleRegistration: { isOpen in
                                     Task {
-                                        guard let classId = classItem.id, let orgId = auth.currentOrgId else { return }
+                                        guard let classId = group.representative.id, let orgId = auth.currentOrgId else { return }
                                         try? await adminService.toggleClassRegistration(classId: classId, isOpen: isOpen)
                                         await classesService.loadAllClasses(orgId: orgId)
                                     }
                                 },
                                 onDelete: {
                                     Task {
-                                        guard let classId = classItem.id, let orgId = auth.currentOrgId else { return }
+                                        guard let classId = group.representative.id, let orgId = auth.currentOrgId else { return }
                                         try? await adminService.deleteClass(classId: classId, orgId: orgId)
                                         await classesService.loadAllClasses(orgId: orgId)
                                     }

@@ -229,7 +229,6 @@ final class BookingManager: ObservableObject {
             }
             
             if let chosenId = chosen?.id {
-                print("📦 BookingManager: Selected package \(chosenId) from NEW path")
                 return chosenId
             }
         }
@@ -244,10 +243,6 @@ final class BookingManager: ObservableObject {
         let oldPathPkgs = parsePackages(from: oldPathSnap)
         let chosen = oldPathPkgs.first { pkg in
             pkg.expiration >= now && (pkg.total - pkg.used) > 0
-        }
-        
-        if let chosenId = chosen?.id {
-            print("📦 BookingManager: Selected package \(chosenId) from OLD path")
         }
         
         return chosen?.id

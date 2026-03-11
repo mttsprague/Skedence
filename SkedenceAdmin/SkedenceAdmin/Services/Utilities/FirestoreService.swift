@@ -183,7 +183,7 @@ final class FirestoreService {
             let clientUID = data["clientUID"] as? String
             let clientName = data["clientName"] as? String
 
-            return TrainerScheduleSlot(
+            var slot = TrainerScheduleSlot(
                 id: slotIdentifier,
                 trainerId: trainerId,
                 status: .booked,
@@ -196,6 +196,14 @@ final class FirestoreService {
                 isClassBooking: isClassBooking,
                 classId: classId
             )
+            
+            // DATA VALIDATION: If slot has a client but no classId, it can't be a class booking
+            // This prevents display issues where regular bookings incorrectly show as classes
+            if slot.clientId != nil && (slot.classId == nil || slot.classId?.isEmpty == true) && slot.isClassBooking == true {
+                slot.isClassBooking = false
+            }
+            
+            return slot
         }
 
         // Overwrite any open/unavailable slot with the booked one if ids collide.
@@ -735,6 +743,7 @@ final class FirestoreService {
         
         // 3. Get complete client profile data
         var clientName = "Client"
+        var clientAuthUID: String? = nil  // ✅ ADD: Extract client's Firebase Auth UID
         var clientEmail: String? = nil
         var clientPhone: String? = nil
         var emergencyContactName: String? = nil
@@ -752,6 +761,7 @@ final class FirestoreService {
             if !combined.isEmpty { clientName = combined }
             
             // Extract full profile data
+            clientAuthUID = clientData["authUserId"] as? String  // ✅ ADD: Get client's Auth UID
             clientEmail = clientData["emailAddress"] as? String ?? clientData["email"] as? String
             clientPhone = clientData["phoneNumber"] as? String
             emergencyContactName = clientData["emergencyContactName"] as? String
@@ -803,7 +813,8 @@ final class FirestoreService {
         // 5. Create the booking document with all required fields including complete profile data
         let bookingRef = db.collection("bookings").document()
         var bookingData: [String: Any] = [
-            "clientUID": safeClientId,
+            "clientUID": safeClientId,  // firstName_lastName document ID
+            "clientId": safeClientId,   // ✅ Client apps query by this field
             "clientName": clientName,
             "trainerUID": safeTrainerId,
             "trainerId": safeTrainerId,
@@ -818,6 +829,11 @@ final class FirestoreService {
             "slotId": slotId,
             "orgId": safeOrgId
         ]
+        
+        // Add clientAuthUID if available (client's Firebase Auth UID)
+        if let authUID = clientAuthUID {
+            bookingData["clientAuthUID"] = authUID  // ✅ ADD: Client's Auth UID for queries
+        }
         
         // Add client profile data if available
         if let email = clientEmail {

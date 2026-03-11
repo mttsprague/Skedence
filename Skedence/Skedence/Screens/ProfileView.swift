@@ -136,7 +136,7 @@ private struct SignedInProfileScreen: View {
             AnalyticsService.shared.logScreenView(screenName: "Profile", screenClass: "ProfileView")
         }
         .task {
-            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
+            guard let orgId = auth.currentOrgId, let userDocId = auth.currentUserDocId else { return }
             if trainersService.trainers.isEmpty {
                 await trainersService.loadAll(orgId: orgId)
             }
@@ -144,7 +144,8 @@ private struct SignedInProfileScreen: View {
                 await bookingsService.loadMyBookings(orgId: orgId)
             }
             if classesService.myRegisteredClasses.isEmpty {
-                await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
+                // IMPORTANT: Use currentUserDocId (Firestore doc ID like "mike_parent"), NOT currentUserId (Auth UID)
+                await classesService.loadMyRegisteredClasses(userId: userDocId, orgId: orgId)
             }
             if customerService.paymentMethods.isEmpty {
                 await customerService.loadPaymentMethods(orgId: orgId)
@@ -153,11 +154,12 @@ private struct SignedInProfileScreen: View {
             await pricingService.loadPricingStructure(for: orgId)
         }
         .refreshable {
-            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
+            guard let orgId = auth.currentOrgId, let userDocId = auth.currentUserDocId else { return }
             await usersService.loadCurrentUserIfAvailable()
             await packagesService.loadMyPackages(orgId: auth.currentOrgId)
             await bookingsService.loadMyBookings(orgId: orgId)
-            await classesService.loadMyRegisteredClasses(userId: userId, orgId: orgId)
+            // IMPORTANT: Use currentUserDocId, not currentUserId
+            await classesService.loadMyRegisteredClasses(userId: userDocId, orgId: orgId)
             await customerService.loadPaymentMethods(orgId: orgId)
             await pricingService.loadPricingStructure(for: orgId)
         }

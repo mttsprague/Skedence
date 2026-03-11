@@ -206,6 +206,70 @@ export default function LocationsPage() {
         // Update existing location
         await updateDoc(doc(db, 'locations', editingLocation.id), locationData);
         
+        // CASCADE UPDATE: Update location name in all schedules, bookings, and classes
+        const oldLocationName = editingLocation.name;
+        const newLocationName = form.name;
+        
+        if (oldLocationName !== newLocationName) {
+          console.log(`📍 Cascading location update from "${oldLocationName}" to "${newLocationName}"`);
+          
+          // Update all trainer schedules with this location
+          const trainersQuery = query(
+            collection(db, 'trainers'),
+            where('orgId', '==', orgId),
+            where('active', '==', true)
+          );
+          const trainersSnap = await getDocs(trainersQuery);
+          
+          let schedulesUpdated = 0;
+          for (const trainerDoc of trainersSnap.docs) {
+            const schedulesQuery = query(
+              collection(db, 'trainers', trainerDoc.id, 'schedules'),
+              where('location', '==', oldLocationName)
+            );
+            const schedulesSnap = await getDocs(schedulesQuery);
+            
+            for (const scheduleDoc of schedulesSnap.docs) {
+              await updateDoc(scheduleDoc.ref, { location: newLocationName });
+              schedulesUpdated++;
+            }
+          }
+          console.log(`✅ Updated ${schedulesUpdated} schedule slots`);
+          
+          // Update all bookings with this location
+          const bookingsQuery = query(
+            collection(db, 'bookings'),
+            where('orgId', '==', orgId),
+            where('location', '==', oldLocationName)
+          );
+          const bookingsSnap = await getDocs(bookingsQuery);
+          let bookingsUpdated = 0;
+          for (const bookingDoc of bookingsSnap.docs) {
+            await updateDoc(bookingDoc.ref, { location: newLocationName });
+            bookingsUpdated++;
+          }
+          console.log(`✅ Updated ${bookingsUpdated} bookings`);
+          
+          // Update all classes with this location
+          const classesQuery = query(
+            collection(db, 'classes'),
+            where('orgId', '==', orgId),
+            where('location', '==', oldLocationName)
+          );
+          const classesSnap = await getDocs(classesQuery);
+          let classesUpdated = 0;
+          for (const classDoc of classesSnap.docs) {
+            await updateDoc(classDoc.ref, { location: newLocationName });
+            classesUpdated++;
+          }
+          console.log(`✅ Updated ${classesUpdated} classes`);
+          
+          const totalUpdates = schedulesUpdated + bookingsUpdated + classesUpdated;
+          if (totalUpdates > 0) {
+            toast.success(`Location updated in ${totalUpdates} places`, `Updated ${schedulesUpdated} schedules, ${bookingsUpdated} bookings, and ${classesUpdated} classes`);
+          }
+        }
+        
         // Log activity
         if (user && userData) {
           const fullAddress = `${form.addressLine1}, ${form.city}, ${form.state} ${form.zipCode}`;

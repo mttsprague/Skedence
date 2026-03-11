@@ -55,7 +55,7 @@ export const createSetupIntentDirect = onCall(
 
       // Initialize Stripe with organization's secret key
       const stripe = new Stripe(orgData.stripe.secretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
 
@@ -212,7 +212,7 @@ export const getPaymentMethodsDirect = onCall(
 
       // Initialize Stripe with organization's key
       const stripe = new Stripe(orgData.stripe.secretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
       // Get or create customer
@@ -344,19 +344,27 @@ export const getPaymentMethodsDirectAdmin = onCall(
 
     try {
       // Verify admin access
-      // Note: orgMembers uses a flat structure with composite key: {uid}_{orgId}
-      const membershipId = `${request.auth.uid}_${orgId}`;
-
-      const memberDoc = await db
+      // Query by authUserId field (orgMembers docs use trainerId_orgId format)
+      const memberQuery = await db
         .collection("orgMembers")
-        .doc(membershipId)
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
+      if (memberQuery.empty) {
+        throw new HttpsError(
+          "permission-denied",
+          "You are not a member of this organization"
+        );
+      }
+
+      const memberDoc = memberQuery.docs[0];
       const memberData = memberDoc.data();
 
 
-      if (!memberData || (memberData.role !== "owner" && memberData.role !== "admin")) {
-        logger.error(`❌ Permission denied - exists: ${memberDoc.exists}, role: ${memberData?.role || "none"}`);
+      if (memberData.role !== "owner" && memberData.role !== "admin") {
+        logger.error(`❌ Permission denied - role: ${memberData?.role || "none"}`);
         throw new HttpsError(
           "permission-denied",
           "Only owners and admins can view client payment methods"
@@ -388,7 +396,7 @@ export const getPaymentMethodsDirectAdmin = onCall(
 
       // Initialize Stripe with organization's key
       const stripe = new Stripe(orgData.stripe.secretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
       // Query user by authUserId field (dual-path query pattern)
@@ -558,7 +566,7 @@ export const attachPaymentMethod = onCall(
       }
 
       const stripe = new Stripe(stripeSecretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
       // Attach payment method to customer
@@ -645,7 +653,7 @@ export const chargeWithSavedMethod = onCall(
       }
 
       const stripe = new Stripe(stripeSecretKey, {
-        apiVersion: "2025-02-24.acacia",
+        // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
       // Create and confirm payment intent

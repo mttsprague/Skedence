@@ -15,7 +15,8 @@ import {
   DollarSign,
   Crown,
   Menu,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +27,7 @@ const submenuItems = [
   { name: 'Waiver', href: '/waiver', icon: FileText },
   { name: 'Intake Forms', href: '/settings/intake-forms', icon: FileText },
   { name: 'Stripe Settings', href: '/settings/stripe', icon: CreditCard },
+  { name: 'API Settings', href: '/settings/api', icon: Shield },
   { name: 'Client Emails', href: '/settings/client-emails', icon: Bell },
   { name: 'Locations', href: '/locations', icon: MapPin },
   { name: 'Passes', href: '/passes', icon: Package },

@@ -45,7 +45,6 @@ const commands = [
       { icon: Calendar, label: 'Scheduling', value: 'scheduling', href: '/scheduling' },
       { icon: Users, label: 'Clients', value: 'clients', href: '/clients' },
       { icon: UserCog, label: 'Trainers', value: 'trainers', href: '/trainers' },
-      { icon: Calendar, label: 'Schedule View', value: 'schedule', href: '/schedule' },
       { icon: GraduationCap, label: 'Classes', value: 'classes', href: '/classes' },
       { icon: BarChart3, label: 'Reports', value: 'reports', href: '/reports' },
     ],

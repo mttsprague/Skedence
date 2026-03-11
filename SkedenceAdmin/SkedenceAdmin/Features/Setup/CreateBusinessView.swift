@@ -353,12 +353,6 @@ struct CreateBusinessView: View {
                 try await db.collection("orgMembers")
                     .document("\(userId)_\(orgId)")
                     .setData(memberData)
-                
-                print("✅ CreateBusinessView: Created organization with name-based IDs")
-                print("   - Organization ID: \(orgId)")
-                print("   - Trainer ID: \(trainerId)")
-                print("   - User ID: \(nameBasedUserId)")
-                print("   - orgMembers: \(userId)_\(orgId) (auth-based only)")
                 print("   - Role: admin (also trainer with isAdmin=true)")
                 
                 // 9. Load org data into AuthManager
