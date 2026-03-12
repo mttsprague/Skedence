@@ -292,6 +292,18 @@ struct CreateBusinessView: View {
                 
                 try await orgRef.setData(orgData)
                 
+                // 3.5. Create default notification settings (bookingAlerts enabled by default)
+                let notificationSettings: [String: Any] = [
+                    "sendAppointmentNotifications": true,  // ✅ Enable booking notifications by default
+                    "sendSummaryEmails": false,
+                    "summaryFrequency": "weekly",
+                    "summaryTime": "19:00",
+                    "timezone": timezone
+                ]
+                
+                try await orgRef.collection("settings").document("bookingAlerts").setData(notificationSettings)
+                print("   ✅ Created default notification settings (bookingAlerts: ON)")
+                
                 // 4. Generate name-based user ID (e.g., john_doe)
                 let nameBasedUserId = try await IDGenerator.generateUserId(
                     firstName: ownerFirstName,

@@ -350,6 +350,18 @@ class CreateOrgViewModel: ObservableObject {
             
             try await orgRef.setData(orgData)
             
+            // Create default notification settings (bookingAlerts enabled by default)
+            let notificationSettings: [String: Any] = [
+                "sendAppointmentNotifications": true,  // ✅ Enable booking notifications by default
+                "sendSummaryEmails": false,
+                "summaryFrequency": "weekly",
+                "summaryTime": "19:00",
+                "timezone": "America/New_York"  // Default timezone
+            ]
+            
+            try await orgRef.collection("settings").document("bookingAlerts").setData(notificationSettings)
+            print("   ✅ Created default notification settings (bookingAlerts: ON)")
+            
             // Create owner user (if provided)
             if !ownerEmail.isEmpty {
                 let userId = UUID().uuidString
