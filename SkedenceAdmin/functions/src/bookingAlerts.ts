@@ -122,7 +122,9 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
       const clientName = clientData ?
         `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || clientData.email :
         "Unknown Client";
-      const trainerName = trainerData?.name || "Unknown Trainer";
+      const trainerName = trainerData ?
+        `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || trainerData.email :
+        "Unknown Trainer";
 
       // Format date and time in owner's timezone
       const timezone = alertSettings.data()?.timezone || "America/Los_Angeles";
@@ -318,7 +320,9 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
       const clientName = clientData ?
         `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || clientData.email :
         "Unknown Client";
-      const trainerName = trainerData?.name || "Unknown Trainer";
+      const trainerName = trainerData ?
+        `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || trainerData.email :
+        "Unknown Trainer";
 
       // Format date and time
       const timezone = alertSettings.data()?.timezone || "America/Los_Angeles";
