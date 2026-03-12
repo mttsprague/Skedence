@@ -184,6 +184,24 @@ export const createOrganizationFromWeb = onCall(
         const memberRef = db.collection('orgMembers').doc(`${authUserId}_${orgId}`);
         transaction.set(memberRef, memberData);
         logger.info(`✅ Created orgMembers: ${authUserId}_${orgId}`);
+        
+        // 4. Create default notification settings (all notifications enabled by default)
+        const notificationSettingsRef = orgRef.collection('settings').doc('bookingAlerts');
+        const notificationSettings = {
+          sendAppointmentNotifications: true,
+          sendLessonBookingNotifications: true,
+          sendLessonCancellationNotifications: true,
+          sendPackagePurchaseNotifications: true,
+          sendClassRegistrationNotifications: true,
+          sendClassCancellationNotifications: true,
+          sendSummaryEmails: false,
+          summaryFrequency: 'weekly',
+          summaryTime: '19:00',
+          timezone: timezone || 'America/New_York'
+        };
+        
+        transaction.set(notificationSettingsRef, notificationSettings);
+        logger.info(`✅ Created notification settings with all notifications enabled`);
       });
       
       logger.info(`✅ Successfully created organization ${orgId} for user ${authUserId}`);
