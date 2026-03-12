@@ -61,6 +61,9 @@ export * from "./deleteUserAccount";
 // Export confirmation email functions
 export * from "./confirmationEmails";
 
+// Export booking alert notification functions
+export * from "./bookingAlerts";
+
 // Export admin payment functions
 export * from "./admin-payment";
 
