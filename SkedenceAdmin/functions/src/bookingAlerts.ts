@@ -703,7 +703,7 @@ export const sendOwnerClassRegistrationNotification = onDocumentCreated(
       const classData = classDoc.data();
       const clientData = clientDoc.data();
 
-      const className = classData?.className || "Unknown Class";
+      const className = classData?.title || "Unknown Class";
       const clientName = clientData ?
         `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || clientData.email :
         "Unknown Client";
@@ -916,7 +916,7 @@ export const sendOwnerClassCancellationNotification = onDocumentDeleted(
       const classData = classDoc.data();
       const clientData = clientDoc.data();
 
-      const className = classData?.className || "Unknown Class";
+      const className = classData?.title || "Unknown Class";
       const clientName = clientData ?
         `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || clientData.email :
         "Unknown Client";
