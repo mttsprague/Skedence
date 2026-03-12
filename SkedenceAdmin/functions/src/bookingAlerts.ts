@@ -50,38 +50,35 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
         .where("isActive", "==", true)
         .get();
 
-      if (adminMembers.empty) {
-        console.log("No admins found for organization");
-        // Fallback to adminEmail on org document if available
-        if (orgData.adminEmail) {
-          const adminEmails = [orgData.adminEmail];
-          const ownerData = {firstName: "Admin", email: orgData.adminEmail};
-          // Continue with single admin email...
-        } else {
-          return null;
-        }
-      }
-
-      // Get all admin emails
-      const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId);
-      const adminDocs = await Promise.all(
-        adminUserIds.map((userId) => admin.firestore().collection("users").doc(userId).get())
-      );
-
-      const adminEmails: string[] = [];
+      let adminEmails: string[] = [];
       let ownerData: any = {};
 
-      for (const doc of adminDocs) {
-        if (doc.exists && doc.data()?.email) {
-          adminEmails.push(doc.data()!.email);
-          if (!ownerData.email) {
-            ownerData = doc.data()!; // Use first admin for personalization
+      if (!adminMembers.empty) {
+        // Get all admin emails from orgMembers
+        const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId || doc.data().authUserId);
+        const adminDocs = await Promise.all(
+          adminUserIds.filter((id) => id).map((userId) => admin.firestore().collection("users").doc(userId).get())
+        );
+
+        for (const doc of adminDocs) {
+          if (doc.exists && doc.data()?.email) {
+            adminEmails.push(doc.data()!.email);
+            if (!ownerData.email) {
+              ownerData = doc.data()!; // Use first admin for personalization
+            }
           }
         }
       }
 
+      // Fallback to adminEmail on org document if no admins found in orgMembers
+      if (adminEmails.length === 0 && orgData.adminEmail) {
+        console.log("No admins found in orgMembers, using adminEmail from org document");
+        adminEmails = [orgData.adminEmail];
+        ownerData = {firstName: "Admin", email: orgData.adminEmail};
+      }
+
       if (adminEmails.length === 0) {
-        console.log("No admin emails found");
+        console.log("No admin emails found anywhere");
         return null;
       }
 
@@ -221,31 +218,35 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
         .where("isActive", "==", true)
         .get();
 
-      if (adminMembers.empty) {
-        console.log("No admins found for organization");
-        return null;
-      }
-
-      // Get all admin emails
-      const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId);
-      const adminDocs = await Promise.all(
-        adminUserIds.map((userId) => admin.firestore().collection("users").doc(userId).get())
-      );
-
-      const adminEmails: string[] = [];
+      let adminEmails: string[] = [];
       let ownerData: any = {};
 
-      for (const doc of adminDocs) {
-        if (doc.exists && doc.data()?.email) {
-          adminEmails.push(doc.data()!.email);
-          if (!ownerData.email) {
-            ownerData = doc.data()!;
+      if (!adminMembers.empty) {
+        // Get all admin emails from orgMembers
+        const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId || doc.data().authUserId);
+        const adminDocs = await Promise.all(
+          adminUserIds.filter((id) => id).map((userId) => admin.firestore().collection("users").doc(userId).get())
+        );
+
+        for (const doc of adminDocs) {
+          if (doc.exists && doc.data()?.email) {
+            adminEmails.push(doc.data()!.email);
+            if (!ownerData.email) {
+              ownerData = doc.data()!;
+            }
           }
         }
       }
 
+      // Fallback to adminEmail on org document if no admins found in orgMembers
+      if (adminEmails.length === 0 && orgData.adminEmail) {
+        console.log("No admins found in orgMembers, using adminEmail from org document");
+        adminEmails = [orgData.adminEmail];
+        ownerData = {firstName: "Admin", email: orgData.adminEmail};
+      }
+
       if (adminEmails.length === 0) {
-        console.log("No admin emails found");
+        console.log("No admin emails found anywhere");
         return null;
       }
 
@@ -377,31 +378,35 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
         .where("isActive", "==", true)
         .get();
 
-      if (adminMembers.empty) {
-        console.log("No admins found for organization");
-        return null;
-      }
-
-      // Get all admin emails
-      const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId);
-      const adminDocs = await Promise.all(
-        adminUserIds.map((id) => admin.firestore().collection("users").doc(id).get())
-      );
-
-      const adminEmails: string[] = [];
+      let adminEmails: string[] = [];
       let ownerData: any = {};
 
-      for (const doc of adminDocs) {
-        if (doc.exists && doc.data()?.email) {
-          adminEmails.push(doc.data()!.email);
-          if (!ownerData.email) {
-            ownerData = doc.data()!;
+      if (!adminMembers.empty) {
+        // Get all admin emails from orgMembers
+        const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId || doc.data().authUserId);
+        const adminDocs = await Promise.all(
+          adminUserIds.filter((id) => id).map((id) => admin.firestore().collection("users").doc(id).get())
+        );
+
+        for (const doc of adminDocs) {
+          if (doc.exists && doc.data()?.email) {
+            adminEmails.push(doc.data()!.email);
+            if (!ownerData.email) {
+              ownerData = doc.data()!;
+            }
           }
         }
       }
 
+      // Fallback to adminEmail on org document if no admins found in orgMembers
+      if (adminEmails.length === 0 && orgData.adminEmail) {
+        console.log("No admins found in orgMembers, using adminEmail from org document");
+        adminEmails = [orgData.adminEmail];
+        ownerData = {firstName: "Admin", email: orgData.adminEmail};
+      }
+
       if (adminEmails.length === 0) {
-        console.log("No admin emails found");
+        console.log("No admin emails found anywhere");
         return null;
       }
 
