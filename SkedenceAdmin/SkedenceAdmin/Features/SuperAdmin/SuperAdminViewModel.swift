@@ -353,6 +353,11 @@ class CreateOrgViewModel: ObservableObject {
             // Create default notification settings (bookingAlerts enabled by default)
             let notificationSettings: [String: Any] = [
                 "sendAppointmentNotifications": true,  // ✅ Enable booking notifications by default
+                "sendLessonBookingNotifications": true,  // ✅ Enable lesson booking notifications
+                "sendLessonCancellationNotifications": true,  // ✅ Enable lesson cancellation notifications
+                "sendPackagePurchaseNotifications": true,  // ✅ Enable package purchase notifications
+                "sendClassRegistrationNotifications": true,  // ✅ Enable class registration notifications
+                "sendClassCancellationNotifications": true,  // ✅ Enable class cancellation notifications
                 "sendSummaryEmails": false,
                 "summaryFrequency": "weekly",
                 "summaryTime": "19:00",

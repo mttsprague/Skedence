@@ -10,6 +10,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface BookingAlertSettings {
   sendAppointmentNotifications: boolean;
+  sendLessonBookingNotifications: boolean;
+  sendLessonCancellationNotifications: boolean;
+  sendPackagePurchaseNotifications: boolean;
+  sendClassRegistrationNotifications: boolean;
+  sendClassCancellationNotifications: boolean;
   sendSummaryEmails: boolean;
   summaryFrequency: 'weekly' | 'daily';
   summaryTime: string; // HH:mm format (24-hour)
@@ -18,6 +23,11 @@ interface BookingAlertSettings {
 
 const defaultSettings: BookingAlertSettings = {
   sendAppointmentNotifications: true,
+  sendLessonBookingNotifications: true,
+  sendLessonCancellationNotifications: true,
+  sendPackagePurchaseNotifications: true,
+  sendClassRegistrationNotifications: true,
+  sendClassCancellationNotifications: true,
   sendSummaryEmails: false,
   summaryFrequency: 'weekly',
   summaryTime: '19:00',
@@ -146,6 +156,125 @@ export default function BookingAlertsPage() {
                 />
               </button>
             </div>
+
+            {/* Individual Notification Toggles - Only shown when master toggle is ON */}
+            {settings.sendAppointmentNotifications && (
+              <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
+                <p className="text-sm font-medium text-foreground/80 mb-4">
+                  Choose which notifications you want to receive:
+                </p>
+
+                {/* Lesson Booking Notifications */}
+                <div className="flex items-start justify-between pl-4 py-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">Lesson booking notifications</div>
+                    <p className="text-sm text-foreground/70 mt-1">
+                      Get notified when a client books a 1-on-1 lesson
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateSetting('sendLessonBookingNotifications', !settings.sendLessonBookingNotifications)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ml-4 ${
+                      settings.sendLessonBookingNotifications ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.sendLessonBookingNotifications ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Lesson Cancellation Notifications */}
+                <div className="flex items-start justify-between pl-4 py-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">Lesson cancellation notifications</div>
+                    <p className="text-sm text-foreground/70 mt-1">
+                      Get notified when a client cancels a 1-on-1 lesson
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateSetting('sendLessonCancellationNotifications', !settings.sendLessonCancellationNotifications)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ml-4 ${
+                      settings.sendLessonCancellationNotifications ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.sendLessonCancellationNotifications ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Class Registration Notifications */}
+                <div className="flex items-start justify-between pl-4 py-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">Class registration notifications</div>
+                    <p className="text-sm text-foreground/70 mt-1">
+                      Get notified when a client registers for a group class
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateSetting('sendClassRegistrationNotifications', !settings.sendClassRegistrationNotifications)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ml-4 ${
+                      settings.sendClassRegistrationNotifications ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.sendClassRegistrationNotifications ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Class Cancellation Notifications */}
+                <div className="flex items-start justify-between pl-4 py-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">Class cancellation notifications</div>
+                    <p className="text-sm text-foreground/70 mt-1">
+                      Get notified when a client cancels a group class registration
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateSetting('sendClassCancellationNotifications', !settings.sendClassCancellationNotifications)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ml-4 ${
+                      settings.sendClassCancellationNotifications ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.sendClassCancellationNotifications ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Package Purchase Notifications */}
+                <div className="flex items-start justify-between pl-4 py-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">Package purchase notifications</div>
+                    <p className="text-sm text-foreground/70 mt-1">
+                      Get notified when a client purchases a lesson package
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateSetting('sendPackagePurchaseNotifications', !settings.sendPackagePurchaseNotifications)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ml-4 ${
+                      settings.sendPackagePurchaseNotifications ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.sendPackagePurchaseNotifications ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Send Summary Emails */}

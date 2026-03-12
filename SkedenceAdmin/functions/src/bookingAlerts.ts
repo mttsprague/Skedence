@@ -24,8 +24,11 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
         .collection("organizations").doc(booking.orgId)
         .collection("settings").doc("bookingAlerts").get();
 
-      if (!alertSettings.exists || alertSettings.data()?.sendAppointmentNotifications !== true) {
-        console.log(`Appointment notifications disabled for org ${booking.orgId}`);
+      const settingsData = alertSettings.data();
+      if (!alertSettings.exists || 
+          settingsData?.sendAppointmentNotifications !== true ||
+          settingsData?.sendLessonBookingNotifications !== true) {
+        console.log(`Lesson booking notifications disabled for org ${booking.orgId}`);
         return null;
       }
 
@@ -226,7 +229,10 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
         .collection("organizations").doc(booking.orgId)
         .collection("settings").doc("bookingAlerts").get();
 
-      if (!alertSettings.exists || alertSettings.data()?.sendAppointmentNotifications !== true) {
+      const settingsData = alertSettings.data();
+      if (!alertSettings.exists ||
+          settingsData?.sendAppointmentNotifications !== true ||
+          settingsData?.sendLessonCancellationNotifications !== true) {
         return null;
       }
 
@@ -416,7 +422,10 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
         .collection("organizations").doc(orgId)
         .collection("settings").doc("bookingAlerts").get();
 
-      if (!alertSettings.exists || alertSettings.data()?.sendAppointmentNotifications !== true) {
+      const settingsData = alertSettings.data();
+      if (!alertSettings.exists ||
+          settingsData?.sendAppointmentNotifications !== true ||
+          settingsData?.sendPackagePurchaseNotifications !== true) {
         return null;
       }
 
@@ -598,8 +607,11 @@ export const sendOwnerClassRegistrationNotification = onDocumentCreated(
         .collection("organizations").doc(registration.orgId)
         .collection("settings").doc("bookingAlerts").get();
 
-      if (!alertSettings.exists || alertSettings.data()?.sendAppointmentNotifications !== true) {
-        console.log(`Appointment notifications disabled for org ${registration.orgId}`);
+      const settingsData = alertSettings.data();
+      if (!alertSettings.exists ||
+          settingsData?.sendAppointmentNotifications !== true ||
+          settingsData?.sendClassRegistrationNotifications !== true) {
+        console.log(`Class registration notifications disabled for org ${registration.orgId}`);
         return null;
       }
 
@@ -812,7 +824,10 @@ export const sendOwnerClassCancellationNotification = onDocumentDeleted(
         .collection("organizations").doc(registration.orgId)
         .collection("settings").doc("bookingAlerts").get();
 
-      if (!alertSettings.exists || alertSettings.data()?.sendAppointmentNotifications !== true) {
+      const settingsData = alertSettings.data();
+      if (!alertSettings.exists ||
+          settingsData?.sendAppointmentNotifications !== true ||
+          settingsData?.sendClassCancellationNotifications !== true) {
         return null;
       }
 
