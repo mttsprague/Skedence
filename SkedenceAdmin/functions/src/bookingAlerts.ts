@@ -59,6 +59,7 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
         
         // Query users collection by authUserId field (not document ID)
         for (const authUserId of adminAuthIds) {
+          // Try users collection first
           const userQuery = await admin.firestore()
             .collection("users")
             .where("authUserId", "==", authUserId)
@@ -71,16 +72,35 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
             if (email) {
               adminEmails.push(email);
               if (!ownerData.email) {
-                ownerData = userData; // Use first admin for personalization
+                ownerData = userData;
+              }
+            }
+          } else {
+            // If not in users, try trainers collection (admins are often trainers)
+            const trainerQuery = await admin.firestore()
+              .collection("trainers")
+              .where("authUserId", "==", authUserId)
+              .where("orgId", "==", booking.orgId)
+              .limit(1)
+              .get();
+            
+            if (!trainerQuery.empty) {
+              const trainerData = trainerQuery.docs[0].data();
+              const email = trainerData.email;
+              if (email) {
+                adminEmails.push(email);
+                if (!ownerData.email) {
+                  ownerData = trainerData;
+                }
               }
             }
           }
         }
       }
 
-      // Fallback to adminEmail on org document if no admins found in orgMembers
+      // Last resort: Use org.adminEmail if configured
       if (adminEmails.length === 0 && orgData.adminEmail) {
-        console.log("No admins found in orgMembers, using adminEmail from org document");
+        console.log("No admin emails found in users/trainers, using org.adminEmail fallback");
         adminEmails = [orgData.adminEmail];
         ownerData = {firstName: "Admin", email: orgData.adminEmail};
       }
@@ -235,6 +255,7 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
         
         // Query users collection by authUserId field (not document ID)
         for (const authUserId of adminAuthIds) {
+          // Try users collection first
           const userQuery = await admin.firestore()
             .collection("users")
             .where("authUserId", "==", authUserId)
@@ -250,13 +271,32 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
                 ownerData = userData;
               }
             }
+          } else {
+            // If not in users, try trainers collection (admins are often trainers)
+            const trainerQuery = await admin.firestore()
+              .collection("trainers")
+              .where("authUserId", "==", authUserId)
+              .where("orgId", "==", booking.orgId)
+              .limit(1)
+              .get();
+            
+            if (!trainerQuery.empty) {
+              const trainerData = trainerQuery.docs[0].data();
+              const email = trainerData.email;
+              if (email) {
+                adminEmails.push(email);
+                if (!ownerData.email) {
+                  ownerData = trainerData;
+                }
+              }
+            }
           }
         }
       }
 
-      // Fallback to adminEmail on org document if no admins found in orgMembers
+      // Last resort: Use org.adminEmail if configured
       if (adminEmails.length === 0 && orgData.adminEmail) {
-        console.log("No admins found in orgMembers, using adminEmail from org document");
+        console.log("No admin emails found in users/trainers, using org.adminEmail fallback");
         adminEmails = [orgData.adminEmail];
         ownerData = {firstName: "Admin", email: orgData.adminEmail};
       }
@@ -403,6 +443,7 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
         
         // Query users collection by authUserId field (not document ID)
         for (const authUserId of adminAuthIds) {
+          // Try users collection first
           const userQuery = await admin.firestore()
             .collection("users")
             .where("authUserId", "==", authUserId)
@@ -418,13 +459,32 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
                 ownerData = userData;
               }
             }
+          } else {
+            // If not in users, try trainers collection (admins are often trainers)
+            const trainerQuery = await admin.firestore()
+              .collection("trainers")
+              .where("authUserId", "==", authUserId)
+              .where("orgId", "==", orgId)
+              .limit(1)
+              .get();
+            
+            if (!trainerQuery.empty) {
+              const trainerData = trainerQuery.docs[0].data();
+              const email = trainerData.email;
+              if (email) {
+                adminEmails.push(email);
+                if (!ownerData.email) {
+                  ownerData = trainerData;
+                }
+              }
+            }
           }
         }
       }
 
-      // Fallback to adminEmail on org document if no admins found in orgMembers
+      // Last resort: Use org.adminEmail if configured
       if (adminEmails.length === 0 && orgData.adminEmail) {
-        console.log("No admins found in orgMembers, using adminEmail from org document");
+        console.log("No admin emails found in users/trainers, using org.adminEmail fallback");
         adminEmails = [orgData.adminEmail];
         ownerData = {firstName: "Admin", email: orgData.adminEmail};
       }
