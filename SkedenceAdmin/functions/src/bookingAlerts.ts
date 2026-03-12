@@ -18,6 +18,12 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
       return null;
     }
 
+    // Skip class bookings - they have their own notification function
+    if (booking.isClassBooking === true) {
+      console.log(`Skipping class booking ${bookingId} - handled by class registration notification`);
+      return null;
+    }
+
     try {
       // Check if owner wants appointment notifications
       const alertSettings = await admin.firestore()
@@ -220,6 +226,12 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
     const booking = snap.data();
 
     if (!booking || !booking.orgId) {
+      return null;
+    }
+
+    // Skip class bookings - they have their own notification function
+    if (booking.isClassBooking === true) {
+      console.log(`Skipping class booking cancellation - handled by class cancellation notification`);
       return null;
     }
 
