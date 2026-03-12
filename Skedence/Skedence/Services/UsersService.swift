@@ -90,63 +90,33 @@ final class UsersService: ObservableObject {
         
         var updateData: [String: Any] = [:]
         
-        // Add parent/guardian fields
-        if let firstName = profile.firstName {
-            updateData["firstName"] = firstName
-        }
-        if let lastName = profile.lastName {
-            updateData["lastName"] = lastName
-        }
-        if let emailAddress = profile.emailAddress {
-            updateData["emailAddress"] = emailAddress
-        }
-        if let phoneNumber = profile.phoneNumber {
-            updateData["phoneNumber"] = phoneNumber
-        }
-        
-        // Add emergency contact fields
-        if let emergencyContactName = profile.emergencyContactName {
-            updateData["emergencyContactName"] = emergencyContactName
-        }
-        if let emergencyContactNumber = profile.emergencyContactNumber {
-            updateData["emergencyContactNumber"] = emergencyContactNumber
-        }
-        
-        // Add referral field
-        if let referredBy = profile.referredBy {
-            updateData["referredBy"] = referredBy
-        }
-        
-        // Add notes
-        if let notesForCoach = profile.notesForCoach {
-            updateData["notesForCoach"] = notesForCoach
-        }
+        // Always include all fields to properly clear old data when fields are emptied
+        updateData["firstName"] = profile.firstName ?? ""
+        updateData["lastName"] = profile.lastName ?? ""
+        updateData["emailAddress"] = profile.emailAddress ?? ""
+        updateData["phoneNumber"] = profile.phoneNumber ?? ""
+        updateData["emergencyContactName"] = profile.emergencyContactName ?? ""
+        updateData["emergencyContactNumber"] = profile.emergencyContactNumber ?? ""
+        updateData["referredBy"] = profile.referredBy ?? ""
+        updateData["notesForCoach"] = profile.notesForCoach ?? ""
         
         // Add athletes array
         if let athletes = profile.athletes {
             let athletesData: [[String: Any]] = athletes.map { athlete in
-                var athleteDict: [String: Any] = [:]
-                if let firstName = athlete.firstName {
-                    athleteDict["firstName"] = firstName
-                }
-                if let lastName = athlete.lastName {
-                    athleteDict["lastName"] = lastName
-                }
-                if let birthday = athlete.birthday {
-                    athleteDict["birthday"] = birthday
-                }
-                if let schoolClubTeam = athlete.schoolClubTeam {
-                    athleteDict["schoolClubTeam"] = schoolClubTeam
-                }
-                if let experienceLevel = athlete.experienceLevel {
-                    athleteDict["experienceLevel"] = experienceLevel
-                }
-                if let position = athlete.position {
-                    athleteDict["position"] = position
-                }
-                return athleteDict
+                // Always include all fields, even if empty, to properly clear old data
+                return [
+                    "firstName": athlete.firstName ?? "",
+                    "lastName": athlete.lastName ?? "",
+                    "birthday": athlete.birthday ?? "",
+                    "schoolClubTeam": athlete.schoolClubTeam ?? "",
+                    "experienceLevel": athlete.experienceLevel ?? "",
+                    "position": athlete.position ?? ""
+                ]
             }
             updateData["athletes"] = athletesData
+        } else {
+            // If athletes is explicitly nil, clear the field
+            updateData["athletes"] = FieldValue.delete()
         }
         
         try await repository.updateUserFields(userId: uid, fields: updateData)
