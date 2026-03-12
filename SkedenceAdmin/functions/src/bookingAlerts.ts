@@ -54,10 +54,10 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
       let ownerData: any = {};
 
       if (!adminMembers.empty) {
-        // Get all admin emails from orgMembers
-        const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId || doc.data().authUserId);
+        // Get all admin emails from orgMembers (use authUserId to look up users collection)
+        const adminAuthIds = adminMembers.docs.map((doc) => doc.data().authUserId).filter((id) => id);
         const adminDocs = await Promise.all(
-          adminUserIds.filter((id) => id).map((userId) => admin.firestore().collection("users").doc(userId).get())
+          adminAuthIds.map((authUserId) => admin.firestore().collection("users").doc(authUserId).get())
         );
 
         for (const doc of adminDocs) {
@@ -222,10 +222,10 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
       let ownerData: any = {};
 
       if (!adminMembers.empty) {
-        // Get all admin emails from orgMembers
-        const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId || doc.data().authUserId);
+        // Get all admin emails from orgMembers (use authUserId to look up users collection)
+        const adminAuthIds = adminMembers.docs.map((doc) => doc.data().authUserId).filter((id) => id);
         const adminDocs = await Promise.all(
-          adminUserIds.filter((id) => id).map((userId) => admin.firestore().collection("users").doc(userId).get())
+          adminAuthIds.map((authUserId) => admin.firestore().collection("users").doc(authUserId).get())
         );
 
         for (const doc of adminDocs) {
@@ -382,10 +382,10 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
       let ownerData: any = {};
 
       if (!adminMembers.empty) {
-        // Get all admin emails from orgMembers
-        const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId || doc.data().authUserId);
+        // Get all admin emails from orgMembers (use authUserId to look up users collection)
+        const adminAuthIds = adminMembers.docs.map((doc) => doc.data().authUserId).filter((id) => id);
         const adminDocs = await Promise.all(
-          adminUserIds.filter((id) => id).map((id) => admin.firestore().collection("users").doc(id).get())
+          adminAuthIds.map((authUserId) => admin.firestore().collection("users").doc(authUserId).get())
         );
 
         for (const doc of adminDocs) {
