@@ -54,17 +54,25 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
       let ownerData: any = {};
 
       if (!adminMembers.empty) {
-        // Get all admin emails from orgMembers (use authUserId to look up users collection)
+        // Get all admin emails from orgMembers (query users by authUserId field)
         const adminAuthIds = adminMembers.docs.map((doc) => doc.data().authUserId).filter((id) => id);
-        const adminDocs = await Promise.all(
-          adminAuthIds.map((authUserId) => admin.firestore().collection("users").doc(authUserId).get())
-        );
-
-        for (const doc of adminDocs) {
-          if (doc.exists && doc.data()?.email) {
-            adminEmails.push(doc.data()!.email);
-            if (!ownerData.email) {
-              ownerData = doc.data()!; // Use first admin for personalization
+        
+        // Query users collection by authUserId field (not document ID)
+        for (const authUserId of adminAuthIds) {
+          const userQuery = await admin.firestore()
+            .collection("users")
+            .where("authUserId", "==", authUserId)
+            .limit(1)
+            .get();
+          
+          if (!userQuery.empty) {
+            const userData = userQuery.docs[0].data();
+            const email = userData.email || userData.emailAddress;
+            if (email) {
+              adminEmails.push(email);
+              if (!ownerData.email) {
+                ownerData = userData; // Use first admin for personalization
+              }
             }
           }
         }
@@ -222,17 +230,25 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
       let ownerData: any = {};
 
       if (!adminMembers.empty) {
-        // Get all admin emails from orgMembers (use authUserId to look up users collection)
+        // Get all admin emails from orgMembers (query users by authUserId field)
         const adminAuthIds = adminMembers.docs.map((doc) => doc.data().authUserId).filter((id) => id);
-        const adminDocs = await Promise.all(
-          adminAuthIds.map((authUserId) => admin.firestore().collection("users").doc(authUserId).get())
-        );
-
-        for (const doc of adminDocs) {
-          if (doc.exists && doc.data()?.email) {
-            adminEmails.push(doc.data()!.email);
-            if (!ownerData.email) {
-              ownerData = doc.data()!;
+        
+        // Query users collection by authUserId field (not document ID)
+        for (const authUserId of adminAuthIds) {
+          const userQuery = await admin.firestore()
+            .collection("users")
+            .where("authUserId", "==", authUserId)
+            .limit(1)
+            .get();
+          
+          if (!userQuery.empty) {
+            const userData = userQuery.docs[0].data();
+            const email = userData.email || userData.emailAddress;
+            if (email) {
+              adminEmails.push(email);
+              if (!ownerData.email) {
+                ownerData = userData;
+              }
             }
           }
         }
@@ -382,17 +398,25 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
       let ownerData: any = {};
 
       if (!adminMembers.empty) {
-        // Get all admin emails from orgMembers (use authUserId to look up users collection)
+        // Get all admin emails from orgMembers (query users by authUserId field)
         const adminAuthIds = adminMembers.docs.map((doc) => doc.data().authUserId).filter((id) => id);
-        const adminDocs = await Promise.all(
-          adminAuthIds.map((authUserId) => admin.firestore().collection("users").doc(authUserId).get())
-        );
-
-        for (const doc of adminDocs) {
-          if (doc.exists && doc.data()?.email) {
-            adminEmails.push(doc.data()!.email);
-            if (!ownerData.email) {
-              ownerData = doc.data()!;
+        
+        // Query users collection by authUserId field (not document ID)
+        for (const authUserId of adminAuthIds) {
+          const userQuery = await admin.firestore()
+            .collection("users")
+            .where("authUserId", "==", authUserId)
+            .limit(1)
+            .get();
+          
+          if (!userQuery.empty) {
+            const userData = userQuery.docs[0].data();
+            const email = userData.email || userData.emailAddress;
+            if (email) {
+              adminEmails.push(email);
+              if (!ownerData.email) {
+                ownerData = userData;
+              }
             }
           }
         }
