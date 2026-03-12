@@ -41,28 +41,47 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
       }
 
       const orgData = orgDoc.data()!;
-      const ownerIds = orgData.adminIds || [];
 
-      if (ownerIds.length === 0) {
-        console.log("No owner found for organization");
-        return null;
-      }
-
-      const ownerDoc = await admin.firestore()
-        .collection("users")
-        .doc(ownerIds[0])
+      // Query orgMembers for admins/owners
+      const adminMembers = await admin.firestore()
+        .collection("orgMembers")
+        .where("orgId", "==", booking.orgId)
+        .where("role", "in", ["admin", "owner"])
+        .where("isActive", "==", true)
         .get();
 
-      if (!ownerDoc.exists) {
-        console.log("Owner document not found");
-        return null;
+      if (adminMembers.empty) {
+        console.log("No admins found for organization");
+        // Fallback to adminEmail on org document if available
+        if (orgData.adminEmail) {
+          const adminEmails = [orgData.adminEmail];
+          const ownerData = {firstName: "Admin", email: orgData.adminEmail};
+          // Continue with single admin email...
+        } else {
+          return null;
+        }
       }
 
-      const ownerData = ownerDoc.data()!;
-      const ownerEmail = ownerData.email;
+      // Get all admin emails
+      const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId);
+      const adminDocs = await Promise.all(
+        adminUserIds.map((userId) => admin.firestore().collection("users").doc(userId).get())
+      );
 
-      if (!ownerEmail) {
-        console.log("Owner email not found");
+      const adminEmails: string[] = [];
+      let ownerData: any = {};
+
+      for (const doc of adminDocs) {
+        if (doc.exists && doc.data()?.email) {
+          adminEmails.push(doc.data()!.email);
+          if (!ownerData.email) {
+            ownerData = doc.data()!; // Use first admin for personalization
+          }
+        }
+      }
+
+      if (adminEmails.length === 0) {
+        console.log("No admin emails found");
         return null;
       }
 
@@ -98,8 +117,9 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
       });
 
       // Send email
+      // Send email to all admins
       await admin.firestore().collection("mail").add({
-        to: ownerEmail,
+        to: adminEmails,
         from: `${orgData.name} <no-reply@skedence.com>`,
         replyTo: orgData.email || "support@skedence.com",
         message: {
@@ -150,7 +170,7 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
         },
       });
 
-      console.log(`✅ Appointment notification sent to ${ownerEmail} for booking ${bookingId}`);
+      console.log(`✅ Appointment notification sent to ${adminEmails.join(", ")} for booking ${bookingId}`);
       return null;
     } catch (error) {
       console.error("Error sending owner appointment notification:", error);
@@ -192,19 +212,42 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
       if (!orgDoc.exists) return null;
 
       const orgData = orgDoc.data()!;
-      const ownerIds = orgData.adminIds || [];
-      if (ownerIds.length === 0) return null;
 
-      const ownerDoc = await admin.firestore()
-        .collection("users")
-        .doc(ownerIds[0])
+      // Query orgMembers for admins/owners
+      const adminMembers = await admin.firestore()
+        .collection("orgMembers")
+        .where("orgId", "==", booking.orgId)
+        .where("role", "in", ["admin", "owner"])
+        .where("isActive", "==", true)
         .get();
 
-      if (!ownerDoc.exists) return null;
+      if (adminMembers.empty) {
+        console.log("No admins found for organization");
+        return null;
+      }
 
-      const ownerData = ownerDoc.data()!;
-      const ownerEmail = ownerData.email;
-      if (!ownerEmail) return null;
+      // Get all admin emails
+      const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId);
+      const adminDocs = await Promise.all(
+        adminUserIds.map((userId) => admin.firestore().collection("users").doc(userId).get())
+      );
+
+      const adminEmails: string[] = [];
+      let ownerData: any = {};
+
+      for (const doc of adminDocs) {
+        if (doc.exists && doc.data()?.email) {
+          adminEmails.push(doc.data()!.email);
+          if (!ownerData.email) {
+            ownerData = doc.data()!;
+          }
+        }
+      }
+
+      if (adminEmails.length === 0) {
+        console.log("No admin emails found");
+        return null;
+      }
 
       // Get client and trainer details
       const [clientDoc, trainerDoc] = await Promise.all([
@@ -237,9 +280,9 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
         timeZone: timezone,
       });
 
-      // Send email
+      // Send email to all admins
       await admin.firestore().collection("mail").add({
-        to: ownerEmail,
+        to: adminEmails,
         from: `${orgData.name} <no-reply@skedence.com>`,
         replyTo: orgData.email || "support@skedence.com",
         message: {
@@ -284,7 +327,7 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
         },
       });
 
-      console.log(`✅ Cancellation notification sent to ${ownerEmail}`);
+      console.log(`✅ Cancellation notification sent to ${adminEmails.join(", ")}`);
       return null;
     } catch (error) {
       console.error("Error sending cancellation notification:", error);
@@ -325,19 +368,42 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
       if (!orgDoc.exists) return null;
 
       const orgData = orgDoc.data()!;
-      const ownerIds = orgData.adminIds || [];
-      if (ownerIds.length === 0) return null;
 
-      const ownerDoc = await admin.firestore()
-        .collection("users")
-        .doc(ownerIds[0])
+      // Query orgMembers for admins/owners
+      const adminMembers = await admin.firestore()
+        .collection("orgMembers")
+        .where("orgId", "==", orgId)
+        .where("role", "in", ["admin", "owner"])
+        .where("isActive", "==", true)
         .get();
 
-      if (!ownerDoc.exists) return null;
+      if (adminMembers.empty) {
+        console.log("No admins found for organization");
+        return null;
+      }
 
-      const ownerData = ownerDoc.data()!;
-      const ownerEmail = ownerData.email;
-      if (!ownerEmail) return null;
+      // Get all admin emails
+      const adminUserIds = adminMembers.docs.map((doc) => doc.data().userId);
+      const adminDocs = await Promise.all(
+        adminUserIds.map((id) => admin.firestore().collection("users").doc(id).get())
+      );
+
+      const adminEmails: string[] = [];
+      let ownerData: any = {};
+
+      for (const doc of adminDocs) {
+        if (doc.exists && doc.data()?.email) {
+          adminEmails.push(doc.data()!.email);
+          if (!ownerData.email) {
+            ownerData = doc.data()!;
+          }
+        }
+      }
+
+      if (adminEmails.length === 0) {
+        console.log("No admin emails found");
+        return null;
+      }
 
       // Get client details
       const clientDoc = await admin.firestore().collection("users").doc(userId).get();
@@ -357,9 +423,9 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
         timeZone: timezone,
       });
 
-      // Send email
+      // Send email to all admins
       await admin.firestore().collection("mail").add({
-        to: ownerEmail,
+        to: adminEmails,
         from: `${orgData.name} <no-reply@skedence.com>`,
         replyTo: orgData.email || "support@skedence.com",
         message: {
@@ -408,7 +474,7 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
         },
       });
 
-      console.log(`✅ Package purchase notification sent to ${ownerEmail}`);
+      console.log(`✅ Package purchase notification sent to ${adminEmails.join(", ")}`);
       return null;
     } catch (error) {
       console.error("Error sending package purchase notification:", error);
