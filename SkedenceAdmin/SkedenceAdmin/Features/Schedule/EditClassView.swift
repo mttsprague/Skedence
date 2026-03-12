@@ -16,15 +16,16 @@ struct EditClassView: View {
     @ObservedObject var trainersService: TrainersService
     let onUpdated: () -> Void
     
-    // Convenience accessor
+    // Convenience accessors
     private var pricingService: PricingStructureService { dependencies.pricing }
+    private var locationsService: LocationsService { dependencies.locations }
     
     @State private var title = ""
     @State private var description = ""
     @State private var startDate = Date()
     @State private var endDate = Date()
     @State private var maxParticipants = 20
-    @State private var location = ""
+    @State private var selectedLocation: Location?
     @State private var selectedTrainer: Trainer?
     @State private var isUpdating = false
     @State private var errorMessage: String?
@@ -53,7 +54,13 @@ struct EditClassView: View {
                         TextEditor(text: $description)
                             .frame(minHeight: 80, maxHeight: 160)
                     }
-                    TextField("Location", text: $location)
+                    
+                    Picker("Location", selection: $selectedLocation) {
+                        Text("Select a location").tag(nil as Location?)
+                        ForEach(locationsService.locations) { location in
+                            Text(location.name).tag(location as Location?)
+                        }
+                    }
                 }
                 
                 Section("Head Trainer") {
@@ -300,7 +307,7 @@ struct EditClassView: View {
                     Button("Save") {
                         Task { await updateClass() }
                     }
-                    .disabled(isUpdating || title.isEmpty || description.isEmpty || selectedTrainer == nil)
+                    .disabled(isUpdating || title.isEmpty || description.isEmpty || selectedTrainer == nil || selectedLocation == nil)
                 }
             }
         }
@@ -311,7 +318,25 @@ struct EditClassView: View {
             startDate = classItem.startTime
             endDate = classItem.endTime
             maxParticipants = classItem.maxParticipants
-            location = classItem.location
+            
+            // Load locations and trainers
+            Task {
+                if let orgId = auth.currentOrgId {
+                    // Load locations first
+                    locationsService.loadLocations(orgId: orgId)
+                    
+                    // Find matching location by name
+                    selectedLocation = locationsService.locations.first { $0.name == classItem.location }
+                    
+                    // Load trainers
+                    await trainersService.loadAll(orgId: orgId)
+                    
+                    // Match trainer after loading
+                    if let trainer = trainersService.trainers.first(where: { $0.id == classItem.trainerId }) {
+                        selectedTrainer = trainer
+                    }
+                }
+            }
             
             // Convert old UUID-based eligiblePackageIds to packageType strings
             let loadedIds = Set(classItem.eligiblePackageIds)
@@ -330,18 +355,6 @@ struct EditClassView: View {
             }
             
             selectedPackageIds = convertedIds
-            
-            // Load trainers if not already loaded
-            Task {
-                if let orgId = auth.currentOrgId {
-                    await trainersService.loadAll(orgId: orgId)
-                    
-                    // Match trainer after loading
-                    if let trainer = trainersService.trainers.first(where: { $0.id == classItem.trainerId }) {
-                        selectedTrainer = trainer
-                    }
-                }
-            }
         }
     }
     
@@ -398,7 +411,7 @@ struct EditClassView: View {
                     startTime: startDate,
                     endTime: endDate,
                     maxParticipants: maxParticipants,
-                    location: location,
+                    location: selectedLocation?.name ?? "",
                     trainerId: trainerId,
                     trainerName: trainerName,
                     priceInCents: 0,
@@ -420,7 +433,7 @@ struct EditClassView: View {
                         startTime: classStartTime,
                         endTime: classEndTime,
                         maxParticipants: maxParticipants,
-                        location: location,
+                        location: selectedLocation?.name ?? "",
                         trainerId: trainerId,
                         trainerName: trainerName,
                         priceInCents: 0,
@@ -440,7 +453,7 @@ struct EditClassView: View {
                     startTime: startDate,
                     endTime: endDate,
                     maxParticipants: maxParticipants,
-                    location: location,
+                    location: selectedLocation?.name ?? "",
                     trainerId: trainerId,
                     trainerName: trainerName,
                     priceInCents: 0,
