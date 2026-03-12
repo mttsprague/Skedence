@@ -64,6 +64,9 @@ export * from "./confirmationEmails";
 // Export booking alert notification functions
 export * from "./bookingAlerts";
 
+// Export summary email functions  
+export * from "./summaryEmails";
+
 // Export admin payment functions
 export * from "./admin-payment";
 

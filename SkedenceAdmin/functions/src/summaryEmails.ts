@@ -90,20 +90,55 @@ export const sendAppointmentSummaries = onSchedule(
  */
 async function sendDailySummary(orgId: string, orgData: any, timezone: string) {
   try {
-    // Get owner email
-    const ownerIds = orgData.adminIds || [];
-    if (ownerIds.length === 0) return;
-
-    const ownerDoc = await admin.firestore()
-      .collection("users")
-      .doc(ownerIds[0])
+    // Get admin/owner email from orgMembers
+    const adminMembers = await admin.firestore()
+      .collection("orgMembers")
+      .where("orgId", "==", orgId)
+      .where("role", "in", ["admin", "owner"])
+      .where("isActive", "==", true)
+      .limit(1)
       .get();
 
-    if (!ownerDoc.exists) return;
+    if (adminMembers.empty) {
+      console.log(`No active admin/owner found for org ${orgId}`);
+      return;
+    }
 
-    const ownerData = ownerDoc.data()!;
-    const ownerEmail = ownerData.email;
-    if (!ownerEmail) return;
+    const adminMember = adminMembers.docs[0].data();
+    const authUserId = adminMember.authUserId;
+
+    // Try to find user in users collection
+    let ownerEmail = "";
+    let ownerData: any = {};
+    
+    const userQuery = await admin.firestore()
+      .collection("users")
+      .where("authUserId", "==", authUserId)
+      .limit(1)
+      .get();
+    
+    if (!userQuery.empty) {
+      ownerData = userQuery.docs[0].data();
+      ownerEmail = ownerData.email || ownerData.emailAddress || "";
+    } else {
+      // Try trainers collection
+      const trainerQuery = await admin.firestore()
+        .collection("trainers")
+        .where("authUserId", "==", authUserId)
+        .where("orgId", "==", orgId)
+        .limit(1)
+        .get();
+      
+      if (!trainerQuery.empty) {
+        ownerData = trainerQuery.docs[0].data();
+        ownerEmail = ownerData.email || "";
+      }
+    }
+
+    if (!ownerEmail) {
+      console.log(`No email found for admin ${authUserId} in org ${orgId}`);
+      return;
+    }
 
     // Get today's appointments
     const startOfDay = new Date();
@@ -216,7 +251,7 @@ async function sendDailySummary(orgId: string, orgData: any, timezone: string) {
               ${appointmentsHtml}
               
               <div style="margin-top: 24px; text-align: center;">
-                <a href="https://skedence.com/admin-portal/bookings" style="display: inline-block; background-color: #3258A3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">View Full Schedule</a>
+                <a href="https://skedence.com/schedule" style="display: inline-block; background-color: #3258A3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">View Full Schedule</a>
               </div>
             </div>
           </div>
@@ -238,20 +273,55 @@ async function sendDailySummary(orgId: string, orgData: any, timezone: string) {
  */
 async function sendWeeklySummary(orgId: string, orgData: any, timezone: string) {
   try {
-    // Get owner email
-    const ownerIds = orgData.adminIds || [];
-    if (ownerIds.length === 0) return;
-
-    const ownerDoc = await admin.firestore()
-      .collection("users")
-      .doc(ownerIds[0])
+    // Get admin/owner email from orgMembers
+    const adminMembers = await admin.firestore()
+      .collection("orgMembers")
+      .where("orgId", "==", orgId)
+      .where("role", "in", ["admin", "owner"])
+      .where("isActive", "==", true)
+      .limit(1)
       .get();
 
-    if (!ownerDoc.exists) return;
+    if (adminMembers.empty) {
+      console.log(`No active admin/owner found for org ${orgId}`);
+      return;
+    }
 
-    const ownerData = ownerDoc.data()!;
-    const ownerEmail = ownerData.email;
-    if (!ownerEmail) return;
+    const adminMember = adminMembers.docs[0].data();
+    const authUserId = adminMember.authUserId;
+
+    // Try to find user in users collection
+    let ownerEmail = "";
+    let ownerData: any = {};
+    
+    const userQuery = await admin.firestore()
+      .collection("users")
+      .where("authUserId", "==", authUserId)
+      .limit(1)
+      .get();
+    
+    if (!userQuery.empty) {
+      ownerData = userQuery.docs[0].data();
+      ownerEmail = ownerData.email || ownerData.emailAddress || "";
+    } else {
+      // Try trainers collection
+      const trainerQuery = await admin.firestore()
+        .collection("trainers")
+        .where("authUserId", "==", authUserId)
+        .where("orgId", "==", orgId)
+        .limit(1)
+        .get();
+      
+      if (!trainerQuery.empty) {
+        ownerData = trainerQuery.docs[0].data();
+        ownerEmail = ownerData.email || "";
+      }
+    }
+
+    if (!ownerEmail) {
+      console.log(`No email found for admin ${authUserId} in org ${orgId}`);
+      return;
+    }
 
     // Get this week's appointments (next 7 days)
     const startOfWeek = new Date();
@@ -380,7 +450,7 @@ async function sendWeeklySummary(orgId: string, orgData: any, timezone: string) 
               ${appointmentsHtml}
               
               <div style="margin-top: 24px; text-align: center;">
-                <a href="https://skedence.com/admin-portal/bookings" style="display: inline-block; background-color: #3258A3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">View Full Schedule</a>
+                <a href="https://skedence.com/schedule" style="display: inline-block; background-color: #3258A3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">View Full Schedule</a>
               </div>
             </div>
           </div>
