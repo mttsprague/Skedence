@@ -961,37 +961,49 @@ export default function PassesPage() {
                   </div>
                 )}
 
-                {/* Current Passes - Only show active (non-expired) passes */}
+                {/* Current Passes - Has remaining lessons and not expired */}
                 {clientPackages.filter(pkg => {
                   const expDate = pkg.expirationDate?.toDate?.();
-                  return expDate && expDate >= new Date();
+                  const isNotExpired = expDate && expDate >= new Date();
+                  const hasRemaining = (pkg.remainingLessons || 0) > 0;
+                  return isNotExpired && hasRemaining;
                 }).length > 0 && (
-                  <Card>
+                  <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
+                      <CardTitle className="flex items-center gap-2 text-green-800">
                         <Package className="h-5 w-5" />
-                        Active Passes
+                        Current Passes
                       </CardTitle>
+                      <p className="text-sm text-green-700">
+                        Active passes available for booking
+                      </p>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
                         {clientPackages
                           .filter(pkg => {
                             const expDate = pkg.expirationDate?.toDate?.();
-                            return expDate && expDate >= new Date();
+                            const isNotExpired = expDate && expDate >= new Date();
+                            const hasRemaining = (pkg.remainingLessons || 0) > 0;
+                            return isNotExpired && hasRemaining;
                           })
                           .map(pkg => {
                           return (
                             <div
                               key={pkg.id}
-                              className="p-4 rounded-lg border bg-background border-border"
+                              className="p-4 rounded-lg border-2 border-green-300 bg-white shadow-sm hover:shadow-md transition-shadow"
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                                    {pkg.packageName || pkg.packageType}
-                                  </h4>
-                                  <p className="text-sm text-muted-foreground mt-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold text-foreground">
+                                      {pkg.packageName || pkg.packageType}
+                                    </h4>
+                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                      Active
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mt-1.5">
                                     {pkg.remainingLessons || 0} of {pkg.totalLessons} remaining
                                   </p>
                                   <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
@@ -1000,10 +1012,68 @@ export default function PassesPage() {
                                   </p>
                                 </div>
                                 <div className="text-right ml-4">
-                                  <div className="text-3xl font-bold text-primary">
+                                  <div className="text-4xl font-bold text-green-600">
                                     {pkg.remainingLessons || 0}
                                   </div>
-                                  <div className="text-xs text-muted-foreground">passes left</div>
+                                  <div className="text-xs text-green-700 font-medium">available</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Used/Archived Passes - No remaining lessons */}
+                {clientPackages.filter(pkg => (pkg.remainingLessons || 0) === 0).length > 0 && (
+                  <Card className="border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-gray-700">
+                        <CheckCircle2 className="h-5 w-5" />
+                        Used Passes
+                      </CardTitle>
+                      <p className="text-sm text-gray-600">
+                        Fully redeemed lesson passes
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {clientPackages
+                          .filter(pkg => (pkg.remainingLessons || 0) === 0)
+                          .map(pkg => {
+                          const expDate = pkg.expirationDate?.toDate?.();
+                          const isExpired = expDate && expDate < new Date();
+                          
+                          return (
+                            <div
+                              key={pkg.id}
+                              className="p-3 rounded-lg border border-gray-200 bg-white/50"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium text-gray-700 text-sm">
+                                      {pkg.packageName || pkg.packageType}
+                                    </h4>
+                                    <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded-full">
+                                      Completed
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1">
+                                    <p className="text-xs text-gray-500">
+                                      {pkg.totalLessons} {pkg.totalLessons === 1 ? 'lesson' : 'lessons'} used
+                                    </p>
+                                    <span className="text-gray-300">•</span>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {expDate?.toLocaleDateString() || 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <CheckCircle2 className="h-8 w-8 text-gray-400" />
                                 </div>
                               </div>
                             </div>
