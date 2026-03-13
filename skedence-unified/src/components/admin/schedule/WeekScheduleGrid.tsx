@@ -34,6 +34,8 @@ interface AvailabilitySlot {
   startTime: Date;
   endTime: Date;
   status: 'open' | 'unavailable';
+  isClassBooking?: boolean; // True for class placeholder slots
+  classId?: string; // Reference to class document
 }
 
 interface WeekScheduleGridProps {
@@ -127,6 +129,8 @@ export function WeekScheduleGrid({
     );
 
     const cellAvailability = availabilitySlots.filter(s => {
+      // Exclude class placeholder slots - classes shown separately
+      if (s.isClassBooking) return false;
       const slotStart = new Date(s.startTime);
       const slotEnd = new Date(s.endTime);
       return isBefore(slotStart, cellEnd) && isAfter(slotEnd, cellStart);

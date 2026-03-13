@@ -111,6 +111,8 @@ export interface AvailabilitySlot {
   location?: string;
   isBooked: boolean;
   bookingId?: string;
+  isClassBooking?: boolean; // True if this is a class placeholder slot
+  classId?: string; // Reference to class document
 }
 
 export interface LessonPackage {

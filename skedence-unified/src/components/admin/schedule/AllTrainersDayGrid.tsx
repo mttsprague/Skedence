@@ -35,6 +35,8 @@ interface AvailabilitySlot {
   startTime: Date;
   endTime: Date;
   status: 'open' | 'unavailable';
+  isClassBooking?: boolean; // True for class placeholder slots
+  classId?: string; // Reference to class document
 }
 
 interface Trainer {
@@ -146,11 +148,13 @@ export function AllTrainersDayGrid({
         isAfter(new Date(c.endTime), dayStart);
     });
 
-    const trainerAvailability = availabilitySlots.filter(s => 
-      s.trainerId === trainerId &&
-      isBefore(new Date(s.startTime), dayEnd) &&
-      isAfter(new Date(s.endTime), dayStart)
-    );
+    const trainerAvailability = availabilitySlots.filter(s => {
+      // Exclude class placeholder slots - classes shown separately
+      if (s.isClassBooking) return false;
+      return s.trainerId === trainerId &&
+        isBefore(new Date(s.startTime), dayEnd) &&
+        isAfter(new Date(s.endTime), dayStart);
+    });
 
     return { trainerBookings, trainerClasses, trainerAvailability };
   };
