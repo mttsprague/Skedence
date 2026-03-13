@@ -215,28 +215,44 @@ export const getPaymentMethodsDirect = onCall(
         // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
-      // Get or create customer using dual-path query
-      // First try organizations/{orgId}/users/{userId} subcollection
-      let userDocRef = db
+      // Get or create customer by querying authUserId field
+      // Client app passes Firebase Auth UID, but user docs have name-based IDs like "mike_parent"
+      logger.info(`🔍 Looking for user by authUserId: ${userId}, orgId: ${orgId}`);
+      
+      // First try organizations/{orgId}/users subcollection
+      let usersQuery = await db
         .collection("organizations")
         .doc(orgId)
         .collection("users")
-        .doc(userId);
+        .where("authUserId", "==", userId)
+        .limit(1)
+        .get();
       
-      let userDoc = await userDocRef.get();
-      let userData = userDoc.data();
+      let userDoc = usersQuery.docs[0];
+      let userData = userDoc?.data();
+      
+      logger.info(`📍 First path check: organizations/${orgId}/users (by authUserId) - found: ${!!userData}`);
 
       // Fallback to legacy root users collection if not found
-      if (!userData || !userDoc.exists) {
-        userDocRef = db.collection("users").doc(userId);
-        userDoc = await userDocRef.get();
-        userData = userDoc.data();
+      if (!userData) {
+        logger.info(`🔄 Trying fallback path: users (by authUserId)`);
+        usersQuery = await db.collection("users")
+          .where("authUserId", "==", userId)
+          .limit(1)
+          .get();
+        
+        userDoc = usersQuery.docs[0];
+        userData = userDoc?.data();
+        logger.info(`📍 Fallback path check: users (by authUserId) - found: ${!!userData}`);
       }
 
-      if (!userData || !userDoc.exists) {
+      if (!userData || !userDoc) {
+        logger.error(`❌ User not found in either location. authUserId: ${userId}, orgId: ${orgId}, auth.uid: ${request.auth.uid}`);
         throw new HttpsError("not-found", "User not found");
       }
 
+      logger.info(`✅ Found user: ${userDoc.id} (authUserId: ${userId})`);
+      const userDocRef = userDoc.ref; // Get reference for later updates
       let customerId = userData?.stripeCustomerId;
 
 
