@@ -117,39 +117,6 @@ final class FirestoreService {
             .whereField("startTime", isLessThan: endTs)
             .order(by: "startTime")
             .getDocuments()
-
-        // Collect class IDs to check registration status
-        var classIdsToCheck = Set<String>()
-        for doc in bookingsSnapshot.documents {
-            let data = doc.data()
-            if let isClassBooking = data["isClassBooking"] as? Bool,
-               isClassBooking == true,
-               let classId = data["classId"] as? String {
-                classIdsToCheck.insert(classId)
-            }
-        }
-        
-        // Fetch all class documents to check isOpenForRegistration
-        var openClassIds = Set<String>()
-        for classId in classIdsToCheck {
-            // Guard against empty classId
-            guard !classId.isEmpty else {
-                continue
-            }
-            
-            do {
-                let classDoc = try await db.collection("classes").document(classId).getDocument()
-                if classDoc.exists,
-                   let classData = classDoc.data(),
-                   let isOpen = classData["isOpenForRegistration"] as? Bool,
-                   isOpen == true {
-                    openClassIds.insert(classId)
-                }
-            } catch {
-                // If we can't fetch the class, skip it (treat as closed)
-                continue
-            }
-        }
         
         let bookedSlots: [TrainerScheduleSlot] = bookingsSnapshot.documents.compactMap { doc in
             let data = doc.data()
@@ -164,14 +131,15 @@ final class FirestoreService {
                 return nil
             }
             
-            // Filter out closed classes
+            // Filter out ALL class registration bookings
+            // Class placeholder slots from trainer schedules are sufficient
+            // Individual registrations are tracked in classRegistrations collection, not schedule display
             let isClassBooking = data["isClassBooking"] as? Bool
             let classId = data["classId"] as? String
-            if isClassBooking == true, let classId = classId {
-                // Only include if the class is open for registration
-                guard openClassIds.contains(classId) else {
-                    return nil
-                }
+            if isClassBooking == true {
+                // Skip all class registration bookings - they would create duplicates
+                // The class placeholder slot in trainer's schedules collection is displayed instead
+                return nil
             }
 
             // Prefer scheduleSlotId (often matches deterministic scheduleDocId), then slotId, then fallback to booking doc id
