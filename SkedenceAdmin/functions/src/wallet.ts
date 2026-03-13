@@ -215,21 +215,16 @@ export const getPaymentMethodsDirect = onCall(
         // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
-      // Get or create customer
-      // Query by authUserId field (not document ID, which is name-based)
-      const usersSnapshot = await db
-        .collection("users")
-        .where("authUserId", "==", userId)
-        .limit(1)
-        .get();
+      // Get or create customer using direct document lookup
+      const userDocRef = db.collection("users").doc(userId);
+      const userDoc = await userDocRef.get();
 
-      if (usersSnapshot.empty) {
+      if (!userDoc.exists) {
         throw new HttpsError("not-found", "User not found");
       }
 
-      const userData = usersSnapshot.docs[0].data();
-      const userDocRef = usersSnapshot.docs[0].ref; // Store document reference
-      let customerId = userData.stripeCustomerId;
+      const userData = userDoc.data();
+      let customerId = userData?.stripeCustomerId;
 
 
       // If no customer ID, create one
