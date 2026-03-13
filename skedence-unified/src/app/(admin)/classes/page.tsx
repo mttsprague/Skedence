@@ -294,45 +294,189 @@ export default function ClassesPage() {
       const locationName = location ? location.name : '';
 
       if (editingClass) {
-        // When editing, only update the single class (don't create multiple)
-        const startDateTime = new Date(`${form.date}T${form.startTime}`);
-        const endDateTime = new Date(`${form.date}T${form.endTime}`);
+        // Collect all dates (primary date + additional dates)
+        const allDates = [form.date, ...additionalDates].filter(Boolean);
         
-        const classData = {
-          orgId,
-          title: form.title,
-          description: form.description || '',
-          startTime: Timestamp.fromDate(startDateTime),
-          endTime: Timestamp.fromDate(endDateTime),
-          maxParticipants: form.maxCapacity,
-          currentParticipants: editingClass.currentParticipants, // Preserve current count
-          location: locationName,
-          isOpenForRegistration: true,
-          trainerId: form.trainerId,
-          trainerName: trainerName,
-          createdBy: orgId,
-          createdAt: editingClass.createdAt, // Preserve original creation time
-          priceInCents: 0,
-          isRecurring: form.isRecurring || false,
-          recurringPattern: form.isRecurring ? form.recurringPattern : null,
-          eligiblePackageIds: selectedPackageIds,
-        };
-
-        await updateDoc(doc(db, 'classes', editingClass.id), classData);
+        // Get existing series classes if part of a series
+        let existingSeriesClassIds: string[] = [];
+        let seriesId: string | null | undefined = editingClass.seriesId;
+        
+        if (seriesId && editingClass.isPartOfSeries) {
+          const seriesQuery = query(
+            collection(db, 'classes'),
+            where('seriesId', '==', seriesId),
+            where('orgId', '==', orgId)
+          );
+          const seriesSnapshot = await getDocs(seriesQuery);
+          existingSeriesClassIds = seriesSnapshot.docs.map(doc => doc.id);
+        }
+        
+        // If multiple dates now, ensure we have a seriesId
+        if (allDates.length > 1 && !seriesId) {
+          seriesId = `series_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+        
+        // If single date now, clear seriesId
+        if (allDates.length === 1) {
+          seriesId = null;
+        }
+        
+        const updatedClassIds: string[] = [];
+        
+        // Update or create classes for each date
+        for (let i = 0; i < allDates.length; i++) {
+          const dateStr = allDates[i];
+          const startDateTime = new Date(`${dateStr}T${form.startTime}`);
+          const endDateTime = new Date(`${dateStr}T${form.endTime}`);
+          
+          const classData = {
+            orgId,
+            title: form.title,
+            description: form.description || '',
+            startTime: Timestamp.fromDate(startDateTime),
+            endTime: Timestamp.fromDate(endDateTime),
+            maxParticipants: form.maxCapacity,
+            location: locationName,
+            isOpenForRegistration: true,
+            trainerId: form.trainerId,
+            trainerName: trainerName,
+            createdBy: orgId,
+            priceInCents: 0,
+            isRecurring: form.isRecurring || false,
+            recurringPattern: form.isRecurring ? form.recurringPattern : null,
+            eligiblePackageIds: selectedPackageIds,
+            seriesId: allDates.length > 1 ? seriesId : null,
+            isPartOfSeries: allDates.length > 1,
+            totalSeriesClasses: allDates.length,
+          };
+          
+          // If this is the first date and we're editing the original class, update it
+          if (i === 0 && format(editingClass.startTime.toDate(), 'yyyy-MM-dd') === dateStr) {
+            await updateDoc(doc(db, 'classes', editingClass.id), {
+              ...classData,
+              currentParticipants: editingClass.currentParticipants, // Preserve current count
+              createdAt: editingClass.createdAt, // Preserve original creation time
+            });
+            updatedClassIds.push(editingClass.id);
+          } else {
+            // Check if this date already exists in the series
+            const existingClass = existingSeriesClassIds.length > 0 ? 
+              (await getDocs(query(
+                collection(db, 'classes'),
+                where('seriesId', '==', seriesId),
+                where('orgId', '==', orgId)
+              ))).docs.find(doc => 
+                format(doc.data().startTime.toDate(), 'yyyy-MM-dd') === dateStr
+              ) : null;
+            
+            if (existingClass) {
+              // Update existing class in series
+              await updateDoc(doc(db, 'classes', existingClass.id), classData);
+              updatedClassIds.push(existingClass.id);
+            } else {
+              // Create new class for this date
+              const docRef = await addDoc(collection(db, 'classes'), {
+                ...classData,
+                currentParticipants: 0,
+                createdAt: Timestamp.fromDate(new Date()),
+              });
+              updatedClassIds.push(docRef.id);
+              
+              // Create trainer schedule slot
+              const bookingData = {
+                startTime: Timestamp.fromDate(startDateTime),
+                endTime: Timestamp.fromDate(endDateTime),
+                status: 'booked',
+                clientId: 'CLASS',
+                clientName: form.title,
+                classId: docRef.id,
+                isClassBooking: true,
+                bookedAt: Timestamp.fromDate(new Date()),
+                orgId: orgId,
+                seriesId: allDates.length > 1 ? seriesId : null,
+              };
+              
+              await addDoc(
+                collection(db, 'trainers', form.trainerId, 'schedules'),
+                bookingData
+              );
+            }
+          }
+        }
+        
+        // Delete classes that were removed from the series
+        const classesToDelete = existingSeriesClassIds.filter(
+          id => !updatedClassIds.includes(id)
+        );
+        
+        for (const classId of classesToDelete) {
+          const classDoc = await getDocs(query(
+            collection(db, 'classes'),
+            where('__name__', '==', classId)
+          ));
+          
+          if (!classDoc.empty) {
+            // Check if has participants - warn if so
+            const participantsQuery = query(collection(db, 'classes', classId, 'participants'));
+            const participantsSnapshot = await getDocs(participantsQuery);
+            
+            if (participantsSnapshot.size > 0) {
+              console.warn(`Deleting class ${classId} with ${participantsSnapshot.size} participants`);
+              // Cancel participant bookings
+              for (const participantDoc of participantsSnapshot.docs) {
+                const participantData = participantDoc.data();
+                if (participantData.userId) {
+                  const userBookingsQuery = query(
+                    collection(db, 'bookings'),
+                    where('userId', '==', participantData.userId),
+                    where('classId', '==', classId)
+                  );
+                  const userBookingsSnapshot = await getDocs(userBookingsQuery);
+                  for (const bookingDoc of userBookingsSnapshot.docs) {
+                    await updateDoc(doc(db, 'bookings', bookingDoc.id), {
+                      status: 'cancelled',
+                      cancelledAt: Timestamp.now(),
+                      cancelReason: 'Class date was removed by administrator'
+                    });
+                  }
+                }
+                await deleteDoc(participantDoc.ref);
+              }
+            }
+            
+            // Delete class document
+            await deleteDoc(doc(db, 'classes', classId));
+            
+            // Delete trainer schedule slots
+            const schedulesQuery = query(
+              collection(db, 'trainers', form.trainerId, 'schedules'),
+              where('classId', '==', classId)
+            );
+            const schedulesSnapshot = await getDocs(schedulesQuery);
+            for (const scheduleDoc of schedulesSnapshot.docs) {
+              await deleteDoc(scheduleDoc.ref);
+            }
+          }
+        }
         
         // Log activity (non-blocking)
         if (orgId && user && userData) {
           try {
+            const firstDateTime = new Date(`${form.date}T${form.startTime}`);
+            const updateMessage = allDates.length > 1 
+              ? `${form.title} (${allDates.length}-day series)` 
+              : form.title;
+            
             await logClassUpdated({
               orgId: orgId,
               actorId: user.uid,
               actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
               actorRole: 'admin',
               classId: editingClass.id,
-              className: form.title,
+              className: updateMessage,
               trainerId: form.trainerId,
               trainerName: trainerName,
-              startTime: startDateTime,
+              startTime: firstDateTime,
               fields: ['time', 'details'],
             });
           } catch (logError) {
@@ -349,7 +493,11 @@ export default function ClassesPage() {
         })) as GroupClass[];
         setClasses(classesData.sort((a, b) => a.startTime.seconds - b.startTime.seconds));
         
-        setNotification({ type: 'success', message: 'Class successfully updated' });
+        const updateSuccessMessage = allDates.length > 1 
+          ? `Successfully updated ${allDates.length} classes` 
+          : 'Class successfully updated';
+        
+        setNotification({ type: 'success', message: updateSuccessMessage });
         setTimeout(() => setNotification(null), 5000);
       } else {
         // Creating new class(es)
@@ -484,7 +632,7 @@ export default function ClassesPage() {
     setPendingClassData(null);
   };
 
-  const handleEdit = (cls: GroupClass) => {
+  const handleEdit = async (cls: GroupClass) => {
     // Find location ID from location name
     const location = locations.find(l => l.name === cls.location);
     const locationId = location?.id || '';
@@ -504,7 +652,38 @@ export default function ClassesPage() {
     });
     // Load eligible package IDs if they exist
     setSelectedPackageIds(cls.eligiblePackageIds || []);
-    // DON'T set showForm(true) - edit inline instead
+    
+    // If editing a class that's part of a series, load the other dates
+    if (cls.seriesId && cls.isPartOfSeries) {
+      try {
+        const seriesQuery = query(
+          collection(db, 'classes'),
+          where('seriesId', '==', cls.seriesId),
+          where('orgId', '==', orgId)
+        );
+        const seriesSnapshot = await getDocs(seriesQuery);
+        const seriesDates = seriesSnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              date: format(data.startTime.toDate(), 'yyyy-MM-dd')
+            };
+          })
+          .filter(item => item.id !== cls.id) // Exclude current class
+          .map(item => item.date);
+        
+        setAdditionalDates(seriesDates);
+      } catch (error) {
+        console.error('Error loading series dates:', error);
+        setAdditionalDates([]);
+      }
+    } else {
+      setAdditionalDates([]);
+    }
+    
+    // Show the form for editing
+    setShowForm(true);
   };
 
   const handleDelete = async (classId: string) => {
