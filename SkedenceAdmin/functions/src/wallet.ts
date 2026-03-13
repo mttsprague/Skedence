@@ -399,32 +399,25 @@ export const getPaymentMethodsDirectAdmin = onCall(
         // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
-      // Query user by authUserId field (dual-path query pattern)
-      // First try organizations/{orgId}/users subcollection
-      let usersQuery = await db
+      // Query user by userId (which is the Firebase Auth UID / document ID)
+      // First try organizations/{orgId}/users/{userId} subcollection
+      let userDocRef = db
         .collection("organizations")
         .doc(orgId)
         .collection("users")
-        .where("authUserId", "==", userId)
-        .limit(1)
-        .get();
+        .doc(userId);
       
-      let userDoc = usersQuery.docs[0];
-      let userData = userDoc?.data();
+      let userDoc = await userDocRef.get();
+      let userData = userDoc.data();
 
       // Fallback to legacy root users collection if not found
-      if (!userData) {
-        usersQuery = await db
-          .collection("users")
-          .where("authUserId", "==", userId)
-          .limit(1)
-          .get();
-        
-        userDoc = usersQuery.docs[0];
-        userData = userDoc?.data();
+      if (!userData || !userDoc.exists) {
+        userDocRef = db.collection("users").doc(userId);
+        userDoc = await userDocRef.get();
+        userData = userDoc.data();
       }
 
-      if (!userData || !userDoc) {
+      if (!userData || !userDoc.exists) {
         throw new HttpsError("not-found", "User not found");
       }
 
@@ -433,7 +426,7 @@ export const getPaymentMethodsDirectAdmin = onCall(
 
       // If no customer ID, create one
       if (!customerId) {
-        const email = userData?.email;
+        const email = userData?.email || userData?.emailAddress;
         const name = userData?.firstName && userData?.lastName ?
           `${userData.firstName} ${userData.lastName}` :
           userData?.firstName || "Customer";
@@ -449,8 +442,8 @@ export const getPaymentMethodsDirectAdmin = onCall(
         customerId = customer.id;
 
 
-        // Save customer ID using document reference from query
-        await userDoc.ref.set({
+        // Save customer ID to user document
+        await userDocRef.set({
           stripeCustomerId: customerId,
         }, {merge: true});
 
