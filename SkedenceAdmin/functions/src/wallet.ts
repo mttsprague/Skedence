@@ -215,15 +215,28 @@ export const getPaymentMethodsDirect = onCall(
         // apiVersion: "2024-11-20" // Commented out - using SDK default,
       });
 
-      // Get or create customer using direct document lookup
-      const userDocRef = db.collection("users").doc(userId);
-      const userDoc = await userDocRef.get();
+      // Get or create customer using dual-path query
+      // First try organizations/{orgId}/users/{userId} subcollection
+      let userDocRef = db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("users")
+        .doc(userId);
+      
+      let userDoc = await userDocRef.get();
+      let userData = userDoc.data();
 
-      if (!userDoc.exists) {
+      // Fallback to legacy root users collection if not found
+      if (!userData || !userDoc.exists) {
+        userDocRef = db.collection("users").doc(userId);
+        userDoc = await userDocRef.get();
+        userData = userDoc.data();
+      }
+
+      if (!userData || !userDoc.exists) {
         throw new HttpsError("not-found", "User not found");
       }
 
-      const userData = userDoc.data();
       let customerId = userData?.stripeCustomerId;
 
 
