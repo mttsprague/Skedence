@@ -524,6 +524,127 @@ export const getPaymentMethodsDirectAdmin = onCall(
 );
 
 /**
+ * Create Stripe customer for a user (admin only)
+ * Used when adding new payment methods
+ */
+export const createStripeCustomer = onCall(
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Must be authenticated"
+      );
+    }
+
+    const {userId, orgId} = request.data;
+
+    if (!userId || !orgId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing userId or orgId"
+      );
+    }
+
+    try {
+      // Verify admin/trainer permissions
+      const memberQuery = await db.collection("orgMembers")
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .get();
+
+      if (memberQuery.empty) {
+        throw new HttpsError(
+          "permission-denied",
+          "Not a member of this organization"
+        );
+      }
+
+      const memberData = memberQuery.docs[0].data();
+      const role = memberData.role;
+
+      if (!["owner", "admin", "trainer"].includes(role)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Must be owner, admin, or trainer"
+        );
+      }
+
+      // Get Stripe config
+      const orgDoc = await db.collection("organizations").doc(orgId).get();
+      if (!orgDoc.exists) {
+        throw new HttpsError("not-found", "Organization not found");
+      }
+
+      const orgData = orgDoc.data();
+      const stripeSecretKey = orgData?.stripe?.secretKey;
+
+      if (!stripeSecretKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Stripe not configured for this organization"
+        );
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        // apiVersion: "2024-11-20" // Using SDK default
+      });
+
+      // Query user by userId
+      let userDocRef = db.collection("organizations")
+        .doc(orgId)
+        .collection("users")
+        .doc(userId);
+      let userDoc = await userDocRef.get();
+
+      if (!userDoc.exists) {
+        userDocRef = db.collection("users").doc(userId);
+        userDoc = await userDocRef.get();
+      }
+
+      if (!userDoc.exists) {
+        throw new HttpsError("not-found", "User not found");
+      }
+
+      const userData = userDoc.data();
+
+      // Check if customer already exists
+      if (userData?.stripeCustomerId) {
+        return {customerId: userData.stripeCustomerId};
+      }
+
+      // Create Stripe customer
+      const customer = await stripe.customers.create({
+        email: userData?.email || userData?.emailAddress,
+        metadata: {
+          userId: userId,
+          orgId: orgId,
+        },
+      });
+
+      // Update user document
+      await userDocRef.update({
+        stripeCustomerId: customer.id,
+      });
+
+      logger.info(`✅ Created Stripe customer for user ${userId}: ${customer.id}`);
+
+      return {customerId: customer.id};
+    } catch (error) {
+      logger.error("❌ Error creating Stripe customer:", error);
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Failed to create customer: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);
+
+/**
  * Attach a payment method to a customer
  */
 export const attachPaymentMethod = onCall(
@@ -588,6 +709,94 @@ export const attachPaymentMethod = onCall(
       throw new HttpsError(
         "internal",
         `Failed to attach payment method: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);
+
+/**
+ * Detach/remove a payment method (admin only)
+ * Used by admin portal card management
+ */
+export const adminDetachPaymentMethod = onCall(
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Must be authenticated"
+      );
+    }
+
+    const {paymentMethodId, userId, orgId} = request.data;
+
+    if (!paymentMethodId || !userId || !orgId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing paymentMethodId, userId, or orgId"
+      );
+    }
+
+    try {
+      // Verify admin/trainer permissions via orgMembers
+      const memberQuery = await db.collection("orgMembers")
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .get();
+
+      if (memberQuery.empty) {
+        throw new HttpsError(
+          "permission-denied",
+          "Not a member of this organization"
+        );
+      }
+
+      const memberDoc = memberQuery.docs[0];
+      const memberData = memberDoc.data();
+      const role = memberData.role;
+
+      if (!["owner", "admin", "trainer"].includes(role)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Must be owner, admin, or trainer to manage client cards"
+        );
+      }
+
+      // Get Stripe config
+      const orgDoc = await db.collection("organizations").doc(orgId).get();
+      if (!orgDoc.exists) {
+        throw new HttpsError("not-found", "Organization not found");
+      }
+
+      const orgData = orgDoc.data();
+      const stripeSecretKey = orgData?.stripe?.secretKey;
+
+      if (!stripeSecretKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Stripe not configured for this organization"
+        );
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        // apiVersion: "2024-11-20" // Using SDK default
+      });
+
+      // Detach payment method from customer
+      await stripe.paymentMethods.detach(paymentMethodId);
+
+      logger.info(`✅ Detached payment method ${paymentMethodId} for user ${userId}`);
+
+      return {success: true};
+    } catch (error) {
+      logger.error("❌ Error detaching payment method:", error);
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Failed to detach payment method: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }
@@ -689,6 +898,197 @@ export const chargeWithSavedMethod = onCall(
       throw new HttpsError(
         "internal",
         `Failed to charge payment method: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+);
+
+/**
+ * Admin charges client with saved card and creates pass
+ * Used by admin portal passes page for paid pass assignment
+ */
+export const adminChargeClientWithSavedCard = onCall(
+  async (request) => {
+    // 1. Authentication check
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Must be authenticated"
+      );
+    }
+
+    const {
+      userId,
+      orgId,
+      paymentMethodId,
+      amount,
+      packageType,
+      packageTitle,
+      quantity,
+    } = request.data;
+
+    // 2. Validate required fields
+    if (!userId || !orgId || !paymentMethodId || !amount || !packageType || !packageTitle || !quantity) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required fields"
+      );
+    }
+
+    try {
+      // 3. Verify admin/trainer permissions via orgMembers
+      const memberQuery = await db.collection("orgMembers")
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .get();
+
+      if (memberQuery.empty) {
+        throw new HttpsError(
+          "permission-denied",
+          "Not a member of this organization"
+        );
+      }
+
+      const memberDoc = memberQuery.docs[0];
+      const memberData = memberDoc.data();
+      const role = memberData.role;
+
+      if (!["owner", "admin", "trainer"].includes(role)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Must be owner, admin, or trainer to charge clients"
+        );
+      }
+
+      // 4. Get organization Stripe keys
+      const orgDoc = await db.collection("organizations").doc(orgId).get();
+      if (!orgDoc.exists) {
+        throw new HttpsError("not-found", "Organization not found");
+      }
+
+      const orgData = orgDoc.data();
+      const stripeSecretKey = orgData?.stripe?.secretKey;
+
+      if (!stripeSecretKey) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Stripe not configured for this organization"
+        );
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        // apiVersion: "2024-11-20" // Using SDK default
+      });
+
+      // 5. Query user by userId (which is authUserId)
+      // Try organizations path first
+      let userDocRef = db.collection("organizations")
+        .doc(orgId)
+        .collection("users")
+        .doc(userId);
+      let userDoc = await userDocRef.get();
+
+      // Fallback to root users collection if not found
+      if (!userDoc.exists) {
+        userDocRef = db.collection("users").doc(userId);
+        userDoc = await userDocRef.get();
+      }
+
+      if (!userDoc.exists) {
+        throw new HttpsError("not-found", "User not found");
+      }
+
+      const userData = userDoc.data();
+      let stripeCustomerId = userData?.stripeCustomerId;
+
+      // 6. Create Stripe customer if doesn't exist
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: userData?.email || userData?.emailAddress,
+          metadata: {
+            userId: userId,
+            orgId: orgId,
+          },
+        });
+        stripeCustomerId = customer.id;
+
+        // Update user document with customer ID
+        await userDocRef.update({
+          stripeCustomerId: stripeCustomerId,
+        });
+
+        logger.info(`✅ Created Stripe customer for user ${userId}: ${stripeCustomerId}`);
+      }
+
+      // 7. Create PaymentIntent with saved card
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        customer: stripeCustomerId,
+        payment_method: paymentMethodId,
+        description: `${packageTitle} (${quantity}x) - Admin assigned`,
+        confirm: true,
+        off_session: true,
+        metadata: {
+          userId: userId,
+          orgId: orgId,
+          packageType: packageType,
+          quantity: quantity.toString(),
+          adminAssigned: "true",
+        },
+      });
+
+      if (paymentIntent.status !== "succeeded") {
+        throw new HttpsError(
+          "internal",
+          `Payment failed with status: ${paymentIntent.status}`
+        );
+      }
+
+      logger.info(`✅ Payment succeeded: ${paymentIntent.id} for $${amount / 100}`);
+
+      // 8. Create pass in standard path
+      const expirationDate = new Date();
+      expirationDate.setMonth(expirationDate.getMonth() + 6); // 6 months expiration
+
+      const passData = {
+        packageType: packageType,
+        packageCategory: packageType.includes("athlete") ? packageType : "pass",
+        packageName: packageTitle,
+        totalLessons: quantity,
+        lessonsUsed: 0,
+        remainingLessons: quantity,
+        purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
+        expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
+        transactionId: paymentIntent.id,
+        amountPaid: amount,
+        orgId: orgId,
+      };
+
+      const packageRef = await db.collection("organizations")
+        .doc(orgId)
+        .collection("users")
+        .doc(userId)
+        .collection("packages")
+        .add(passData);
+
+      logger.info(`✅ Created pass ${packageRef.id} for user ${userId}`);
+
+      return {
+        success: true,
+        transactionId: paymentIntent.id,
+        packageId: packageRef.id,
+      };
+    } catch (error) {
+      logger.error("❌ Error in adminChargeClientWithSavedCard:", error);
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Failed to charge client: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }

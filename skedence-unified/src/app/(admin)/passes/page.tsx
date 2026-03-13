@@ -10,11 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Plus, Minus, Package, User, Search, Calendar, Clock, Mail, Phone, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Minus, Package, User, Search, Calendar, Clock, Mail, Phone, CheckCircle2, AlertCircle, AlertTriangle, CreditCard, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { logPassIssued } from '@/lib/activity-logger';
 import { trackBusiness, trackPageView } from '@/lib/analytics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { loadStripe, Stripe as StripeJS } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface Client {
   id: string;
@@ -46,6 +49,157 @@ interface LessonPackage {
   purchaseDate: any;
   expirationDate: any;
   transactionId: string;
+}
+
+interface PaymentMethodInfo {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
+type PaymentOption = 'free' | 'saved_card' | 'new_card';
+
+// Card Element Styles
+const cardElementOptions = {
+  style: {
+    base: {
+      fontSize: '16px',
+      color: '#1f2937',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      '::placeholder': {
+        color: '#9ca3af',
+      },
+    },
+    invalid: {
+      color: '#ef4444',
+    },
+  },
+};
+
+// Add Card Form Component (uses Stripe Elements)
+function AddCardForm({ 
+  userId, 
+  orgId, 
+  onSuccess, 
+  onCancel 
+}: { 
+  userId: string; 
+  orgId: string; 
+  onSuccess: () => void; 
+  onCancel: () => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAddCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!stripe || !elements) {
+      return;
+    }
+
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) {
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // Create payment method
+      const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+      });
+
+      if (pmError || !paymentMethod) {
+        setError(pmError?.message || 'Failed to create payment method');
+        setProcessing(false);
+        return;
+      }
+
+      // Get user's Stripe customer ID
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      let customerId = userDoc.data()?.stripeCustomerId;
+
+      // If no customer ID, create one
+      if (!customerId) {
+        const functions = getFunctions();
+        const createCustomerFn = httpsCallable(functions, 'createStripeCustomer');
+        const result = await createCustomerFn({ userId, orgId });
+        const data = result.data as { customerId: string };
+        customerId = data.customerId;
+      }
+
+      // Attach payment method to customer
+      const functions = getFunctions();
+      const attachFn = httpsCallable(functions, 'attachPaymentMethod');
+      await attachFn({
+        paymentMethodId: paymentMethod.id,
+        customerId,
+        orgId
+      });
+
+      onSuccess();
+    } catch (err: any) {
+      console.error('Error adding card:', err);
+      setError(err.message || 'Failed to add card');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleAddCard} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium mb-2">Card Information</label>
+        <div className="p-3 border rounded-lg">
+          <CardElement options={cardElementOptions} />
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={processing}
+          className="flex-1"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={!stripe || processing}
+          className="flex-1"
+        >
+          {processing ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+              Adding...
+            </>
+          ) : (
+            <>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Add Card
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 // Helper function to get display name for package category
@@ -116,6 +270,15 @@ export default function PassesPage() {
   const [action, setAction] = useState<'add' | 'remove'>('add');
   const [quantity, setQuantity] = useState(1);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodInfo[]>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+  const [selectedPaymentOption, setSelectedPaymentOption] = useState<PaymentOption>('free');
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('');
+  const [showCardManagement, setShowCardManagement] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [stripePromise, setStripePromise] = useState<Promise<StripeJS | null> | null>(null);
+  const [addingCard, setAddingCard] = useState(false);
+  const [removingCardId, setRemovingCardId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
@@ -197,23 +360,25 @@ export default function PassesPage() {
     loadData();
   }, [orgId]);
 
-  // Load selected client's packages
+  // Load selected client's packages and payment methods
   useEffect(() => {
     if (!selectedClient) {
       setClientPackages([]);
+      setPaymentMethods([]);
+      setSelectedPaymentOption('free');
+      setSelectedPaymentMethodId('');
       return;
     }
 
-    async function loadClientPackages() {
+    async function loadClientData() {
       if (!selectedClient || !orgId) return;
       
       try {
-        // Try new organization path first
+        // Load packages
         let packagesSnap = await getDocs(
           collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
         );
         
-        // Fall back to old path if no packages found
         if (packagesSnap.empty) {
           packagesSnap = await getDocs(
             collection(db, 'users', selectedClient.userId, 'lessonPackages')
@@ -229,13 +394,96 @@ export default function PassesPage() {
           } as LessonPackage;
         });
         setClientPackages(packagesData);
+
+        // Load payment methods
+        await loadPaymentMethods(selectedClient.userId);
       } catch (error) {
-        console.error('Error loading client packages:', error);
+        console.error('Error loading client data:', error);
       }
     }
 
-    loadClientPackages();
+    loadClientData();
   }, [selectedClient, orgId]);
+
+  // Load payment methods for selected client
+  const loadPaymentMethods = async (userId: string) => {
+    if (!orgId) return;
+    
+    setLoadingPaymentMethods(true);
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      const getPaymentMethodsFn = httpsCallable(functions, 'getPaymentMethodsDirectAdmin');
+      
+      const result = await getPaymentMethodsFn({ userId, orgId });
+      const data = result.data as { paymentMethods: PaymentMethodInfo[] };
+      
+      setPaymentMethods(data.paymentMethods || []);
+      
+      // Default to free if no saved cards
+      if (data.paymentMethods.length === 0) {
+        setSelectedPaymentOption('free');
+      }
+    } catch (error) {
+      console.error('Error loading payment methods:', error);
+      setPaymentMethods([]);
+      setSelectedPaymentOption('free');
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  };
+
+  // Initialize Stripe with org's publishable key
+  useEffect(() => {
+    if (!orgId) return;
+
+    async function initStripe() {
+      if (!orgId) return;
+      
+      try {
+        const orgDoc = await getDoc(doc(db, 'organizations', orgId));
+        if (orgDoc.exists()) {
+          const orgData = orgDoc.data();
+          const publishableKey = orgData?.stripe?.publishableKey;
+          
+          if (publishableKey) {
+            setStripePromise(loadStripe(publishableKey));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading Stripe publishable key:', error);
+      }
+    }
+
+    initStripe();
+  }, [orgId]);
+
+  // Handle removing a payment method
+  const handleRemoveCard = async (paymentMethodId: string) => {
+    if (!selectedClient || !orgId) return;
+
+    setRemovingCardId(paymentMethodId);
+    try {
+      const functions = getFunctions();
+      const detachFn = httpsCallable(functions, 'adminDetachPaymentMethod');
+      
+      await detachFn({
+        paymentMethodId,
+        userId: selectedClient.userId,
+        orgId
+      });
+
+      // Refresh payment methods
+      await loadPaymentMethods(selectedClient.userId);
+      
+      setMessage({ type: 'success', text: 'Card removed successfully' });
+    } catch (error) {
+      console.error('Error removing card:', error);
+      setMessage({ type: 'error', text: 'Failed to remove card' });
+    } finally {
+      setRemovingCardId(null);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!selectedClient || !selectedPackage || !orgId) return;
@@ -263,7 +511,71 @@ export default function PassesPage() {
         }
       }
       if (action === 'add') {
-        // Add passes to client
+        // Check if we need to process payment first
+        if (selectedPaymentOption === 'saved_card' && selectedPaymentMethodId) {
+          // Process payment with saved card
+          setProcessingPayment(true);
+          try {
+            const { getFunctions, httpsCallable } = await import('firebase/functions');
+            const functions = getFunctions();
+            const chargeClientFn = httpsCallable(functions, 'adminChargeClientWithSavedCard');
+            
+            const totalAmount = selectedPackage.priceInCents * quantity;
+            
+            const result = await chargeClientFn({
+              userId: selectedClient.userId,
+              orgId: orgId,
+              paymentMethodId: selectedPaymentMethodId,
+              amount: totalAmount,
+              packageType: selectedPackage.packageType,
+              packageTitle: selectedPackage.title,
+              quantity: quantity
+            });
+            
+            const paymentData = result.data as { success: boolean; transactionId: string; packageId: string };
+            
+            if (!paymentData.success) {
+              throw new Error('Payment failed');
+            }
+            
+            setMessage({
+              type: 'success',
+              text: `Successfully charged $${(totalAmount / 100).toFixed(2)} and added ${quantity} ${selectedPackage.title}${quantity === 1 ? '' : 's'} to ${selectedClient.firstName} ${selectedClient.lastName}'s account.`
+            });
+            
+            // Refresh client packages
+            let packagesSnap = await getDocs(
+              collection(db, 'organizations', orgId, 'users', selectedClient.userId, 'packages')
+            );
+            if (packagesSnap.empty) {
+              packagesSnap = await getDocs(
+                collection(db, 'users', selectedClient.userId, 'lessonPackages')
+              );
+            }
+            const packagesData = packagesSnap.docs.map(doc => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                ...data,
+                remainingLessons: (data.totalLessons || 0) - (data.lessonsUsed || 0)
+              } as LessonPackage;
+            });
+            setClientPackages(packagesData);
+            
+            // Reset form
+            setSelectedPackage(null);
+            setQuantity(1);
+            setConfirmDialogOpen(false);
+            setProcessingPayment(false);
+            setSubmitting(false);
+            return;
+          } catch (error: any) {
+            setProcessingPayment(false);
+            throw new Error(`Payment failed: ${error.message || 'Unknown error'}`);
+          }
+        }
+        
+        // Add passes for free (admin privilege)
         const now = new Date();
         const expirationDate = new Date(now);
         const daysToExpire = selectedPackage.expirationDays || 365;
@@ -649,33 +961,35 @@ export default function PassesPage() {
                   </div>
                 )}
 
-                {/* Current Passes */}
-                {clientPackages.length > 0 && (
+                {/* Current Passes - Only show active (non-expired) passes */}
+                {clientPackages.filter(pkg => {
+                  const expDate = pkg.expirationDate?.toDate?.();
+                  return expDate && expDate >= new Date();
+                }).length > 0 && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Package className="h-5 w-5" />
-                        Current Passes
+                        Active Passes
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {clientPackages.map(pkg => {
-                          const isExpired = pkg.expirationDate?.toDate?.() < new Date();
+                        {clientPackages
+                          .filter(pkg => {
+                            const expDate = pkg.expirationDate?.toDate?.();
+                            return expDate && expDate >= new Date();
+                          })
+                          .map(pkg => {
                           return (
                             <div
                               key={pkg.id}
-                              className={`p-4 rounded-lg border ${isExpired ? 'bg-muted/30 border-muted' : 'bg-background border-border'}`}
+                              className="p-4 rounded-lg border bg-background border-border"
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <h4 className="font-medium text-foreground flex items-center gap-2">
                                     {pkg.packageName || pkg.packageType}
-                                    {isExpired && (
-                                      <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
-                                        Expired
-                                      </span>
-                                    )}
                                   </h4>
                                   <p className="text-sm text-muted-foreground mt-1">
                                     {pkg.remainingLessons || 0} of {pkg.totalLessons} remaining
@@ -686,7 +1000,7 @@ export default function PassesPage() {
                                   </p>
                                 </div>
                                 <div className="text-right ml-4">
-                                  <div className={`text-3xl font-bold ${isExpired ? 'text-muted-foreground' : 'text-primary'}`}>
+                                  <div className="text-3xl font-bold text-primary">
                                     {pkg.remainingLessons || 0}
                                   </div>
                                   <div className="text-xs text-muted-foreground">passes left</div>
@@ -835,6 +1149,117 @@ export default function PassesPage() {
                   </div>
                 </div>
 
+                {/* Payment Method Selection (only for adding passes) */}
+                {action === 'add' && selectedPackage && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Payment Method</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {loadingPaymentMethods ? (
+                        <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                          Loading payment methods...
+                        </div>
+                      ) : (
+                        <>
+                          {/* Free Option */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPaymentOption('free');
+                              setSelectedPaymentMethodId('');
+                            }}
+                            className={`w-full p-4 rounded-lg border-2 transition-all ${
+                              selectedPaymentOption === 'free'
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                                selectedPaymentOption === 'free' 
+                                  ? 'border-primary bg-primary' 
+                                  : 'border-muted-foreground'
+                              }`}>
+                                {selectedPaymentOption === 'free' && (
+                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 12 12">
+                                    <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1 text-left">
+                                <div className="font-medium text-foreground">Add for Free (Admin)</div>
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  No charge - add passes as a gift or comp
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* Saved Cards */}
+                          {paymentMethods.length > 0 && (
+                            <>
+                              {paymentMethods.map((method) => (
+                                <button
+                                  key={method.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedPaymentOption('saved_card');
+                                    setSelectedPaymentMethodId(method.id);
+                                  }}
+                                  className={`w-full p-4 rounded-lg border-2 transition-all ${
+                                    selectedPaymentOption === 'saved_card' && selectedPaymentMethodId === method.id
+                                      ? 'border-primary bg-primary/5'
+                                      : 'border-border hover:border-primary/50'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                                      selectedPaymentOption === 'saved_card' && selectedPaymentMethodId === method.id
+                                        ? 'border-primary bg-primary' 
+                                        : 'border-muted-foreground'
+                                    }`}>
+                                      {selectedPaymentOption === 'saved_card' && selectedPaymentMethodId === method.id && (
+                                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 12 12">
+                                          <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                      <div className="font-medium text-foreground">
+                                        {method.brand.charAt(0).toUpperCase() + method.brand.slice(1)} •••• {method.last4}
+                                      </div>
+                                      <div className="text-sm text-muted-foreground mt-1">
+                                        Expires {method.expMonth.toString().padStart(2, '0')}/{method.expYear % 100}
+                                      </div>
+                                      {selectedPackage && (
+                                        <div className="text-sm font-semibold text-green-600 mt-2">
+                                          Charge ${((selectedPackage.priceInCents * quantity) / 100).toFixed(2)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </>
+                          )}
+
+                          {/* Card Management Button */}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowCardManagement(true)}
+                            className="w-full"
+                          >
+                            {paymentMethods.length > 0 ? 'Manage Cards' : 'Add New Card'}
+                          </Button>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Submit Button */}
                 <Button
                   onClick={() => setConfirmDialogOpen(true)}
@@ -933,6 +1358,98 @@ export default function PassesPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Card Management Dialog */}
+      <Dialog open={showCardManagement} onOpenChange={setShowCardManagement}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Manage Payment Methods
+            </DialogTitle>
+            <DialogDescription>
+              {selectedClient && (
+                <span className="text-base font-medium text-foreground">
+                  {selectedClient.firstName} {selectedClient.lastName}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Saved Cards List */}
+            {paymentMethods.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-3">Saved Cards</h3>
+                <div className="space-y-2">
+                  {paymentMethods.map((method) => (
+                    <div
+                      key={method.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">
+                            {method.brand.charAt(0).toUpperCase() + method.brand.slice(1)} •••• {method.last4}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Expires {method.expMonth.toString().padStart(2, '0')}/{method.expYear % 100}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveCard(method.id)}
+                        disabled={removingCardId === method.id}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        {removingCardId === method.id ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                            Removing...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Remove
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add New Card Section */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">
+                {paymentMethods.length > 0 ? 'Add Another Card' : 'Add a Card'}
+              </h3>
+              {stripePromise && selectedClient ? (
+                <Elements stripe={stripePromise}>
+                  <AddCardForm
+                    userId={selectedClient.userId}
+                    orgId={orgId || ''}
+                    onSuccess={async () => {
+                      await loadPaymentMethods(selectedClient.userId);
+                      setMessage({ type: 'success', text: 'Card added successfully' });
+                    }}
+                    onCancel={() => setShowCardManagement(false)}
+                  />
+                </Elements>
+              ) : (
+                <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  Loading Stripe...
+                </div>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </BusinessSettingsSubmenu>
