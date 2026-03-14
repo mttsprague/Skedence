@@ -709,7 +709,7 @@ final class FirestoreService {
         // 2. Get trainer name (best-effort; avoid extra Firestore round-trip)
         let trainerName = (slotData["trainerName"] as? String) ?? "Trainer"
         
-        // 3. Get complete client profile data
+        // 3. Get complete client profile data (dual-path query for multi-tenant)
         var clientName = "Client"
         var clientAuthUID: String? = nil  // ✅ ADD: Extract client's Firebase Auth UID
         var clientEmail: String? = nil
@@ -720,8 +720,20 @@ final class FirestoreService {
         var notesForCoach: String? = nil
         var athletes: [[String: Any]]? = nil
         
-        let clientRef = db.collection("users").document(safeClientId)
-        if let clientSnap = try? await clientRef.getDocument(),
+        // Try organizations subcollection first, then fall back to root users
+        var clientRef = db.collection("organizations")
+            .document(safeOrgId)
+            .collection("users")
+            .document(safeClientId)
+        var clientSnap = try? await clientRef.getDocument()
+        
+        // Fallback to root users collection if not found
+        if clientSnap?.exists != true {
+            clientRef = db.collection("users").document(safeClientId)
+            clientSnap = try? await clientRef.getDocument()
+        }
+        
+        if let clientSnap = clientSnap,
            let clientData = clientSnap.data() {
             let firstName = clientData["firstName"] as? String ?? ""
             let lastName = clientData["lastName"] as? String ?? ""

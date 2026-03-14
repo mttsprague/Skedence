@@ -2182,7 +2182,6 @@ export const registerTrainer = onCall(
  * Supports both existing clients with packages and manual entry
  */
 export const manualRegisterForClass = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
