@@ -96,13 +96,30 @@ const DEFAULT_TEMPLATES: Record<string, EmailTemplate> = {
 <p>Hi {{clientName}},</p>
 <p>We hope you had a great session with {{trainerName}}!</p>
 
-<p>We'd love to hear your feedback to help us continue improving.</p>
+{{#if reviewsEnabled}}
+<h3>⭐ Share Your Experience</h3>
+<p>{{reviewPrompt}}</p>
+<div style="margin: 20px 0;">
+  {{#if googleReviewUrl}}
+  <a href="{{googleReviewUrl}}" style="background: #4285F4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">Review on Google</a>
+  {{/if}}
+  {{#if yelpReviewUrl}}
+  <a href="{{yelpReviewUrl}}" style="background: #D32323; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">Review on Yelp</a>
+  {{/if}}
+  {{#if facebookReviewUrl}}
+  <a href="{{facebookReviewUrl}}" style="background: #1877F2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">Review on Facebook</a>
+  {{/if}}
+  {{#if customReviewUrl}}
+  <a href="{{customReviewUrl}}" style="background: #6B7280; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">Review on {{customReviewPlatform}}</a>
+  {{/if}}
+</div>
+{{/if}}
 
 <h3>Ready to Book Your Next Session?</h3>
 <p>Visit our app to schedule your next training session.</p>
 
 <p>Thanks for being part of our community!<br>The {{orgName}} Team</p>`,
-    variables: ['clientName', 'trainerName', 'orgName'],
+    variables: ['clientName', 'trainerName', 'orgName', 'reviewsEnabled', 'reviewPrompt', 'googleReviewUrl', 'yelpReviewUrl', 'facebookReviewUrl', 'customReviewUrl', 'customReviewPlatform'],
   },
   packageReceipt: {
     subject: '🎁 Receipt: {{packageName}} Purchase',
@@ -140,6 +157,13 @@ const VARIABLE_DESCRIPTIONS: Record<string, string> = {
   cancellationHours: "Cancellation policy hours",
   amount: "Purchase amount",
   sessionsRemaining: "Number of sessions remaining",
+  reviewsEnabled: "Whether review collection is enabled",
+  reviewPrompt: "Custom review request message",
+  googleReviewUrl: "Google review link",
+  yelpReviewUrl: "Yelp review link",
+  facebookReviewUrl: "Facebook review link",
+  customReviewUrl: "Custom platform review link",
+  customReviewPlatform: "Custom platform name",
 };
 
 export function EmailTemplateEditor({ orgId, templateType, templateName, onClose }: EmailTemplateEditorProps) {

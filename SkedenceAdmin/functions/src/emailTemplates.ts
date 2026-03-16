@@ -83,7 +83,24 @@ const DEFAULT_TEMPLATES: Record<string, EmailTemplate> = {
 <p>Hi {{clientName}},</p>
 <p>We hope you had a great session with {{trainerName}}!</p>
 
-<p>We'd love to hear your feedback to help us continue improving.</p>
+{{#if reviewsEnabled}}
+<h3>⭐ Share Your Experience</h3>
+<p>{{reviewPrompt}}</p>
+<div style="margin: 20px 0;">
+  {{#if googleReviewUrl}}
+  <a href="{{googleReviewUrl}}" style="background: #4285F4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">Review on Google</a>
+  {{/if}}
+  {{#if yelpReviewUrl}}
+  <a href="{{yelpReviewUrl}}" style="background: #D32323; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">Review on Yelp</a>
+  {{/if}}
+  {{#if facebookReviewUrl}}
+  <a href="{{facebookReviewUrl}}" style="background: #1877F2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">Review on Facebook</a>
+  {{/if}}
+  {{#if customReviewUrl}}
+  <a href="{{customReviewUrl}}" style="background: #6B7280; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 5px;">Review on {{customReviewPlatform}}</a>
+  {{/if}}
+</div>
+{{/if}}
 
 <h3>Ready to Book Your Next Session?</h3>
 <p>Visit our app to schedule your next training session.</p>

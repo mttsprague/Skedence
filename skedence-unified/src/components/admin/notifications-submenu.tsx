@@ -9,13 +9,15 @@ import {
   BellRing,
   ArrowLeft,
   Menu,
-  X
+  X,
+  Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const submenuItems = [
   { name: 'Client Emails', href: '/settings/client-emails', icon: Mail },
   { name: 'Booking Alerts', href: '/settings/notifications/booking-alerts', icon: BellRing },
+  { name: 'Review Collection', href: '/settings/reviews', icon: Star },
 ];
 
 interface NotificationsSubmenuProps {

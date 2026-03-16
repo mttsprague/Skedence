@@ -284,6 +284,26 @@ async function sendEmailFromTemplate(bookingId: string, booking: any, template: 
     return;
   }
 
+  // Load review settings if this is a follow-up email
+  let reviewSettings: any = null;
+  if (emailType === "followUps") {
+    try {
+      const reviewDoc = await admin.firestore()
+        .collection("organizations")
+        .doc(booking.orgId)
+        .collection("settings")
+        .doc("reviews")
+        .get();
+      
+      if (reviewDoc.exists) {
+        reviewSettings = reviewDoc.data();
+        console.log(`✅ Loaded review settings for org ${booking.orgId}`);
+      }
+    } catch (error) {
+      console.error("Error loading review settings:", error);
+    }
+  }
+
   // Similar to sendBookingConfirmation but uses the provided template
   const [trainer, client, org] = await Promise.all([
     admin.firestore().collection("organizations").doc(booking.orgId)
@@ -296,30 +316,41 @@ async function sendEmailFromTemplate(bookingId: string, booking: any, template: 
   const clientData = client.data();
   const orgData = org.data();
 
+  // Build template variables
+  const templateVars: any = {
+    clientName: clientData?.name || "there",
+    trainerName: trainerData?.name || "Your Trainer",
+    trainerEmail: trainerData?.email,
+    date: formatDate(booking.startTime.toDate()),
+    time: formatTime(booking.startTime.toDate()),
+    duration: booking.durationMinutes,
+    packageName: booking.lessonPackage,
+    location: booking.location,
+    calendarLink: `https://skedence.app/calendar/${bookingId}.ics`,
+    bookingLink: `https://skedence.app/book/${booking.orgId}`,
+    feedbackLink: `https://skedence.app/feedback/${bookingId}`,
+    orgName: orgData?.name || "Skedence",
+    cancellationHours: orgData?.cancellationPolicy?.hours || 24,
+  };
+
+  // Add review-related variables for follow-up emails
+  if (emailType === "followUps" && reviewSettings) {
+    templateVars.reviewsEnabled = reviewSettings.enabled !== false;
+    templateVars.reviewPrompt = reviewSettings.promptMessage || "Your feedback helps us improve and helps others find us!";
+    templateVars.googleReviewUrl = reviewSettings.googleReviewUrl || "";
+    templateVars.yelpReviewUrl = reviewSettings.yelpReviewUrl || "";
+    templateVars.facebookReviewUrl = reviewSettings.facebookReviewUrl || "";
+    templateVars.customReviewUrl = reviewSettings.customReviewUrl || "";
+    templateVars.customReviewPlatform = reviewSettings.customReviewPlatform || "";
+  }
+
   const emailData = {
     to: clientData?.email,
     from: "Skedence <no-reply@skedence.com>",
     replyTo: "matt.sprague@skedence.com",
     message: {
-      subject: renderTemplate(template.subject, {
-        trainerName: trainerData?.name || "Your Trainer",
-        date: formatDate(booking.startTime.toDate()),
-      }),
-      html: renderTemplate(template.body, {
-        clientName: clientData?.name || "there",
-        trainerName: trainerData?.name || "Your Trainer",
-        trainerEmail: trainerData?.email,
-        date: formatDate(booking.startTime.toDate()),
-        time: formatTime(booking.startTime.toDate()),
-        duration: booking.durationMinutes,
-        packageName: booking.lessonPackage,
-        location: booking.location,
-        calendarLink: `https://skedence.app/calendar/${bookingId}.ics`,
-        bookingLink: `https://skedence.app/book/${booking.orgId}`,
-        feedbackLink: `https://skedence.app/feedback/${bookingId}`,
-        orgName: orgData?.name || "Skedence",
-        cancellationHours: orgData?.cancellationPolicy?.hours || 24,
-      }),
+      subject: renderTemplate(template.subject, templateVars),
+      html: renderTemplate(template.body, templateVars),
     },
   };
 
