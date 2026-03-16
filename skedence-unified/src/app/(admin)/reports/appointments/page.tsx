@@ -62,6 +62,7 @@ export default function AppointmentsReportPage() {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [customStartDate, setCustomStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [customEndDate, setCustomEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [selectedDaysOfWeek, setSelectedDaysOfWeek] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]); // 0=Sunday, 6=Saturday
   const [statusFilter, setStatusFilter] = useState<'all' | 'scheduled' | 'completed' | 'cancelled' | 'no-show'>('all');
   const [trainerFilter, setTrainerFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -104,7 +105,7 @@ export default function AppointmentsReportPage() {
 
   useEffect(() => {
     applyFilters();
-  }, [appointments, statusFilter, trainerFilter, typeFilter, clientSearch]);
+  }, [appointments, statusFilter, trainerFilter, typeFilter, clientSearch, selectedDaysOfWeek, dateRangeType]);
 
   // Keyboard shortcut: Ctrl+E to export
   useEffect(() => {
@@ -441,6 +442,14 @@ export default function AppointmentsReportPage() {
   function applyFilters() {
     let filtered = [...appointments];
     
+    // Filter by day of week (only for custom date range)
+    if (dateRangeType === 'custom' && selectedDaysOfWeek.length < 7) {
+      filtered = filtered.filter(a => {
+        const dayOfWeek = a.startTime.getDay(); // 0=Sunday, 6=Saturday
+        return selectedDaysOfWeek.includes(dayOfWeek);
+      });
+    }
+    
     if (statusFilter !== 'all') {
       filtered = filtered.filter(a => a.status === statusFilter);
     }
@@ -661,6 +670,83 @@ export default function AppointmentsReportPage() {
               </>
             )}
           </div>
+          
+          {/* Day of Week Filter - Only show for custom date range */}
+          {dateRangeType === 'custom' && (
+            <div className="mt-4 pt-4 border-t">
+              <label className="block text-sm font-medium mb-3">Days of Week</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: 0, label: 'Sun', fullLabel: 'Sunday' },
+                  { value: 1, label: 'Mon', fullLabel: 'Monday' },
+                  { value: 2, label: 'Tue', fullLabel: 'Tuesday' },
+                  { value: 3, label: 'Wed', fullLabel: 'Wednesday' },
+                  { value: 4, label: 'Thu', fullLabel: 'Thursday' },
+                  { value: 5, label: 'Fri', fullLabel: 'Friday' },
+                  { value: 6, label: 'Sat', fullLabel: 'Saturday' },
+                ].map((day) => {
+                  const isSelected = selectedDaysOfWeek.includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          // Deselect - but keep at least one day selected
+                          if (selectedDaysOfWeek.length > 1) {
+                            setSelectedDaysOfWeek(selectedDaysOfWeek.filter(d => d !== day.value));
+                          }
+                        } else {
+                          // Select
+                          setSelectedDaysOfWeek([...selectedDaysOfWeek, day.value].sort());
+                        }
+                      }}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-primary text-white hover:bg-primary/90'
+                          : 'bg-muted text-foreground hover:bg-muted/80'
+                      }`}
+                      aria-label={`${isSelected ? 'Deselect' : 'Select'} ${day.fullLabel}`}
+                      title={day.fullLabel}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDaysOfWeek([0, 1, 2, 3, 4, 5, 6])}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors ml-2"
+                  aria-label="Select all days"
+                >
+                  All Days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDaysOfWeek([1, 2, 3, 4, 5])}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                  aria-label="Select weekdays only"
+                >
+                  Weekdays
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDaysOfWeek([0, 6])}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                  aria-label="Select weekends only"
+                >
+                  Weekends
+                </button>
+              </div>
+              {selectedDaysOfWeek.length < 7 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Filtering to {selectedDaysOfWeek.map(d => 
+                    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]
+                  ).join(', ')}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
