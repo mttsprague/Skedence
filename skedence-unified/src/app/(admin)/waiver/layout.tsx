@@ -1,9 +1,15 @@
 import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-submenu';
+import { Viewport } from 'next';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata = {
   title: 'Waiver Settings | Skedence Admin',
   description: 'Configure waiver requirements',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 };
 
 export default function WaiverLayout({

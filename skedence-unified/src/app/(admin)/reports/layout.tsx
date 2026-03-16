@@ -1,9 +1,15 @@
 import { ReportsSubmenu } from '@/components/admin/reports-submenu';
+import { Viewport } from 'next';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata = {
   title: 'Reports | Skedence Admin',
   description: 'Business reports and analytics',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 };
 
 export default function ReportsLayout({

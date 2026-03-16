@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from '@/hooks/useAuth';
@@ -12,6 +12,13 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
 
 export const metadata: Metadata = {
   title: "Skedence - Coaching Business Management Software",
@@ -28,12 +35,6 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: 'Skedence',
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
   },
   openGraph: {
     title: 'Skedence - Coaching Business Management Software',
