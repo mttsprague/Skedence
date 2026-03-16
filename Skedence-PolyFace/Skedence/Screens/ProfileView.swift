@@ -136,7 +136,7 @@ private struct SignedInProfileScreen: View {
             AnalyticsService.shared.logScreenView(screenName: "Profile", screenClass: "ProfileView")
         }
         .task {
-            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
+            guard let orgId = auth.currentOrgId, let _ = auth.currentUserId else { return }
             if trainersService.trainers.isEmpty {
                 await trainersService.loadAll(orgId: orgId)
             }
@@ -329,164 +329,51 @@ private struct SignedInProfileScreen: View {
 
     private var scheduleTab: some View {
         VStack(spacing: 16) {
-            // Next Event card (lesson or class)
-            Button {
-                if let nextEvent = nextUpcomingEvent() {
-                    if case .lesson(let booking) = nextEvent {
-                        selectedBooking = booking
-                    }
-                }
-            } label: {
-                card {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Next Event")
-                            .font(.title3.bold())
-                            .foregroundStyle(Brand.primary)
-                        
-                        if let nextEvent = nextUpcomingEvent() {
-                            switch nextEvent {
-                            case .lesson(let booking):
-                                HStack(spacing: 6) {
-                                    Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                    Text("Private • \(participantCountText(for: booking))")
-                                        .font(.headline)
-                                }
-                                if let s = booking.startTime, let e = booking.endTime {
-                                    Text("\(dateString(s)) • \(timeString(s))–\(timeString(e))")
-                                        .foregroundStyle(.secondary)
-                                }
-                                HStack(spacing: 6) {
-                                    Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                    Text(trainerName(for: booking.trainerUID))
-                                        .foregroundStyle(.secondary)
-                                }
-                                if let location = booking.location {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                                        Text(location)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                // Show package name if available
-                                if let packageId = booking.lessonPackageId {
-                                    if let pkg = packagesService.packages.first(where: { $0.id == packageId }) {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "ticket.fill").foregroundStyle(.secondary)
-                                            Text(pkg.packageName ?? pkg.packageType.capitalized)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                }
-                            case .classItem(let classItem):
-                                HStack(spacing: 6) {
-                                    Image(systemName: "calendar.badge.clock").foregroundStyle(Brand.secondary)
-                                    Text("Class • \(classItem.title)")
-                                        .font(.headline)
-                                }
-                                Text("\(dateString(classItem.startTime)) • \(timeString(classItem.startTime))–\(timeString(classItem.endTime))")
-                                    .foregroundStyle(.secondary)
-                                HStack(spacing: 6) {
-                                    Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                    Text(trainerName(for: classItem.trainerId))
-                                        .foregroundStyle(.secondary)
-                                }
-                                HStack(spacing: 6) {
-                                    Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                                    Text(classItem.location)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        } else {
-                            Text("Your next events will appear here.")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+            // Upcoming Events grouped by date
+            let upcoming = allUpcomingEvents()
+            let groupedEvents = Dictionary(grouping: upcoming) { event in
+                Calendar.current.startOfDay(for: event.date)
             }
-            .buttonStyle(.plain)
-
-            // Upcoming Events card - show next 3 events (skipping the first which is shown above)
-            card {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Upcoming Events")
-                        .font(.title3.bold())
-                        .foregroundStyle(Brand.primary)
-                    let upcoming = allUpcomingEvents()
-                    // Skip first event (shown in Next Event) and limit to 3 more
-                    let displayEvents = Array(upcoming.dropFirst().prefix(3))
-                    
-                    if displayEvents.isEmpty {
-                        Text("No upcoming sessions or classes.")
+            let sortedDates = groupedEvents.keys.sorted()
+            
+            // Show next 5 days or 10 events (whichever comes first)
+            let displayDates = Array(sortedDates.prefix(5))
+            let displayEvents = upcoming.prefix(10)
+            
+            if displayEvents.isEmpty {
+                card {
+                    VStack(spacing: 12) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.secondary.opacity(0.5))
+                        Text("No Upcoming Events")
+                            .font(.title3.bold())
+                            .foregroundStyle(.primary)
+                        Text("Your schedule is clear")
                             .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(displayEvents.indices, id: \.self) { idx in
-                            let event = displayEvents[idx]
-                            Button {
-                                if case .lesson(let booking) = event {
-                                    selectedBooking = booking
-                                }
-                            } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    switch event {
-                                    case .lesson(let booking):
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                            Text("Private • \(participantCountText(for: booking))")
-                                                .font(.headline)
-                                        }
-                                        if let s = booking.startTime, let e = booking.endTime {
-                                            Text("\(dateString(s)) • \(timeString(s))–\(timeString(e))")
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                            Text(trainerName(for: booking.trainerUID))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        if let location = booking.location {
-                                            HStack(spacing: 6) {
-                                                Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                                                Text(location)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        // Show package name if available
-                                        if let packageId = booking.lessonPackageId {
-                                            if let pkg = packagesService.packages.first(where: { $0.id == packageId }) {
-                                                HStack(spacing: 6) {
-                                                    Image(systemName: "ticket.fill").foregroundStyle(.secondary)
-                                                    Text(pkg.packageName ?? pkg.packageType.capitalized)
-                                                        .foregroundStyle(.secondary)
-                                                }
-                                            }
-                                        }
-                                    case .classItem(let classItem):
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "calendar.badge.clock").foregroundStyle(Brand.secondary)
-                                            Text("Class • \(classItem.title)")
-                                                .font(.headline)
-                                        }
-                                        Text("\(dateString(classItem.startTime)) • \(timeString(classItem.startTime))–\(timeString(classItem.endTime))")
-                                            .foregroundStyle(.secondary)
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                            Text(trainerName(for: classItem.trainerId))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                                            Text(classItem.location)
-                                                .foregroundStyle(.secondary)
-                                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                }
+            } else {
+                ForEach(displayDates, id: \.self) { date in
+                    if let events = groupedEvents[date], !events.isEmpty {
+                        card {
+                            VStack(alignment: .leading, spacing: 0) {
+                                // Date header
+                                dateHeader(for: date)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                
+                                // Events for this date
+                                ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
+                                    eventRow(event)
+                                    
+                                    if index < events.count - 1 {
+                                        Divider()
+                                            .padding(.leading, 20)
                                     }
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.vertical, 6)
-                            if idx < displayEvents.count - 1 {
-                                Divider().opacity(0.2)
                             }
                         }
                     }
@@ -517,6 +404,79 @@ private struct SignedInProfileScreen: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
+    }
+    
+    private func dateHeader(for date: Date) -> some View {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE – MMM d"
+        let dateString = formatter.string(from: date)
+        let isToday = Calendar.current.isDateInToday(date)
+        
+        return HStack {
+            Text(dateString)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isToday ? .red : .primary)
+            Spacer()
+        }
+    }
+    
+    private func eventRow(_ event: UpcomingEvent) -> some View {
+        Button {
+            if case .lesson(let booking, _) = event {
+                selectedBooking = booking
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 0) {
+                // Color bar on left
+                Rectangle()
+                    .fill(event.color)
+                    .frame(width: 4)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(event.title)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            
+                            if let location = event.location {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "mappin.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.secondary)
+                                    Text(location)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            
+                            HStack(spacing: 4) {
+                                Text(event.trainerName(using: trainersService))
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // Time on right side
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(event.startTime)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.primary)
+                            Text(event.endTime)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.leading, 12)
+                .padding(.vertical, 12)
+                .padding(.trailing, 16)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: PASSES tab (dynamically generated from pricing structure)
@@ -1336,20 +1296,76 @@ private struct SignedInProfileScreen: View {
     // MARK: Event helpers
     
     private enum UpcomingEvent: Identifiable {
-        case lesson(Booking)
+        case lesson(Booking, packageName: String)
         case classItem(GroupClass)
         
         var id: String {
             switch self {
-            case .lesson(let booking): return "lesson-\(booking.id ?? "")"
+            case .lesson(let booking, _): return "lesson-\(booking.id ?? "")"
             case .classItem(let classItem): return "class-\(classItem.id ?? "")"
             }
         }
         
         var date: Date {
             switch self {
-            case .lesson(let booking): return booking.startTime ?? .distantFuture
+            case .lesson(let booking, _): return booking.startTime ?? .distantFuture
             case .classItem(let classItem): return classItem.startTime
+            }
+        }
+        
+        var color: Color {
+            switch self {
+            case .lesson: return Brand.primary
+            case .classItem: return Brand.secondary
+            }
+        }
+        
+        var title: String {
+            switch self {
+            case .lesson(_, let packageName): return packageName
+            case .classItem(let classItem): return classItem.title
+            }
+        }
+        
+        var startTime: String {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }
+        
+        var endTime: String {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            switch self {
+            case .lesson(let booking, _):
+                if let end = booking.endTime {
+                    return formatter.string(from: end)
+                }
+                return ""
+            case .classItem(let classItem):
+                return formatter.string(from: classItem.endTime)
+            }
+        }
+        
+        var location: String? {
+            switch self {
+            case .lesson(let booking, _): return booking.location
+            case .classItem(let classItem): return classItem.location
+            }
+        }
+        
+        func trainerName(using service: TrainersService) -> String {
+            switch self {
+            case .lesson(let booking, _):
+                if let trainer = service.trainers.first(where: { $0.id == booking.trainerUID }) {
+                    return "\(trainer.firstName ?? "") \(trainer.lastName ?? "")"
+                }
+                return "Unknown Trainer"
+            case .classItem(let classItem):
+                if let trainer = service.trainers.first(where: { $0.id == classItem.trainerId }) {
+                    return "\(trainer.firstName ?? "") \(trainer.lastName ?? "")"
+                }
+                return classItem.trainerName
             }
         }
     }
@@ -1362,10 +1378,19 @@ private struct SignedInProfileScreen: View {
         let now = Date()
         var events: [UpcomingEvent] = []
         
+        // Create package name lookup dictionary
+        let packageNames: [String: String] = Dictionary(uniqueKeysWithValues: packagesService.packages.compactMap { pkg -> (String, String)? in
+            guard let id = pkg.id, let name = pkg.packageName else { return nil }
+            return (id, name)
+        })
+        
         // Add upcoming lessons
         let upcomingLessons = bookingsService.myBookings
             .filter { ($0.startTime ?? now) >= now }
-            .map { UpcomingEvent.lesson($0) }
+            .map { booking in
+                let packageName = booking.lessonPackageId.flatMap { packageNames[$0] } ?? "Private Lesson"
+                return UpcomingEvent.lesson(booking, packageName: packageName)
+            }
         events.append(contentsOf: upcomingLessons)
         
         // Add all upcoming classes (user must be registered to see them here)

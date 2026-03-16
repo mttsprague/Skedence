@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+enum ScheduleTab: String, CaseIterable {
+    case upcoming = "Upcoming"
+    case completed = "Completed"
+}
+
 struct MyUpcomingLessonsView: View {
     @EnvironmentObject var auth: AuthManager
     @ObservedObject var bookingsService: BookingsService
@@ -16,11 +21,14 @@ struct MyUpcomingLessonsView: View {
     @StateObject private var packagesService = PackagesService()
     @StateObject private var settingsService = SettingsService()
     
+    @State private var selectedTab: ScheduleTab = .upcoming
     @State private var itemToCancel: ScheduleItem?
     @State private var showCancelAlert = false
     @State private var isCancelling = false
     @State private var cancelError: String?
     @State private var selectedBooking: Booking?
+    @State private var selectedClass: GroupClass?
+    @State private var packageNames: [String: String] = [:] // packageId -> packageName
 
     private var upcoming: [Booking] {
         let now = Date()
@@ -36,12 +44,60 @@ struct MyUpcomingLessonsView: View {
             .sorted { $0.startTime < $1.startTime }
     }
     
+    private var completed: [Booking] {
+        let now = Date()
+        return bookingsService.myBookings
+            .filter { ($0.endTime ?? now) < now && $0.status != "cancelled" }
+            .sorted { ($0.startTime ?? .distantPast) > ($1.startTime ?? .distantPast) }
+    }
+    
+    private var completedClasses: [GroupClass] {
+        let now = Date()
+        return classesService.myRegisteredClasses
+            .filter { $0.endTime < now }
+            .sorted { $0.startTime > $1.startTime }
+    }
+    
     private var allUpcoming: [ScheduleItem] {
         var items: [ScheduleItem] = []
         items.append(contentsOf: upcoming.map { .lesson($0) })
         items.append(contentsOf: upcomingClasses.map { .classItem($0) })
         return items.sorted { $0.date < $1.date }
-    }    
+    }
+    
+    private var allCompleted: [ScheduleItem] {
+        var items: [ScheduleItem] = []
+        items.append(contentsOf: completed.map { .lesson($0) })
+        items.append(contentsOf: completedClasses.map { .classItem($0) })
+        return items.sorted { $0.date > $1.date }
+    }
+    
+    private var displayedItems: [ScheduleItem] {
+        selectedTab == .upcoming ? allUpcoming : allCompleted
+    }
+    
+    private var groupedByDate: [Date: [ScheduleItem]] {
+        Dictionary(grouping: displayedItems) { item in
+            Calendar.current.startOfDay(for: item.date)
+        }
+    }
+    
+    private func dateHeader(for date: Date) -> some View {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE – MMM d"
+        let dateString = formatter.string(from: date)
+        let isToday = Calendar.current.isDateInToday(date)
+        
+        return HStack {
+            Text(dateString)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isToday ? .red : .primary)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+    
     private func canCancelItem(_ item: ScheduleItem) -> Bool {
         // Use org settings for minimum cancellation hours
         let minHours = settingsService.settings?.minCancellationHours ?? 24
@@ -50,23 +106,44 @@ struct MyUpcomingLessonsView: View {
         return item.date > cancellationDeadline
     }
     var body: some View {
-        List {
-            if (bookingsService.isLoading || classesService.isLoading) && allUpcoming.isEmpty {
-                ProgressView()
-            } else if allUpcoming.isEmpty {
-                Text("No upcoming lessons or classes.")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(allUpcoming) { item in
-                    scheduleItemRow(item)
+        VStack(spacing: 0) {
+            // Tab Selector
+            Picker("Schedule View", selection: $selectedTab) {
+                ForEach(ScheduleTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
                 }
             }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            
+            List {
+                if (bookingsService.isLoading || classesService.isLoading) && displayedItems.isEmpty {
+                    ProgressView()
+                } else if displayedItems.isEmpty {
+                    Text(selectedTab == .upcoming ? "No upcoming lessons or classes." : "No completed lessons or classes.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    let sortedDates = groupedByDate.keys.sorted(by: selectedTab == .upcoming ? (<) : (>))
+                    ForEach(sortedDates, id: \.self) { date in
+                        Section {
+                            if let items = groupedByDate[date] {
+                                ForEach(items) { item in
+                                    scheduleItemRow(item)
+                                }
+                            }
+                        } header: {
+                            dateHeader(for: date)
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
         }
-        .listStyle(.plain)
         .navigationTitle("My Schedule")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            guard let orgId = auth.currentOrgId, let userId = auth.currentUserId else { return }
+            guard let orgId = auth.currentOrgId, let _ = auth.currentUserId else { return }
             
             // Load settings
             await settingsService.loadSettings(orgId: orgId)
@@ -82,11 +159,25 @@ struct MyUpcomingLessonsView: View {
                 guard let userDocId = auth.currentUserDocId else { return }
                 await classesService.loadMyRegisteredClasses(userId: userDocId, orgId: orgId)
             }
+            
+            // Load packages to get custom names
+            await packagesService.loadMyPackages(orgId: orgId)
+            packageNames = Dictionary(uniqueKeysWithValues: packagesService.packages.compactMap { pkg in
+                guard let id = pkg.id, let name = pkg.packageName else { return nil }
+                return (id, name)
+            })
         }
         .refreshable {
             guard let orgId = auth.currentOrgId, let userDocId = auth.currentUserDocId else { return }
             await bookingsService.loadMyBookings(orgId: orgId)
             await classesService.loadMyRegisteredClasses(userId: userDocId, orgId: orgId)
+            
+            // Refresh package names
+            await packagesService.loadMyPackages(orgId: orgId)
+            packageNames = Dictionary(uniqueKeysWithValues: packagesService.packages.compactMap { pkg in
+                guard let id = pkg.id, let name = pkg.packageName else { return nil }
+                return (id, name)
+            })
         }
         .alert("Cancel Booking", isPresented: $showCancelAlert) {
             Button("Cancel", role: .cancel) {
@@ -126,6 +217,11 @@ struct MyUpcomingLessonsView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(item: $selectedClass) { classItem in
+            ClassDetailSheet(classItem: classItem, trainersService: trainersService)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private func trainerName(for trainerId: String) -> String {
@@ -143,6 +239,7 @@ struct MyUpcomingLessonsView: View {
             } label: {
                 LessonRow(
                     booking: booking,
+                    packageName: booking.lessonPackageId.flatMap { packageNames[$0] } ?? "Private Lesson",
                     trainerName: trainerName(for: booking.trainerUID),
                     isCancellable: isCancellable,
                     onCancel: { handleCancelAction(item, isCancellable, type: "Lessons") }
@@ -152,12 +249,17 @@ struct MyUpcomingLessonsView: View {
             .listRowModifiers(item: item, isCancellable: isCancellable, onCancel: { showCancelAlert = true; itemToCancel = item })
             
         case .classItem(let classItem):
-            ClassRow(
-                classItem: classItem,
-                trainerName: trainerName(for: classItem.trainerId),
-                isCancellable: isCancellable,
-                onCancel: { handleCancelAction(item, isCancellable, type: "Classes") }
-            )
+            Button {
+                selectedClass = classItem
+            } label: {
+                ClassRow(
+                    classItem: classItem,
+                    trainerName: trainerName(for: classItem.trainerId),
+                    isCancellable: isCancellable,
+                    onCancel: { handleCancelAction(item, isCancellable, type: "Classes") }
+                )
+            }
+            .buttonStyle(.plain)
             .listRowModifiers(item: item, isCancellable: isCancellable, onCancel: { showCancelAlert = true; itemToCancel = item })
         }
     }
@@ -251,67 +353,82 @@ fileprivate enum ScheduleItem: Identifiable {
 
 private struct LessonRow: View {
     let booking: Booking
+    let packageName: String
     let trainerName: String
     let isCancellable: Bool
     let onCancel: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Brand.primary.opacity(0.12))
-                Image(systemName: "calendar.badge.clock")
-                    .foregroundStyle(Brand.primary)
-            }
-            .frame(width: 36, height: 36)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Private Lesson")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                if let s = booking.startTime, let e = booking.endTime {
-                    Text("\(s.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())) • \(s.formatted(date: .omitted, time: .shortened))–\(e.formatted(date: .omitted, time: .shortened))")
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Time to be determined")
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 6) {
-                    Image(systemName: "person.fill").foregroundStyle(.secondary)
-                    Text(trainerName)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let location = booking.location {
-                    HStack(spacing: 6) {
-                        Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                        Text(location)
-                            .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 0) {
+            // Color bar on left
+            Rectangle()
+                .fill(Brand.primary)
+                .frame(width: 4)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(packageName)
+                        Text("Private Lesson")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        
+                        // Location
+                        if let location = booking.location {
+                            HStack(spacing: 4) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                                Text(location)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        
+                        // Trainer
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                            Text(trainerName)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 4) {
+                        // Time on right side
+                        if let s = booking.startTime, let e = booking.endTime {
+                            Text(s.formatted(date: .omitted, time: .shortened))
+                                .font(.system(size: 14))
+                                .foregroundStyle(.primary)
+                            Text(e.formatted(date: .omitted, time: .shortened))
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("TBD")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        // Cancel button/indicator
+                        Button(action: onCancel) {
+                            Image(systemName: isCancellable ? "xmark.circle.fill" : "lock.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(isCancellable ? .red : .gray.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
                     }
                 }
-
-                Text(booking.status.capitalized)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
-
-            Spacer()
-            
-            Button(action: onCancel) {
-                Image(systemName: isCancellable ? "xmark.circle.fill" : "lock.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(isCancellable ? .red : .gray)
-            }
-            .buttonStyle(.plain)
+            .padding(.leading, 12)
+            .padding(.vertical, 12)
+            .padding(.trailing, 16)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.platformBackground)
-                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
-        )
+        .background(Color.platformBackground)
     }
 }
 private struct ClassRow: View {
@@ -321,49 +438,146 @@ private struct ClassRow: View {
     let onCancel: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Brand.secondary.opacity(0.12))
-                Image(systemName: "calendar.badge.clock")
-                    .foregroundStyle(Brand.secondary)
-            }
-            .frame(width: 36, height: 36)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(classItem.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                Text("\(classItem.startTime.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())) • \(classItem.startTime.formatted(date: .omitted, time: .shortened))–\(classItem.endTime.formatted(date: .omitted, time: .shortened))")
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 6) {
-                    Image(systemName: "person.fill").foregroundStyle(.secondary)
-                    Text(trainerName)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 6) {
-                    Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary)
-                    Text(classItem.location)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
+        HStack(alignment: .top, spacing: 0) {
+            // Color bar on left
+            Rectangle()
+                .fill(Brand.secondary)
+                .frame(width: 4)
             
-            Button(action: onCancel) {
-                Image(systemName: isCancellable ? "xmark.circle.fill" : "lock.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(isCancellable ? .red : .gray)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Class title on top
+                        Text(classItem.title)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        
+                        // Location
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                            Text(classItem.location)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        // Trainer
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                            Text(trainerName)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 4) {
+                        // Time on right side
+                        Text(classItem.startTime.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 14))
+                            .foregroundStyle(.primary)
+                        Text(classItem.endTime.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                        
+                        // Cancel button/indicator
+                        Button(action: onCancel) {
+                            Image(systemName: isCancellable ? "xmark.circle.fill" : "lock.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(isCancellable ? .red : .gray.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
+                    }
+                }
             }
-            .buttonStyle(.plain)
+            .padding(.leading, 12)
+            .padding(.vertical, 12)
+            .padding(.trailing, 16)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.platformBackground)
-                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
-        )
+        .background(Color.platformBackground)
+    }
+}
+
+// MARK: - Class Detail Sheet
+
+private struct ClassDetailSheet: View {
+    let classItem: GroupClass
+    @ObservedObject var trainersService: TrainersService
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                
+                Text("Class Details")
+                    .font(.system(size: 28, weight: .bold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(classItem.title)
+                        .font(.system(size: 20, weight: .semibold))
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "calendar").frame(width: 20)
+                            Text(classItem.startTime.formatted(date: .long, time: .omitted))
+                        }
+                        HStack {
+                            Image(systemName: "clock").frame(width: 20)
+                            Text("\(classItem.startTime.formatted(date: .omitted, time: .shortened)) - \(classItem.endTime.formatted(date: .omitted, time: .shortened))")
+                        }
+                        HStack {
+                            Image(systemName: "person.fill").frame(width: 20)
+                            Text(trainersService.trainers.first(where: { $0.id == classItem.trainerId })?.name ?? "Trainer")
+                        }
+                        HStack {
+                            Image(systemName: "mappin.circle.fill").frame(width: 20)
+                            Text(classItem.location)
+                        }
+                        HStack {
+                            Image(systemName: "person.3.fill").frame(width: 20)
+                            Text("\(classItem.currentParticipants)/\(classItem.maxParticipants) participants")
+                        }
+                    }
+                    .font(.system(size: 14))
+                }
+                .padding(16)
+                .background(Color(UIColor.secondarySystemGroupedBackground))
+                .cornerRadius(12)
+                .padding(.horizontal, 16)
+                
+                if !classItem.description.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("About This Class")
+                            .font(.system(size: 18, weight: .semibold))
+                        Text(classItem.description)
+                            .font(.system(size: 14))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color(UIColor.secondarySystemGroupedBackground))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 16)
+                }
+            }
+            .padding(.vertical, 8)
+        }
+        .background(Color(UIColor.systemGroupedBackground))
     }
 }
