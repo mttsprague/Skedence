@@ -119,6 +119,11 @@ export default function ActivityPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Date range filtering
+  const [dateRangeMode, setDateRangeMode] = useState<'today' | 'yesterday' | 'week' | 'last-week' | 'month' | 'last-month' | 'all' | 'custom'>('today');
+  const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
   // Track page view
   useEffect(() => {
@@ -708,11 +713,48 @@ export default function ActivityPage() {
     
     // Date filter (only if not searching)
     if (!isSearching) {
-      const dayStart = startOfDay(selectedDate);
-      const dayEnd = endOfDay(selectedDate);
+      let rangeStart: Date;
+      let rangeEnd: Date;
+      
+      switch (dateRangeMode) {
+        case 'today':
+          rangeStart = startOfDay(new Date());
+          rangeEnd = endOfDay(new Date());
+          break;
+        case 'yesterday':
+          rangeStart = startOfDay(subDays(new Date(), 1));
+          rangeEnd = endOfDay(subDays(new Date(), 1));
+          break;
+        case 'week':
+          rangeStart = startOfWeek(new Date());
+          rangeEnd = endOfWeek(new Date());
+          break;
+        case 'last-week':
+          rangeStart = startOfWeek(subDays(new Date(), 7));
+          rangeEnd = endOfWeek(subDays(new Date(), 7));
+          break;
+        case 'month':
+          rangeStart = startOfMonth(new Date());
+          rangeEnd = endOfMonth(new Date());
+          break;
+        case 'last-month':
+          rangeStart = startOfMonth(addMonths(new Date(), -1));
+          rangeEnd = endOfMonth(addMonths(new Date(), -1));
+          break;
+        case 'all':
+          // No date filtering for 'all'
+          rangeStart = new Date(0); // Beginning of time
+          rangeEnd = new Date(9999, 11, 31); // Far future
+          break;
+        case 'custom':
+          rangeStart = startOfDay(new Date(customStartDate));
+          rangeEnd = endOfDay(new Date(customEndDate));
+          break;
+      }
+      
       filtered = filtered.filter(activity => {
         const activityTime = activity.timestamp.getTime();
-        return activityTime >= dayStart.getTime() && activityTime <= dayEnd.getTime();
+        return activityTime >= rangeStart.getTime() && activityTime <= rangeEnd.getTime();
       });
     }
     
@@ -781,7 +823,7 @@ export default function ActivityPage() {
     }
     
     return filtered;
-  }, [activities, selectedDate, searchQuery, isSearching, selectedActivityType, selectedClient, selectedTrainer, selectedRole]);
+  }, [activities, selectedDate, searchQuery, isSearching, selectedActivityType, selectedClient, selectedTrainer, selectedRole, dateRangeMode, customStartDate, customEndDate]);
 
   // Helper function to format athlete names
   const formatAthleteNames = (booking: BookingSnapshot): string => {
@@ -815,35 +857,12 @@ export default function ActivityPage() {
   }, [todayBookings]);
 
   // Memoized computed values
-  const isToday = useMemo(() => 
-    format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd'),
-    [selectedDate]
-  );
-  
   const hasActiveFilters = useMemo(() => 
     selectedActivityType !== 'all' || selectedClient !== 'all' || selectedTrainer !== 'all' || selectedRole !== 'all',
     [selectedActivityType, selectedClient, selectedTrainer, selectedRole]
   );
 
   // Memoized callbacks
-  const handlePreviousDay = useCallback(() => {
-    setSelectedDate(prev => subDays(prev, 1));
-    setIsSearching(false);
-    setSearchQuery('');
-  }, []);
-
-  const handleNextDay = useCallback(() => {
-    setSelectedDate(prev => addDays(prev, 1));
-    setIsSearching(false);
-    setSearchQuery('');
-  }, []);
-
-  const handleToday = useCallback(() => {
-    setSelectedDate(new Date());
-    setIsSearching(false);
-    setSearchQuery('');
-  }, []);
-
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
@@ -1305,49 +1324,55 @@ export default function ActivityPage() {
           )}
         </Card>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Card className="flex-1">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between gap-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousDay}
-                disabled={isSearching}
-                className="w-10 h-10 p-0"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              
-              <div className="flex-1 text-center">
-                <div className="text-lg font-semibold text-foreground">
-                  {format(selectedDate, 'MMMM d, yyyy')}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {isToday ? 'Today' : format(selectedDate, 'EEEE')}
-                </div>
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextDay}
-                disabled={isSearching}
-                className="w-10 h-10 p-0"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Date Range</label>
+              <Select value={dateRangeMode} onValueChange={(value: any) => setDateRangeMode(value)} disabled={isSearching}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="last-week">Last Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="last-month">Last Month</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
-            {!isToday && !isSearching && (
-              <div className="mt-4 text-center">
-                <Button variant="ghost" size="sm" onClick={handleToday}>
-                  Jump to Today
-                </Button>
+            {dateRangeMode === 'custom' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Start Date</label>
+                  <Input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    max={customEndDate}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">End Date</label>
+                  <Input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    min={customStartDate}
+                  />
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-col sm:flex-row gap-4">
 
         <Card className="flex-1">
           <CardContent className="pt-6">
@@ -1465,7 +1490,16 @@ export default function ActivityPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ActivityIcon className="h-5 w-5" />
-            {isSearching ? 'Search Results' : format(selectedDate, 'MMMM d, yyyy')}
+            {isSearching ? 'Search Results' : (
+              dateRangeMode === 'today' ? format(new Date(), 'MMMM d, yyyy') :
+              dateRangeMode === 'yesterday' ? format(subDays(new Date(), 1), 'MMMM d, yyyy') :
+              dateRangeMode === 'week' ? 'This Week' :
+              dateRangeMode === 'last-week' ? 'Last Week' :
+              dateRangeMode === 'month' ? 'This Month' :
+              dateRangeMode === 'last-month' ? 'Last Month' :
+              dateRangeMode === 'all' ? 'All Activity' :
+              `${format(new Date(customStartDate), 'MMM d')} - ${format(new Date(customEndDate), 'MMM d, yyyy')}`
+            )}
             <span className="text-sm font-normal text-muted-foreground">
               ({filteredActivities.length} {filteredActivities.length === 1 ? 'activity' : 'activities'})
             </span>
@@ -1478,7 +1512,9 @@ export default function ActivityPage() {
               <p className="text-foreground/80">
                 {isSearching 
                   ? 'No activities match your search' 
-                  : `No activity on ${format(selectedDate, 'MMMM d, yyyy')}`
+                  : dateRangeMode === 'all'
+                  ? 'No activity recorded yet'
+                  : 'No activity in this date range'
                 }
               </p>
             </div>
