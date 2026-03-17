@@ -1324,9 +1324,9 @@ export default function ActivityPage() {
           )}
         </Card>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
+      <div className="flex flex-col lg:flex-row gap-4">
+        <Card className="flex-1">
+          <CardContent className="pt-6">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">Date Range</label>
               <Select value={dateRangeMode} onValueChange={(value: any) => setDateRangeMode(value)} disabled={isSearching}>
@@ -1345,63 +1345,67 @@ export default function ActivityPage() {
                 </SelectContent>
               </Select>
             </div>
-            
-            {dateRangeMode === 'custom' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Start Date</label>
-                  <Input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    max={customEndDate}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">End Date</label>
-                  <Input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    min={customStartDate}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col sm:flex-row gap-4">
+          </CardContent>
+        </Card>
 
         <Card className="flex-1">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search activities..."
-                value={searchQuery}
-                onChange={handleSearch}
-                className="pl-10 pr-10"
-              />
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-foreground/80"
-                >
-                  <XIcon className="h-4 w-4" />
-                </button>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Search Activities</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search activities..."
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-foreground/80"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {isSearching && (
+                <p className="mt-2 text-sm text-foreground/80">
+                  Found {filteredActivities.length} result{filteredActivities.length !== 1 ? 's' : ''}
+                </p>
               )}
             </div>
-            {isSearching && (
-              <p className="mt-2 text-sm text-foreground/80">
-                Found {filteredActivities.length} result{filteredActivities.length !== 1 ? 's' : ''}
-              </p>
-            )}
           </CardContent>
         </Card>
       </div>
+      
+      {dateRangeMode === 'custom' && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Start Date</label>
+                <Input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  max={customEndDate}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">End Date</label>
+                <Input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  min={customStartDate}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
