@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { doc, setDoc, getFirestore } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getFirestore } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   PartyPopper, 
@@ -17,7 +17,36 @@ import Link from 'next/link';
 
 export function OnboardingCelebration() {
   const { orgId } = useAuth();
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkDismissStatus() {
+      if (!orgId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const db = getFirestore();
+        const onboardingRef = doc(db, 'organizations', orgId, 'settings', 'onboarding');
+        const onboardingDoc = await getDoc(onboardingRef);
+        
+        if (onboardingDoc.exists() && onboardingDoc.data()?.celebrationDismissed === true) {
+          setIsVisible(false);
+        } else {
+          setIsVisible(true);
+        }
+      } catch (error) {
+        console.error('Error checking celebration dismiss status:', error);
+        setIsVisible(true); // Show by default if there's an error
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    checkDismissStatus();
+  }, [orgId]);
 
   async function handleDismiss() {
     if (!orgId) return;
@@ -32,7 +61,7 @@ export function OnboardingCelebration() {
     }
   }
 
-  if (!isVisible) {
+  if (isLoading || !isVisible) {
     return null;
   }
 
