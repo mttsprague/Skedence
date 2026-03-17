@@ -9,7 +9,7 @@ const db = admin.firestore();
  */
 interface DeletePricingPackageData {
   orgId: string;
-  packageId: string; // The ID of the pricing package being deleted
+  packageType: string; // The packageType of the pricing package being deleted (used to match purchased passes)
 }
 
 export const deletePricingPackageLessons = functions.https.onCall(
@@ -25,12 +25,12 @@ export const deletePricingPackageLessons = functions.https.onCall(
       );
     }
 
-    const {orgId, packageId} = request.data;
+    const {orgId, packageType} = request.data;
 
-    if (!orgId || !packageId) {
+    if (!orgId || !packageType) {
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "Missing orgId or packageId"
+        "Missing orgId or packageType"
       );
     }
 
@@ -76,22 +76,41 @@ export const deletePricingPackageLessons = functions.https.onCall(
         const userId = memberDoc.data().userId;
         if (!userId) continue;
 
-        // Query lesson packages that match this pricing package ID
+        // Query STANDARD PATH: organizations/{orgId}/users/{userId}/packages
         // Lesson packages store the pricing package ID in the packageType field
-        const packagesSnapshot = await db
+        const standardPathPackagesSnapshot = await db
+          .collection("organizations")
+          .doc(orgId)
+          .collection("users")
+          .doc(userId)
+          .collection("packages")
+          .where("packageType", "==", packageType)
+          .get();
+
+        // Delete each matching package from standard path
+        standardPathPackagesSnapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+          deletedCount++;
+          functions.logger.info(
+            `Deleting lesson package (standard path) ${doc.id} for user ${userId} (packageType: ${packageType})`
+          );
+        });
+
+        // LEGACY PATH: users/{userId}/lessonPackages (for backward compatibility)
+        const legacyPathPackagesSnapshot = await db
           .collection("users")
           .doc(userId)
           .collection("lessonPackages")
           .where("orgId", "==", orgId)
-          .where("packageType", "==", packageId)
+          .where("packageType", "==", packageType)
           .get();
 
-        // Delete each matching package
-        packagesSnapshot.docs.forEach((doc) => {
+        // Delete each matching package from legacy path
+        legacyPathPackagesSnapshot.docs.forEach((doc) => {
           batch.delete(doc.ref);
           deletedCount++;
           functions.logger.info(
-            `Deleting lesson package ${doc.id} for user ${userId} (packageType: ${packageId})`
+            `Deleting lesson package (legacy path) ${doc.id} for user ${userId} (packageType: ${packageType})`
           );
         });
       }
@@ -100,7 +119,7 @@ export const deletePricingPackageLessons = functions.https.onCall(
       await batch.commit();
 
       functions.logger.info(
-        `Successfully deleted ${deletedCount} lesson packages for pricing package ${packageId} in org ${orgId}`
+        `Successfully deleted ${deletedCount} lesson packages for pricing package ${packageType} in org ${orgId}`
       );
 
       return {

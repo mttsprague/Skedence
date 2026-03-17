@@ -104,6 +104,18 @@ struct ClientBooking: Identifiable, Codable {
         return formatter.string(from: startTime)
     }
     
+    var formattedStartTime: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: startTime)
+    }
+    
+    var formattedEndTime: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: endTime)
+    }
+    
     var duration: String {
         let components = Calendar.current.dateComponents([.hour, .minute], from: startTime, to: endTime)
         if let hours = components.hour, hours > 0 {

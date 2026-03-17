@@ -151,79 +151,144 @@ struct ScheduleSection: View {
     }
     
     private func bookingRow(_ booking: ClientBooking) -> some View {
-        HStack(spacing: Spacing.sm) {
-            Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "calendar")
-                .font(.system(size: 16))
-                .foregroundStyle(AppTheme.primary)
-                .frame(width: 24)
+        HStack(alignment: .top, spacing: 0) {
+            // Color bar on left  
+            Rectangle()
+                .fill(booking.isClassBooking == true ? AppTheme.secondary : AppTheme.primary)
+                .frame(width: 4)
             
-            VStack(alignment: .leading, spacing: 2) {
-                Text(booking.trainerName)
-                    .font(.bodyMedium)
-                    .fontWeight(.medium)
-                    .foregroundStyle(AppTheme.textPrimary)
-                
-                Text(booking.formattedDate)
-                    .font(.labelSmall)
-                    .foregroundStyle(AppTheme.textSecondary)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Title
+                        Text(booking.isClassBooking == true ? "Class" : "Private Lesson")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        // Trainer name
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text(booking.trainerName)
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        
+                        // Location if available
+                        if let location = booking.location, !location.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(location)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Time on right side
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(booking.formattedStartTime)
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text(booking.formattedEndTime)
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                }
             }
-            
-            Spacer()
-            
-            Text(booking.duration)
-                .font(.labelMedium)
-                .foregroundStyle(AppTheme.textTertiary)
+            .padding(.leading, 12)
+            .padding(.vertical, 12)
+            .padding(.trailing, 16)
         }
-        .padding(.vertical, Spacing.xxs)
     }
     
     private func upcomingBookingRow(_ booking: ClientBooking) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.sm) {
-                Image(systemName: booking.isClassBooking == true ? "person.3.fill" : "calendar")
-                    .font(.system(size: 16))
-                    .foregroundStyle(AppTheme.primary)
-                    .frame(width: 24)
+        Button {
+            // Tappable row (can be used for navigation in future)
+        } label: {
+            HStack(alignment: .top, spacing: 0) {
+                // Color bar on left
+                Rectangle()
+                    .fill(booking.isClassBooking == true ? AppTheme.secondary : AppTheme.primary)
+                    .frame(width: 4)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(booking.trainerName)
-                        .font(.bodyMedium)
-                        .fontWeight(.medium)
-                        .foregroundStyle(AppTheme.textPrimary)
-                    
-                    Text(booking.formattedDate)
-                        .font(.labelSmall)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-                
-                Spacer()
-                
-                Text(booking.duration)
-                    .font(.labelMedium)
-                    .foregroundStyle(AppTheme.textTertiary)
-            }
-            
-            // Cancel button for admins/owners
-            if isAdmin {
-                Button(action: {
-                    onCancelBooking(booking.id)
-                }) {
-                    HStack(spacing: Spacing.xs) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.labelSmall)
-                        Text("Cancel Lesson")
-                            .font(.labelMedium)
-                            .fontWeight(.medium)
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Title (Lesson type or class name)
+                            Text(booking.isClassBooking == true ? "Class" : "Private Lesson")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            
+                            // Trainer name
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Text(booking.trainerName)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                            }
+                            
+                            // Location if available
+                            if let location = booking.location, !location.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "mappin.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    Text(location)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                }
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // Time on right side
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(booking.formattedStartTime)
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Text(booking.formattedEndTime)
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
                     }
-                    .foregroundStyle(.red)
-                    .padding(.vertical, Spacing.xs)
-                    .padding(.horizontal, Spacing.sm)
-                    .background(Color.red.opacity(0.1))
-                    .cornerRadius(8)
+                    
+                    // Cancel button for admins/owners (keep functionality)
+                    if isAdmin {
+                        Button(action: {
+                            onCancelBooking(booking.id)
+                        }) {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.labelSmall)
+                                Text("Cancel")
+                                    .font(.labelMedium)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundStyle(.red)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 12)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
+                    }
                 }
-                .buttonStyle(.plain)
+                .padding(.leading, 12)
+                .padding(.vertical, 12)
+                .padding(.trailing, 16)
             }
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, Spacing.xxs)
+        .buttonStyle(.plain)
     }
 }
