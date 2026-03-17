@@ -147,12 +147,12 @@ export default function PricingPage() {
       
       const result = await deletePricingPackageLessons({
         orgId: orgId,
-        packageId: packageToDelete.id
+        packageType: packageToDelete.packageType
       });
 
       const data = result.data as { success: boolean; deletedCount: number; message: string };
       
-      // Remove from local state
+      // Remove from local state and Firestore
       const newTiers = tiers.map((tier, tIdx) => {
         if (tIdx !== tierIndex) return tier;
         
@@ -161,11 +161,24 @@ export default function PricingPage() {
           packages: tier.packages.filter((_, i) => i !== packageIndex)
         };
       });
+      
+      // Save updated pricing structure to Firestore immediately
+      await setDoc(
+        doc(db, 'organizations', orgId),
+        { 
+          pricingStructure: {
+            tiers: newTiers,
+            lastUpdated: new Date().toISOString()
+          }
+        },
+        { merge: true }
+      );
+      
       setTiers(newTiers);
 
       setMessage({ 
         type: 'success', 
-        text: `Package permanently deleted. ${data.message}` 
+        text: `Package permanently deleted from pricing structure. ${data.message}` 
       });
     } catch (error) {
       console.error('Error deleting package:', error);
