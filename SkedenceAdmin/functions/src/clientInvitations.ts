@@ -412,11 +412,14 @@ function generateInvitationHTML(
               <div class="code">${inviteCode}</div>
             </div>
             <p style="text-align: center;">Or tap the button below to open the app with the code pre-filled:</p>
-            <div style="text-align: center;">
-              <a href="${deepLink}" class="button">
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${deepLink}" style="display: inline-block; background-color: #33B2AE; color: #ffffff !important; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(51, 178, 174, 0.3);">
                 Open Skedence App
               </a>
             </div>
+            <p style="text-align: center; font-size: 13px; color: #666; margin-top: 12px;">
+              Button not working? <a href="${deepLink}" style="color: #33B2AE; text-decoration: underline;">Click here to open the app</a>
+            </p>
           </div>
         </div>
       </div>
