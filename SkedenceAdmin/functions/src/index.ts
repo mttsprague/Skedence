@@ -82,6 +82,9 @@ export * from "./passwordReset";
 // Export calendar sync functions
 export * from "./calendarSync";
 
+// Export Google Calendar import functions
+export * from "./googleCalendarSync";
+
 // Export REST API for enterprise clients
 export * from "./api";
 

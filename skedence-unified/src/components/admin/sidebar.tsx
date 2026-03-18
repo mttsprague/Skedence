@@ -71,6 +71,8 @@ export function Sidebar() {
 
   const isSchedulingActive = () => {
     return pathname === '/scheduling' || 
+           pathname === '/import-schedule' ||
+           pathname === '/availability' ||
            pathname.startsWith('/clients') ||
            pathname.startsWith('/trainers') ||
            pathname.startsWith('/bookings') ||
