@@ -146,7 +146,7 @@ With the Skedence app, you can:
 GETTING STARTED (2 EASY STEPS)
 
 Step 1: Download the Skedence App
-iOS: https://apps.apple.com/us/app/skedence/id6739061766
+iOS: https://apps.apple.com/us/app/skedence/id6757628635
 Android: Coming soon!
 
 Step 2: Create Your Account
@@ -395,7 +395,7 @@ function generateInvitationHTML(
             <strong>Download the Skedence App</strong>
             <p>Available on iOS (Android coming soon!)</p>
             <div class="app-links">
-              <a href="https://apps.apple.com/us/app/skedence/id6739061766" target="_blank">
+              <a href="https://apps.apple.com/us/app/skedence/id6757628635" target="_blank">
                 <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" alt="Download on the App Store" />
               </a>
             </div>
