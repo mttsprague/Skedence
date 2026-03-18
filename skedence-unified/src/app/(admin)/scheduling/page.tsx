@@ -1119,7 +1119,7 @@ export default function SchedulingPage() {
                                       width: `${position.width}%`,
                                       paddingLeft: position.column > 0 ? '2px' : undefined,
                                       paddingRight: position.width < 100 ? '2px' : undefined,
-                                      zIndex: 10 + position.column
+                                      zIndex: 1 + position.column
                                     }}
                                   >
                                     <div className="font-semibold truncate">
@@ -1249,7 +1249,7 @@ export default function SchedulingPage() {
                                         width: `${position.width}%`,
                                         paddingLeft: position.column > 0 ? '2px' : undefined,
                                         paddingRight: position.width < 100 ? '2px' : undefined,
-                                        zIndex: 10 + position.column
+                                        zIndex: 1 + position.column
                                       }}
                                     >
                                       <div className="font-semibold truncate">
