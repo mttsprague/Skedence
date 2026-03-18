@@ -79,6 +79,9 @@ export * from "./wallet";
 // Export password reset functions
 export * from "./passwordReset";
 
+// Export calendar sync functions
+export * from "./calendarSync";
+
 // Export REST API for enterprise clients
 export * from "./api";
 

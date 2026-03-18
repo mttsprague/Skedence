@@ -14,6 +14,9 @@ import FirebaseFirestore
 #if canImport(FirebaseAuth)
 import FirebaseAuth
 #endif
+#if canImport(FirebaseFunctions)
+import FirebaseFunctions
+#endif
 
 struct ContentView: View {
     @EnvironmentObject private var dependencies: AdminAppDependencies
@@ -98,6 +101,10 @@ struct MoreView: View {
     @State private var isSavingProfile = false
     @State private var profileError: String?
     @State private var showMyPasses = false
+    @State private var calendarToken: String?
+    @State private var isGeneratingToken = false
+    @State private var showCalendarSync = false
+    @State private var copiedToClipboard = false
     
     // Convenience accessors
     private var auth: AuthManager { dependencies.auth }
@@ -199,80 +206,171 @@ struct MoreView: View {
                         }
                         .padding(.horizontal, Spacing.lg)
                         
-                        // My Passes Section
+                        // Calendar Sync Section
                         CardView {
                             VStack(alignment: .leading, spacing: Spacing.md) {
                                 Button {
                                     withAnimation {
-                                        showMyPasses.toggle()
+                                        showCalendarSync.toggle()
                                     }
                                 } label: {
                                     HStack {
-                                        Text("My Passes")
+                                        Image(systemName: "calendar.badge.plus")
+                                            .foregroundStyle(AppTheme.primary)
+                                        Text("Calendar Sync")
                                             .font(.headingSmall)
                                             .foregroundStyle(AppTheme.textPrimary)
                                         
                                         Spacer()
                                         
-                                        Image(systemName: showMyPasses ? "chevron.up" : "chevron.down")
+                                        Image(systemName: showCalendarSync ? "chevron.up" : "chevron.down")
                                             .font(.bodySmall)
                                             .foregroundStyle(AppTheme.textSecondary)
                                     }
                                 }
                                 .buttonStyle(.plain)
                                 
-                                if showMyPasses {
+                                if showCalendarSync {
                                     Divider()
                                     
-                                    if packagesService.isLoading {
-                                        HStack {
-                                            Spacer()
-                                            ProgressView()
-                                            Spacer()
-                                        }
-                                        .padding(.vertical, Spacing.md)
-                                    } else if packagesService.packages.isEmpty {
-                                        Text("No passes found")
+                                    VStack(alignment: .leading, spacing: Spacing.md) {
+                                        Text("Sync your Skedence schedule with your favorite calendar app")
                                             .font(.bodyMedium)
                                             .foregroundStyle(AppTheme.textSecondary)
-                                            .frame(maxWidth: .infinity, alignment: .center)
-                                            .padding(.vertical, Spacing.md)
-                                    } else {
-                                        VStack(spacing: Spacing.sm) {
-                                            ForEach(packagesService.packages) { package in
-                                                VStack(spacing: Spacing.xs) {
+                                        
+                                        if let token = calendarToken, let trainerId = auth.trainerId {
+                                            // Show subscription URL
+                                            let baseURL = "https://us-central1-polyface-ae6d3.cloudfunctions.net/trainerCalendarFeed"
+                                            let subscriptionURL = "\(baseURL)/\(trainerId)/\(token)"
+                                            let webcalURL = subscriptionURL.replacingOccurrences(of: "https://", with: "webcal://")
+                                            
+                                            VStack(spacing: Spacing.sm) {
+                                                // Subscription URL display
+                                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                                    Text("Your Calendar Subscription URL:")
+                                                        .font(.bodySmall)
+                                                        .foregroundStyle(AppTheme.textSecondary)
+                                                    
                                                     HStack {
-                                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                                            Text(package.packageName ?? package.packageType.capitalized)
-                                                                .font(.bodyMedium)
-                                                                .foregroundStyle(AppTheme.textPrimary)
-                                                            
-                                                            Text("\(package.lessonsRemaining) of \(package.totalLessons) remaining")
-                                                                .font(.bodySmall)
-                                                                .foregroundStyle(AppTheme.textSecondary)
-                                                        }
+                                                        Text(webcalURL)
+                                                            .font(.caption)
+                                                            .foregroundStyle(AppTheme.textSecondary)
+                                                            .lineLimit(1)
+                                                            .truncationMode(.middle)
                                                         
-                                                        Spacer()
-                                                        
-                                                        // Show expiration if available
-                                                        if let expiration = package.expirationDate {
-                                                            Text(expiration > Date() ? "Expires \(expiration.formatted(date: .abbreviated, time: .omitted))" : "Expired")
-                                                                .font(.caption)
-                                                                .foregroundStyle(expiration > Date() ? AppTheme.textSecondary : AppTheme.error)
+                                                        Button {
+                                                            UIPasteboard.general.string = webcalURL
+                                                            copiedToClipboard = true
+                                                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                                                copiedToClipboard = false
+                                                            }
+                                                        } label: {
+                                                            Image(systemName: copiedToClipboard ? "checkmark" : "doc.on.doc")
+                                                                .foregroundStyle(copiedToClipboard ? AppTheme.success : AppTheme.primary)
                                                         }
                                                     }
+                                                    .padding(Spacing.sm)
+                                                    .background(AppTheme.surfaceSecondary)
+                                                    .cornerRadius(CornerRadius.md)
+                                                }
+                                                
+                                                // Instructions for different calendar apps
+                                                VStack(alignment: .leading, spacing: Spacing.sm) {
+                                                    Text("How to subscribe:")
+                                                        .font(.bodyMedium)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(AppTheme.textPrimary)
                                                     
-                                                    if package != packagesService.packages.last {
+                                                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                                                        CalendarInstructionRow(
+                                                            icon: "applelogo",
+                                                            title: "Apple Calendar",
+                                                            steps: "Settings > Calendar > Accounts > Add Account > Other > Add Subscribed Calendar, paste URL"
+                                                        )
+                                                        
                                                         Divider()
+                                                        
+                                                        CalendarInstructionRow(
+                                                            icon: "globe",
+                                                            title: "Google Calendar",
+                                                            steps: "Settings > Add calendar > From URL, paste URL"
+                                                        )
+                                                        
+                                                        Divider()
+                                                        
+                                                        CalendarInstructionRow(
+                                                            icon: "envelope",
+                                                            title: "Outlook",
+                                                            steps: "Add calendar > Subscribe from web, paste URL"
+                                                        )
+                                                    }
+                                                }
+                                                .padding(Spacing.sm)
+                                                .background(AppTheme.primaryLight.opacity(0.1))
+                                                .cornerRadius(CornerRadius.md)
+                                                
+                                                // Features info
+                                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                                    HStack(spacing: Spacing.xs) {
+                                                        Image(systemName: "checkmark.circle.fill")
+                                                            .foregroundStyle(AppTheme.success)
+                                                            .font(.caption)
+                                                        Text("Auto-updates when you add or change schedule slots")
+                                                            .font(.caption)
+                                                            .foregroundStyle(AppTheme.textSecondary)
+                                                    }
+                                                    
+                                                    HStack(spacing: Spacing.xs) {
+                                                        Image(systemName: "checkmark.circle.fill")
+                                                            .foregroundStyle(AppTheme.success)
+                                                            .font(.caption)
+                                                        Text("Shows booked lessons and available slots")
+                                                            .font(.caption)
+                                                            .foregroundStyle(AppTheme.textSecondary)
+                                                    }
+                                                    
+                                                    HStack(spacing: Spacing.xs) {
+                                                        Image(systemName: "checkmark.circle.fill")
+                                                            .foregroundStyle(AppTheme.success)
+                                                            .font(.caption)
+                                                        Text("Works with all major calendar apps")
+                                                            .font(.caption)
+                                                            .foregroundStyle(AppTheme.textSecondary)
                                                     }
                                                 }
                                             }
+                                        } else {
+                                            // Generate token button
+                                            Button {
+                                                Task {
+                                                    await generateCalendarToken()
+                                                }
+                                            } label: {
+                                                HStack {
+                                                    if isGeneratingToken {
+                                                        ProgressView()
+                                                            .tint(.white)
+                                                    } else {
+                                                        Image(systemName: "link.badge.plus")
+                                                        Text("Generate Calendar Link")
+                                                    }
+                                                }
+                                                .frame(maxWidth: .infinity)
+                                            }
+                                            .buttonStyle(PrimaryButtonStyle())
+                                            .disabled(isGeneratingToken)
                                         }
                                     }
                                 }
                             }
                         }
                         .padding(.horizontal, Spacing.lg)
+                        .onAppear {
+                            // Load existing calendar token if available
+                            Task {
+                                await loadCalendarToken()
+                            }
+                        }
                         
                         // Share App Link Card
                         if let orgId = auth.currentOrgId {
@@ -546,6 +644,78 @@ struct MoreView: View {
             await auth.signIn()
         }
     }
+    
+    // MARK: - Calendar Sync Functions
+    
+    private func loadCalendarToken() async {
+        guard let trainerId = auth.trainerId else { return }
+        
+        do {
+            #if canImport(FirebaseFirestore)
+            let db = Firestore.firestore()
+            let doc = try await db.collection("trainers").document(trainerId).getDocument()
+            
+            if let data = doc.data(), let token = data["calendarToken"] as? String {
+                await MainActor.run {
+                    self.calendarToken = token
+                }
+            }
+            #endif
+        } catch {
+            print("Error loading calendar token: \(error.localizedDescription)")
+        }
+    }
+    
+    private func generateCalendarToken() async {
+        guard let trainerId = auth.trainerId else {
+            print("No trainer ID available")
+            return
+        }
+        
+        await MainActor.run {
+            isGeneratingToken = true
+        }
+        
+        defer {
+            Task { @MainActor in
+                isGeneratingToken = false
+            }
+        }
+        
+        do {
+            #if canImport(FirebaseFunctions)
+            let functions = Functions.functions()
+            let generateToken = functions.httpsCallable("generateCalendarToken")
+            
+            let result = try await generateToken.call(["trainerId": trainerId])
+            
+            if let data = result.data as? [String: Any],
+               let token = data["token"] as? String {
+                await MainActor.run {
+                    self.calendarToken = token
+                }
+                print("✅ Calendar token generated successfully")
+            }
+            #endif
+        } catch {
+            print("Error generating calendar token: \(error.localizedDescription)")
+            
+            // Show error alert
+            await MainActor.run {
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first,
+                   let rootVC = window.rootViewController {
+                    let alert = UIAlertController(
+                        title: "Error",
+                        message: "Failed to generate calendar link. Please try again.",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    rootVC.present(alert, animated: true)
+                }
+            }
+        }
+    }
 }
 
 // Helper view for info rows
@@ -580,6 +750,32 @@ struct InfoRow: View {
                         .foregroundStyle(showCopied ? AppTheme.success : AppTheme.primary)
                 }
                 .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+// Calendar instruction row component
+struct CalendarInstructionRow: View {
+    let icon: String
+    let title: String
+    let steps: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .foregroundStyle(AppTheme.primary)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title)
+                    .font(.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(AppTheme.textPrimary)
+                
+                Text(steps)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
             }
         }
     }
