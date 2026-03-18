@@ -77,13 +77,14 @@ struct SkedenceApp: App {
     private func handleDeepLink(_ url: URL) {
         print("🔗 Deep link received: \(url)")
         
-        // Parse skedence://register?orgCode=POLY24
+        // Parse skedence://register?orgCode=POLY24 or skedence://join?orgCode=XXX&email=YYY
         guard url.scheme == "skedence" else {
             print("❌ Invalid URL scheme: \(url.scheme ?? "none")")
             return
         }
         
-        if url.host == "register" {
+        // Handle both "register" and "join" paths
+        if url.host == "register" || url.host == "join" {
             // Extract query parameters
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
                   let queryItems = components.queryItems else {
@@ -92,8 +93,15 @@ struct SkedenceApp: App {
             }
             
             if let orgCode = queryItems.first(where: { $0.name == "orgCode" })?.value {
+                print("✅ Deep link: Setting orgCode = \(orgCode)")
                 deepLinkManager.organizationCode = orgCode
                 deepLinkManager.shouldNavigateToRegister = true
+                
+                // Extract email if present (from invitation emails)
+                if let email = queryItems.first(where: { $0.name == "email" })?.value {
+                    print("✅ Deep link: Setting invitedEmail = \(email)")
+                    deepLinkManager.invitedEmail = email
+                }
             }
         }
     }
@@ -102,5 +110,6 @@ struct SkedenceApp: App {
 // Deep Link Manager
 class DeepLinkManager: ObservableObject {
     @Published var organizationCode: String?
+    @Published var invitedEmail: String?
     @Published var shouldNavigateToRegister: Bool = false
 }

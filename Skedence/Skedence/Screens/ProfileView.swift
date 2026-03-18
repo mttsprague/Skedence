@@ -1805,8 +1805,17 @@ private struct RegisterForm: View {
                 Task {
                     await validateOrganizationCode(deepLinkCode)
                 }
-                // Clear the deep link after using it
+            }
+            
+            // Pre-fill email from invitation deep link
+            if let invitedEmail = deepLinkManager.invitedEmail {
+                email = invitedEmail
+            }
+            
+            // Clear the deep link after using it
+            if deepLinkManager.organizationCode != nil || deepLinkManager.invitedEmail != nil {
                 deepLinkManager.organizationCode = nil
+                deepLinkManager.invitedEmail = nil
                 deepLinkManager.shouldNavigateToRegister = false
             }
         }
