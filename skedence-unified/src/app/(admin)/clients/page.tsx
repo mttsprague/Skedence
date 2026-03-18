@@ -110,6 +110,10 @@ export default function ClientsPage() {
   const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>([]);
   const [inviteCode, setInviteCode] = useState<string>('');
   
+  // Client invitation
+  const [inviteEmail, setInviteEmail] = useState<string>('');
+  const [sendingInvite, setSendingInvite] = useState(false);
+  
   // Advanced Filters
   const [packageTypeFilter, setPackageTypeFilter] = useState<string>('all');
   const [passStatusFilter, setPassStatusFilter] = useState<string>('all');
@@ -631,6 +635,44 @@ export default function ClientsPage() {
     setEditedClient({ ...editedClient, athletes });
   };
 
+  const handleSendInvite = async () => {
+    if (!inviteEmail || !orgId) return;
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail)) {
+      toast.error('Invalid email address', 'Please enter a valid email');
+      return;
+    }
+    
+    setSendingInvite(true);
+    try {
+      // Call Cloud Function to send invitation
+      const response = await fetch('https://us-central1-polyface-ae6d3.cloudfunctions.net/sendClientInvitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: inviteEmail,
+          orgId: orgId,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to send invitation');
+      }
+      
+      toast.success('Invitation sent!', `Check ${inviteEmail} for download instructions`);
+      setInviteEmail(''); // Clear the input
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      toast.error('Failed to send invitation', 'Please try again');
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
   if (loading) {
     return (
       <SchedulingSubmenu>
@@ -727,6 +769,58 @@ export default function ClientsPage() {
                     </div>
                   </li>
                 </ol>
+
+                {/* Direct Email Invitation */}
+                <div className="pt-3 mt-4 border-t border-primary/20">
+                  <div className="mb-3">
+                    <h4 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                      <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Or send a direct invitation
+                    </h4>
+                    <p className="text-xs text-foreground/70">
+                      Enter a client's email to send them a download link with your org code pre-filled
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      placeholder="client@example.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !sendingInvite) {
+                          handleSendInvite();
+                        }
+                      }}
+                      disabled={sendingInvite}
+                      className="flex-1 px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <button
+                      onClick={handleSendInvite}
+                      disabled={!inviteEmail || sendingInvite}
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
+                    >
+                      {sendingInvite ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                          Send Invite
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
 
                 <div className="pt-2 pb-1 flex flex-wrap items-center gap-3 text-xs text-foreground/70">
                   <div className="flex items-center gap-1.5">

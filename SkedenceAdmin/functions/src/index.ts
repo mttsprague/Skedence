@@ -46,6 +46,9 @@ export * from "./passwordSetup";
 // Export trainer invitation functions
 export * from "./trainerInvitations";
 
+// Export client invitation functions
+export * from "./clientInvitations";
+
 // Export web registration functions
 export * from "./webRegistration";
 
