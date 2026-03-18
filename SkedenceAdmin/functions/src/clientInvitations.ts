@@ -38,7 +38,15 @@ export const sendClientInvitation = onCall(
       }
 
       const orgName = orgData.name || "Skedence";
-      const inviteCode = orgData.inviteCode || orgId.substring(0, 8).toUpperCase();
+      // Use organization's unique 6-character invite code
+      // Fallback to first 6 chars of orgId if inviteCode is missing (shouldn't happen)
+      const inviteCode = orgData.inviteCode || orgId.substring(0, 6).toUpperCase();
+      
+      if (!orgData.inviteCode) {
+        console.warn(`⚠️ Organization ${orgId} is missing inviteCode field, using fallback: ${inviteCode}`);
+      } else {
+        console.log(`✅ Using organization's invite code: ${inviteCode} for ${orgName}`);
+      }
 
       // Fetch owner information
       let ownerName = "your coach";
@@ -100,7 +108,7 @@ export const sendClientInvitation = onCall(
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log(`✅ Client invitation email queued for ${email} to join ${orgName}`);
+      console.log(`✅ Client invitation email queued for ${email} to join ${orgName} (${orgId}) with code: ${inviteCode}`);
 
       return {
         success: true,
