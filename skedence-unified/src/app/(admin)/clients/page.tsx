@@ -733,7 +733,7 @@ export default function ClientsPage() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-foreground">Download the Skedence app</p>
-                      <p className="text-foreground/70 mt-0.5">Available on iOS and Android app stores</p>
+                      <p className="text-foreground/70 mt-0.5">Available on the iOS App Store</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
@@ -817,14 +817,50 @@ export default function ClientsPage() {
                   </div>
                 </div>
 
-                <div className="pt-2 pb-1 flex flex-wrap items-center gap-3 text-xs text-foreground/70">
-                  <div className="flex items-center gap-1.5">
-                    <QrCode className="h-3.5 w-3.5" />
-                    <span>Share this code via text, email, or QR code</span>
+                {/* QR Code Download */}
+                <div className="pt-3 mt-4 border-t border-primary/20">
+                  <div className="mb-3">
+                    <h4 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                      <QrCode className="h-4 w-4 text-primary" />
+                      Download QR Code for Your Website
+                    </h4>
+                    <p className="text-xs text-foreground/70">
+                      Generate a QR code that clients can scan to download the app with your organization code pre-filled
+                    </p>
                   </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <a
+                      href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`skedence://join?orgCode=${inviteCode}`)}`}
+                      download={`skedence-qr-code-${inviteCode}.png`}
+                      className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium text-center flex items-center justify-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download QR Code (PNG)
+                    </a>
+                    <button
+                      onClick={() => {
+                        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`skedence://join?orgCode=${inviteCode}`)}`;
+                        window.open(qrUrl, '_blank');
+                      }}
+                      className="flex-1 px-4 py-2 bg-secondary text-foreground border border-input rounded-lg hover:bg-secondary/80 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                      <QrCode className="h-4 w-4" />
+                      View QR Code
+                    </button>
+                  </div>
+                  <p className="text-xs text-foreground/60 mt-2">
+                    💡 Tip: Add this QR code to your website, flyers, or gym entrance for easy client signup
+                  </p>
+                </div>
+
+                <div className="pt-2 pb-1 flex flex-wrap items-center gap-3 text-xs text-foreground/70">
                   <div className="flex items-center gap-1.5">
                     <Smartphone className="h-3.5 w-3.5" />
                     <span>Clients can book 24/7 from their phone</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Key className="h-3.5 w-3.5" />
+                    <span>Your code: {inviteCode}</span>
                   </div>
                 </div>
               </div>
