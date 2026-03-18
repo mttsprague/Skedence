@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ClientCardSkeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
 import { Save, X, User as UserIcon, Search, Calendar, Package, FileText, CreditCard, Receipt, History, Download, Smartphone, QrCode, Key } from 'lucide-react';
@@ -648,26 +649,20 @@ export default function ClientsPage() {
     setSendingInvite(true);
     try {
       // Call Cloud Function to send invitation
-      const response = await fetch('https://us-central1-polyface-ae6d3.cloudfunctions.net/sendClientInvitation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: inviteEmail,
-          orgId: orgId,
-        }),
-      });
+      const functions = getFunctions();
+      const sendClientInvitation = httpsCallable(functions, 'sendClientInvitation');
       
-      if (!response.ok) {
-        throw new Error('Failed to send invitation');
-      }
+      const result = await sendClientInvitation({
+        email: inviteEmail,
+        orgId: orgId,
+      });
       
       toast.success('Invitation sent!', `Check ${inviteEmail} for download instructions`);
       setInviteEmail(''); // Clear the input
     } catch (error) {
       console.error('Error sending invitation:', error);
-      toast.error('Failed to send invitation', 'Please try again');
+      const errorMessage = error instanceof Error ? error.message : 'Please try again';
+      toast.error('Failed to send invitation', errorMessage);
     } finally {
       setSendingInvite(false);
     }
