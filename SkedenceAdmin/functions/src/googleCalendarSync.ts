@@ -9,37 +9,41 @@ import { google } from "googleapis";
  * Initialize Google Calendar OAuth2 flow
  * Returns the authorization URL for the user to visit
  */
-export const initGoogleCalendarAuth = onCall(async (request) => {
-  if (!request.auth) {
-    throw new Error("Authentication required");
-  }
-
-  const { orgId } = request.data;
-
-  if (!orgId) {
-    throw new Error("orgId is required");
-  }
-
-  try {
-    // Verify user is admin in this organization
-    const db = admin.firestore();
-    const memberDoc = await db.collection("orgMembers")
-      .doc(`${request.auth.uid}_${orgId}`)
-      .get();
-
-    if (!memberDoc.exists) {
-      throw new Error("Unauthorized: You are not a member of this organization");
+export const initGoogleCalendarAuth = onCall(
+  {
+    secrets: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET", "GOOGLE_CALENDAR_REDIRECT_URI"],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new Error("Authentication required");
     }
 
-    const memberData = memberDoc.data();
-    if (memberData?.role !== "admin" && memberData?.role !== "owner") {
-      throw new Error("Unauthorized: Only administrators can connect calendars");
+    const { orgId } = request.data;
+
+    if (!orgId) {
+      throw new Error("orgId is required");
     }
 
-    // Get OAuth2 credentials from environment
-    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/admin/import-schedule/callback";
+    try {
+      // Verify user is admin in this organization
+      const db = admin.firestore();
+      const memberDoc = await db.collection("orgMembers")
+        .doc(`${request.auth.uid}_${orgId}`)
+        .get();
+
+      if (!memberDoc.exists) {
+        throw new Error("Unauthorized: You are not a member of this organization");
+      }
+
+      const memberData = memberDoc.data();
+      if (memberData?.role !== "admin" && memberData?.role !== "owner") {
+        throw new Error("Unauthorized: Only administrators can connect calendars");
+      }
+
+      // Get OAuth2 credentials from environment
+      const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+      const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/import-schedule/callback";
 
     if (!clientId || !clientSecret) {
       throw new Error("Google Calendar OAuth credentials not configured");
@@ -75,7 +79,11 @@ export const initGoogleCalendarAuth = onCall(async (request) => {
  * Complete Google Calendar OAuth2 flow
  * Exchange authorization code for tokens and save
  */
-export const completeGoogleCalendarAuth = onCall(async (request) => {
+export const completeGoogleCalendarAuth = onCall(
+  {
+    secrets: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET", "GOOGLE_CALENDAR_REDIRECT_URI"],
+  },
+  async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
@@ -106,7 +114,7 @@ export const completeGoogleCalendarAuth = onCall(async (request) => {
     // Exchange code for tokens
     const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/admin/import-schedule/callback";
+    const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/import-schedule/callback";
 
     if (!clientId || !clientSecret) {
       throw new Error("Google Calendar OAuth credentials not configured");
@@ -172,7 +180,11 @@ export const completeGoogleCalendarAuth = onCall(async (request) => {
 /**
  * Manually sync a specific calendar
  */
-export const syncGoogleCalendar = onCall(async (request) => {
+export const syncGoogleCalendar = onCall(
+  {
+    secrets: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET"],
+  },
+  async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
@@ -216,7 +228,12 @@ export const syncGoogleCalendar = onCall(async (request) => {
  * Sync all calendars for all organizations
  * Runs every 15 minutes
  */
-export const syncAllGoogleCalendars = onSchedule("every 15 minutes", async () => {
+export const syncAllGoogleCalendars = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    secrets: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET"],
+  },
+  async () => {
   try {
     const db = admin.firestore();
 
