@@ -45,35 +45,36 @@ export const initGoogleCalendarAuth = onCall(
       const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
       const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/import-schedule/callback";
 
-    if (!clientId || !clientSecret) {
-      throw new Error("Google Calendar OAuth credentials not configured");
+      if (!clientId || !clientSecret) {
+        throw new Error("Google Calendar OAuth credentials not configured");
+      }
+
+      const oauth2Client = new google.auth.OAuth2(
+        clientId,
+        clientSecret,
+        redirectUri
+      );
+
+      // Generate auth URL with required scopes
+      const authUrl = oauth2Client.generateAuthUrl({
+        access_type: "offline",
+        scope: ["https://www.googleapis.com/auth/calendar.readonly"],
+        state: JSON.stringify({ orgId, userId: request.auth.uid }),
+        prompt: "consent", // Force consent screen to get refresh token
+      });
+
+      logger.info(`Generated auth URL for org: ${orgId}`);
+
+      return {
+        success: true,
+        authUrl: authUrl,
+      };
+    } catch (error: any) {
+      logger.error("Error initializing Google Calendar auth:", error);
+      throw new Error(error.message || "Failed to initialize Google Calendar authentication");
     }
-
-    const oauth2Client = new google.auth.OAuth2(
-      clientId,
-      clientSecret,
-      redirectUri
-    );
-
-    // Generate auth URL with required scopes
-    const authUrl = oauth2Client.generateAuthUrl({
-      access_type: "offline",
-      scope: ["https://www.googleapis.com/auth/calendar.readonly"],
-      state: JSON.stringify({ orgId, userId: request.auth.uid }),
-      prompt: "consent", // Force consent screen to get refresh token
-    });
-
-    logger.info(`Generated auth URL for org: ${orgId}`);
-
-    return {
-      success: true,
-      authUrl: authUrl,
-    };
-  } catch (error: any) {
-    logger.error("Error initializing Google Calendar auth:", error);
-    throw new Error(error.message || "Failed to initialize Google Calendar authentication");
   }
-});
+);
 
 /**
  * Complete Google Calendar OAuth2 flow
@@ -84,98 +85,99 @@ export const completeGoogleCalendarAuth = onCall(
     secrets: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET", "GOOGLE_CALENDAR_REDIRECT_URI"],
   },
   async (request) => {
-  if (!request.auth) {
-    throw new Error("Authentication required");
+    if (!request.auth) {
+      throw new Error("Authentication required");
+    }
+
+    const { orgId, code, calendarName } = request.data;
+
+    if (!orgId || !code) {
+      throw new Error("orgId and code are required");
+    }
+
+    try {
+      const db = admin.firestore();
+
+      // Verify user is admin
+      const memberDoc = await db.collection("orgMembers")
+        .doc(`${request.auth.uid}_${orgId}`)
+        .get();
+
+      if (!memberDoc.exists) {
+        throw new Error("Unauthorized");
+      }
+
+      const memberData = memberDoc.data();
+      if (memberData?.role !== "admin" && memberData?.role !== "owner") {
+        throw new Error("Unauthorized: Only administrators can connect calendars");
+      }
+
+      // Exchange code for tokens
+      const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+      const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/import-schedule/callback";
+
+      if (!clientId || !clientSecret) {
+        throw new Error("Google Calendar OAuth credentials not configured");
+      }
+
+      const oauth2Client = new google.auth.OAuth2(
+        clientId,
+        clientSecret,
+        redirectUri
+      );
+
+      const { tokens } = await oauth2Client.getToken(code);
+      oauth2Client.setCredentials(tokens);
+
+      // Get calendar list to find the primary calendar
+      const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+      const calendars = await calendar.calendarList.list();
+
+      if (!calendars.data.items || calendars.data.items.length === 0) {
+        throw new Error("No calendars found in Google account");
+      }
+
+      // Use primary calendar by default
+      const primaryCalendar = calendars.data.items.find(cal => cal.primary) || calendars.data.items[0];
+      const googleCalendarId = primaryCalendar.id!;
+      const displayName = calendarName || primaryCalendar.summary || "Google Calendar";
+
+      // Generate random color for this calendar
+      const colors = ["#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899"];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+      // Store calendar in Firestore
+      const calendarRef = await db.collection("organizations")
+        .doc(orgId)
+        .collection("importedCalendars")
+        .add({
+          name: displayName,
+          googleCalendarId: googleCalendarId,
+          color: randomColor,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          tokenExpiryDate: tokens.expiry_date,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdBy: request.auth.uid,
+        });
+
+      logger.info(`✅ Connected calendar: ${displayName} for org: ${orgId}`);
+
+      // Trigger initial sync
+      await syncCalendarEvents(orgId, calendarRef.id);
+
+      return {
+        success: true,
+        calendarId: calendarRef.id,
+        calendarName: displayName,
+      };
+    } catch (error: any) {
+      logger.error("Error completing Google Calendar auth:", error);
+      throw new Error(error.message || "Failed to connect Google Calendar");
+    }
   }
-
-  const { orgId, code, calendarName } = request.data;
-
-  if (!orgId || !code) {
-    throw new Error("orgId and code are required");
-  }
-
-  try {
-    const db = admin.firestore();
-
-    // Verify user is admin
-    const memberDoc = await db.collection("orgMembers")
-      .doc(`${request.auth.uid}_${orgId}`)
-      .get();
-
-    if (!memberDoc.exists) {
-      throw new Error("Unauthorized");
-    }
-
-    const memberData = memberDoc.data();
-    if (memberData?.role !== "admin" && memberData?.role !== "owner") {
-      throw new Error("Unauthorized: Only administrators can connect calendars");
-    }
-
-    // Exchange code for tokens
-    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/import-schedule/callback";
-
-    if (!clientId || !clientSecret) {
-      throw new Error("Google Calendar OAuth credentials not configured");
-    }
-
-    const oauth2Client = new google.auth.OAuth2(
-      clientId,
-      clientSecret,
-      redirectUri
-    );
-
-    const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
-
-    // Get calendar list to find the primary calendar
-    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-    const calendars = await calendar.calendarList.list();
-
-    if (!calendars.data.items || calendars.data.items.length === 0) {
-      throw new Error("No calendars found in Google account");
-    }
-
-    // Use primary calendar by default
-    const primaryCalendar = calendars.data.items.find(cal => cal.primary) || calendars.data.items[0];
-    const googleCalendarId = primaryCalendar.id!;
-    const displayName = calendarName || primaryCalendar.summary || "Google Calendar";
-
-    // Generate random color for this calendar
-    const colors = ["#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899"];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-    // Store calendar in Firestore
-    const calendarRef = await db.collection("organizations")
-      .doc(orgId)
-      .collection("importedCalendars")
-      .add({
-        name: displayName,
-        googleCalendarId: googleCalendarId,
-        color: randomColor,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        tokenExpiryDate: tokens.expiry_date,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdBy: request.auth.uid,
-      });
-
-    logger.info(`✅ Connected calendar: ${displayName} for org: ${orgId}`);
-
-    // Trigger initial sync
-    await syncCalendarEvents(orgId, calendarRef.id);
-
-    return {
-      success: true,
-      calendarId: calendarRef.id,
-      calendarName: displayName,
-    };
-  } catch (error: any) {
-    logger.error("Error completing Google Calendar auth:", error);
-    throw new Error(error.message || "Failed to connect Google Calendar");
-  }
-});
+);
 
 /**
  * Manually sync a specific calendar
@@ -185,44 +187,45 @@ export const syncGoogleCalendar = onCall(
     secrets: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET"],
   },
   async (request) => {
-  if (!request.auth) {
-    throw new Error("Authentication required");
-  }
-
-  const { orgId, calendarId } = request.data;
-
-  if (!orgId || !calendarId) {
-    throw new Error("orgId and calendarId are required");
-  }
-
-  try {
-    const db = admin.firestore();
-
-    // Verify user is admin
-    const memberDoc = await db.collection("orgMembers")
-      .doc(`${request.auth.uid}_${orgId}`)
-      .get();
-
-    if (!memberDoc.exists) {
-      throw new Error("Unauthorized");
+    if (!request.auth) {
+      throw new Error("Authentication required");
     }
 
-    const memberData = memberDoc.data();
-    if (memberData?.role !== "admin" && memberData?.role !== "owner") {
-      throw new Error("Unauthorized: Only administrators can sync calendars");
+    const { orgId, calendarId } = request.data;
+
+    if (!orgId || !calendarId) {
+      throw new Error("orgId and calendarId are required");
     }
 
-    await syncCalendarEvents(orgId, calendarId);
+    try {
+      const db = admin.firestore();
 
-    return {
-      success: true,
-      message: "Calendar synced successfully",
-    };
-  } catch (error: any) {
-    logger.error("Error syncing calendar:", error);
-    throw new Error(error.message || "Failed to sync calendar");
+      // Verify user is admin
+      const memberDoc = await db.collection("orgMembers")
+        .doc(`${request.auth.uid}_${orgId}`)
+        .get();
+
+      if (!memberDoc.exists) {
+        throw new Error("Unauthorized");
+      }
+
+      const memberData = memberDoc.data();
+      if (memberData?.role !== "admin" && memberData?.role !== "owner") {
+        throw new Error("Unauthorized: Only administrators can sync calendars");
+      }
+
+      await syncCalendarEvents(orgId, calendarId);
+
+      return {
+        success: true,
+        message: "Calendar synced successfully",
+      };
+    } catch (error: any) {
+      logger.error("Error syncing calendar:", error);
+      throw new Error(error.message || "Failed to sync calendar");
+    }
   }
-});
+);
 
 /**
  * Sync all calendars for all organizations
@@ -234,36 +237,37 @@ export const syncAllGoogleCalendars = onSchedule(
     secrets: ["GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET"],
   },
   async () => {
-  try {
-    const db = admin.firestore();
+    try {
+      const db = admin.firestore();
 
-    // Get all organizations
-    const orgsSnapshot = await db.collection("organizations").get();
+      // Get all organizations
+      const orgsSnapshot = await db.collection("organizations").get();
 
-    for (const orgDoc of orgsSnapshot.docs) {
-      const orgId = orgDoc.id;
+      for (const orgDoc of orgsSnapshot.docs) {
+        const orgId = orgDoc.id;
 
-      // Get all imported calendars for this org
-      const calendarsSnapshot = await db.collection("organizations")
-        .doc(orgId)
-        .collection("importedCalendars")
-        .get();
+        // Get all imported calendars for this org
+        const calendarsSnapshot = await db.collection("organizations")
+          .doc(orgId)
+          .collection("importedCalendars")
+          .get();
 
-      for (const calendarDoc of calendarsSnapshot.docs) {
-        try {
-          await syncCalendarEvents(orgId, calendarDoc.id);
-        } catch (error) {
-          logger.error(`Error syncing calendar ${calendarDoc.id} for org ${orgId}:`, error);
-          // Continue with next calendar even if one fails
+        for (const calendarDoc of calendarsSnapshot.docs) {
+          try {
+            await syncCalendarEvents(orgId, calendarDoc.id);
+          } catch (error) {
+            logger.error(`Error syncing calendar ${calendarDoc.id} for org ${orgId}:`, error);
+            // Continue with next calendar even if one fails
+          }
         }
       }
-    }
 
-    logger.info("✅ Completed syncing all calendars");
-  } catch (error) {
-    logger.error("Error in syncAllGoogleCalendars:", error);
+      logger.info("✅ Completed syncing all calendars");
+    } catch (error) {
+      logger.error("Error in syncAllGoogleCalendars:", error);
+    }
   }
-});
+);
 
 /**
  * Helper function to sync events for a specific calendar
