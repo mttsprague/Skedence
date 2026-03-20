@@ -27,15 +27,17 @@ export const initGoogleCalendarAuth = onCall(
     try {
       // Verify user is admin in this organization
       const db = admin.firestore();
-      const memberDoc = await db.collection("orgMembers")
-        .doc(`${request.auth.uid}_${orgId}`)
+      const memberQuery = await db.collection("orgMembers")
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
-      if (!memberDoc.exists) {
+      if (memberQuery.empty) {
         throw new Error("Unauthorized: You are not a member of this organization");
       }
 
-      const memberData = memberDoc.data();
+      const memberData = memberQuery.docs[0].data();
       if (memberData?.role !== "admin" && memberData?.role !== "owner") {
         throw new Error("Unauthorized: Only administrators can connect calendars");
       }
@@ -99,15 +101,17 @@ export const completeGoogleCalendarAuth = onCall(
       const db = admin.firestore();
 
       // Verify user is admin
-      const memberDoc = await db.collection("orgMembers")
-        .doc(`${request.auth.uid}_${orgId}`)
+      const memberQuery = await db.collection("orgMembers")
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
-      if (!memberDoc.exists) {
+      if (memberQuery.empty) {
         throw new Error("Unauthorized");
       }
 
-      const memberData = memberDoc.data();
+      const memberData = memberQuery.docs[0].data();
       if (memberData?.role !== "admin" && memberData?.role !== "owner") {
         throw new Error("Unauthorized: Only administrators can connect calendars");
       }
@@ -201,15 +205,17 @@ export const syncGoogleCalendar = onCall(
       const db = admin.firestore();
 
       // Verify user is admin
-      const memberDoc = await db.collection("orgMembers")
-        .doc(`${request.auth.uid}_${orgId}`)
+      const memberQuery = await db.collection("orgMembers")
+        .where("authUserId", "==", request.auth.uid)
+        .where("orgId", "==", orgId)
+        .limit(1)
         .get();
 
-      if (!memberDoc.exists) {
+      if (memberQuery.empty) {
         throw new Error("Unauthorized");
       }
 
-      const memberData = memberDoc.data();
+      const memberData = memberQuery.docs[0].data();
       if (memberData?.role !== "admin" && memberData?.role !== "owner") {
         throw new Error("Unauthorized: Only administrators can sync calendars");
       }
