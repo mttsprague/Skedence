@@ -24,6 +24,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
   const hasSubmenuSidebar = 
     pathname.startsWith('/scheduling') ||
     pathname.startsWith('/availability') ||
+    pathname.startsWith('/import-schedule') ||
     pathname.startsWith('/clients') ||
     pathname.startsWith('/trainers') ||
     pathname.startsWith('/bookings') ||
