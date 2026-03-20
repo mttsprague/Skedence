@@ -203,10 +203,31 @@ export default function ImportSchedulePage() {
     }, 3000);
   };
 
-  const handleAddCalendar = () => {
-    // TODO: Implement Google Calendar OAuth flow
-    toast.info('Google Calendar integration coming soon! This will allow you to connect your existing calendars.');
-    setShowAddCalendarModal(false);
+  const handleAddCalendar = async () => {
+    if (!orgId) return;
+
+    try {
+      setLoading(true);
+
+      // Call Cloud Function to get OAuth URL
+      const { httpsCallable } = await import('firebase/functions');
+      const { functions } = await import('@/lib/firebase');
+      const initAuth = httpsCallable(functions, 'initGoogleCalendarAuth');
+      
+      const result = await initAuth({ orgId }) as { data: { success: boolean; authUrl: string } };
+      
+      if (result.data.success && result.data.authUrl) {
+        // Redirect to Google OAuth consent screen
+        window.location.href = result.data.authUrl;
+      } else {
+        throw new Error('Failed to generate authorization URL');
+      }
+    } catch (error) {
+      console.error('Error initiating OAuth:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to connect calendar');
+      setLoading(false);
+      setShowAddCalendarModal(false);
+    }
   };
 
   // Calendar navigation
