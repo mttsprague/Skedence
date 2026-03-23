@@ -247,7 +247,7 @@ final class AdminService: ObservableObject {
             .updateData(["isOpenForRegistration": isOpen])
     }
     
-    // Delete a class
+    // Delete a class (or entire series if grouped)
     func deleteClass(classId: String, orgId: String) async throws {
         guard isAdmin else {
             throw AdminServiceError.notAuthorized
@@ -257,40 +257,62 @@ final class AdminService: ObservableObject {
             throw AdminServiceError.invalidInput("Class ID is required")
         }
         
-        // Get the class data FIRST to know which trainer to clean up
+        // Get the class data FIRST to determine if it's part of a series
         let classDoc = try await db.collection("classes").document(classId).getDocument()
         guard let classData = classDoc.data() else {
             throw AdminServiceError.classNotFound
         }
         
         let trainerId = classData["trainerId"] as? String
+        let seriesId = classData["seriesId"] as? String
+        let isPartOfSeries = classData["isPartOfSeries"] as? Bool ?? false
         
-        // Delete all participants subcollection documents first
-        let participantsSnapshot = try await db.collection("classes")
-            .document(classId)
-            .collection("participants")
-            .getDocuments()
+        // If this class is part of a series, get all classes in the series
+        var classesToDelete: [String] = [classId]
         
-        for participantDoc in participantsSnapshot.documents {
-            try await participantDoc.reference.delete()
+        if let seriesId = seriesId, isPartOfSeries {
+            // Query all classes with this seriesId
+            let seriesQuery = db.collection("classes")
+                .whereField("seriesId", isEqualTo: seriesId)
+                .whereField("orgId", isEqualTo: orgId)
+            
+            let seriesSnapshot = try await seriesQuery.getDocuments()
+            classesToDelete = seriesSnapshot.documents.map { $0.documentID }
+            
+            print("📅 Deleting entire class series: \(classesToDelete.count) classes")
         }
         
-        // Delete the class document
-        try await db.collection("classes").document(classId).delete()
-        
-        // Remove class bookings from the assigned trainer's schedule
-        if let trainerId = trainerId {
-            let schedulesQuery = db.collection("trainers").document(trainerId)
-                .collection("schedules")
-                .whereField("classId", isEqualTo: classId)
-                .whereField("isClassBooking", isEqualTo: true)
+        // Delete all classes in the series (or just the single class)
+        for classIdToDelete in classesToDelete {
+            // Delete all participants subcollection documents first
+            let participantsSnapshot = try await db.collection("classes")
+                .document(classIdToDelete)
+                .collection("participants")
+                .getDocuments()
             
-            let schedulesSnapshot = try await schedulesQuery.getDocuments()
+            for participantDoc in participantsSnapshot.documents {
+                try await participantDoc.reference.delete()
+            }
             
-            for scheduleDoc in schedulesSnapshot.documents {
-                try await scheduleDoc.reference.delete()
+            // Delete the class document
+            try await db.collection("classes").document(classIdToDelete).delete()
+            
+            // Remove class bookings from the assigned trainer's schedule
+            if let trainerId = trainerId {
+                let schedulesQuery = db.collection("trainers").document(trainerId)
+                    .collection("schedules")
+                    .whereField("classId", isEqualTo: classIdToDelete)
+                    .whereField("isClassBooking", isEqualTo: true)
+                
+                let schedulesSnapshot = try await schedulesQuery.getDocuments()
+                
+                for scheduleDoc in schedulesSnapshot.documents {
+                    try await scheduleDoc.reference.delete()
+                }
             }
         }
+        
+        print("✅ Deleted \(classesToDelete.count) class(es) successfully")
     }
     
     // Update a class

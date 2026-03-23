@@ -45,7 +45,7 @@ interface AvailabilitySlot {
 }
 
 export default function BookingsPage() {
-  const { orgId } = useAuth();
+  const { orgId, user, userData } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [packages, setPackages] = useState<LessonPackage[]>([]);
@@ -228,11 +228,19 @@ export default function BookingsPage() {
 
     try {
       const bookLesson = httpsCallable(functions, 'bookLesson');
+      
+      // Get admin info for activity logging
+      const adminName = userData 
+        ? `${userData.firstName || ''} ${userData.lastName || ''}`.trim() 
+        : user?.email?.split('@')[0] || 'Admin';
+      
       await bookLesson({
         trainerId: selectedTrainer,
         slotId: selectedSlot,
         lessonPackageId: selectedPackage,
         clientId: selectedClient, // ✅ Pass client document ID (firstName_lastName format)
+        createdByAdminId: user?.uid, // Admin who created the booking
+        createdByAdminName: adminName, // Admin name for activity feed
       });
 
       setSuccess(true);

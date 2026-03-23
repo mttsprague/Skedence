@@ -27,6 +27,7 @@ export * from "./stripe-direct";
 // Export migration/utility functions
 export * from "./backfill-activities";
 export * from "./backfill-recent-activities";
+export * from "./backfill-admin-bookings";
 
 // Export billing/subscription functions
 export * from "./billing";
@@ -167,13 +168,16 @@ export const bookLesson = onCall(
     }
     const authUserId = request.auth.uid;
 
-    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, athleteNames, lessonNotes, clientId} = request.data;
+    const {trainerId, slotId, lessonPackageId, athleteName, secondAthleteName, athleteNames, lessonNotes, clientId, createdByAdminId, createdByAdminName} = request.data;
     if (!trainerId || !slotId || !lessonPackageId) {
       throw new HttpsError(
         "invalid-argument",
         "Missing trainerId, slotId, or lessonPackageId in request data."
       );
     }
+
+    // Check if this is an admin-created booking
+    const isAdminBooking = !!clientId && !!createdByAdminId && !!createdByAdminName;
 
     // Determine the user document ID:
     // - If clientId is provided (admin booking), use it directly as document ID
@@ -557,15 +561,24 @@ export const bookLesson = onCall(
           const activityTimestamp = Math.floor(Date.now() / 1000);
           const activityId = `${userId}_${ActivityTypes.LESSON_BOOKED}_${activityTimestamp}`;
           const activityRef = db.collection("activities").doc(activityId);
+          
+          // Use admin info if this is an admin-created booking
+          const actorId = isAdminBooking ? createdByAdminId : userId;
+          const actorName = isAdminBooking ? createdByAdminName : clientFullName;
+          const actorRole = isAdminBooking ? "admin" : "client";
+          const description = isAdminBooking 
+            ? `${createdByAdminName} booked a private for ${clientFullName} with ${trainerFullName}`
+            : `${clientFullName} booked a private with ${trainerFullName}`;
+          
           transaction.set(activityRef, {
             type: ActivityTypes.LESSON_BOOKED,
-            actorId: userId,
-            actorName: clientFullName,
-            actorRole: "client",
+            actorId: actorId,
+            actorName: actorName,
+            actorRole: actorRole,
             targetId: trainerId,
             targetName: trainerFullName,
             targetType: "trainer",
-            description: `${clientFullName} booked a private with ${trainerFullName}`,
+            description: description,
             metadata: {
               bookingId: newBookingRef.id,
               slotId: slotId,
@@ -575,6 +588,9 @@ export const bookLesson = onCall(
               athleteName: athleteName || null,
               secondAthleteName: secondAthleteName || null,
               athleteNames: athleteNames || null,
+              clientId: userId,
+              clientName: clientFullName,
+              isAdminBooking: isAdminBooking,
               timestamp: admin.firestore.FieldValue.serverTimestamp(),
             },
             orgId: orgId,

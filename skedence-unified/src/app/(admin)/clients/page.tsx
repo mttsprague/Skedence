@@ -365,72 +365,33 @@ export default function ClientsPage() {
         }) as LessonPackage[];
         setPackages(packagesData);
 
-        // DOCUMENTS ONLY: Get authUserId from user document
-        console.log('🔍 Loading authUserId for documents from user:', clientId);
-        const userDocRef = doc(db, 'users', clientId);
-        const userDocSnap = await getDoc(userDocRef);
+        // DOCUMENTS: Try firstName_lastName path FIRST, then authUserId as fallback
+        let docsSnap = await getDocs(
+          collection(db, 'users', clientId, 'documents')
+        );
         
-        let documentsUserId = clientId; // Default to client ID
-        
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          if (userData.authUserId) {
-            documentsUserId = userData.authUserId;
-            console.log(`✅ Found authUserId: ${documentsUserId} for documents`);
-          } else {
-            console.log('⚠️ No authUserId field, using client ID for documents');
+        // If no documents found, try the OLD path (authUserId) for backwards compatibility
+        if (docsSnap.docs.length === 0) {
+          const userDocRef = doc(db, 'users', clientId);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            if (userData.authUserId) {
+              docsSnap = await getDocs(
+                collection(db, 'users', userData.authUserId, 'documents')
+              );
+            }
           }
-        } else {
-          console.log('⚠️ User document not found, using client ID for documents');
         }
-
-        // Load documents (use authUserId if available, otherwise client ID)
-        console.log('🔍 Querying documents for user:', documentsUserId);
-        const docsSnap = await getDocs(
-          collection(db, 'users', documentsUserId, 'documents')
-        );
-        console.log('📁 Found documents in /documents:', docsSnap.docs.length);
         
-        const docsData = docsSnap.docs.map(doc => {
-          const data = doc.data();
-          console.log('Document data:', {
-            id: doc.id,
-            type: data.type,
-            name: data.name || data.displayName,
-            uploadedAt: data.uploadedAt
-          });
-          return {
-            id: doc.id,
-            ...data,
-          };
-        }) as Document[];
-        
-        // ALSO check legacy /waivers subcollection (just in case)
-        console.log('🔍 Checking legacy waivers subcollection...');
-        const waiversSnap = await getDocs(
-          collection(db, 'users', documentsUserId, 'waivers')
-        );
-        console.log('📁 Found waivers in /waivers:', waiversSnap.docs.length);
-        
-        const waiversData = waiversSnap.docs.map(doc => {
-          const data = doc.data();
-          console.log('Legacy waiver data:', {
-            id: doc.id,
-            ...data
-          });
-          return {
-            id: doc.id,
-            type: 'waiver', // Ensure it's marked as waiver
-            ...data,
-          };
-        }) as Document[];
-        
-        // Merge both sources
-        const allDocs = [...docsData, ...waiversData];
-        console.log('📊 Total documents found:', allDocs.length);
+        const docsData = docsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Document[];
         
         // Sort by uploadedAt (newest first)
-        const sortedDocs = allDocs.sort((a, b) => 
+        const sortedDocs = docsData.sort((a, b) => 
           b.uploadedAt?.seconds - a.uploadedAt?.seconds
         );
         setDocuments(sortedDocs);
@@ -453,7 +414,6 @@ export default function ClientsPage() {
           id: doc.id,
           ...doc.data(),
         })) as PaymentMethod[];
-        console.log('Payment methods loaded:', paymentsData.length, paymentsData);
         setPaymentMethods(paymentsData);
 
         // Load receipts/transactions (use client ID)
@@ -467,7 +427,6 @@ export default function ClientsPage() {
           id: doc.id,
           ...doc.data(),
         })) as Transaction[];
-        console.log('Loaded receipts:', receiptsData.length, receiptsData);
         const sortedReceipts = receiptsData.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
         setReceipts(sortedReceipts);
 

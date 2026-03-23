@@ -211,10 +211,18 @@ export default function ImportExportPage() {
           
           const userData = userDoc.data();
           
-          // Get waivers for this user
-          const waiverDocs = await getDocs(
+          // Get waivers/documents for this user
+          // Try firstName_lastName path first, then authUserId as fallback
+          let waiverDocs = await getDocs(
             collection(db, 'users', memberData.userId, 'documents')
           );
+          
+          // If no documents found, try authUserId fallback
+          if (waiverDocs.docs.length === 0 && userData.authUserId) {
+            waiverDocs = await getDocs(
+              collection(db, 'users', userData.authUserId, 'documents')
+            );
+          }
           
           waiverDocs.docs.forEach(waiverDoc => {
             const waiverData = waiverDoc.data();

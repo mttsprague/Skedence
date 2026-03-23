@@ -217,8 +217,17 @@ export default function ImportSchedulePage() {
       const result = await initAuth({ orgId }) as { data: { success: boolean; authUrl: string } };
       
       if (result.data.success && result.data.authUrl) {
-        // Redirect to Google OAuth consent screen
-        window.location.href = result.data.authUrl;
+        // Open Google OAuth consent screen in new tab
+        const newWindow = window.open(result.data.authUrl, '_blank');
+        if (!newWindow) {
+          toast.error('Please allow pop-ups to connect your calendar');
+          setLoading(false);
+          setShowAddCalendarModal(false);
+        } else {
+          // Close the modal but keep loading state
+          setShowAddCalendarModal(false);
+          toast.info('Complete authorization in the new tab');
+        }
       } else {
         throw new Error('Failed to generate authorization URL');
       }

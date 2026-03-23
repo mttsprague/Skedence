@@ -693,62 +693,87 @@ export default function ClassesPage() {
     const trainer = trainers.find(t => t.id === classToDelete.trainerId);
     const trainerName = trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown Trainer';
     
-    if (!confirm('Are you sure you want to delete this class? This will cancel the class for all registered participants.')) return;
+    // Check if this is a grouped/series class
+    const isGroupedClass = classToDelete.seriesId && classToDelete.isPartOfSeries;
+    const seriesClasses = isGroupedClass 
+      ? classes.filter(c => c.seriesId === classToDelete.seriesId)
+      : [classToDelete];
+    
+    const confirmMessage = isGroupedClass
+      ? `Are you sure you want to delete this ENTIRE class series? This will delete ALL ${seriesClasses.length} classes in the series and cancel for all registered participants.`
+      : 'Are you sure you want to delete this class? This will cancel the class for all registered participants.';
+    
+    if (!confirm(confirmMessage)) return;
 
     try {
-      // Get all participants first
-      const participantsQuery = query(collection(db, 'classes', classId, 'participants'));
-      const participantsSnapshot = await getDocs(participantsQuery);
-      const participantCount = participantsSnapshot.size;
+      let totalParticipants = 0;
       
-      // Delete participant registrations and update user bookings
-      for (const participantDoc of participantsSnapshot.docs) {
-        const participantData = participantDoc.data();
+      // Delete all classes in the series (or just the single class)
+      for (const classItem of seriesClasses) {
+        // Get all participants first
+        const participantsQuery = query(collection(db, 'classes', classItem.id, 'participants'));
+        const participantsSnapshot = await getDocs(participantsQuery);
+        totalParticipants += participantsSnapshot.size;
         
-        // Remove from user's bookings if they have any related booking
-        if (participantData.userId) {
-          // Query bookings that reference this class
-          const userBookingsQuery = query(
-            collection(db, 'bookings'),
-            where('userId', '==', participantData.userId),
-            where('classId', '==', classId)
-          );
-          const userBookingsSnapshot = await getDocs(userBookingsQuery);
+        // Delete participant registrations and update user bookings
+        for (const participantDoc of participantsSnapshot.docs) {
+          const participantData = participantDoc.data();
           
-          // Delete or cancel related bookings
-          for (const bookingDoc of userBookingsSnapshot.docs) {
-            await updateDoc(doc(db, 'bookings', bookingDoc.id), {
-              status: 'cancelled',
-              cancelledAt: Timestamp.now(),
-              cancelReason: 'Class was deleted by administrator'
-            });
+          // Remove from user's bookings if they have any related booking
+          if (participantData.userId) {
+            // Query bookings that reference this class
+            const userBookingsQuery = query(
+              collection(db, 'bookings'),
+              where('userId', '==', participantData.userId),
+              where('classId', '==', classItem.id)
+            );
+            const userBookingsSnapshot = await getDocs(userBookingsQuery);
+            
+            // Delete or cancel related bookings
+            for (const bookingDoc of userBookingsSnapshot.docs) {
+              await updateDoc(doc(db, 'bookings', bookingDoc.id), {
+                status: 'cancelled',
+                cancelledAt: Timestamp.now(),
+                cancelReason: isGroupedClass 
+                  ? 'Class series was deleted by administrator'
+                  : 'Class was deleted by administrator'
+              });
+            }
           }
+          
+          // Delete participant document
+          await deleteDoc(participantDoc.ref);
         }
         
-        // Delete participant document
-        await deleteDoc(participantDoc.ref);
+        // Log activity for each class deletion
+        if (orgId && user && userData) {
+          await logClassDeleted({
+            orgId: orgId,
+            actorId: user.uid,
+            actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+            actorRole: 'admin',
+            classId: classItem.id,
+            className: classItem.title,
+            trainerId: classItem.trainerId,
+            trainerName: trainerName,
+            startTime: classItem.startTime.toDate(),
+            participantCount: participantsSnapshot.size,
+          });
+        }
+        
+        // Delete the class document
+        await deleteDoc(doc(db, 'classes', classItem.id));
       }
       
-      // Log activity
-      if (orgId && user && userData) {
-        await logClassDeleted({
-          orgId: orgId,
-          actorId: user.uid,
-          actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
-          actorRole: 'admin',
-          classId: classId,
-          className: classToDelete.title,
-          trainerId: classToDelete.trainerId,
-          trainerName: trainerName,
-          startTime: classToDelete.startTime.toDate(),
-          participantCount: participantCount,
-        });
-      }
+      // Remove all deleted classes from state
+      const deletedIds = seriesClasses.map(c => c.id);
+      setClasses(classes.filter(c => !deletedIds.includes(c.id)));
       
-      // Finally, delete the class itself
-      await deleteDoc(doc(db, 'classes', classId));
-      setClasses(classes.filter(c => c.id !== classId));
-      toast.success('Class deleted', 'All participants have been notified of the cancellation');
+      const successMessage = isGroupedClass
+        ? `Class series deleted (${seriesClasses.length} classes). All participants have been notified.`
+        : 'Class deleted. All participants have been notified of the cancellation.';
+      
+      toast.success(isGroupedClass ? 'Series deleted' : 'Class deleted', successMessage);
     } catch (error) {
       console.error('Error deleting class:', error);
       toast.error('Failed to delete class', 'Please try again');

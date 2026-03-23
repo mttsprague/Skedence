@@ -1914,6 +1914,7 @@ struct BookView: View {
             currentWaiverAthleteIndex = nil
             return
         }
+        
         do {
             // Create waiver signature from user profile
             let signature = WaiverSignature(

@@ -699,25 +699,24 @@ struct WaiverStatusView: View {
         do {
             let db = Firestore.firestore()
             
-            // First, get the user document to check for authUserId
-            // Documents may be stored under authUserId rather than the document ID
-            let userDoc = try await db.collection("users").document(clientId).getDocument()
-            let actualUserId: String
-            
-            if let authUserId = userDoc.data()?["authUserId"] as? String, !authUserId.isEmpty {
-                // Documents are stored under the Firebase Auth UID
-                actualUserId = authUserId
-            } else {
-                // Fall back to using the document ID
-                actualUserId = clientId
-            }
-            
-            // Query the correct subcollection: users/{userId}/documents
-            let documentsSnapshot = try await db.collection("users")
-                .document(actualUserId)
+            // First, try the NEW path (firstName_lastName document ID)
+            var documentsSnapshot = try await db.collection("users")
+                .document(clientId)
                 .collection("documents")
                 .whereField("type", isEqualTo: "waiver")
                 .getDocuments()
+            
+            // If no documents found, try the OLD path (authUserId) for backwards compatibility
+            if documentsSnapshot.documents.isEmpty {
+                let userDoc = try await db.collection("users").document(clientId).getDocument()
+                if let authUserId = userDoc.data()?["authUserId"] as? String, !authUserId.isEmpty {
+                    documentsSnapshot = try await db.collection("users")
+                        .document(authUserId)
+                        .collection("documents")
+                        .whereField("type", isEqualTo: "waiver")
+                        .getDocuments()
+                }
+            }
             
             for doc in documentsSnapshot.documents {
                 let data = doc.data()
