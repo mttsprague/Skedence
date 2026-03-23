@@ -82,7 +82,10 @@ final class StripeRepository: CloudFunctionsRepository {
         amount: Int,
         trainerId: String,
         userId: String,
-        orgId: String?
+        orgId: String?,
+        pricingTierId: String? = nil,
+        pricingTierName: String? = nil,
+        pricePerLesson: Int? = nil
     ) async throws -> (clientSecret: String, publishableKey: String?, customerId: String?, ephemeralKeySecret: String?) {
         let functionName = orgId != nil ? "createPaymentIntentDirect" : "createPaymentIntent"
         var data: [String: Any] = [
@@ -94,6 +97,17 @@ final class StripeRepository: CloudFunctionsRepository {
         
         if let orgId = orgId {
             data["orgId"] = orgId
+        }
+        
+        // Add tier pricing fields if present
+        if let pricingTierId = pricingTierId {
+            data["pricingTierId"] = pricingTierId
+        }
+        if let pricingTierName = pricingTierName  {
+            data["pricingTierName"] = pricingTierName
+        }
+        if let pricePerLesson = pricePerLesson {
+            data["pricePerLesson"] = pricePerLesson
         }
         
         let result = try await callFunction(name: functionName, data: data)

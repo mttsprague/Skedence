@@ -608,6 +608,34 @@ private struct SignedInProfileScreen: View {
         let purchaseDate: Date
         let expirationDate: Date
         let isExpired: Bool
+        
+        // Tier Pricing (NEW)
+        let tierName: String? // e.g., "Master Trainer"
+        let pricingTierId: String? // Tier ID to filter trainers
+        let pricePerLesson: Int? // Price per lesson in cents
+        
+        var formattedPricePerLesson: String? {
+            guard let price = pricePerLesson else { return nil }
+            return String(format: "$%.0f", Double(price) / 100.0)
+        }
+        
+        /// Gradient colors for the tier badge, keyed on tier name (case-insensitive).
+        var tierGradientColors: [Color] {
+            switch tierName?.lowercased() {
+            case "elite":
+                // Gold
+                return [Color(red: 0.80, green: 0.62, blue: 0.10), Color(red: 0.64, green: 0.46, blue: 0.04)]
+            case "pro":
+                // Skedence blue
+                return [Color(red: 0.196, green: 0.345, blue: 0.639), Color(red: 0.102, green: 0.169, blue: 0.427)]
+            case "class pass":
+                // Purple
+                return [Color(red: 0.45, green: 0.18, blue: 0.72), Color(red: 0.32, green: 0.10, blue: 0.56)]
+            default:
+                // Orange fallback
+                return [Color.orange, Color.orange.opacity(0.8)]
+            }
+        }
     }
     
     // MARK: - Category Building
@@ -661,7 +689,10 @@ private struct SignedInProfileScreen: View {
                     remainingLessons: max(0, pkg.lessonsRemaining),
                     purchaseDate: pkg.purchaseDate,
                     expirationDate: pkg.expirationDate,
-                    isExpired: pkg.expirationDate < Date()
+                    isExpired: pkg.expirationDate < Date(),
+                    tierName: pkg.pricingTierName,
+                    pricingTierId: pkg.pricingTierId,
+                    pricePerLesson: pkg.pricePerLesson
                 )
             }.sorted { $0.purchaseDate > $1.purchaseDate }
             
@@ -701,7 +732,10 @@ private struct SignedInProfileScreen: View {
                     remainingLessons: max(0, pkg.lessonsRemaining),
                     purchaseDate: pkg.purchaseDate,
                     expirationDate: pkg.expirationDate,
-                    isExpired: pkg.expirationDate < Date()
+                    isExpired: pkg.expirationDate < Date(),
+                    tierName: pkg.pricingTierName,
+                    pricingTierId: pkg.pricingTierId,
+                    pricePerLesson: pkg.pricePerLesson
                 )
             }
             .filter { $0.remainingLessons > 0 } // Hide fully used packages (0/0)
@@ -873,7 +907,7 @@ private struct SignedInProfileScreen: View {
     }
     
     private func purchaseDetailRow(purchase: PurchaseDetail) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(purchase.packageName)
                     .font(.bodyMedium.weight(.semibold))
@@ -888,6 +922,54 @@ private struct SignedInProfileScreen: View {
                         .background(AppTheme.error)
                         .cornerRadius(4)
                 }
+            }
+            
+            // Tier badge - Enhanced for visibility
+            if let tierName = purchase.tierName, let priceStr = purchase.formattedPricePerLesson {
+                HStack(spacing: 6) {
+                    Image(systemName: "medal.fill")
+                        .font(.caption)
+                    Text(tierName)
+                        .font(.labelMedium.weight(.semibold))
+                    Text("•")
+                        .font(.caption2)
+                    Text("\(priceStr)/lesson")
+                        .font(.labelMedium)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    LinearGradient(
+                        colors: purchase.tierGradientColors,
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(6)
+            } else {
+                // Universal pass (no tier restriction)
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.caption)
+                    Text("Universal Pass")
+                        .font(.labelMedium.weight(.semibold))
+                    Text("•")
+                        .font(.caption2)
+                    Text("Works with all trainers")
+                        .font(.labelSmall)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    LinearGradient(
+                        colors: [Color.green, Color.green.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(6)
             }
             
             HStack(spacing: 16) {

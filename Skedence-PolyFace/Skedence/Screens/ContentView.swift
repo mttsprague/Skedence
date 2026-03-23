@@ -48,7 +48,6 @@ struct AppRootView: View {
                              scheduleService: scheduleService,
                              packagesService: packagesService,
                              usersService: usersService,
-                             bookingsService: bookingsService,
                              initialMode: $bookViewMode,
                              selectedTab: $selectedTab,
                              selectedClassId: $selectedClassId,

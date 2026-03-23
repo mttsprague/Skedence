@@ -13,6 +13,9 @@ interface CreatePaymentIntentDirectData {
   amount: number;
   trainerId: string;
   userId: string;
+  pricingTierId?: string;
+  pricingTierName?: string;
+  pricePerLesson?: number;
 }
 
 /**
@@ -37,6 +40,11 @@ export const createPaymentIntentDirect = onCall(
     );
 
     const {orgId, packageType, amount, trainerId, userId} = validatedData;
+    
+    // Extract tier pricing fields (may not be in validation schema)
+    const pricingTierId = request.data.pricingTierId as string | undefined;
+    const pricingTierName = request.data.pricingTierName as string | undefined;
+    const pricePerLesson = request.data.pricePerLesson as number | undefined;
 
     if (request.auth.uid !== userId) {
       throw new HttpsError(
@@ -244,6 +252,9 @@ export const createPaymentIntentDirect = onCall(
           org_name: orgData.name || orgData.businessName || "Organization",
           transaction_id: transactionId,
           purchase_date: purchaseDate,
+          pricing_tier_id: pricingTierId || "",
+          pricing_tier_name: pricingTierName || "",
+          price_per_lesson: pricePerLesson ? pricePerLesson.toString() : "",
         },
       });
 
@@ -295,7 +306,7 @@ export const createAndConfirmPaymentDirect = onCall(
       );
     }
 
-    const {orgId, packageType, amount, trainerId, userId, paymentMethodId} = request.data;
+    const {orgId, packageType, amount, trainerId, userId, paymentMethodId, pricingTierId, pricingTierName, pricePerLesson} = request.data;
 
     if (!orgId || !packageType || !amount || !trainerId || !userId || !paymentMethodId) {
       throw new HttpsError(
@@ -546,6 +557,10 @@ export const createAndConfirmPaymentDirect = onCall(
           org_name: orgData.name || orgData.businessName || "Organization",
           transaction_id: transactionId,
           purchase_date: purchaseDate,
+          // NEW: Tier pricing fields
+          pricing_tier_id: pricingTierId || "",
+          pricing_tier_name: pricingTierName || "",
+          price_per_lesson: pricePerLesson ? pricePerLesson.toString() : "",
         },
       });
 
@@ -584,24 +599,37 @@ export const createAndConfirmPaymentDirect = onCall(
           ? `organizations/${orgId}/users/${userDoc.id}/packages`
           : `users/${userDoc.id}/packages`;
 
+        const packageData: any = {
+          packageType: packageType,
+          packageName: packageName,
+          packageCategory: packageCategory,
+          totalLessons: totalLessons,
+          lessonsUsed: 0,
+          amountPaid: amount, // Store amount in cents for revenue tracking
+          orgId: orgId,
+          purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
+          expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
+          transactionId: paymentIntent.id,
+        };
+        
+        // Add tier pricing fields if present
+        if (pricingTierId) {
+          packageData.pricingTierId = pricingTierId;
+        }
+        if (pricingTierName) {
+          packageData.pricingTierName = pricingTierName;
+        }
+        if (pricePerLesson) {
+          packageData.pricePerLesson = pricePerLesson;
+        }
+
         await db
           .collection("organizations")
           .doc(orgId)
           .collection("users")
           .doc(userDoc.id) // Use actual document ID, not Auth UID
           .collection("packages")
-          .add({
-            packageType: packageType,
-            packageName: packageName,
-            packageCategory: packageCategory,
-            totalLessons: totalLessons,
-            lessonsUsed: 0,
-            amountPaid: amount, // Store amount in cents for revenue tracking
-            orgId: orgId,
-            purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
-            expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
-            transactionId: paymentIntent.id,
-          });
+          .add(packageData);
 
         return {
           paymentIntentId: paymentIntent.id,
@@ -742,7 +770,11 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
       // Read metadata with snake_case keys (as stored in createPaymentIntentDirect)
       const packageType = paymentIntent.metadata.package_type;
       const trainerId = paymentIntent.metadata.trainer_id;
-
+      const pricingTierId = paymentIntent.metadata.pricing_tier_id || undefined;
+      const pricingTierName = paymentIntent.metadata.pricing_tier_name || undefined;
+      const pricePerLesson = paymentIntent.metadata.price_per_lesson ?
+        parseInt(paymentIntent.metadata.price_per_lesson, 10) :
+        undefined;
 
       if (!packageType || !trainerId) {
         throw new HttpsError(
@@ -842,24 +874,37 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
       expirationDate.setDate(expirationDate.getDate() + expirationDays);
 
       // Store package in STANDARD location: organizations/{orgId}/users/{actualUserId}/packages
+      const packageData: any = {
+        packageType: packageType,
+        packageName: packageName,
+        packageCategory: packageCategory,
+        totalLessons: totalLessons,
+        lessonsUsed: 0,
+        amountPaid: paymentIntent.amount, // Store amount in cents for revenue tracking
+        orgId: orgId,
+        purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
+        expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
+        transactionId: paymentIntent.id,
+      };
+      
+      // Add tier pricing fields if present
+      if (pricingTierId) {
+        packageData.pricingTierId = pricingTierId;
+      }
+      if (pricingTierName) {
+        packageData.pricingTierName = pricingTierName;
+      }
+      if (pricePerLesson) {
+        packageData.pricePerLesson = pricePerLesson;
+      }
+      
       await db
         .collection("organizations")
         .doc(orgId)
         .collection("users")
         .doc(actualUserId)
         .collection("packages")
-        .add({
-          packageType: packageType,
-          packageName: packageName,
-          packageCategory: packageCategory,
-          totalLessons: totalLessons,
-          lessonsUsed: 0,
-          amountPaid: paymentIntent.amount, // Store amount in cents for revenue tracking
-          orgId: orgId,
-          purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
-          expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
-          transactionId: paymentIntent.id,
-        });
+        .add(packageData);
 
       return {success: true, packageId: paymentIntent.id};
     } catch (error: unknown) {

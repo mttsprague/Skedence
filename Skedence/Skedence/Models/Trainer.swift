@@ -23,6 +23,10 @@ struct Trainer: Identifiable, Hashable {
     let birthday: String?
     let trainerDescription: String?
     
+    // Tier Pricing (NEW)
+    let pricingTierId: String? // e.g., "tier_master", "tier_advanced"
+    let pricingTierName: String? // e.g., "Master Trainer", "Advanced Trainer"
+    
     var name: String? {
         guard let first = firstName, let last = lastName else { return nil }
         return "\(first) \(last)".trimmingCharacters(in: .whitespaces)

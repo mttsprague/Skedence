@@ -245,7 +245,8 @@ struct BusinessView: View {
                             trainerLimit: trainerLimit,
                             trainerCount: superAdminViewModel.trainers.count,
                             showingAvatarUpload: $showingAvatarUpload,
-                            onShowAddTrainer: { showingAddTrainer = true }
+                            onShowAddTrainer: { showingAddTrainer = true },
+                            viewModel: superAdminViewModel
                         )
                         .environmentObject(dependencies)
                         

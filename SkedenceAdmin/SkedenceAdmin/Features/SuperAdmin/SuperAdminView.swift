@@ -89,7 +89,8 @@ struct SuperAdminView: View {
                             trainerLimit: trainerLimit,
                             trainerCount: viewModel.trainers.count,
                             showingAvatarUpload: $showingAvatarUpload,
-                            onShowAddTrainer: { showingAddTrainer = true }
+                            onShowAddTrainer: { showingAddTrainer = true },
+                            viewModel: viewModel
                         )
                         .environmentObject(dependencies)
                     case .users:

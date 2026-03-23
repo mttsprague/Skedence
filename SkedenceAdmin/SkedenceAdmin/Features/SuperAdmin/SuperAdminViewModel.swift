@@ -111,7 +111,9 @@ class SuperAdminViewModel: ObservableObject {
                     orgId: data["orgId"] as? String,
                     organizationName: nil, // Will be populated separately if needed
                     role: data["role"] as? String,
-                    active: data["active"] as? Bool
+                    active: data["active"] as? Bool,
+                    pricingTierId: data["pricingTierId"] as? String,
+                    pricingTierName: data["pricingTierName"] as? String
                 )
             }
         } catch {
@@ -299,6 +301,34 @@ class SuperAdminViewModel: ObservableObject {
             await loadAllUsers() // Refresh users list to show in Members tab
         } catch {
             errorMessage = "Failed to deactivate trainer: \(error.localizedDescription)"
+        }
+    }
+    
+    func updateTrainerTier(trainerId: String, orgId: String?, tierId: String?, tierName: String?) async {
+        do {
+            var updateData: [String: Any] = [:]
+            
+            // If tierId and tierName are nil, remove the fields (set to universal)
+            if let tierId = tierId, let tierName = tierName {
+                updateData["pricingTierId"] = tierId
+                updateData["pricingTierName"] = tierName
+                print("✅ Assigning trainer \(trainerId) to tier: \(tierName) (id: \(tierId))")
+            } else {
+                // Remove tier assignment (make universal)
+                updateData["pricingTierId"] = FieldValue.delete()
+                updateData["pricingTierName"] = FieldValue.delete()
+                print("✅ Making trainer \(trainerId) universal (no tier)")
+            }
+            
+            // Update the trainer document
+            try await db.collection("trainers").document(trainerId).updateData(updateData)
+            
+            // Refresh the trainers list to show updated tier
+            await loadTrainers(orgId: orgId)
+            
+        } catch {
+            errorMessage = "Failed to update trainer tier: \(error.localizedDescription)"
+            print("❌ Error updating trainer tier: \(error.localizedDescription)")
         }
     }
 }
@@ -577,6 +607,8 @@ struct AdminTrainer: Identifiable {
     var organizationName: String?
     let role: String?
     let active: Bool?
+    let pricingTierId: String?
+    let pricingTierName: String?
     
     var displayName: String {
         "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)

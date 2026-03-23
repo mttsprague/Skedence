@@ -29,9 +29,88 @@ struct PurchaseLessonsView: View {
     // Selected package option (now dynamic)
     @State private var selectedPackageIndex: Int = 0
     
+    // Tier pricing state
+    @State private var trainers: [Trainer] = []
+    @State private var selectedTierId: String?
+    @State private var isLoadingTrainers = false
+    
+    // MARK: - Computed Properties
+    
+    /// Get available pricing tiers with their trainers
+    private var availableTiers: [(tierId: String, tierName: String, trainers: [Trainer])] {
+        // Group trainers by tier
+        let tiersDict = Dictionary(grouping: trainers) { trainer -> String in
+            trainer.pricingTierId ?? "universal"
+        }
+        
+        // Create tier tuples
+        return tiersDict.compactMap { (tierId, tierTrainers) -> (String, String, [Trainer])? in
+            guard let firstTrainer = tierTrainers.first else { return nil }
+            
+            let tierName = firstTrainer.pricingTierName ?? "Standard"
+            return (tierId, tierName, tierTrainers)
+        }.sorted { $0.tierName < $1.tierName }
+    }
+    
+    /// Get tier price per lesson for display
+    private func getTierPrice(tierId: String) -> String? {
+        // Find the tier in the pricing structure
+        guard let tier = pricingService.pricingStructure?.tiers.first(where: { $0.id == tierId }) else {
+            return nil
+        }
+        
+        // Get first package from this tier
+        if let firstPackage = tier.packages.first {
+            let pricePerLesson = Double(firstPackage.priceInCents) / Double(firstPackage.lessonCount) / 100.0
+            return String(format: "$%.0f", pricePerLesson)
+        }
+        
+        return nil
+    }
+    
+    /// Get the name of the selected tier
+    private var selectedTierName: String? {
+        guard let tierId = selectedTierId,
+              let tier = pricingService.pricingStructure?.tiers.first(where: { $0.id == tierId }) else {
+            return nil
+        }
+        return tier.tierName
+    }
+    
+    // MARK: - Data Loading
+    
+    /// Load trainers with tier information
+    private func loadTrainers() async {
+        isLoadingTrainers = true
+        defer { isLoadingTrainers = false }
+        
+        guard let orgId = auth.currentOrgId else { return }
+        
+        do {
+            let trainersRepo = TrainersRepository()
+            let loadedTrainers = try await trainersRepo.fetchAll(orgId: orgId)
+            trainers = loadedTrainers
+        } catch {
+            print("Error loading trainers: \(error)")
+        }
+    }
+    
     // Group packages by category for better organization
     private func groupedPackages() -> [(category: PackageCategory, packages: [PackageOption])] {
-        let packages = pricingService.allPackageOptions
+        var packages: [PackageOption]
+        
+        // Get packages from selected tier if one is selected
+        if let tierId = selectedTierId,
+           let tier = pricingService.pricingStructure?.tiers.first(where: { $0.id == tierId }) {
+            // Get tier-specific packages (non-class passes only)
+            packages = tier.packages.filter { $0.packageCategory != .classPass }
+            
+            // ALWAYS add class passes from all tiers (they're universal)
+            let allClassPasses = pricingService.allPackageOptions.filter { $0.packageCategory == .classPass }
+            packages.append(contentsOf: allClassPasses)
+        } else {
+            packages = pricingService.allPackageOptions
+        }
         
         // Group by category
         let grouped = Dictionary(grouping: packages) { $0.packageCategory }
@@ -50,6 +129,42 @@ struct PurchaseLessonsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // TIER SELECTION SECTION (NEW)
+                if !availableTiers.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(availableTiers.count > 1 ? "Select Trainer Tier" : "Trainer Tier")
+                            .font(.title2.weight(.semibold))
+                            .foregroundStyle(Brand.primary)
+                            .padding(.horizontal)
+                        
+                        Text(availableTiers.count > 1 ? "Choose which trainers you want to book with" : "Your selected trainer tier")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                        
+                        if isLoadingTrainers {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                            .padding()
+                        } else {
+                            VStack(spacing: 12) {
+                                ForEach(availableTiers, id: \.tierId) { tier in
+                                    tierSelectionRow(
+                                        tierId: tier.tierId,
+                                        tierName: tier.tierName,
+                                        trainers: tier.trainers
+                                    )
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.top, 12)
+                }
+                
                 // Package section header
                 Text("Package")
                     .font(.title2.weight(.semibold))
@@ -162,6 +277,9 @@ struct PurchaseLessonsView: View {
         .navigationTitle("Purchase Passes")
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            // Load trainers with tier info
+            await loadTrainers()
+            
             // Load pricing structure
             if let orgId = auth.currentOrgId {
                 await pricingService.loadPricingStructure(for: orgId)
@@ -170,6 +288,11 @@ struct PurchaseLessonsView: View {
                 // Auto-select first payment method if available
                 if let firstMethod = customerService.paymentMethods.first {
                     selectedPaymentMethodId = firstMethod.id
+                }
+                
+                // Auto-select tier if there's only one or none selected
+                if selectedTierId == nil && !availableTiers.isEmpty {
+                    selectedTierId = availableTiers.first?.tierId
                 }
             }
         }
@@ -234,6 +357,87 @@ struct PurchaseLessonsView: View {
                 detailsSheetPackage = nil
             })
         }
+    }
+
+    // MARK: - Tier Selection Row
+    
+    private func tierSelectionRow(tierId: String, tierName: String, trainers: [Trainer]) -> some View {
+        let isSelected = selectedTierId == tierId
+        let priceDisplay = getTierPrice(tierId: tierId) ?? ""
+        let trainerNames = trainers.map { "\($0.firstName ?? "") \($0.lastName ?? "")" }.joined(separator: ", ")
+        let isOnlyTier = availableTiers.count == 1
+        
+        return Button {
+            guard !isOnlyTier else { return } // Disable selection when only one tier
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTierId = tierId
+                // Reset package selection when tier changes
+                selectedPackageIndex = 0
+            }
+        } label: {
+            HStack(spacing: Spacing.md) {
+                // Medal icon for tier badge
+                ZStack {
+                    Circle()
+                        .fill(Color.orange.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "medal.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.orange)
+                }
+                
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    // Tier name and price
+                    HStack(spacing: Spacing.xs) {
+                        Text(tierName)
+                            .font(.headingSmall)
+                            .foregroundStyle(AppTheme.textPrimary)
+                        
+                        if !priceDisplay.isEmpty {
+                            Text("(\(priceDisplay)/lesson)")
+                                .font(.labelMedium)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    
+                    // Trainer names
+                    Text(trainerNames)
+                        .font(.labelMedium)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .lineLimit(2)
+                }
+                
+                Spacer()
+                
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? Color.orange : Color.secondary.opacity(0.3), lineWidth: 2)
+                        .frame(width: 28, height: 28)
+                    if isSelected {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 22, height: 22)
+                            .overlay(
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                            )
+                    }
+                }
+            }
+            .padding(Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.md, style: .continuous)
+                    .fill(Color.platformBackground)
+                    .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.md, style: .continuous)
+                    .stroke(isSelected ? Color.orange : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Package Group Card (Groups packages by category)
@@ -640,7 +844,10 @@ struct PurchaseLessonsView: View {
                 packageType: selectedPackage.packageType, // Use packageType, not title
                 amount: selectedPackage.priceInCents,
                 trainerId: "general", // Placeholder - passes can be used with any trainer
-                orgId: orgId // Payment goes to organization
+                orgId: orgId, // Payment goes to organization
+                pricingTierId: selectedTierId, // Tier ID from selected tier
+                pricingTierName: selectedTierName, // Tier name from selected tier
+                pricePerLesson: selectedPackage.priceInCents / selectedPackage.lessonCount // Calculate price per lesson
             )
             
             // Configure payment sheet with customer info to show saved cards
@@ -680,7 +887,10 @@ struct PurchaseLessonsView: View {
                 amount: selectedPackage.priceInCents,
                 trainerId: "general", // Placeholder - passes can be used with any trainer
                 orgId: orgId,
-                paymentMethodId: paymentMethodId
+                paymentMethodId: paymentMethodId,
+                pricingTierId: selectedTierId,
+                pricingTierName: selectedTierName,
+                pricePerLesson: selectedPackage.priceInCents / selectedPackage.lessonCount
             )
             
             // Track purchase

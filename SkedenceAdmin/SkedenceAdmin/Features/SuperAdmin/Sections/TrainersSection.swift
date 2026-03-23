@@ -15,6 +15,7 @@ struct TrainersSection: View {
     let trainerCount: Int
     @Binding var showingAvatarUpload: Bool
     let onShowAddTrainer: () -> Void
+    @ObservedObject var viewModel: SuperAdminViewModel
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -88,7 +89,7 @@ struct TrainersSection: View {
                 )
             } else {
                 ForEach(trainers) { trainer in
-                    TrainerCard(trainer: trainer)
+                    TrainerCard(trainer: trainer, viewModel: viewModel)
                 }
             }
         }

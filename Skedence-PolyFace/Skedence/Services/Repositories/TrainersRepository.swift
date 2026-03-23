@@ -130,7 +130,9 @@ final class TrainersRepository: QueryableRepositoryProtocol {
             imageUrl: data["imageUrl"] as? String,
             active: data["active"] as? Bool,
             birthday: data["birthday"] as? String,
-            trainerDescription: data["trainerDescription"] as? String
+            trainerDescription: data["trainerDescription"] as? String,
+            pricingTierId: data["pricingTierId"] as? String,
+            pricingTierName: data["pricingTierName"] as? String
         )
     }
     

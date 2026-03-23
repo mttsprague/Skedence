@@ -290,6 +290,13 @@ final class PackagesRepository: QueryableRepositoryProtocol {
         let purchaseDate = (data["purchaseDate"] as? Timestamp)?.dateValue() ?? Date()
         let expirationDate = (data["expirationDate"] as? Timestamp)?.dateValue() ?? Date.distantFuture
         
+        var pricePerLessonInt: Int?
+        if let price = data["pricePerLesson"] as? Double {
+            pricePerLessonInt = Int(price)
+        } else if let price = data["pricePerLesson"] as? Int {
+            pricePerLessonInt = price
+        }
+        
         return LessonPackage(
             id: id,
             packageType: packageType,
@@ -299,7 +306,10 @@ final class PackagesRepository: QueryableRepositoryProtocol {
             lessonsUsed: lessonsUsed,
             purchaseDate: purchaseDate,
             expirationDate: expirationDate,
-            transactionId: data["transactionId"] as? String
+            transactionId: data["transactionId"] as? String,
+            pricingTierId: data["pricingTierId"] as? String,
+            pricingTierName: data["pricingTierName"] as? String,
+            pricePerLesson: pricePerLessonInt
         )
     }
     

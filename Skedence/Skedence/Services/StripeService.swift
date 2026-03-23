@@ -35,7 +35,10 @@ final class StripeService: ObservableObject {
         packageType: String,
         amount: Int, // Amount in cents (e.g., 5000 = $50.00)
         trainerId: String,
-        orgId: String? = nil // Organization receiving payment
+        orgId: String? = nil, // Organization receiving payment
+        pricingTierId: String? = nil, // NEW: Tier ID for tier-based pricing
+        pricingTierName: String? = nil, // NEW: Tier display name
+        pricePerLesson: Int? = nil // NEW: Price per lesson in cents
     ) async throws -> (clientSecret: String, customerId: String?, ephemeralKeySecret: String?) {
         guard let userId = Auth.auth().currentUser?.uid else {
             throw StripeError.notAuthenticated
@@ -47,7 +50,10 @@ final class StripeService: ObservableObject {
                 amount: amount,
                 trainerId: trainerId,
                 userId: userId,
-                orgId: orgId
+                orgId: orgId,
+                pricingTierId: pricingTierId,
+                pricingTierName: pricingTierName,
+                pricePerLesson: pricePerLesson
             )
             
             // Store publishable key if provided (for direct Stripe integration)
@@ -102,7 +108,10 @@ final class StripeService: ObservableObject {
         amount: Int,
         trainerId: String,
         orgId: String,
-        paymentMethodId: String
+        paymentMethodId: String,
+        pricingTierId: String? = nil,
+        pricingTierName: String? = nil,
+        pricePerLesson: Int? = nil
     ) async throws -> (paymentIntentId: String, clientSecret: String) {
         isProcessing = true
         error = nil
@@ -115,7 +124,7 @@ final class StripeService: ObservableObject {
         }
         
         let callable = functions.httpsCallable("createAndConfirmPaymentDirect")
-        let data: [String: Any] = [
+        var data: [String: Any] = [
             "orgId": orgId,
             "packageType": packageType,
             "amount": amount,
@@ -123,6 +132,17 @@ final class StripeService: ObservableObject {
             "userId": userId,
             "paymentMethodId": paymentMethodId
         ]
+        
+        // Add tier pricing fields if present
+        if let pricingTierId = pricingTierId {
+            data["pricingTierId"] = pricingTierId
+        }
+        if let pricingTierName = pricingTierName {
+            data["pricingTierName"] = pricingTierName
+        }
+        if let pricePerLesson = pricePerLesson {
+            data["pricePerLesson"] = pricePerLesson
+        }
         
         do {
             let result = try await callable.call(data)

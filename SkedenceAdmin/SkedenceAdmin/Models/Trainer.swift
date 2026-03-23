@@ -20,6 +20,10 @@ struct Trainer: Identifiable, Codable, Hashable {
     var admin: Bool = false
     var trainerDescription: String?
     
+    // Tier pricing fields
+    var pricingTierId: String?
+    var pricingTierName: String?
+    
     // Legacy field for backwards compatibility
     var name: String?
 
@@ -33,14 +37,14 @@ struct Trainer: Identifiable, Codable, Hashable {
     var anyPhotoURLString: String? { avatarUrl ?? photoURL ?? imageUrl }
     
     enum CodingKeys: String, CodingKey {
-        case firstName, lastName, email, avatarUrl, photoURL, imageUrl, orgId, name, active, admin, trainerDescription
+        case firstName, lastName, email, avatarUrl, photoURL, imageUrl, orgId, name, active, admin, trainerDescription, pricingTierId, pricingTierName
     }
     
     // Memberwise initializer for manual construction
     init(id: String? = nil, firstName: String? = nil, lastName: String? = nil, email: String? = nil, 
          avatarUrl: String? = nil, photoURL: String? = nil, imageUrl: String? = nil, 
          orgId: String? = nil, active: Bool = true, admin: Bool = false, name: String? = nil, 
-         trainerDescription: String? = nil) {
+         trainerDescription: String? = nil, pricingTierId: String? = nil, pricingTierName: String? = nil) {
         self.id = id
         self.firstName = firstName
         self.lastName = lastName
@@ -53,6 +57,8 @@ struct Trainer: Identifiable, Codable, Hashable {
         self.admin = admin
         self.name = name
         self.trainerDescription = trainerDescription
+        self.pricingTierId = pricingTierId
+        self.pricingTierName = pricingTierName
     }
     
     // Custom init to exclude id from decoding
@@ -69,6 +75,8 @@ struct Trainer: Identifiable, Codable, Hashable {
         active = try container.decodeIfPresent(Bool.self, forKey: .active) ?? true
         admin = try container.decodeIfPresent(Bool.self, forKey: .admin) ?? false
         trainerDescription = try container.decodeIfPresent(String.self, forKey: .trainerDescription)
+        pricingTierId = try container.decodeIfPresent(String.self, forKey: .pricingTierId)
+        pricingTierName = try container.decodeIfPresent(String.self, forKey: .pricingTierName)
         // id is not decoded - will be set manually from document ID
     }
     
@@ -86,6 +94,8 @@ struct Trainer: Identifiable, Codable, Hashable {
         try container.encode(active, forKey: .active)
         try container.encode(admin, forKey: .admin)
         try container.encodeIfPresent(trainerDescription, forKey: .trainerDescription)
+        try container.encodeIfPresent(pricingTierId, forKey: .pricingTierId)
+        try container.encodeIfPresent(pricingTierName, forKey: .pricingTierName)
         // id is not encoded - it's stored as document ID in Firestore
     }
 }

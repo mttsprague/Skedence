@@ -78,10 +78,16 @@ final class PricingRepository: RepositoryProtocol {
     // MARK: - Encoding/Decoding
     
     private func decodePricing(_ data: [String: Any]) throws -> PricingStructure {
-        // Decode pricing structure from dictionary
-        let jsonData = try JSONSerialization.data(withJSONObject: data)
+        // Sanitize Firestore Timestamp objects before JSONSerialization, which cannot handle them
+        var sanitized = data
+        for (key, value) in sanitized {
+            if let timestamp = value as? Timestamp {
+                sanitized[key] = timestamp.dateValue().timeIntervalSince1970
+            }
+        }
+        let jsonData = try JSONSerialization.data(withJSONObject: sanitized)
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .secondsSince1970
         
         return try decoder.decode(PricingStructure.self, from: jsonData)
     }
@@ -89,7 +95,7 @@ final class PricingRepository: RepositoryProtocol {
     private func encodePricing(_ structure: PricingStructure) throws -> [String: Any] {
         // Encode to dictionary
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .secondsSince1970
         let data = try encoder.encode(structure)
         
         guard let dictionary = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {

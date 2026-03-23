@@ -345,6 +345,9 @@ interface CreatePaymentIntentConnectData {
   amount: number;
   trainerId: string;
   userId: string;
+  pricingTierId?: string; // NEW: Tier ID for trainer-specific pricing
+  pricingTierName?: string; // NEW: Tier name for display
+  pricePerLesson?: number; // NEW: Price per lesson in cents
 }
 
 /**
@@ -362,7 +365,7 @@ export const createPaymentIntentConnect = onCall(
       );
     }
 
-    const {orgId, packageType, amount, trainerId, userId} = request.data;
+    const {orgId, packageType, amount, trainerId, userId, pricingTierId, pricingTierName, pricePerLesson} = request.data;
 
     if (!orgId || !packageType || !amount || !trainerId || !userId) {
       throw new HttpsError(
@@ -480,6 +483,10 @@ export const createPaymentIntentConnect = onCall(
           transaction_id: transactionId,
           purchase_date: purchaseDate,
           application_fee_amount: applicationFeeAmount.toString(),
+          // NEW: Tier pricing fields
+          pricing_tier_id: pricingTierId || "",
+          pricing_tier_name: pricingTierName || "",
+          price_per_lesson: pricePerLesson ? pricePerLesson.toString() : "",
         },
         description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
         application_fee_amount: applicationFeeAmount,

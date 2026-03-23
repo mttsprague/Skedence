@@ -49,6 +49,10 @@ struct PackageOption: Codable, Identifiable, Hashable {
     var packageCategory: PackageCategory = .oneAthlete // Determines athlete count or class
     var lessonCount: Int = 1 // Number of lessons/units in this package (e.g., 1, 5, 10)
     
+    // Transient tier fields — populated at runtime from the parent PricingTier, not stored in Firestore
+    var pricingTierId: String? = nil
+    var pricingTierName: String? = nil
+    
     // Auto-generate packageType from category if not set
     mutating func ensurePackageType() {
         if packageType.isEmpty {

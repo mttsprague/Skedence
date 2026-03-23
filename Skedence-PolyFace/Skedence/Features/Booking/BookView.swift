@@ -25,8 +25,8 @@ struct BookView: View {
     @ObservedObject var scheduleService: ScheduleService
     @ObservedObject var packagesService: PackagesService
     @ObservedObject var usersService: UsersService
-    @ObservedObject var bookingsService: BookingsService
     @StateObject private var bookingManager = BookingManager()
+    @StateObject private var bookingsService = BookingsService()
     @StateObject private var classesService = ClassesService()
     @StateObject private var settingsService = SettingsService()
     @StateObject private var pricingService = PricingStructureService()
@@ -92,7 +92,16 @@ struct BookView: View {
             let hasRemaining = pkg.lessonsRemaining > 0
             let notExpired = pkg.expirationDate >= now
             let isCurrentPackage = validPackageTypes.isEmpty || validPackageTypes.contains(pkg.packageType)
-            return canBook && hasRemaining && notExpired && isCurrentPackage
+            
+            // NEW: Tier pricing - check if package is valid for selected trainer
+            let isValidForSelectedTrainer: Bool
+            if let trainer = selectedTrainer {
+                isValidForSelectedTrainer = pkg.isValidForTrainer(trainer)
+            } else {
+                isValidForSelectedTrainer = true // No trainer selected yet, show all packages
+            }
+            
+            return canBook && hasRemaining && notExpired && isCurrentPackage && isValidForSelectedTrainer
         }
         let sorted = filtered.sorted { $0.expirationDate < $1.expirationDate }
         return sorted
@@ -293,6 +302,68 @@ struct BookView: View {
         return true
     }
     
+    /// Returns nil if all athlete info is valid, or a specific human-readable error describing
+    /// exactly which athlete is missing which required field.
+    private var athleteInfoValidationError: String? {
+        let _ = formUpdateTrigger
+
+        guard let pkg = selectedPackage,
+              let category = getPackageCategory(pkg),
+              category.isPrivateLesson else {
+            return nil  // Classes don't need athlete info
+        }
+
+        let requiredCount = category.athleteCount
+
+        guard selectedAthletes.count >= requiredCount else {
+            return "Please select all \(requiredCount) athletes."
+        }
+
+        for index in 0..<requiredCount {
+            let label = athleteDisplayLabel(for: index)
+
+            if selectedAthletes[safe: index] == nil {
+                return "Please select \(label)."
+            }
+
+            guard let athleteForm = athleteIntakeForms[index] else {
+                return "\(label) is missing required information."
+            }
+
+            let incompleteFields = intakeFormService.fields.filter { field in
+                field.required && !athleteForm.isFieldComplete(field)
+            }
+
+            if !incompleteFields.isEmpty {
+                let fieldNames = incompleteFields.map { $0.label }.joined(separator: ", ")
+                return "\(label) is missing: \(fieldNames)."
+            }
+        }
+
+        return nil
+    }
+
+    private func athleteDisplayLabel(for index: Int) -> String {
+        if let name = selectedAthletes[safe: index].flatMap({ $0 }) {
+            let ordinal: String
+            switch index {
+            case 0: ordinal = "Athlete 1"
+            case 1: ordinal = "Athlete 2"
+            case 2: ordinal = "Athlete 3"
+            case 3: ordinal = "Athlete 4"
+            default: ordinal = "Athlete \(index + 1)"
+            }
+            return "\(ordinal) (\(name))"
+        }
+        switch index {
+        case 0: return "Athlete 1"
+        case 1: return "Athlete 2"
+        case 2: return "Athlete 3"
+        case 3: return "Athlete 4"
+        default: return "Athlete \(index + 1)"
+        }
+    }
+
     // Helper to get or create intake form for specific athlete index
     private func getOrCreateIntakeForm(for index: Int) -> IntakeFormData {
         if let existingForm = athleteIntakeForms[index] {
@@ -1160,10 +1231,10 @@ struct BookView: View {
                 return
             }
             
-            if !isAthleteInfoComplete {
+            if let validationError = athleteInfoValidationError {
                 bookingAlert = .init(
-                    title: "Athlete Information Required",
-                    message: "Please complete all required athlete information fields to continue."
+                    title: "Missing Required Information",
+                    message: validationError
                 )
                 return
             }
@@ -1197,6 +1268,16 @@ struct BookView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.top, Spacing.xs)
+            } else if mode == .lessons && availableLessonPackages.isEmpty && packagesService.hasAvailableLessons {
+                // User has passes but none valid for selected trainer's tier
+                if let trainer = selectedTrainer, let tierName = trainer.pricingTierName {
+                    Text("No passes available for \(tierName) trainers. Purchase a pass for this tier in your Profile.")
+                        .font(.bodySmall)
+                        .foregroundStyle(.orange)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.top, Spacing.xs)
+                }
             }
         }
     }
@@ -1914,6 +1995,7 @@ struct BookView: View {
             currentWaiverAthleteIndex = nil
             return
         }
+        
         do {
             // Create waiver signature from user profile
             let signature = WaiverSignature(
