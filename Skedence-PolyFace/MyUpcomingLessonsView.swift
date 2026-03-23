@@ -269,8 +269,13 @@ struct MyUpcomingLessonsView: View {
             itemToCancel = item
             showCancelAlert = true
         } else {
-            let hours = settingsService.settings?.minCancellationHours ?? 24
-            cancelError = "\(type) cannot be cancelled within \(hours) hours of the start time."
+            // Check if the lesson/class has already occurred
+            if item.date < Date() {
+                cancelError = "This booking has already occurred."
+            } else {
+                let hours = settingsService.settings?.minCancellationHours ?? 24
+                cancelError = "\(type) cannot be cancelled within \(hours) hours of the start time."
+            }
         }
     }
     

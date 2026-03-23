@@ -88,7 +88,7 @@ struct SessionDetailSheet: View {
                     HStack(spacing: Spacing.xs) {
                         Image(systemName: statusIcon)
                             .font(.system(size: 14, weight: .medium))
-                        Text(booking.status.capitalized)
+                        Text(displayStatus)
                             .font(.labelMedium.bold())
                     }
                     .foregroundStyle(.white)
@@ -367,6 +367,11 @@ struct SessionDetailSheet: View {
     }
     
     private var statusIcon: String {
+        // If lesson is in the past, treat as completed regardless of stored status
+        if let endTime = booking.endTime, endTime < Date() {
+            return "flag.checkered"
+        }
+        
         switch booking.status.lowercased() {
         case "confirmed": return "checkmark.circle.fill"
         case "cancelled": return "xmark.circle.fill"
@@ -376,11 +381,25 @@ struct SessionDetailSheet: View {
     }
     
     private var statusColor: Color {
+        // If lesson is in the past, treat as completed regardless of stored status
+        if let endTime = booking.endTime, endTime < Date() {
+            return AppTheme.primary
+        }
+        
         switch booking.status.lowercased() {
         case "confirmed": return AppTheme.success
         case "cancelled": return AppTheme.error
         case "completed": return AppTheme.primary
         default: return AppTheme.textSecondary
         }
+    }
+    
+    private var displayStatus: String {
+        // If lesson is in the past, show as "Completed" regardless of stored status
+        if let endTime = booking.endTime, endTime < Date() {
+            return "Completed"
+        }
+        
+        return booking.status.capitalized
     }
 }
