@@ -15,6 +15,7 @@ struct PurchaseLessonsView: View {
     @State private var isPurchasing = false
     @State private var alert: AlertItem?
     @State private var paymentSheet: PaymentSheet?
+    @State private var showPaymentSheet = false
     @State private var showPaymentMethodSheet = false
     @State private var useCardOnFile = false
     @State private var selectedPaymentMethodId: String?
@@ -290,10 +291,7 @@ struct PurchaseLessonsView: View {
                 a.onDismiss?()
             })
         }
-        .paymentSheet(isPresented: Binding(
-            get: { paymentSheet != nil },
-            set: { if !$0 { paymentSheet = nil } }
-        ), paymentSheet: $paymentSheet, onCompletion: handlePaymentCompletion)
+        .paymentSheet(isPresented: $showPaymentSheet, paymentSheet: $paymentSheet, onCompletion: handlePaymentCompletion)
         .sheet(isPresented: $showPaymentMethodSheet) {
             PaymentMethodSelectionSheet(
                 customerService: customerService,
@@ -837,8 +835,8 @@ struct PurchaseLessonsView: View {
     }
     
     private func processPurchase(orgId: String, selectedPackage: PackageOption) async {
+        guard !showPaymentSheet, paymentSheet == nil else { return }
         isPurchasing = true
-        defer { isPurchasing = false }
 
         do {
             // Create payment intent - routes to organization's Stripe account
@@ -875,7 +873,9 @@ struct PurchaseLessonsView: View {
             )
             
             self.paymentSheet = paymentSheet
+            self.showPaymentSheet = true
         } catch {
+            isPurchasing = false
             alert = .init(title: "Payment Failed", message: error.localizedDescription)
         }
     }
@@ -924,6 +924,8 @@ struct PurchaseLessonsView: View {
     }
     
     private func handlePaymentCompletion(_ result: PaymentSheetResult) {
+        isPurchasing = false
+        paymentSheet = nil
         switch result {
         case .completed:
             Task {
