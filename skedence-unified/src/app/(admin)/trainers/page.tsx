@@ -12,6 +12,17 @@ import { User } from '@/types';
 interface PricingTier {
   id: string;
   tierName: string;
+  packages?: { packageType?: string; packageCategory?: string }[];
+}
+
+// Exclude tiers that only contain class passes
+function isClassOnlyTier(tier: PricingTier): boolean {
+  if (!tier.packages || tier.packages.length === 0) return false;
+  return tier.packages.every(pkg =>
+    pkg.packageCategory === 'classPass' ||
+    pkg.packageCategory === 'class' ||
+    (pkg.packageType || '').includes('class')
+  );
 }
 import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X, RotateCcw, FileText, Edit } from 'lucide-react';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
@@ -105,10 +116,13 @@ export default function TrainersPage() {
         // Load pricing tiers from org document
         const orgDoc = await getDoc(doc(db, 'organizations', validOrgId));
         const orgData = orgDoc.data();
-        const tiers: PricingTier[] = (orgData?.pricingStructure?.tiers || []).map((t: { id: string; tierName: string }) => ({
-          id: t.id,
-          tierName: t.tierName,
-        }));
+        const tiers: PricingTier[] = (orgData?.pricingStructure?.tiers || []).map(
+          (t: { id: string; tierName: string; packages?: { packageType?: string; packageCategory?: string }[] }) => ({
+            id: t.id,
+            tierName: t.tierName,
+            packages: t.packages || [],
+          })
+        ).filter((t: PricingTier) => !isClassOnlyTier(t));
         setPricingTiers(tiers);
 
         // Query trainers collection directly with orgId filter (matches iOS app)
@@ -283,8 +297,12 @@ export default function TrainersPage() {
         const orgDoc = await getDoc(doc(db, 'organizations', orgId));
         const orgData = orgDoc.data();
         const tiers: PricingTier[] = (orgData?.pricingStructure?.tiers || []).map(
-          (t: { id: string; tierName: string }) => ({ id: t.id, tierName: t.tierName })
-        );
+          (t: { id: string; tierName: string; packages?: { packageType?: string; packageCategory?: string }[] }) => ({
+            id: t.id,
+            tierName: t.tierName,
+            packages: t.packages || [],
+          })
+        ).filter((t: PricingTier) => !isClassOnlyTier(t));
         if (tiers.length > 0) setPricingTiers(tiers);
       } catch (err) {
         console.error('Error loading pricing tiers for edit sheet:', err);
