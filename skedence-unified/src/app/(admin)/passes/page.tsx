@@ -36,6 +36,14 @@ interface PackageOption {
   packageCategory: 'oneAthlete' | 'twoAthlete' | 'threeAthlete' | 'fourAthlete' | 'classPass';
   lessonCount?: number;
   expirationDays: number;
+  pricingTierId?: string;
+  pricingTierName?: string;
+}
+
+interface PricingTierGroup {
+  tierId: string;
+  tierName: string;
+  packages: PackageOption[];
 }
 
 interface LessonPackage {
@@ -224,36 +232,31 @@ function getCategoryDisplayName(category: string): string {
   }
 }
 
-// Group packages by category
-function groupPackagesByCategory(packages: PackageOption[]): Array<{category: string; displayName: string; packages: PackageOption[]}> {
-  const grouped = new Map<string, PackageOption[]>();
-  
+// Group packages by tier
+function groupPackagesByTier(packages: PackageOption[]): PricingTierGroup[] {
+  const grouped = new Map<string, PricingTierGroup>();
+
   packages.forEach(pkg => {
-    const category = pkg.packageCategory || 'pass';
-    if (!grouped.has(category)) {
-      grouped.set(category, []);
+    const tierId = pkg.pricingTierId || 'other';
+    const tierName = pkg.pricingTierName || 'Other';
+    if (!grouped.has(tierId)) {
+      grouped.set(tierId, { tierId, tierName, packages: [] });
     }
-    grouped.get(category)!.push(pkg);
+    grouped.get(tierId)!.packages.push(pkg);
   });
-  
-  // Sort categories: 1 athlete, 2 athlete, 3 athlete, 4 athlete, then class
-  const categoryOrder = ['oneAthlete', 'twoAthlete', 'threeAthlete', 'fourAthlete', 'classPass', 'class', 'pass'];
-  
-  const result: Array<{category: string; displayName: string; packages: PackageOption[]}> = [];
-  categoryOrder.forEach(category => {
-    if (grouped.has(category)) {
-      const categoryPackages = grouped.get(category)!;
-      // Sort packages within category by lessonCount
-      categoryPackages.sort((a, b) => (a.lessonCount || 1) - (b.lessonCount || 1));
-      result.push({
-        category,
-        displayName: getCategoryDisplayName(category),
-        packages: categoryPackages
-      });
-    }
+
+  // Sort packages within each tier by category then lessonCount
+  const categoryOrder = ['oneAthlete', 'twoAthlete', 'threeAthlete', 'fourAthlete', 'classPass'];
+  grouped.forEach(group => {
+    group.packages.sort((a, b) => {
+      const aCat = categoryOrder.indexOf(a.packageCategory) ?? 99;
+      const bCat = categoryOrder.indexOf(b.packageCategory) ?? 99;
+      if (aCat !== bCat) return aCat - bCat;
+      return (a.lessonCount || 1) - (b.lessonCount || 1);
+    });
   });
-  
-  return result;
+
+  return Array.from(grouped.values()).sort((a, b) => a.tierName.localeCompare(b.tierName));
 }
 
 export default function PassesPage() {
@@ -334,8 +337,17 @@ export default function PassesPage() {
           if (pricingData && pricingData.tiers && Array.isArray(pricingData.tiers)) {
             const allPackages: PackageOption[] = [];
             pricingData.tiers.forEach((tier: any) => {
+              // Skip tiers that are class-only
+              const isClassOnly = Array.isArray(tier.packages) && tier.packages.length > 0 &&
+                tier.packages.every((p: any) =>
+                  p.packageCategory === 'classPass' || p.packageCategory === 'class' ||
+                  (p.packageType || '').includes('class')
+                );
+              if (isClassOnly) return;
               if (tier.packages && Array.isArray(tier.packages)) {
                 tier.packages.forEach((pkg: any) => {
+                  if (pkg.packageCategory === 'classPass' || pkg.packageCategory === 'class' ||
+                      (pkg.packageType || '').includes('class')) return;
                   allPackages.push({
                     id: pkg.id || `${tier.id}-${pkg.packageType}`,
                     title: pkg.title || pkg.packageType,
@@ -343,7 +355,9 @@ export default function PassesPage() {
                     packageType: pkg.packageType,
                     packageCategory: pkg.packageCategory || 'pass',
                     lessonCount: pkg.lessonCount || 1,
-                    expirationDays: pkg.expirationDays || 365
+                    expirationDays: pkg.expirationDays || 365,
+                    pricingTierId: tier.id,
+                    pricingTierName: tier.tierName,
                   });
                 });
               }
@@ -1129,19 +1143,18 @@ export default function PassesPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {groupPackagesByCategory(packages).map(group => (
-                        <div key={group.category} className="border border-border rounded-lg overflow-hidden">
-                          {/* Category Header */}
+                      {groupPackagesByTier(packages).map(group => (
+                        <div key={group.tierId} className="border border-border rounded-lg overflow-hidden">
+                          {/* Tier Header */}
                           <div className="bg-muted px-4 py-2 border-b border-border">
                             <h3 className="font-semibold text-foreground flex items-center gap-2">
-                              <Package className="h-4 w-4" />
-                              {group.displayName}
+                              🏅 {group.tierName}
                             </h3>
                           </div>
                           
                           {/* Package Options */}
                           <div className="divide-y divide-border">
-                            {group.packages.map(pkg => {
+                            {group.packages.map((pkg: PackageOption) => {
                               const isSelected = selectedPackage?.id === pkg.id;
                               const perPassPrice = pkg.priceInCents / (pkg.lessonCount || 1) / 100;
                               
