@@ -78,6 +78,7 @@ class SuperAdminViewModel: ObservableObject {
     }
     
     func loadTrainers(orgId: String? = nil) async {
+        print("[BIZ DEBUG] loadTrainers() start — orgId=\(orgId ?? "nil")")
         isLoading = true
         errorMessage = nil
         
@@ -91,6 +92,7 @@ class SuperAdminViewModel: ObservableObject {
             }
             
             let snapshot = try await query.getDocuments()
+            print("[BIZ DEBUG] loadTrainers() Firestore returned \(snapshot.documents.count) docs")
             trainers = snapshot.documents.compactMap { doc in
                 let data = doc.data()
                 
@@ -116,7 +118,9 @@ class SuperAdminViewModel: ObservableObject {
                     pricingTierName: data["pricingTierName"] as? String
                 )
             }
+            print("[BIZ DEBUG] loadTrainers() done — \(trainers.count) active trainers")
         } catch {
+            print("[BIZ DEBUG] loadTrainers() ERROR: \(error)")
             errorMessage = "Failed to load trainers: \(error.localizedDescription)"
         }
         
@@ -124,20 +128,24 @@ class SuperAdminViewModel: ObservableObject {
     }
     
     func loadAllUsers() async {
+        print("[BIZ DEBUG] loadAllUsers() start")
         isLoading = true
         errorMessage = nil
         
         do {
             // Get current user's org to filter users
             guard let userId = Auth.auth().currentUser?.uid else {
+                print("[BIZ DEBUG] loadAllUsers() ABORT: not authenticated")
                 errorMessage = "Not authenticated"
                 isLoading = false
                 return
             }
+            print("[BIZ DEBUG] loadAllUsers() userId=\(userId)")
             
             // Query orgMembers to find user's org if not already loaded
             // Use authUserId field (Firebase Auth UID) instead of userId (name-based)
             if currentOrgId == nil {
+                print("[BIZ DEBUG] loadAllUsers() querying orgMembers for orgId")
                 let memberSnapshot = try await db.collection("orgMembers")
                     .whereField("authUserId", isEqualTo: userId)
                     .limit(to: 1)
@@ -155,9 +163,11 @@ class SuperAdminViewModel: ObservableObject {
             }
             
             // Query orgMembers to find users in the same org
+            print("[BIZ DEBUG] loadAllUsers() querying all orgMembers for orgId=\(orgId)")
             let membersSnapshot = try await db.collection("orgMembers")
                 .whereField("orgId", isEqualTo: orgId)
                 .getDocuments()
+            print("[BIZ DEBUG] loadAllUsers() orgMembers returned \(membersSnapshot.documents.count) docs")
             
             var users: [AdminUser] = []
             
@@ -251,7 +261,9 @@ class SuperAdminViewModel: ObservableObject {
             }
             
             allUsers = users
+            print("[BIZ DEBUG] loadAllUsers() done — \(users.count) staff users loaded")
         } catch {
+            print("[BIZ DEBUG] loadAllUsers() ERROR: \(error)")
             errorMessage = "Failed to load users: \(error.localizedDescription)"
         }
         

@@ -153,3 +153,7 @@ logs/
 *.temp
 .cache/
 .tmp/
+
+# Firebase service account keys (sensitive credentials)
+*serviceAccountKey*.json
+serviceAccount*.json

@@ -2134,6 +2134,7 @@ struct BookView: View {
                 lessonPackageId: packageId,
                 athleteName: athleteForBooking,
                 secondAthleteName: secondAthleteForBooking,
+                athleteNames: athleteNames,
                 lessonNotes: notesForBooking
             )
             

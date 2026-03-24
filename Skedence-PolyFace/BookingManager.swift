@@ -142,6 +142,7 @@ final class BookingManager: ObservableObject {
                 updatedAt: nil,
                 athleteName: athleteName,
                 secondAthleteName: secondAthleteName,
+                athleteNames: athleteNames,
                 lessonNotes: lessonNotes
             )
         }
@@ -288,6 +289,7 @@ final class BookingManager: ObservableObject {
             updatedAt: date(from: dict["updatedAt"] ?? dict["bookedAt"]),
             athleteName: dict["athleteName"] as? String,
             secondAthleteName: dict["secondAthleteName"] as? String,
+            athleteNames: dict["athleteNames"] as? [String],
             lessonNotes: dict["lessonNotes"] as? String
         )
     }

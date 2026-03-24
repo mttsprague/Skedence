@@ -200,6 +200,7 @@ final class BookingsRepository: QueryableRepositoryProtocol {
             updatedAt: Self.date(from: data["updatedAt"] ?? data["bookedAt"]),
             athleteName: data["athleteName"] as? String,
             secondAthleteName: data["secondAthleteName"] as? String,
+            athleteNames: data["athleteNames"] as? [String],
             lessonNotes: data["lessonNotes"] as? String
         )
     }
@@ -239,6 +240,10 @@ final class BookingsRepository: QueryableRepositoryProtocol {
         
         if let secondAthleteName = booking.secondAthleteName {
             data["secondAthleteName"] = secondAthleteName
+        }
+        
+        if let athleteNames = booking.athleteNames, !athleteNames.isEmpty {
+            data["athleteNames"] = athleteNames
         }
         
         if let lessonNotes = booking.lessonNotes {

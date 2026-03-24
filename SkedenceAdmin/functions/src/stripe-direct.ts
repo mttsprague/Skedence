@@ -307,6 +307,9 @@ export const createAndConfirmPaymentDirect = onCall(
     }
 
     const {orgId, packageType, amount, trainerId, userId, paymentMethodId, pricingTierId, pricingTierName, pricePerLesson} = request.data;
+    // Mutable copies so the pricing-structure fallback lookup can fill them in
+    let resolvedPricingTierId: string | undefined = pricingTierId || undefined;
+    let resolvedPricingTierName: string | undefined = pricingTierName || undefined;
 
     if (!orgId || !packageType || !amount || !trainerId || !userId || !paymentMethodId) {
       throw new HttpsError(
@@ -581,6 +584,9 @@ export const createAndConfirmPaymentDirect = onCall(
               packageName = pkg.title || packageDisplayName;
               // Use packageCategory directly from pricing structure (oneAthlete, twoAthlete, threeAthlete, fourAthlete, class)
               packageCategory = pkg.packageCategory || "oneAthlete";
+              // Resolve tier ID/name from pricing structure if not provided by client
+              if (!resolvedPricingTierId) resolvedPricingTierId = tier.id;
+              if (!resolvedPricingTierName) resolvedPricingTierName = tier.tierName;
               break;
             }
           }
@@ -613,11 +619,11 @@ export const createAndConfirmPaymentDirect = onCall(
         };
         
         // Add tier pricing fields if present
-        if (pricingTierId) {
-          packageData.pricingTierId = pricingTierId;
+        if (resolvedPricingTierId) {
+          packageData.pricingTierId = resolvedPricingTierId;
         }
-        if (pricingTierName) {
-          packageData.pricingTierName = pricingTierName;
+        if (resolvedPricingTierName) {
+          packageData.pricingTierName = resolvedPricingTierName;
         }
         if (pricePerLesson) {
           packageData.pricePerLesson = pricePerLesson;
@@ -630,6 +636,36 @@ export const createAndConfirmPaymentDirect = onCall(
           .doc(userDoc.id) // Use actual document ID, not Auth UID
           .collection("packages")
           .add(packageData);
+
+        // Log activity for purchase
+        try {
+          const clientName = userData?.firstName && userData?.lastName
+            ? `${userData.firstName} ${userData.lastName}`
+            : (userData?.email || userData?.emailAddress || "Client");
+          await db.collection("activities").add({
+            type: "pass_purchased",
+            actorId: userDoc.id,
+            actorName: clientName,
+            actorRole: "client",
+            targetId: paymentIntent.id,
+            targetName: packageName,
+            targetType: "pass",
+            description: `${clientName} purchased ${packageName} (${totalLessons} sessions) for $${(amount / 100).toFixed(2)}`,
+            metadata: {
+              passType: packageType,
+              sessionsCount: totalLessons,
+              amountPaid: amount,
+              transactionId: paymentIntent.id,
+              pricingTierId: resolvedPricingTierId || null,
+              pricingTierName: resolvedPricingTierName || null,
+            },
+            orgId: orgId,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (activityErr) {
+          logger.warn("⚠️ Failed to log pass_purchased activity (non-fatal):", activityErr);
+        }
 
         return {
           paymentIntentId: paymentIntent.id,
@@ -770,8 +806,8 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
       // Read metadata with snake_case keys (as stored in createPaymentIntentDirect)
       const packageType = paymentIntent.metadata.package_type;
       const trainerId = paymentIntent.metadata.trainer_id;
-      const pricingTierId = paymentIntent.metadata.pricing_tier_id || undefined;
-      const pricingTierName = paymentIntent.metadata.pricing_tier_name || undefined;
+      let pricingTierId = paymentIntent.metadata.pricing_tier_id || undefined;
+      let pricingTierName = paymentIntent.metadata.pricing_tier_name || undefined;
       const pricePerLesson = paymentIntent.metadata.price_per_lesson ?
         parseInt(paymentIntent.metadata.price_per_lesson, 10) :
         undefined;
@@ -838,6 +874,9 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
             packageName = pkg.title || packageName;
             // Use packageCategory directly from pricing structure (oneAthlete, twoAthlete, threeAthlete, fourAthlete, class)
             packageCategory = pkg.packageCategory || "oneAthlete";
+            // Resolve tier ID/name from pricing structure if not present in metadata
+            if (!pricingTierId) pricingTierId = tier.id;
+            if (!pricingTierName) pricingTierName = tier.tierName;
             break;
           }
         }
@@ -905,6 +944,37 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
         .doc(actualUserId)
         .collection("packages")
         .add(packageData);
+
+      // Log activity for purchase
+      try {
+        const userDataFromDoc = userDoc.data();
+        const clientName = userDataFromDoc?.firstName && userDataFromDoc?.lastName
+          ? `${userDataFromDoc.firstName} ${userDataFromDoc.lastName}`
+          : (userDataFromDoc?.email || userDataFromDoc?.emailAddress || "Client");
+        await db.collection("activities").add({
+          type: "pass_purchased",
+          actorId: actualUserId,
+          actorName: clientName,
+          actorRole: "client",
+          targetId: paymentIntent.id,
+          targetName: packageName,
+          targetType: "pass",
+          description: `${clientName} purchased ${packageName} (${totalLessons} sessions) for $${(paymentIntent.amount / 100).toFixed(2)}`,
+          metadata: {
+            passType: packageType,
+            sessionsCount: totalLessons,
+            amountPaid: paymentIntent.amount,
+            transactionId: paymentIntent.id,
+            pricingTierId: pricingTierId || null,
+            pricingTierName: pricingTierName || null,
+          },
+          orgId: orgId,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (activityErr) {
+        logger.warn("⚠️ Failed to log pass_purchased activity (non-fatal):", activityErr);
+      }
 
       return {success: true, packageId: paymentIntent.id};
     } catch (error: unknown) {

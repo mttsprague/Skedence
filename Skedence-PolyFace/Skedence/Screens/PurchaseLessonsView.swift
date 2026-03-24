@@ -802,6 +802,23 @@ struct PurchaseLessonsView: View {
         // Otherwise, proceed with regular payment sheet flow
         await processPurchase(orgId: orgId, selectedPackage: selectedPackage)
     }
+
+    /// Resolve the tier for a package, either from the UI selection or by scanning the pricing structure.
+    private func resolveTier(for package: PackageOption) -> (tierId: String, tierName: String)? {
+        if let tierId = selectedTierId,
+           tierId != "universal",
+           let tier = pricingService.pricingStructure?.tiers.first(where: { $0.id == tierId }) {
+            return (tierId, tier.tierName)
+        }
+        if let tiers = pricingService.pricingStructure?.tiers {
+            for tier in tiers {
+                if tier.packages.contains(where: { $0.packageType == package.packageType }) {
+                    return (tier.id, tier.tierName)
+                }
+            }
+        }
+        return nil
+    }
     
     private func processPurchase(orgId: String, selectedPackage: PackageOption) async {
         isPurchasing = true
@@ -811,13 +828,14 @@ struct PurchaseLessonsView: View {
             // Create payment intent - routes to organization's Stripe account
             // Returns client secret, customer ID, and ephemeral key for saved cards
             // Use a placeholder trainerId since passes aren't tied to specific trainers
+            let resolvedTier = resolveTier(for: selectedPackage)
             let (clientSecret, customerId, ephemeralKeySecret) = try await stripeService.createPaymentIntent(
                 packageType: selectedPackage.packageType, // Use packageType, not title
                 amount: selectedPackage.priceInCents,
                 trainerId: "general", // Placeholder - passes can be used with any trainer
                 orgId: orgId, // Payment goes to organization
-                pricingTierId: selectedPackage.pricingTierId, // Tier ID if tier-based
-                pricingTierName: selectedPackage.pricingTierName, // Tier name for display
+                pricingTierId: resolvedTier?.tierId,
+                pricingTierName: resolvedTier?.tierName,
                 pricePerLesson: selectedPackage.priceInCents / selectedPackage.lessonCount // Calculate price per lesson
             )
             
@@ -853,14 +871,15 @@ struct PurchaseLessonsView: View {
         do {
             // Create and confirm payment intent with saved card
             // Use placeholder trainerId since passes aren't tied to specific trainers
+            let resolvedTier = resolveTier(for: selectedPackage)
             let result = try await stripeService.createAndConfirmPaymentWithSavedCard(
                 packageType: selectedPackage.packageType,
                 amount: selectedPackage.priceInCents,
                 trainerId: "general", // Placeholder - passes can be used with any trainer
                 orgId: orgId,
                 paymentMethodId: paymentMethodId,
-                pricingTierId: selectedPackage.pricingTierId,
-                pricingTierName: selectedPackage.pricingTierName,
+                pricingTierId: resolvedTier?.tierId,
+                pricingTierName: resolvedTier?.tierName,
                 pricePerLesson: selectedPackage.priceInCents / selectedPackage.lessonCount
             )
             

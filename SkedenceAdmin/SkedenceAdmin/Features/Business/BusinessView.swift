@@ -334,22 +334,39 @@ struct BusinessView: View {
     }
     
     private func loadData() async {
-        guard let orgId = auth.currentOrgId else { return }
+        print("[BIZ DEBUG] loadData() started")
+        guard let orgId = auth.currentOrgId else {
+            print("[BIZ DEBUG] ABORT: auth.currentOrgId is nil")
+            return
+        }
+        print("[BIZ DEBUG] orgId = \(orgId)")
         
         // Load organization data
+        print("[BIZ DEBUG] step 1: auth.loadOrgBranding")
         await auth.loadOrgBranding(orgId: orgId)
+        print("[BIZ DEBUG] step 2: superAdminViewModel.loadOrganizations")
         await superAdminViewModel.loadOrganizations()
+        print("[BIZ DEBUG] step 3: superAdminViewModel.loadTrainers — orgs=\(superAdminViewModel.organizations.count)")
         await superAdminViewModel.loadTrainers(orgId: orgId)
+        print("[BIZ DEBUG] step 4: superAdminViewModel.loadAllUsers — trainers=\(superAdminViewModel.trainers.count)")
         await superAdminViewModel.loadAllUsers()
+        print("[BIZ DEBUG] step 5: adminService.loadOrganizationData — users=\(superAdminViewModel.allUsers.count)")
         
         // Load admin panel data
         await adminService.loadOrganizationData(orgId: orgId)
+        print("[BIZ DEBUG] step 6: classesService.loadAllClasses")
         await classesService.loadAllClasses(orgId: orgId)
+        print("[BIZ DEBUG] step 7: trainersService.loadAll")
         await trainersService.loadAll(orgId: orgId)
+        print("[BIZ DEBUG] step 8: adminService.loadAllUsers")
         await adminService.loadAllUsers(orgId: orgId)
+        print("[BIZ DEBUG] step 9: pricingService.loadPricingStructure")
         await pricingService.loadPricingStructure(for: orgId)
+        print("[BIZ DEBUG] step 10: locationsService.loadLocations")
         locationsService.loadLocations(orgId: orgId)
+        print("[BIZ DEBUG] step 11: adminService.fetchOrganizationBilling")
         organizationBilling = await adminService.fetchOrganizationBilling(orgId: orgId)
+        print("[BIZ DEBUG] loadData() COMPLETE — billing=\(organizationBilling != nil ? "loaded" : "nil"), errorMsg=\(superAdminViewModel.errorMessage ?? "none")")
         
         // Set default pass selection
         if selectedPassType.isEmpty, let firstPackage = pricingService.allPackageOptions.first {

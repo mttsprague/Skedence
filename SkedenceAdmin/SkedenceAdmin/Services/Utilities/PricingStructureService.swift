@@ -68,8 +68,9 @@ class PricingStructureService: ObservableObject {
                 return
             }
             
-            // Decode pricing structure
-            let jsonData = try JSONSerialization.data(withJSONObject: pricingData)
+            // Sanitize Firestore-native types (e.g. FIRTimestamp) before JSON serialization
+            let sanitized = sanitizeForJSON(pricingData)
+            let jsonData = try JSONSerialization.data(withJSONObject: sanitized)
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             
@@ -128,5 +129,18 @@ class PricingStructureService: ObservableObject {
     /// Find package by title
     func package(withTitle title: String) -> PackageOption? {
         pricingStructure?.package(withTitle: title)
+    }
+    
+    /// Recursively converts Firestore-native types (FIRTimestamp, etc.) to JSON-safe equivalents.
+    /// JSONSerialization cannot handle FIRTimestamp and will throw "Invalid type in JSON write".
+    private func sanitizeForJSON(_ value: Any) -> Any {
+        if let timestamp = value as? Timestamp {
+            return ISO8601DateFormatter().string(from: timestamp.dateValue())
+        } else if let dict = value as? [String: Any] {
+            return dict.mapValues { sanitizeForJSON($0) }
+        } else if let array = value as? [Any] {
+            return array.map { sanitizeForJSON($0) }
+        }
+        return value
     }
 }

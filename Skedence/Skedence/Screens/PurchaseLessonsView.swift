@@ -77,6 +77,26 @@ struct PurchaseLessonsView: View {
         return tier.tierName
     }
     
+    /// Resolve the effective tier for a package, falling back to scanning the pricing structure.
+    /// This handles the case where the trainer list has no tier info but the pricing structure does.
+    private func resolveTier(for package: PackageOption) -> (tierId: String, tierName: String)? {
+        // Use the explicitly selected tier if it maps to a real pricing-structure tier
+        if let tierId = selectedTierId,
+           tierId != "universal",
+           let tier = pricingService.pricingStructure?.tiers.first(where: { $0.id == tierId }) {
+            return (tierId, tier.tierName)
+        }
+        // Fall back: find which pricing-structure tier owns this package
+        if let tiers = pricingService.pricingStructure?.tiers {
+            for tier in tiers {
+                if tier.packages.contains(where: { $0.packageType == package.packageType }) {
+                    return (tier.id, tier.tierName)
+                }
+            }
+        }
+        return nil
+    }
+    
     // MARK: - Data Loading
     
     /// Load trainers with tier information
@@ -836,6 +856,9 @@ struct PurchaseLessonsView: View {
         isPurchasing = true
         defer { isPurchasing = false }
 
+        // Resolve tier from selected package — works even when trainer tier is unassigned
+        let resolvedTier = resolveTier(for: selectedPackage)
+
         do {
             // Create payment intent - routes to organization's Stripe account
             // Returns client secret, customer ID, and ephemeral key for saved cards
@@ -845,8 +868,8 @@ struct PurchaseLessonsView: View {
                 amount: selectedPackage.priceInCents,
                 trainerId: "general", // Placeholder - passes can be used with any trainer
                 orgId: orgId, // Payment goes to organization
-                pricingTierId: selectedTierId, // Tier ID from selected tier
-                pricingTierName: selectedTierName, // Tier name from selected tier
+                pricingTierId: resolvedTier?.tierId,
+                pricingTierName: resolvedTier?.tierName,
                 pricePerLesson: selectedPackage.priceInCents / selectedPackage.lessonCount // Calculate price per lesson
             )
             
@@ -879,6 +902,9 @@ struct PurchaseLessonsView: View {
         isPurchasing = true
         defer { isPurchasing = false }
         
+        // Resolve tier from selected package — works even when trainer tier is unassigned
+        let resolvedTier = resolveTier(for: selectedPackage)
+        
         do {
             // Create and confirm payment intent with saved card
             // Use placeholder trainerId since passes aren't tied to specific trainers
@@ -888,8 +914,8 @@ struct PurchaseLessonsView: View {
                 trainerId: "general", // Placeholder - passes can be used with any trainer
                 orgId: orgId,
                 paymentMethodId: paymentMethodId,
-                pricingTierId: selectedTierId,
-                pricingTierName: selectedTierName,
+                pricingTierId: resolvedTier?.tierId,
+                pricingTierName: resolvedTier?.tierName,
                 pricePerLesson: selectedPackage.priceInCents / selectedPackage.lessonCount
             )
             

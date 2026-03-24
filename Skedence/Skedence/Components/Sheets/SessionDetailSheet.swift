@@ -114,21 +114,31 @@ struct SessionDetailSheet: View {
                     .foregroundStyle(AppTheme.textPrimary)
                 
                 VStack(alignment: .leading, spacing: 16) {
-                    // Primary athlete
-                    if let athleteName = booking.athleteName, !athleteName.isEmpty {
-                        athleteSection(name: athleteName)
-                        
-                        // Second athlete if exists
-                        if let secondName = booking.secondAthleteName, !secondName.isEmpty {
-                            Divider()
-                                .padding(.vertical, 4)
-                            athleteSection(name: secondName)
+                    // Use athleteNames array if available (supports 3+ athletes),
+                    // otherwise fall back to individual fields for backward compatibility
+                    let names: [String] = {
+                        if let arr = booking.athleteNames, !arr.isEmpty {
+                            return arr
                         }
-                    } else {
+                        var fallback: [String] = []
+                        if let n = booking.athleteName, !n.isEmpty { fallback.append(n) }
+                        if let n = booking.secondAthleteName, !n.isEmpty { fallback.append(n) }
+                        return fallback
+                    }()
+                    
+                    if names.isEmpty {
                         Text("Participant information not available")
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textSecondary)
                             .padding(.vertical, 8)
+                    } else {
+                        ForEach(Array(names.enumerated()), id: \.offset) { index, name in
+                            if index > 0 {
+                                Divider()
+                                    .padding(.vertical, 4)
+                            }
+                            athleteSection(name: name)
+                        }
                     }
                 }
             }
@@ -352,9 +362,13 @@ struct SessionDetailSheet: View {
     }
     
     private var participantCountText: String {
-        var count = 1 // At least one athlete
-        if let secondAthlete = booking.secondAthleteName, !secondAthlete.isEmpty {
-            count = 2
+        let count: Int
+        if let names = booking.athleteNames, !names.isEmpty {
+            count = names.count
+        } else {
+            var c = 1
+            if let second = booking.secondAthleteName, !second.isEmpty { c = 2 }
+            count = c
         }
         
         switch count {

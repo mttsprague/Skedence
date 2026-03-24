@@ -25,6 +25,7 @@ struct Booking: Identifiable {
     // Participant information
     let athleteName: String?
     let secondAthleteName: String?
+    let athleteNames: [String]? // Full ordered list of all athlete names
     
     // Lesson notes
     let lessonNotes: String?

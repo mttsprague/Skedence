@@ -927,16 +927,12 @@ private struct SignedInProfileScreen: View {
             }
             
             // Tier badge
-            if let tierName = purchase.tierName, let priceStr = purchase.formattedPricePerLesson {
+            if let tierName = purchase.tierName {
                 HStack(spacing: 6) {
                     Image(systemName: "medal.fill")
                         .font(.caption)
                     Text(tierName)
                         .font(.labelMedium.weight(.semibold))
-                    Text("•")
-                        .font(.caption2)
-                    Text("\(priceStr)/lesson")
-                        .font(.labelMedium)
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 10)
