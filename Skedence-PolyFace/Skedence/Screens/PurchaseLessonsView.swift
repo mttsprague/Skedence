@@ -87,9 +87,20 @@ struct PurchaseLessonsView: View {
     
     // Group packages by category for better organization
     private func groupedPackages() -> [(category: PackageCategory, packages: [PackageOption])] {
-        // In Polyface, always show all packages (no tier filtering)
-        let packages = pricingService.allPackageOptions
+        var packages: [PackageOption]
         
+        // Get packages from selected tier if one is selected
+        if let tierId = selectedTierId,
+           let tier = pricingService.pricingStructure?.tiers.first(where: { $0.id == tierId }) {
+            // Get tier-specific packages (non-class passes only)
+            packages = tier.packages.filter { $0.packageCategory != .classPass }
+            
+            // ALWAYS add class passes from all tiers (they're universal)
+            let allClassPasses = pricingService.allPackageOptions.filter { $0.packageCategory == .classPass }
+            packages.append(contentsOf: allClassPasses)
+        } else {
+            packages = pricingService.allPackageOptions
+        }
         // Group by category
         let grouped = Dictionary(grouping: packages) { $0.packageCategory }
         
@@ -108,14 +119,14 @@ struct PurchaseLessonsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // TIER SELECTION SECTION (NEW)
-                if !availableTiers.isEmpty && availableTiers.count > 1 {
+                if !availableTiers.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Select Trainer Tier")
+                        Text(availableTiers.count > 1 ? "Select Trainer Tier" : "Trainer Tier")
                             .font(.title2.weight(.semibold))
                             .foregroundStyle(Brand.primary)
                             .padding(.horizontal)
                         
-                        Text("Choose which trainers you want to book with")
+                        Text(availableTiers.count > 1 ? "Choose which trainers you want to book with" : "Your selected trainer tier")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
@@ -266,6 +277,11 @@ struct PurchaseLessonsView: View {
                 // Auto-select first payment method if available
                 if let firstMethod = customerService.paymentMethods.first {
                     selectedPaymentMethodId = firstMethod.id
+                }
+                
+                // Auto-select tier if there's only one or none selected
+                if selectedTierId == nil && !availableTiers.isEmpty {
+                    selectedTierId = availableTiers.first?.tierId
                 }
             }
         }
