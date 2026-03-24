@@ -1,5 +1,6 @@
 // PurchaseLessonsView.swift
 import SwiftUI
+import UIKit
 import StripePaymentSheet
 import FirebaseAuth
 
@@ -15,7 +16,6 @@ struct PurchaseLessonsView: View {
     @State private var isPurchasing = false
     @State private var alert: AlertItem?
     @State private var paymentSheet: PaymentSheet?
-    @State private var showPaymentSheet = false
     @State private var showPaymentMethodSheet = false
     @State private var useCardOnFile = false
     @State private var selectedPaymentMethodId: String?
@@ -322,7 +322,6 @@ struct PurchaseLessonsView: View {
                 a.onDismiss?()
             })
         }
-        .paymentSheet(isPresented: $showPaymentSheet, paymentSheet: $paymentSheet, onCompletion: handlePaymentCompletion)
         .sheet(isPresented: $showPaymentMethodSheet) {
             PaymentMethodSelectionSheet(
                 customerService: customerService,
@@ -851,7 +850,7 @@ struct PurchaseLessonsView: View {
     }
     
     private func processPurchase(orgId: String, selectedPackage: PackageOption) async {
-        guard !showPaymentSheet, paymentSheet == nil else { return }
+        guard paymentSheet == nil else { return }
         isPurchasing = true
 
         // Resolve tier from selected package — works even when trainer tier is unassigned
@@ -891,13 +890,37 @@ struct PurchaseLessonsView: View {
             )
             
             self.paymentSheet = paymentSheet
-            self.showPaymentSheet = true
+            isPurchasing = false
+            presentPaymentSheet(paymentSheet)
         } catch {
             isPurchasing = false
+            paymentSheet = nil
             alert = .init(title: "Payment Failed", message: error.localizedDescription)
         }
     }
-    
+
+    /// Present PaymentSheet imperatively via UIKit to avoid the SwiftUI modifier's
+    /// Stripe Link double-callback bug (STPPaymentHandler.confirmPayment called twice).
+    private func presentPaymentSheet(_ sheet: PaymentSheet) {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
+            isPurchasing = false
+            paymentSheet = nil
+            alert = .init(title: "Payment Error", message: "Unable to present payment sheet.")
+            return
+        }
+        var top = root
+        while let presented = top.presentedViewController {
+            top = presented
+        }
+        sheet.present(from: top) { result in
+            Task { @MainActor in
+                self.paymentSheet = nil
+                self.handlePaymentCompletion(result)
+            }
+        }
+    }
+
     private func processPurchaseWithSavedCard(paymentMethodId: String, orgId: String, selectedPackage: PackageOption) async {
         isPurchasing = true
         defer { isPurchasing = false }
