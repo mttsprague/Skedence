@@ -24,6 +24,8 @@ interface Trainer {
   id: string;
   firstName: string;
   lastName: string;
+  pricingTierId?: string;
+  pricingTierName?: string;
 }
 
 interface LessonPackage {
@@ -94,12 +96,14 @@ export default function BookingsPage() {
           where('orgId', '==', orgId)
         );
         const trainersSnapshot = await getDocs(trainersQuery);
-        const trainersData = trainersSnapshot.docs.map(doc => {
-          const data = doc.data();
+        const trainersData = trainersSnapshot.docs.map(trainerDoc => {
+          const data = trainerDoc.data();
           return {
-            id: doc.id,
+            id: trainerDoc.id,
             firstName: data.firstName || '',
             lastName: data.lastName || '',
+            pricingTierId: data.pricingTierId || '',
+            pricingTierName: data.pricingTierName || '',
           };
         }) as Trainer[];
         setTrainers(trainersData);
@@ -372,10 +376,20 @@ export default function BookingsPage() {
                   >
                     {trainers.map(trainer => (
                       <option key={trainer.id} value={trainer.id}>
-                        {trainer.firstName} {trainer.lastName}
+                        {trainer.firstName} {trainer.lastName}{trainer.pricingTierName ? ` — ${trainer.pricingTierName}` : ''}
                       </option>
                     ))}
                   </select>
+                  {(() => {
+                    const trainer = trainers.find(t => t.id === selectedTrainer);
+                    return trainer?.pricingTierName ? (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                          🏅 {trainer.pricingTierName}
+                        </span>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* Date Selection */}

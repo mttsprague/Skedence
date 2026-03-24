@@ -49,6 +49,7 @@ interface LessonPackage {
   purchaseDate: any;
   expirationDate: any;
   transactionId: string;
+  pricingTierName?: string;
 }
 
 interface PaymentMethodInfo {
@@ -995,13 +996,18 @@ export default function PassesPage() {
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <h4 className="font-semibold text-foreground">
                                       {pkg.packageName || pkg.packageType}
                                     </h4>
                                     <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                       Active
                                     </span>
+                                    {pkg.pricingTierName && (
+                                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                                        🏅 {pkg.pricingTierName}
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-sm text-muted-foreground mt-1.5">
                                     {pkg.remainingLessons || 0} of {pkg.totalLessons} remaining
@@ -1053,13 +1059,18 @@ export default function PassesPage() {
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <h4 className="font-medium text-gray-700 text-sm">
                                       {pkg.packageName || pkg.packageType}
                                     </h4>
                                     <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded-full">
                                       Completed
                                     </span>
+                                    {pkg.pricingTierName && (
+                                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                                        🏅 {pkg.pricingTierName}
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-3 mt-1">
                                     <p className="text-xs text-gray-500">

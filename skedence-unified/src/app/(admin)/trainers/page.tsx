@@ -8,6 +8,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { collection, query, where, getDocs, orderBy, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User } from '@/types';
+
+interface PricingTier {
+  id: string;
+  tierName: string;
+}
 import { Search, Mail, Phone, UserCog, Calendar, CheckCircle2, XCircle, Plus, X, RotateCcw, FileText, Edit } from 'lucide-react';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { logTrainerCreated, logTrainerActivated, logTrainerDeactivated } from '@/lib/activity-logger';
@@ -48,6 +53,7 @@ const generateTrainerId = async (firstName: string, lastName: string): Promise<s
 export default function TrainersPage() {
   const { orgId, user, userData } = useAuthHook();
   const [trainers, setTrainers] = useState<User[]>([]);
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -83,32 +89,46 @@ export default function TrainersPage() {
     email: '',
     phone: '',
     birthday: '',
-    trainerDescription: ''
+    trainerDescription: '',
+    pricingTierId: '',
+    pricingTierName: ''
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
+    const validOrgId = orgId;
 
     async function loadTrainers() {
       try {
+        // Load pricing tiers from org document
+        const orgDoc = await getDoc(doc(db, 'organizations', validOrgId));
+        const orgData = orgDoc.data();
+        const tiers: PricingTier[] = (orgData?.pricingStructure?.tiers || []).map((t: { id: string; tierName: string }) => ({
+          id: t.id,
+          tierName: t.tierName,
+        }));
+        setPricingTiers(tiers);
+
         // Query trainers collection directly with orgId filter (matches iOS app)
         const trainersQuery = query(
           collection(db, 'trainers'),
-          where('orgId', '==', orgId)
+          where('orgId', '==', validOrgId)
         );
         const snapshot = await getDocs(trainersQuery);
-        const trainersData = snapshot.docs.map(doc => {
-          const data = doc.data();
+        const trainersData = snapshot.docs.map(trainerDoc => {
+          const data = trainerDoc.data();
           return {
-            id: doc.id,
+            id: trainerDoc.id,
             firstName: data.firstName || '',
             lastName: data.lastName || '',
             email: data.email || data.emailAddress || '',
             phone: data.phoneNumber || data.phone || '',
             role: data.role || 'trainer',
             isActive: data.active !== false,
+            pricingTierId: data.pricingTierId || '',
+            pricingTierName: data.pricingTierName || '',
           };
         }) as User[];
         setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
@@ -168,16 +188,18 @@ export default function TrainersPage() {
         where('orgId', '==', orgId)
       );
       const snapshot = await getDocs(trainersQuery);
-      const trainersData = snapshot.docs.map(doc => {
-        const data = doc.data();
+      const trainersData = snapshot.docs.map(trainerDoc => {
+        const data = trainerDoc.data();
         return {
-          id: doc.id,
+          id: trainerDoc.id,
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           email: data.email || data.emailAddress || '',
           phone: data.phoneNumber || data.phone || '',
           role: data.role || 'trainer',
           isActive: data.active !== false,
+          pricingTierId: data.pricingTierId || '',
+          pricingTierName: data.pricingTierName || '',
         };
       }) as User[];
       setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
@@ -229,16 +251,18 @@ export default function TrainersPage() {
         where('orgId', '==', orgId)
       );
       const snapshot = await getDocs(trainersQuery);
-      const trainersData = snapshot.docs.map(doc => {
-        const data = doc.data();
+      const trainersData = snapshot.docs.map(trainerDoc => {
+        const data = trainerDoc.data();
         return {
-          id: doc.id,
+          id: trainerDoc.id,
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           email: data.email || data.emailAddress || '',
           phone: data.phoneNumber || data.phone || '',
           role: data.role || 'trainer',
           isActive: data.active !== false,
+          pricingTierId: data.pricingTierId || '',
+          pricingTierName: data.pricingTierName || '',
         };
       }) as User[];
       setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
@@ -264,7 +288,9 @@ export default function TrainersPage() {
         email: data?.email || '',
         phone: data?.phoneNumber || data?.phone || '',
         birthday: data?.birthday || '',
-        trainerDescription: data?.trainerDescription || ''
+        trainerDescription: data?.trainerDescription || '',
+        pricingTierId: data?.pricingTierId || '',
+        pricingTierName: data?.pricingTierName || ''
       });
       setShowEditSheet(true);
     } catch (error) {
@@ -276,7 +302,9 @@ export default function TrainersPage() {
         email: trainer.email || '',
         phone: trainer.phone || '',
         birthday: '',
-        trainerDescription: ''
+        trainerDescription: '',
+        pricingTierId: trainer.pricingTierId || '',
+        pricingTierName: trainer.pricingTierName || ''
       });
       setShowEditSheet(true);
     }
@@ -295,7 +323,9 @@ export default function TrainersPage() {
         email: editForm.email,
         phoneNumber: editForm.phone,
         birthday: editForm.birthday,
-        trainerDescription: editForm.trainerDescription
+        trainerDescription: editForm.trainerDescription,
+        pricingTierId: editForm.pricingTierId || '',
+        pricingTierName: editForm.pricingTierName || ''
       });
 
       // Refresh trainers list
@@ -304,16 +334,18 @@ export default function TrainersPage() {
         where('orgId', '==', orgId)
       );
       const snapshot = await getDocs(trainersQuery);
-      const trainersData = snapshot.docs.map(doc => {
-        const data = doc.data();
+      const trainersData = snapshot.docs.map(trainerDoc => {
+        const data = trainerDoc.data();
         return {
-          id: doc.id,
+          id: trainerDoc.id,
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           email: data.email || data.emailAddress || '',
           phone: data.phoneNumber || data.phone || '',
           role: data.role || 'trainer',
           isActive: data.active !== false,
+          pricingTierId: data.pricingTierId || '',
+          pricingTierName: data.pricingTierName || '',
         };
       }) as User[];
       setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
@@ -398,16 +430,18 @@ export default function TrainersPage() {
         where('orgId', '==', orgId)
       );
       const snapshot = await getDocs(trainersQuery);
-      const trainersData = snapshot.docs.map(doc => {
-        const data = doc.data();
+      const trainersData = snapshot.docs.map(trainerDoc => {
+        const data = trainerDoc.data();
         return {
-          id: doc.id,
+          id: trainerDoc.id,
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           email: data.email || data.emailAddress || '',
           phone: data.phoneNumber || data.phone || '',
           role: data.role || 'trainer',
           isActive: data.active !== false,
+          pricingTierId: data.pricingTierId || '',
+          pricingTierName: data.pricingTierName || '',
         };
       }) as User[];
       setTrainers(trainersData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
@@ -536,17 +570,22 @@ export default function TrainersPage() {
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center text-sm">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {trainer.isActive ? (
                             <>
-                              <CheckCircle2 className="h-4 w-4 mr-1.5 text-green-600" />
-                              <span className="text-green-600 font-medium">Active</span>
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <span className="text-sm text-green-600 font-medium">Active</span>
                             </>
                           ) : (
                             <>
-                              <XCircle className="h-4 w-4 mr-1.5 text-gray-400" />
-                              <span className="text-muted-foreground">Inactive</span>
+                              <XCircle className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm text-muted-foreground">Inactive</span>
                             </>
+                          )}
+                          {trainer.pricingTierName && (
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                              🏅 {trainer.pricingTierName}
+                            </span>
                           )}
                         </div>
                         {trainer.isActive ? (
@@ -776,6 +815,40 @@ export default function TrainersPage() {
                   className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   placeholder="(555) 123-4567"
                 />
+              </div>
+
+              {/* Pricing Tier Assignment */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  🏅 Pricing Tier
+                </label>
+                {pricingTiers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No pricing tiers defined yet. Add tiers on the{' '}
+                    <a href="/pricing" className="text-primary underline">Pricing page</a>.
+                  </p>
+                ) : (
+                  <select
+                    value={editForm.pricingTierId}
+                    onChange={(e) => {
+                      const tier = pricingTiers.find(t => t.id === e.target.value);
+                      setEditForm({
+                        ...editForm,
+                        pricingTierId: e.target.value,
+                        pricingTierName: tier?.tierName || ''
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  >
+                    <option value="">No Tier Assigned</option>
+                    {pricingTiers.map(tier => (
+                      <option key={tier.id} value={tier.id}>{tier.tierName}</option>
+                    ))}
+                  </select>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  The pricing tier determines which lesson packages this trainer offers.
+                </p>
               </div>
 
               <div>

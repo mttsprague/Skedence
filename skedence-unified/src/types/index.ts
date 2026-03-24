@@ -25,6 +25,10 @@ export interface User {
   createdAt?: Date;
   isActive?: boolean; // For trainer status
   
+  // Pricing tier assignment (mirrors iOS TrainersRepository fields)
+  pricingTierId?: string;
+  pricingTierName?: string;
+  
   // Enhanced profile fields
   emergencyContactName?: string;
   emergencyContactNumber?: string;
