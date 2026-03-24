@@ -276,6 +276,20 @@ export default function TrainersPage() {
   const handleOpenEditSheet = async (trainer: User) => {
     setSelectedTrainer(trainer);
     setSaveError(null);
+
+    // Always re-fetch pricing tiers from org doc so the dropdown is always populated
+    if (orgId) {
+      try {
+        const orgDoc = await getDoc(doc(db, 'organizations', orgId));
+        const orgData = orgDoc.data();
+        const tiers: PricingTier[] = (orgData?.pricingStructure?.tiers || []).map(
+          (t: { id: string; tierName: string }) => ({ id: t.id, tierName: t.tierName })
+        );
+        if (tiers.length > 0) setPricingTiers(tiers);
+      } catch (err) {
+        console.error('Error loading pricing tiers for edit sheet:', err);
+      }
+    }
     
     // Load full trainer data including birthday and description
     try {
