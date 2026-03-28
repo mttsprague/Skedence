@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SidebarMiniCalendar } from '@/components/admin/sidebar-mini-calendar';
 
 const submenuItems = [
   { name: 'Appointments', href: '/reports/appointments', icon: CalendarCheck },
@@ -72,6 +73,9 @@ export function ReportsSubmenu({ children }: ReportsSubmenuProps) {
             <span>Back to Activity Feed</span>
           </Link>
         </div>
+
+        {/* Mini Calendar */}
+        <SidebarMiniCalendar onDayClick={closeMobileMenu} />
 
         {/* Navigation Menu */}
         <nav className="flex-1 p-3">

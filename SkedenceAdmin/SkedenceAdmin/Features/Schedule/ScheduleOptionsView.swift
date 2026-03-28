@@ -10,6 +10,7 @@ struct ScheduleOptionsView: View {
     let onMyDay: () -> Void
     let onAllTrainersDay: () -> Void
     let onSelectTrainer: (String) -> Void
+    var onImportedCalendar: (() -> Void)? = nil
 
     @State private var trainers: [Trainer] = []
     @State private var isLoading = false
@@ -70,11 +71,26 @@ struct ScheduleOptionsView: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
 
-                        Button {
-                            onAllTrainersDay()
-                            dismiss()
-                        } label: {
-                            row(icon: "person.3", title: "All Trainers (Day)")
+                        VStack(spacing: 0) {
+                            Button {
+                                onAllTrainersDay()
+                                dismiss()
+                            } label: {
+                                row(icon: "person.3", title: "All Trainers (Day)")
+                            }
+
+                            if let onImportedCalendar {
+                                Divider().padding(.leading, 44)
+                                Button {
+                                    onImportedCalendar()
+                                    dismiss()
+                                } label: {
+                                    row(
+                                        icon: "calendar.badge.checkmark",
+                                        title: auth.importedCalendarTitle ?? "Imported Calendar"
+                                    )
+                                }
+                            }
                         }
                         .padding()
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22))

@@ -123,8 +123,9 @@ final class ScheduleViewModel: ObservableObject {
         guard let pending = pendingSlot else { return }
         showOverlapAlert = false
         
-        // Clear the pending slot temporarily to skip overlap check
-        pendingSlot = nil
+        // NOTE: Do NOT clear pendingSlot here. setCustomSlot checks `pendingSlot == nil`
+        // to decide whether to run the overlap check. Keeping it non-nil causes the check
+        // to be skipped on this confirmed call, so the write loop actually runs.
         
         // Proceed with creation
         await setCustomSlot(
@@ -135,7 +136,8 @@ final class ScheduleViewModel: ObservableObject {
             location: pending.location
         )
         
-        // Reset state
+        // Reset state after the write completes
+        pendingSlot = nil
         overlapConflicts = []
     }
     

@@ -23,6 +23,7 @@ struct SessionDetailView: View {
     @State private var showClientCard = false
     @State private var showCancelSuccess = false
     @State private var cancelSuccessMessage = "" // Store the success message
+    @State private var showReschedule = false
     @State private var userProfile: UserProfile?
     @State private var isLoadingProfile = false
     @State private var requiredFields: Set<String> = []
@@ -54,10 +55,13 @@ struct SessionDetailView: View {
                         lessonNotesCard(notes: notes)
                     }
                     
-                    // Cancel button for upcoming sessions
+                    // Reschedule + Cancel buttons for upcoming sessions
                     if booking.startTime > Date() {
-                        cancelButton
-                            .padding(.top, 8)
+                        VStack(spacing: 12) {
+                            rescheduleButton
+                            cancelButton
+                        }
+                        .padding(.top, 8)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -79,6 +83,13 @@ struct SessionDetailView: View {
             }
             .sheet(isPresented: $showClientCard) {
                 ClientCardView(client: client, selectedBooking: nil)
+            }
+            .sheet(isPresented: $showReschedule) {
+                if let orgId = auth.currentOrgId {
+                    RescheduleBookingSheet(booking: booking, orgId: orgId) {
+                        dismiss()
+                    }
+                }
             }
             .task {
                 await loadUserProfile()
@@ -520,6 +531,20 @@ struct SessionDetailView: View {
         }
     }
     
+    // MARK: - Reschedule Button
+    private var rescheduleButton: some View {
+        Button {
+            showReschedule = true
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "calendar.badge.clock")
+                Text("Reschedule Session")
+            }
+            .frame(height: 56)
+        }
+        .buttonStyle(SecondaryButtonStyle())
+    }
+
     // MARK: - Cancel Button
     private var cancelButton: some View {
         Button {

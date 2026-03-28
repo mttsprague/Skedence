@@ -90,6 +90,9 @@ class LocationsService: ObservableObject {
         newLocation.createdAt = Timestamp(date: Date())
         newLocation.updatedAt = Timestamp(date: Date())
         newLocation.isActive = true
+        if newLocation.isVisibleToClients == nil {
+            newLocation.isVisibleToClients = true
+        }
         
         // Use sanitized location name as document ID
         let locationId = sanitizeLocationName(location.name)

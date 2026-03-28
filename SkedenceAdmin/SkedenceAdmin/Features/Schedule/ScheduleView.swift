@@ -31,6 +31,7 @@ struct ScheduleView: View {
     // Navigation to other schedule modes
     @State private var navigateToMyDay = false
     @State private var navigateToAllTrainersDay = false
+    @State private var navigateToImportedCalendar = false
     @State private var selectedTrainerForNav: String?
     
     // Track if we've done initial scroll to current time
@@ -157,6 +158,7 @@ struct ScheduleView: View {
             showOptions: $showOptions,
             navigateToMyDay: $navigateToMyDay,
             navigateToAllTrainersDay: $navigateToAllTrainersDay,
+            navigateToImportedCalendar: $navigateToImportedCalendar,
             selectedTrainerForNav: $selectedTrainerForNav,
             clientCardContext: $clientCardContext,
             showSubscriptionSheet: $showSubscriptionSheet,
@@ -987,6 +989,7 @@ private struct SheetModifiers: ViewModifier {
     @Binding var showOptions: Bool
     @Binding var navigateToMyDay: Bool
     @Binding var navigateToAllTrainersDay: Bool
+    @Binding var navigateToImportedCalendar: Bool
     @Binding var selectedTrainerForNav: String?
     @Binding var clientCardContext: ClientCardContext?
     @Binding var showSubscriptionSheet: Bool
@@ -1070,6 +1073,9 @@ private struct SheetModifiers: ViewModifier {
                     onSelectTrainer: { id in
                         viewModel.setMode(.trainerDay(id))
                         selectedTrainerForNav = id
+                    },
+                    onImportedCalendar: {
+                        navigateToImportedCalendar = true
                     }
                 )
                 .environmentObject(dependencies)
@@ -1081,6 +1087,10 @@ private struct SheetModifiers: ViewModifier {
             }
             .navigationDestination(isPresented: $navigateToAllTrainersDay) {
                 AllTrainersDayView(scheduleViewModel: viewModel)
+                    .environmentObject(dependencies)
+            }
+            .navigationDestination(isPresented: $navigateToImportedCalendar) {
+                ImportedCalendarView()
                     .environmentObject(dependencies)
             }
             .navigationDestination(item: $selectedTrainerForNav) { trainerId in

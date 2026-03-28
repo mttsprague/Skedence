@@ -106,6 +106,7 @@ struct ClientCardView: View {
     @State private var showCancelConfirmation = false
     @State private var isCancelling = false
     @State private var cancelError: String?
+    @State private var bookingToReschedule: ClientBooking? = nil
     
     private var availableTabs: [ClientCardTab] {
         if viewModel.isAdmin {
@@ -171,6 +172,24 @@ struct ClientCardView: View {
             }
         } message: { error in
             Text(error)
+        }
+        .sheet(item: $bookingToReschedule) { booking in
+            if let orgId = auth.currentOrgId {
+                RescheduleBookingSheet(
+                    booking: booking,
+                    orgId: orgId,
+                    onSuccess: {
+                        Task {
+                            await viewModel.loadClientData(
+                                clientId: client.id,
+                                selectedBooking: nil,
+                                orgId: auth.currentOrgId,
+                                userEmail: auth.userEmail
+                            )
+                        }
+                    }
+                )
+            }
         }
         .overlay {
             if isCancelling {
@@ -285,6 +304,9 @@ struct ClientCardView: View {
             onCancelBooking: { bookingId in
                 bookingToCancel = bookingId
                 showCancelConfirmation = true
+            },
+            onRescheduleBooking: { booking in
+                bookingToReschedule = booking
             }
         )
         .padding(.horizontal, Spacing.lg)

@@ -152,13 +152,13 @@ function ClientDetailContent() {
 
         setUpcomingBookings(
           bookingsData
-            .filter(b => b.startTime.toDate() >= now)
+            .filter(b => b.startTime.toDate() >= now && b.status !== 'cancelled')
             .sort((a, b) => a.startTime.seconds - b.startTime.seconds)
         );
 
         setPastBookings(
           bookingsData
-            .filter(b => b.startTime.toDate() < now)
+            .filter(b => b.startTime.toDate() < now || b.status === 'cancelled')
             .sort((a, b) => b.startTime.seconds - a.startTime.seconds)
         );
 
@@ -518,7 +518,8 @@ function UpcomingTab({ upcomingLessons, upcomingClasses }: {
                           {booking.startTime.toDate().toLocaleDateString('en-US', { 
                             weekday: 'long', 
                             month: 'long', 
-                            day: 'numeric' 
+                            day: 'numeric',
+                            year: 'numeric'
                           })}
                         </p>
                         <p className="text-sm text-foreground/80">
@@ -573,7 +574,8 @@ function UpcomingTab({ upcomingLessons, upcomingClasses }: {
                           {booking.startTime.toDate().toLocaleDateString('en-US', { 
                             weekday: 'long', 
                             month: 'long', 
-                            day: 'numeric' 
+                            day: 'numeric',
+                            year: 'numeric'
                           })}
                         </p>
                         <p className="text-sm text-foreground/80">

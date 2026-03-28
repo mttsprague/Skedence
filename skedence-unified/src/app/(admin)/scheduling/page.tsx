@@ -89,6 +89,12 @@ export default function SchedulingPage() {
   // Cancel booking states
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
   const [cancellingBooking, setCancellingBooking] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleTrainerId, setRescheduleTrainerId] = useState('');
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleStartTime, setRescheduleStartTime] = useState('');
+  const [rescheduleEndTime, setRescheduleEndTime] = useState('');
+  const [rescheduling, setRescheduling] = useState(false);
 
   // Touch swipe state for calendar navigation
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -736,6 +742,37 @@ export default function SchedulingPage() {
   // Generate week days
   const weekDays = weekStart ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)) : [];
   
+  // Handle reschedule booking
+  const handleReschedule = async () => {
+    if (!selectedItem || !orgId || !rescheduleDate || !rescheduleStartTime || !rescheduleEndTime || !rescheduleTrainerId) return;
+    setRescheduling(true);
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      const adminRescheduleLesson = httpsCallable(functions, 'adminRescheduleLesson');
+      const [year, month, day] = rescheduleDate.split('-').map(Number);
+      const [startHour, startMin] = rescheduleStartTime.split(':').map(Number);
+      const [endHour, endMin] = rescheduleEndTime.split(':').map(Number);
+      const newStartDate = new Date(year, month - 1, day, startHour, startMin, 0, 0);
+      const newEndDate = new Date(year, month - 1, day, endHour, endMin, 0, 0);
+      await adminRescheduleLesson({
+        bookingId: selectedItem.id,
+        orgId,
+        newTrainerId: rescheduleTrainerId,
+        newStartTime: newStartDate.toISOString(),
+        newEndTime: newEndDate.toISOString(),
+      });
+      setSelectedItem(null);
+      setShowReschedule(false);
+      toast.success('Session rescheduled', 'The booking has been moved to the new time.');
+    } catch (error: any) {
+      console.error('Failed to reschedule:', error);
+      toast.error('Failed to reschedule', error.message || 'Please try again');
+    } finally {
+      setRescheduling(false);
+    }
+  };
+
   // Handle cancel booking
   const handleCancelBooking = async (refundPass: boolean) => {
     if (!selectedItem || selectedItem.type !== 'lesson' || !orgId) return;
@@ -1287,7 +1324,7 @@ export default function SchedulingPage() {
                 {selectedItem.type === 'class' ? 'Class Details' : 'Session Details'}
               </h2>
               <button
-                onClick={() => setSelectedItem(null)}
+                onClick={() => { setSelectedItem(null); setShowReschedule(false); setShowCancelConfirm(null); }}
                 className="p-2 hover:bg-background rounded-lg transition-colors"
               >
                 <X className="h-5 w-5 text-muted-foreground" />
@@ -1493,31 +1530,118 @@ export default function SchedulingPage() {
                     </div>
                   )}
 
-                  {/* Cancel Session Actions */}
-                  {!showCancelConfirm && !cancellingBooking && (
-                    <div className="pt-6 border-t space-y-3">
-                      <h3 className="font-semibold text-foreground">Cancel Session</h3>
-                      <p className="text-sm text-foreground/80 mb-4">
-                        Choose whether to refund the client's pass or not.
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
+                  {/* Admin Actions: Reschedule + Cancel */}
+                  <div className="pt-6 border-t space-y-3">
+                    <h3 className="font-semibold text-foreground">Admin Actions</h3>
+                    {!showReschedule && !showCancelConfirm && !cancellingBooking && (
+                      <div className="space-y-3">
                         <button
-                          onClick={() => setShowCancelConfirm('early')}
-                          className="px-4 py-3 bg-card border-2 border-input hover:border-orange-500 hover:bg-orange-500/10 text-foreground rounded-lg transition-colors font-medium"
+                          onClick={() => {
+                            const dt = selectedItem.startTime;
+                            const et = selectedItem.endTime;
+                            setRescheduleTrainerId(selectedItem.trainerId ?? '');
+                            setRescheduleDate(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`);
+                            setRescheduleStartTime(`${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`);
+                            setRescheduleEndTime(`${String(et.getHours()).padStart(2,'0')}:${String(et.getMinutes()).padStart(2,'0')}`);
+                            setShowReschedule(true);
+                          }}
+                          className="w-full px-4 py-3 bg-card border-2 border-blue-300 hover:border-blue-500 hover:bg-blue-500/10 text-blue-700 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
                         >
-                          <div className="text-sm font-semibold">Early Cancel</div>
-                          <div className="text-xs text-foreground/80 mt-1">Refund pass to client</div>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          Reschedule Session
                         </button>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={() => setShowCancelConfirm('early')}
+                            className="px-4 py-3 bg-card border-2 border-input hover:border-orange-500 hover:bg-orange-500/10 text-foreground rounded-lg transition-colors font-medium"
+                          >
+                            <div className="text-sm font-semibold">Early Cancel</div>
+                            <div className="text-xs text-foreground/80 mt-1">Refund pass to client</div>
+                          </button>
+                          <button
+                            onClick={() => setShowCancelConfirm('late')}
+                            className="px-4 py-3 bg-card border-2 border-input hover:border-red-500 hover:bg-red-500/10 text-foreground rounded-lg transition-colors font-medium"
+                          >
+                            <div className="text-sm font-semibold">Late Cancel</div>
+                            <div className="text-xs text-foreground/80 mt-1">No pass refund</div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reschedule panel */}
+                    {showReschedule && (
+                      <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-blue-900">Reschedule Session</h4>
+                          <button
+                            onClick={() => setShowReschedule(false)}
+                            className="text-blue-500 hover:text-blue-700 text-sm"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-blue-900">Trainer</p>
+                          <select
+                            value={rescheduleTrainerId}
+                            onChange={e => setRescheduleTrainerId(e.target.value)}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          >
+                            <option value="">Select trainer</option>
+                            {trainers.map(t => (
+                              <option key={t.id} value={t.id}>
+                                {t.firstName} {t.lastName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-blue-900">Date</p>
+                            <input
+                              type="date"
+                              value={rescheduleDate}
+                              onChange={e => setRescheduleDate(e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium text-blue-900">Start Time</p>
+                              <input
+                                type="time"
+                                value={rescheduleStartTime}
+                                onChange={e => setRescheduleStartTime(e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium text-blue-900">End Time</p>
+                              <input
+                                type="time"
+                                value={rescheduleEndTime}
+                                onChange={e => setRescheduleEndTime(e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
                         <button
-                          onClick={() => setShowCancelConfirm('late')}
-                          className="px-4 py-3 bg-card border-2 border-input hover:border-red-500 hover:bg-red-500/10 text-foreground rounded-lg transition-colors font-medium"
+                          onClick={handleReschedule}
+                          disabled={!rescheduleDate || !rescheduleStartTime || !rescheduleEndTime || !rescheduleTrainerId || rescheduling}
+                          className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                         >
-                          <div className="text-sm font-semibold">Late Cancel</div>
-                          <div className="text-xs text-foreground/80 mt-1">No pass refund</div>
+                          {rescheduling ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Rescheduling...
+                            </>
+                          ) : 'Confirm Reschedule'}
                         </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Confirmation Step */}
                   {showCancelConfirm && !cancellingBooking && (

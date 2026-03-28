@@ -13,6 +13,7 @@ import {
   Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SidebarMiniCalendar } from '@/components/admin/sidebar-mini-calendar';
 
 const submenuItems = [
   { name: 'Client Emails', href: '/settings/client-emails', icon: Mail },
@@ -71,6 +72,9 @@ export function NotificationsSubmenu({ children }: NotificationsSubmenuProps) {
             <span>Back to Business Settings</span>
           </Link>
         </div>
+
+        {/* Mini Calendar */}
+        <SidebarMiniCalendar onDayClick={closeMobileMenu} />
 
         {/* Navigation Menu */}
         <nav className="flex-1 p-3">

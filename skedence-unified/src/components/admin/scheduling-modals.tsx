@@ -364,8 +364,7 @@ export function CreateAvailabilityModal({
   const [recurringEndDate, setRecurringEndDate] = useState('');
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [showOverlapDialog, setShowOverlapDialog] = useState(false);
-  const [overlapConflicts, setOverlapConflicts] = useState<Array<{ name: string; type: string; time: string }>>([]);
-  const [pendingCreation, setPendingCreation] = useState(false);
+  const [overlapConflicts, setOverlapConflicts] = useState<Array<{ name: string; type: string; time: string }>>([])
 
   useEffect(() => {
     if (isOpen && orgId) {
@@ -436,6 +435,10 @@ export function CreateAvailabilityModal({
       
       for (const classDoc of classesSnapshot.docs) {
         const classData = classDoc.data();
+        
+        // Skip cancelled or deleted classes (soft-deleted by iOS app or other paths)
+        if (classData.status === 'cancelled' || classData.status === 'deleted') continue;
+        
         const classStart = classData.startTime.toDate();
         const classEnd = classData.endTime.toDate();
         
@@ -461,6 +464,11 @@ export function CreateAvailabilityModal({
       
       for (const scheduleDoc of schedulesSnapshot.docs) {
         const scheduleData = scheduleDoc.data();
+        
+        // Only consider active slots — skip cancelled, deleted, or unavailable
+        const activeStatuses = ['open', 'booked'];
+        if (scheduleData.status && !activeStatuses.includes(scheduleData.status)) continue;
+        
         const scheduleStart = scheduleData.startTime.toDate();
         const scheduleEnd = scheduleData.endTime.toDate();
         
@@ -490,7 +498,7 @@ export function CreateAvailabilityModal({
     return conflicts;
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (skipOverlapCheck = false) => {
     if (!trainerId || !orgId) {
       setError('Missing trainer or organization');
       return;
@@ -506,8 +514,8 @@ export function CreateAvailabilityModal({
       return;
     }
 
-    // Check for overlaps before creating (skip if already confirmed)
-    if (!pendingCreation) {
+    // Check for overlaps before creating (skip if already confirmed via skipOverlapCheck parameter)
+    if (!skipOverlapCheck) {
       const [startHour, startMin] = startTime.split(':').map(Number);
       const [endHour, endMin] = endTime.split(':').map(Number);
       
@@ -595,21 +603,18 @@ export function CreateAvailabilityModal({
       setError(err.message || 'Failed to create availability');
     } finally {
       setLoading(false);
-      setPendingCreation(false);
     }
   };
 
   const handleConfirmOverlap = async () => {
     setShowOverlapDialog(false);
-    setPendingCreation(true);
-    await handleCreate();
     setOverlapConflicts([]);
+    await handleCreate(true); // pass skipOverlapCheck=true to bypass the re-check
   };
 
   const handleCancelOverlap = () => {
     setShowOverlapDialog(false);
     setOverlapConflicts([]);
-    setPendingCreation(false);
   };
 
   if (!isOpen) return null;
@@ -869,7 +874,7 @@ export function CreateAvailabilityModal({
               Cancel
             </button>
             <button
-              onClick={handleCreate}
+              onClick={() => handleCreate()}
               disabled={loading || !location.trim() || (isRecurring && selectedWeekdays.length === 0)}
               className={cn(
                 "flex-1 px-4 py-2 rounded-lg transition-colors font-medium",

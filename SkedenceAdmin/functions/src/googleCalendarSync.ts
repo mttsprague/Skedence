@@ -42,10 +42,10 @@ export const initGoogleCalendarAuth = onCall(
         throw new Error("Unauthorized: Only administrators can connect calendars");
       }
 
-      // Get OAuth2 credentials from environment
-      const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-      const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-      const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/import-schedule/callback";
+      // Get OAuth2 credentials from environment (trim to remove any accidental newlines from secrets)
+      const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim();
+      const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET?.trim();
+      const redirectUri = (process.env.GOOGLE_CALENDAR_REDIRECT_URI?.trim()) || "https://skedence.com/import-schedule/callback";
 
       if (!clientId || !clientSecret) {
         throw new Error("Google Calendar OAuth credentials not configured");
@@ -116,10 +116,10 @@ export const completeGoogleCalendarAuth = onCall(
         throw new Error("Unauthorized: Only administrators can connect calendars");
       }
 
-      // Exchange code for tokens
-      const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-      const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-      const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI || "https://skedence.com/import-schedule/callback";
+      // Exchange code for tokens (trim to remove any accidental newlines from secrets)
+      const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim();
+      const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET?.trim();
+      const redirectUri = (process.env.GOOGLE_CALENDAR_REDIRECT_URI?.trim()) || "https://skedence.com/import-schedule/callback";
 
       if (!clientId || !clientSecret) {
         throw new Error("Google Calendar OAuth credentials not configured");
@@ -220,11 +220,13 @@ export const syncGoogleCalendar = onCall(
         throw new Error("Unauthorized: Only administrators can sync calendars");
       }
 
-      await syncCalendarEvents(orgId, calendarId);
+      const result = await syncCalendarEvents(orgId, calendarId);
 
       return {
         success: true,
         message: "Calendar synced successfully",
+        calendarsFound: result.calendarsFound,
+        totalEvents: result.totalEvents,
       };
     } catch (error: any) {
       logger.error("Error syncing calendar:", error);
@@ -275,10 +277,15 @@ export const syncAllGoogleCalendars = onSchedule(
   }
 );
 
+interface SyncResult {
+  calendarsFound: { name: string; calendarId: string; eventCount: number }[];
+  totalEvents: number;
+}
+
 /**
  * Helper function to sync events for a specific calendar
  */
-async function syncCalendarEvents(orgId: string, calendarId: string): Promise<void> {
+async function syncCalendarEvents(orgId: string, calendarId: string): Promise<SyncResult> {
   const db = admin.firestore();
 
   // Get calendar document
@@ -302,9 +309,9 @@ async function syncCalendarEvents(orgId: string, calendarId: string): Promise<vo
   const now = Date.now();
 
   if (tokenExpiryDate && now >= tokenExpiryDate) {
-    // Token expired, refresh it
-    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+    // Token expired, refresh it (trim to remove any accidental newlines from secrets)
+    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim();
+    const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET?.trim();
 
     if (!clientId || !clientSecret) {
       throw new Error("Google Calendar OAuth credentials not configured");
@@ -331,23 +338,75 @@ async function syncCalendarEvents(orgId: string, calendarId: string): Promise<vo
 
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-  // Fetch events for the next 30 days
+  // Fetch events: 14 days back to 60 days forward (covers current week + past events)
   const timeMin = new Date();
+  timeMin.setDate(timeMin.getDate() - 14);
   const timeMax = new Date();
-  timeMax.setDate(timeMax.getDate() + 30);
+  timeMax.setDate(timeMax.getDate() + 60);
 
-  const response = await calendar.events.list({
-    calendarId: googleCalendarId,
-    timeMin: timeMin.toISOString(),
-    timeMax: timeMax.toISOString(),
-    singleEvents: true,
-    orderBy: "startTime",
-    maxResults: 250,
-  });
+  // Get ALL calendars the user has access to (primary + subscribed + shared, including hidden ones)
+  // showHidden: true ensures we get calendars shared by others even if unchecked in the Google Calendar UI
+  const allCalendars: { id: string; summary?: string | null }[] = [];
+  let pageToken: string | undefined;
+  do {
+    const calendarListResponse = await calendar.calendarList.list({
+      showHidden: true,
+      maxResults: 250,
+      pageToken,
+    });
+    const items = calendarListResponse.data.items || [];
+    for (const item of items) {
+      if (item.id) {
+        allCalendars.push({ id: item.id, summary: item.summary });
+      }
+    }
+    pageToken = calendarListResponse.data.nextPageToken ?? undefined;
+  } while (pageToken);
 
-  const events = response.data.items || [];
+  // Deduplicate: always include primary, plus any subscribed/shared that aren't the already-stored one
+  const calendarIdsToSync: { id: string; name: string }[] = [];
+  for (const cal of allCalendars) {
+    if (cal.id) {
+      calendarIdsToSync.push({ id: cal.id, name: cal.summary || cal.id });
+    }
+  }
 
-  logger.info(`Fetched ${events.length} events from Google Calendar: ${calendarData.name}`);
+  // If calendarList was empty or failed, fall back to the stored googleCalendarId
+  if (calendarIdsToSync.length === 0) {
+    calendarIdsToSync.push({ id: googleCalendarId, name: calendarData.name });
+  }
+
+  logger.info(`Syncing ${calendarIdsToSync.length} calendars for connection: ${calendarData.name}: ${calendarIdsToSync.map(c => c.name).join(', ')}`);
+
+  // Fetch events from all accessible calendars
+  const allEvents: { event: any; sourceCalendarId: string; sourceCalendarName: string }[] = [];
+  const calendarDiagnostics: { name: string; calendarId: string; eventCount: number }[] = [];
+  for (const cal of calendarIdsToSync) {
+    try {
+      const response = await calendar.events.list({
+        calendarId: cal.id,
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: true,
+        orderBy: "startTime",
+        maxResults: 250,
+      });
+      const calEvents = response.data.items || [];
+      for (const event of calEvents) {
+        allEvents.push({ event, sourceCalendarId: cal.id, sourceCalendarName: cal.name });
+      }
+      calendarDiagnostics.push({ name: cal.name, calendarId: cal.id, eventCount: calEvents.length });
+      logger.info(`  Fetched ${calEvents.length} events from: ${cal.name} (${cal.id})`);
+    } catch (err) {
+      // Some shared calendars may not allow event listing — skip gracefully
+      logger.warn(`  Skipping calendar "${cal.name}" (${cal.id}): ${err}`);
+      calendarDiagnostics.push({ name: `${cal.name} (skipped: access denied)`, calendarId: cal.id, eventCount: 0 });
+    }
+  }
+
+  const events = allEvents;
+
+  logger.info(`Fetched ${events.length} total events across all calendars for: ${calendarData.name}`);
 
   // Delete existing events for this calendar in the date range
   const existingEventsSnapshot = await db.collection("organizations")
@@ -363,15 +422,23 @@ async function syncCalendarEvents(orgId: string, calendarId: string): Promise<vo
     batch.delete(doc.ref);
   });
 
-  // Add new events
-  for (const event of events) {
-    // Skip all-day events without specific times
-    if (event.start?.date && !event.start?.dateTime) {
-      continue;
-    }
+  // Add new events (including all-day events)
+  for (const { event, sourceCalendarId, sourceCalendarName } of events) {
+    const isAllDay = !!(event.start?.date && !event.start?.dateTime);
 
-    const startTime = event.start?.dateTime ? new Date(event.start.dateTime) : null;
-    const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : null;
+    let startTime: Date | null;
+    let endTime: Date | null;
+
+    if (isAllDay) {
+      // All-day: parse date string as local midnight
+      startTime = new Date(event.start!.date! + "T00:00:00");
+      // Google all-day end date is exclusive (next day), subtract 1ms
+      const rawEnd = new Date(event.end!.date! + "T00:00:00");
+      endTime = new Date(rawEnd.getTime() - 1);
+    } else {
+      startTime = event.start?.dateTime ? new Date(event.start.dateTime) : null;
+      endTime = event.end?.dateTime ? new Date(event.end.dateTime) : null;
+    }
 
     if (!startTime || !endTime) {
       continue;
@@ -388,18 +455,48 @@ async function syncCalendarEvents(orgId: string, calendarId: string): Promise<vo
       title: event.summary || "Busy",
       startTime: admin.firestore.Timestamp.fromDate(startTime),
       endTime: admin.firestore.Timestamp.fromDate(endTime),
+      isAllDay: isAllDay,
       location: event.location || null,
       description: event.description || null,
+      sourceCalendarId: sourceCalendarId,
+      sourceCalendarName: sourceCalendarName,
       syncedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   }
 
   await batch.commit();
 
+  // Upsert importedCalendarSources — one doc per unique Google calendar found.
+  // Uses merge:true so admin's custom displayName and visible settings are preserved.
+  // Generates a stable Firestore-safe doc ID from the Google calendar ID.
+  const sourcesBatch = db.batch();
+  for (const cal of calendarIdsToSync) {
+    const safeId = cal.id.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const sourceRef = db.collection("organizations")
+      .doc(orgId)
+      .collection("importedCalendarSources")
+      .doc(safeId);
+
+    sourcesBatch.set(sourceRef, {
+      googleCalendarId: cal.id,
+      googleName: cal.name,
+      connectedCalendarId: calendarId,
+      lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    // Note: displayName and visible are NOT set here so admin edits are preserved.
+    // Web/iOS should treat missing visible as true (default visible).
+  }
+  await sourcesBatch.commit();
+
   // Update last synced timestamp
   await calendarDoc.ref.update({
     lastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  logger.info(`✅ Synced ${events.length} events for calendar: ${calendarData.name}`);
+  logger.info(`✅ Synced ${events.length} total events for connection: ${calendarData.name}`);
+
+  return {
+    calendarsFound: calendarDiagnostics,
+    totalEvents: events.length,
+  };
 }

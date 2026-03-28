@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/admin/sidebar';
 import { CommandPalette } from '@/components/command-palette';
@@ -8,6 +8,8 @@ import { CommandPaletteProvider, useCommandPalette } from '@/hooks/useCommandPal
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { ShortcutsHelpDialog } from '@/components/shortcuts-help-dialog';
 import { MobileBottomNav, MobileBottomNavSpacer } from '@/components/ui/mobile-bottom-nav';
+import { QuickActionModal } from '@/components/admin/quick-action-modal';
+import { Plus } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -16,6 +18,7 @@ interface DashboardLayoutProps {
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { open, setOpen } = useCommandPalette();
+  const [quickActionOpen, setQuickActionOpen] = useState(false);
   
   // Enable global keyboard shortcuts
   useKeyboardShortcuts({ enabled: true });
@@ -36,6 +39,17 @@ function LayoutContent({ children }: { children: ReactNode }) {
     pathname.startsWith('/settings') ||
     pathname === '/waiver';
 
+  // Floating Quick Action button — shown on all admin pages
+  const QuickActionButton = (
+    <button
+      onClick={() => setQuickActionOpen(true)}
+      aria-label="Quick action"
+      className="fixed bottom-20 right-5 z-40 h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150 flex items-center justify-center lg:bottom-8 lg:right-8"
+    >
+      <Plus className="h-6 w-6" strokeWidth={2.5} />
+    </button>
+  );
+
   // If the page has its own submenu sidebar, don't render the main sidebar
   if (hasSubmenuSidebar) {
     return (
@@ -45,6 +59,8 @@ function LayoutContent({ children }: { children: ReactNode }) {
         <CommandPalette open={open} onOpenChange={setOpen} />
         <ShortcutsHelpDialog />
         <MobileBottomNav />
+        {QuickActionButton}
+        <QuickActionModal open={quickActionOpen} onClose={() => setQuickActionOpen(false)} />
       </>
     );
   }
@@ -64,6 +80,8 @@ function LayoutContent({ children }: { children: ReactNode }) {
       <CommandPalette open={open} onOpenChange={setOpen} />
       <ShortcutsHelpDialog />
       <MobileBottomNav />
+      {QuickActionButton}
+      <QuickActionModal open={quickActionOpen} onClose={() => setQuickActionOpen(false)} />
     </>
   );
 }

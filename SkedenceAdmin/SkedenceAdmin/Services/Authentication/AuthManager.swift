@@ -36,6 +36,7 @@ final class AuthManager: ObservableObject {
     @Published var userFirstName: String?
     @Published var userLastName: String?
     @Published var organizationName: String?
+    @Published var importedCalendarTitle: String?
     
     // STEP 8: Dynamic branding from organization
     @Published var primaryColor: Color = Color(red: 0.20, green: 0.70, blue: 0.68) // Default teal
@@ -413,6 +414,11 @@ final class AuthManager: ObservableObject {
             // Optional: Capture organization name
             if let name = orgData["name"] as? String {
                 self.organizationName = name
+            }
+            
+            // Imported calendar display title (set via admin web portal)
+            if let title = orgData["importedCalendarTitle"] as? String, !title.isEmpty {
+                self.importedCalendarTitle = title
             }
             
             // Load branding

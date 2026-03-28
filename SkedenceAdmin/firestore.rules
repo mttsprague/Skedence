@@ -23,6 +23,35 @@ service cloud.firestore {
     // =========================================================================
     match /organizations/{orgId} {
       allow read, write: if true;
+
+      // Settings subcollection
+      match /settings/{settingId} {
+        allow read, write: if true;
+      }
+
+      // Users subcollection (new standard path for packages)
+      match /users/{userId} {
+        allow read, write: if true;
+
+        match /packages/{packageId} {
+          allow read, write: if true;
+        }
+      }
+
+      // Imported calendars from Google Calendar sync
+      match /importedCalendars/{calendarId} {
+        allow read, write: if true;
+      }
+
+      // Imported events from Google Calendar sync
+      match /importedEvents/{eventId} {
+        allow read, write: if true;
+      }
+
+      // Source calendar metadata (visibility + custom display names)
+      match /importedCalendarSources/{sourceId} {
+        allow read, write: if true;
+      }
     }
 
     // =========================================================================

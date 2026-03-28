@@ -18,9 +18,21 @@ struct LocationCard: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack {
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text(location.name)
-                            .font(.headingSmall)
-                            .foregroundStyle(AppTheme.textPrimary)
+                        HStack(spacing: Spacing.xs) {
+                            Text(location.name)
+                                .font(.headingSmall)
+                                .foregroundStyle(AppTheme.textPrimary)
+                            
+                            if location.isVisibleToClients == false {
+                                Text("Hidden from clients")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.orange)
+                                    .clipShape(Capsule())
+                            }
+                        }
                         
                         Text(location.addressLine1)
                             .font(.bodyMedium)

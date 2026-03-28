@@ -42,10 +42,10 @@ interface SchedulingSubmenuProps {
 export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: SchedulingSubmenuProps) {
   const pathname = usePathname();
   const { orgId } = useAuth();
-  const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
+  // Lazy initialisers — dates always ready, no isMounted needed
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => selectedDate || new Date());
   const [daysWithBookings, setDaysWithBookings] = useState<Set<string>>(new Set());
-  const [today, setToday] = useState<Date | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
+  const [today] = useState<Date>(() => new Date());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -57,12 +57,9 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
 
   const dayAbbrevs = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-  // Initialize dates client-side
+  // Sync calendar month when parent selects a date
   useEffect(() => {
-    setIsMounted(true);
-    const now = new Date();
-    setToday(now);
-    setCurrentMonth(selectedDate || now);
+    if (selectedDate) setCurrentMonth(selectedDate);
   }, [selectedDate]);
 
   // Load bookings for the current month
@@ -143,7 +140,6 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentMonth(prevDate => {
-      if (!prevDate) return prevDate;
       const newDate = new Date(prevDate);
       if (direction === 'prev') {
         newDate.setMonth(prevDate.getMonth() - 1);
@@ -155,7 +151,7 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
   };
 
   const isToday = (date: Date | null) => {
-    if (!date || !today) return false;
+    if (!date) return false;
     return date.toDateString() === today.toDateString();
   };
 
@@ -170,11 +166,7 @@ export function SchedulingSubmenu({ children, selectedDate, onDateSelect }: Sche
     }
   };
 
-  const days = currentMonth ? getDaysInMonth(currentMonth) : [];
-
-  if (!isMounted || !currentMonth) {
-    return <div className="flex h-screen bg-gray-50 items-center justify-center"><div className="text-gray-600">Loading...</div></div>;
-  }
+  const days = getDaysInMonth(currentMonth);
 
   return (
     <>

@@ -7,7 +7,7 @@ import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ClientCardSkeleton } from '@/components/ui/skeleton';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, Timestamp, documentId } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
@@ -219,21 +219,35 @@ export default function ClientsPage() {
           where('orgId', '==', orgId)
         );
         const membersSnapshot = await getDocs(membersQuery);
-        
-        const clientPromises = membersSnapshot.docs.map(async (memberDoc) => {
-          const memberData = memberDoc.data();
-          if (memberData.role !== 'client') return null;
-          
-          const userDoc = await getDoc(doc(db, 'users', memberData.userId));
-          if (!userDoc.exists()) return null;
-          
-          const userData = userDoc.data();
+
+        // Filter to client members only
+        const clientMembers = membersSnapshot.docs
+          .map(d => d.data())
+          .filter(m => m.role === 'client' && !!m.userId);
+
+        // Batch-fetch all user docs in groups of 30 (Firestore 'in' query limit)
+        const userIds = clientMembers.map(m => m.userId as string);
+        const BATCH_SIZE = 30;
+        const userDocsMap = new Map<string, Record<string, any>>();
+        for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+          const batchIds = userIds.slice(i, i + BATCH_SIZE);
+          const usersSnap = await getDocs(
+            query(collection(db, 'users'), where(documentId(), 'in', batchIds))
+          );
+          usersSnap.docs.forEach(d => userDocsMap.set(d.id, d.data()));
+        }
+
+        // Build client objects from cached user data
+        const clientsData: User[] = [];
+        for (const memberData of clientMembers) {
+          const userData = userDocsMap.get(memberData.userId);
+          if (!userData) continue;
+
           // Convert legacy athlete fields to athletes array if needed
           let athletesArray: AthleteInfo[] = [];
           if (Array.isArray(userData.athletes) && userData.athletes.length > 0) {
             athletesArray = userData.athletes;
           } else {
-            // Build athletes array from legacy fields
             if (userData.athleteFirstName || userData.athleteLastName) {
               athletesArray.push({
                 firstName: userData.athleteFirstName,
@@ -259,8 +273,8 @@ export default function ClientsPage() {
               });
             }
           }
-          
-          return {
+
+          clientsData.push({
             id: memberData.userId,
             firstName: userData.firstName || '',
             lastName: userData.lastName || '',
@@ -288,12 +302,9 @@ export default function ClientsPage() {
             emergencyContactNumber: userData.emergencyContactNumber,
             referredBy: userData.referredBy,
             notesForCoach: userData.notesForCoach,
-          } as User;
-        });
-        
-        const clientsData = (await Promise.all(clientPromises))
-          .filter((c): c is User => c !== null)
-          .sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+          } as User);
+        }
+        clientsData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
         
         setClients(clientsData);
       } catch (error) {
@@ -333,13 +344,13 @@ export default function ClientsPage() {
 
         setUpcomingBookings(
           bookingsData
-            .filter(b => b.startTime.toDate() >= now)
+            .filter(b => b.startTime.toDate() >= now && b.status !== 'cancelled')
             .sort((a, b) => a.startTime.seconds - b.startTime.seconds)
         );
 
         setPastBookings(
           bookingsData
-            .filter(b => b.startTime.toDate() < now)
+            .filter(b => b.startTime.toDate() < now || b.status === 'cancelled')
             .sort((a, b) => b.startTime.seconds - a.startTime.seconds)
         );
 
@@ -1087,7 +1098,7 @@ export default function ClientsPage() {
                                 <CardContent className="pt-6">
                                   <div className="flex items-start justify-between">
                                     <div className="space-y-1">
-                                      <p className="font-semibold">{booking.startTime.toDate().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                                      <p className="font-semibold">{booking.startTime.toDate().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
                                       <p className="text-sm text-foreground/80">
                                         {booking.startTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                                       </p>
@@ -1096,7 +1107,11 @@ export default function ClientsPage() {
                                         <p className="text-xs text-muted-foreground">Athletes: {booking.athleteNames.join(', ')}</p>
                                       )}
                                     </div>
-                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                      booking.status === 'booked' ? 'bg-green-100 text-green-700' :
+                                      booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                      'bg-gray-100 text-foreground'
+                                    }`}>
                                       {booking.status}
                                     </span>
                                   </div>

@@ -20,6 +20,7 @@ struct Location: Identifiable, Codable, Hashable {
     var createdAt: Timestamp?
     var updatedAt: Timestamp?
     var isActive: Bool
+    var isVisibleToClients: Bool? = nil
     
     var fullAddress: String {
         var components = [addressLine1]

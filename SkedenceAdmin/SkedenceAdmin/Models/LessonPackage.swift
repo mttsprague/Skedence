@@ -104,6 +104,12 @@ struct ClientBooking: Identifiable, Codable {
         return formatter.string(from: startTime)
     }
     
+    var formattedDateShort: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, MMM d"
+        return formatter.string(from: startTime)
+    }
+    
     var formattedStartTime: String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short

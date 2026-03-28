@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { MapPin, Plus, Edit2, Trash2, X, AlertCircle, Building2, Crown } from 'lucide-react';
+import { MapPin, Plus, Edit2, Trash2, X, AlertCircle, Building2, Crown, Eye, EyeOff } from 'lucide-react';
 import { Location } from '@/types/location';
 import { logLocationCreated, logLocationUpdated, logLocationDeleted } from '@/lib/activity-logger';
 import { useAuth as useAuthHook } from '@/hooks/useAuth';
@@ -172,6 +172,23 @@ export default function LocationsPage() {
     }
   };
 
+  const handleToggleVisibility = async (location: Location) => {
+    const newValue = location.isVisibleToClients !== false ? false : true;
+    try {
+      await updateDoc(doc(db, 'locations', location.id), {
+        isVisibleToClients: newValue,
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+      setLocations(locations.map(loc =>
+        loc.id === location.id ? { ...loc, isVisibleToClients: newValue } : loc
+      ));
+      toast.success(newValue ? 'Location visible to clients' : 'Location hidden from clients');
+    } catch (error) {
+      console.error('Error updating location visibility:', error);
+      toast.error('Failed to update visibility', 'Please try again');
+    }
+  };
+
   // Helper function to sanitize location name for use as document ID
   const sanitizeLocationId = (name: string): string => {
     return name
@@ -199,6 +216,7 @@ export default function LocationsPage() {
         zipCode: form.zipCode,
         orgId,
         isActive: true,
+        isVisibleToClients: editingLocation ? (editingLocation.isVisibleToClients !== false) : true,
         updatedAt: Timestamp.fromDate(new Date()),
       };
 
@@ -455,14 +473,29 @@ export default function LocationsPage() {
             {/* Locations List */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {locations.map((location) => (
-                <Card key={location.id} className="hover:shadow-lg transition-shadow">
+                <Card key={location.id} className={`hover:shadow-lg transition-shadow ${location.isVisibleToClients === false ? 'opacity-75 border-dashed' : ''}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-5 h-5 text-primary" />
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
                         <CardTitle className="text-lg">{location.name}</CardTitle>
+                        {location.isVisibleToClients === false && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                            Hidden from clients
+                          </span>
+                        )}
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => handleToggleVisibility(location)}
+                          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                          title={location.isVisibleToClients === false ? 'Show to clients' : 'Hide from clients'}
+                        >
+                          {location.isVisibleToClients === false
+                            ? <EyeOff className="w-4 h-4 text-amber-500" />
+                            : <Eye className="w-4 h-4 text-foreground/80" />
+                          }
+                        </button>
                         <button
                           onClick={() => handleEdit(location)}
                           className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"

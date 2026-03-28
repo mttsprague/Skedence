@@ -347,7 +347,7 @@ interface CreatePaymentIntentConnectData {
   userId: string;
   pricingTierId?: string; // NEW: Tier ID for trainer-specific pricing
   pricingTierName?: string; // NEW: Tier name for display
-  pricePerLesson?: number; // NEW: Price per lesson in cents
+  pricePerLesson?: number; // Price per lesson in cents (converted to dollars for display)
 }
 
 /**
@@ -486,7 +486,7 @@ export const createPaymentIntentConnect = onCall(
           // NEW: Tier pricing fields
           pricing_tier_id: pricingTierId || "",
           pricing_tier_name: pricingTierName || "",
-          price_per_lesson: pricePerLesson ? pricePerLesson.toString() : "",
+          price_per_lesson: pricePerLesson ? (pricePerLesson / 100).toFixed(2) : "",
         },
         description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
         application_fee_amount: applicationFeeAmount,

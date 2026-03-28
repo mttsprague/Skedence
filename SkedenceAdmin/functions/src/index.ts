@@ -176,8 +176,8 @@ export const bookLesson = onCall(
       );
     }
 
-    // Check if this is an admin-created booking
-    const isAdminBooking = !!clientId && !!createdByAdminId && !!createdByAdminName;
+    // Check if this is an admin-created booking (only requires clientId + adminId, not name)
+    const isAdminBooking = !!clientId && !!createdByAdminId;
 
     // Determine the user document ID:
     // - If clientId is provided (admin booking), use it directly as document ID
@@ -564,10 +564,10 @@ export const bookLesson = onCall(
           
           // Use admin info if this is an admin-created booking
           const actorId = isAdminBooking ? createdByAdminId : userId;
-          const actorName = isAdminBooking ? createdByAdminName : clientFullName;
+          const actorName = isAdminBooking ? (createdByAdminName || 'Admin') : clientFullName;
           const actorRole = isAdminBooking ? "admin" : "client";
           const description = isAdminBooking 
-            ? `${createdByAdminName} booked a private for ${clientFullName} with ${trainerFullName}`
+            ? `${createdByAdminName || 'Admin'} booked a private for ${clientFullName} with ${trainerFullName}`
             : `${clientFullName} booked a private with ${trainerFullName}`;
           
           transaction.set(activityRef, {
@@ -1123,14 +1123,22 @@ export const cancelLesson = onCall(
           }
         }
 
-        // Read lesson package
-        const packageRef = db
-          .collection("users")
-          .doc(userId)
-          .collection("lessonPackages")
-          .doc(bookingData.packageId);
+        // Read lesson package - use clientUID (name-based doc ID) from the booking, not auth UID.
+        // The package is stored under the user's Firestore document ID, which may differ from auth UID.
+        const clientDocId = bookingData.clientUID || bookingData.clientId || userId;
+        const newPathPackageRef = (bookingData.orgId && bookingData.packageId)
+          ? db.collection("organizations").doc(bookingData.orgId).collection("users").doc(clientDocId).collection("packages").doc(bookingData.packageId)
+          : null;
+        const oldPathPackageRef = bookingData.packageId
+          ? db.collection("users").doc(clientDocId).collection("lessonPackages").doc(bookingData.packageId)
+          : null;
 
-        const packageDoc = await transaction.get(packageRef);
+        const newPathPackageDoc = newPathPackageRef ? await transaction.get(newPathPackageRef) : null;
+        const oldPathPackageDoc = oldPathPackageRef ? await transaction.get(oldPathPackageRef) : null;
+
+        // Use whichever path has the package
+        const packageRef = newPathPackageDoc?.exists ? newPathPackageRef! : oldPathPackageRef;
+        const packageDoc = newPathPackageDoc?.exists ? newPathPackageDoc : oldPathPackageDoc;
 
         // Read trainer's schedule slot
         let slotDoc = null;
@@ -1146,7 +1154,8 @@ export const cancelLesson = onCall(
         }
 
         // Read user and trainer for activity logging
-        const userRef = db.collection("users").doc(userId);
+        // Use clientDocId (name-based doc ID) rather than auth UID for the user lookup
+        const userRef = db.collection("users").doc(clientDocId);
         const userDoc = await transaction.get(userRef);
         const userData = userDoc.exists ? userDoc.data() : null;
         const clientFullName = userData ? `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
@@ -1163,7 +1172,7 @@ export const cancelLesson = onCall(
         // ===== PHASE 2: ALL WRITES (must happen after all reads) =====
 
         // Update lesson package
-        if (packageDoc.exists) {
+        if (packageRef && packageDoc && packageDoc.exists) {
           transaction.update(packageRef, {
             lessonsUsed: admin.firestore.FieldValue.increment(-1),
           });
@@ -1209,6 +1218,14 @@ export const cancelLesson = onCall(
           },
           orgId: bookingData.orgId || null,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Write cancellation context so the email notification knows who cancelled
+        const cancellationContextRef = db.collection("cancellationContext").doc(bookingId);
+        transaction.set(cancellationContextRef, {
+          cancelledByRole: "client",
+          cancelledByName: clientFullName,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       });
 
@@ -1404,16 +1421,36 @@ export const adminCancelLesson = onCall(
         }
 
         // Read package and slot docs BEFORE any writes
-        let packageDoc;
+        let packageRef: admin.firestore.DocumentReference | null = null;
+        let packageDoc: admin.firestore.DocumentSnapshot | null = null;
         let slotDoc;
         
         if (refundPass && bookingData.packageId) {
-          const packageRef = db
+          // Check new path first (organizations/{orgId}/users/{clientId}/packages/),
+          // fall back to legacy path (users/{clientId}/lessonPackages/)
+          const newPathRef = db
+            .collection("organizations")
+            .doc(orgId)
+            .collection("users")
+            .doc(clientId)
+            .collection("packages")
+            .doc(bookingData.packageId);
+          const oldPathRef = db
             .collection("users")
             .doc(clientId)
             .collection("lessonPackages")
             .doc(bookingData.packageId);
-          packageDoc = await transaction.get(packageRef);
+
+          const newPathDoc = await transaction.get(newPathRef);
+          const oldPathDoc = await transaction.get(oldPathRef);
+
+          if (newPathDoc.exists) {
+            packageRef = newPathRef;
+            packageDoc = newPathDoc;
+          } else {
+            packageRef = oldPathRef;
+            packageDoc = oldPathDoc;
+          }
         }
         
         if (bookingData.trainerId && bookingData.slotId) {
@@ -1428,14 +1465,8 @@ export const adminCancelLesson = onCall(
         // Now perform all writes
         // Get the lesson package and conditionally decrement lessonsUsed based on refundPass
         // If refundPass is true (early cancel), refund the pass. If false (late cancel), don't refund.
-        if (refundPass && bookingData.packageId && packageDoc) {
+        if (refundPass && bookingData.packageId && packageRef && packageDoc) {
           logger.info(`Refunding pass ${bookingData.packageId} for client ${clientId}`);
-          const packageRef = db
-            .collection("users")
-            .doc(clientId)
-            .collection("lessonPackages")
-            .doc(bookingData.packageId);
-
           if (packageDoc.exists) {
             transaction.update(packageRef, {
               lessonsUsed: admin.firestore.FieldValue.increment(-1),
@@ -1500,6 +1531,14 @@ export const adminCancelLesson = onCall(
             orgId: orgId,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
           });
+
+        // Write cancellation context so the email notification knows who cancelled
+        const cancellationContextRef = db.collection("cancellationContext").doc(bookingId);
+        transaction.set(cancellationContextRef, {
+          cancelledByRole: "admin",
+          cancelledByName: adminFullName,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
 
       logger.info(
@@ -1529,6 +1568,222 @@ export const adminCancelLesson = onCall(
           clientId
         })
       );
+    }
+  }
+);
+
+/**
+ * Admin reschedule lesson — moves a booking to a new open slot in one transaction.
+ * No package counter change (lesson was already paid for — it's just being moved).
+ */
+interface AdminRescheduleLessonData {
+  bookingId: string;
+  orgId: string;
+  newTrainerId: string;
+  newStartTime: string; // ISO 8601
+  newEndTime: string;   // ISO 8601
+}
+
+export const adminRescheduleLesson = onCall(
+  { enforceAppCheck: false },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "You must be signed in to reschedule a lesson.");
+    }
+    const adminUid = request.auth.uid;
+    const { bookingId, orgId, newTrainerId, newStartTime, newEndTime } = request.data as AdminRescheduleLessonData;
+
+    if (!bookingId || !orgId || !newTrainerId || !newStartTime || !newEndTime) {
+      throw new HttpsError("invalid-argument", "Missing required fields: bookingId, orgId, newTrainerId, newStartTime, newEndTime");
+    }
+
+    try {
+      // Verify admin/owner access
+      const memberQuery = await db
+        .collection("orgMembers")
+        .where("authUserId", "==", adminUid)
+        .where("orgId", "==", orgId)
+        .limit(1)
+        .get();
+
+      if (memberQuery.empty) {
+        throw new HttpsError("permission-denied", "You are not a member of this organization");
+      }
+      const role = memberQuery.docs[0].data()?.role;
+      if (role !== "admin" && role !== "owner") {
+        throw new HttpsError("permission-denied", "Only admins and owners can reschedule bookings");
+      }
+
+      // Parse and validate times
+      const newStartDate = new Date(newStartTime);
+      const newEndDate = new Date(newEndTime);
+      if (isNaN(newStartDate.getTime()) || isNaN(newEndDate.getTime())) {
+        throw new HttpsError("invalid-argument", "Invalid date format for newStartTime or newEndTime");
+      }
+      const newStartTs = admin.firestore.Timestamp.fromDate(newStartDate);
+      const newEndTs = admin.firestore.Timestamp.fromDate(newEndDate);
+
+      // Pre-read booking
+      const bookingRef = db.collection("bookings").doc(bookingId);
+      const bookingSnap = await bookingRef.get();
+      if (!bookingSnap.exists) {
+        throw new HttpsError("not-found", `Booking ${bookingId} not found.`);
+      }
+      const bookingData = bookingSnap.data()!;
+
+      // Search for an existing open slot at the requested time (within ±1 minute)
+      const slotWindowStart = admin.firestore.Timestamp.fromMillis(newStartTs.toMillis() - 60000);
+      const slotWindowEnd = admin.firestore.Timestamp.fromMillis(newStartTs.toMillis() + 60000);
+      const existingSlotQuery = await db
+        .collection("trainers")
+        .doc(newTrainerId)
+        .collection("schedules")
+        .where("startTime", ">=", slotWindowStart)
+        .where("startTime", "<=", slotWindowEnd)
+        .limit(1)
+        .get();
+
+      // Use existing open slot if found; otherwise prepare a new auto-ID ref
+      let newSlotRef = db.collection("trainers").doc(newTrainerId).collection("schedules").doc();
+      let useExistingSlot = false;
+      if (!existingSlotQuery.empty && existingSlotQuery.docs[0].data().status === "open") {
+        newSlotRef = existingSlotQuery.docs[0].ref;
+        useExistingSlot = true;
+      }
+
+      // Fetch display names for activity log
+      let adminFullName = "Admin";
+      let clientFullName = "Unknown Client";
+      let newTrainerFullName = "Trainer";
+      try {
+        const clientId = bookingData.clientUID || bookingData.clientId;
+        const [adminDoc, clientDoc, newTrainerDoc] = await Promise.all([
+          db.collection("trainers").doc(adminUid).get(),
+          db.collection("users").doc(clientId).get(),
+          db.collection("trainers").doc(newTrainerId).get(),
+        ]);
+        if (adminDoc.exists) {
+          const d = adminDoc.data();
+          adminFullName = d ? `${d.firstName || ""} ${d.lastName || ""}`.trim() || "Admin" : "Admin";
+        }
+        if (clientDoc.exists) {
+          const d = clientDoc.data();
+          clientFullName = d ? `${d.firstName || ""} ${d.lastName || ""}`.trim() || "Unknown Client" : "Unknown Client";
+        }
+        if (newTrainerDoc.exists) {
+          const d = newTrainerDoc.data();
+          newTrainerFullName = d ? `${d.firstName || ""} ${d.lastName || ""}`.trim() || "Trainer" : "Trainer";
+        }
+      } catch (e) {
+        logger.warn("Error fetching display names for reschedule activity log:", e);
+      }
+
+      await db.runTransaction(async (transaction) => {
+        // --- All reads first ---
+        const bookingDoc = await transaction.get(bookingRef);
+        if (!bookingDoc.exists) throw new Error("Booking not found in transaction");
+        const bd = bookingDoc.data()!;
+
+        // Read existing slot (if applicable) to re-verify it's still open
+        let existingSlotDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+        if (useExistingSlot) {
+          existingSlotDoc = await transaction.get(newSlotRef);
+        }
+
+        // Read old slot (if applicable)
+        const oldSlotId = bd.slotId || bd.scheduleSlotId;
+        const oldTrainerId = bd.trainerId;
+        let oldSlotRef: FirebaseFirestore.DocumentReference | null = null;
+        let oldSlotDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+        if (oldSlotId && oldTrainerId) {
+          oldSlotRef = db.collection("trainers").doc(oldTrainerId).collection("schedules").doc(oldSlotId);
+          oldSlotDoc = await transaction.get(oldSlotRef);
+        }
+
+        // --- All writes ---
+
+        // Reopen old slot
+        if (oldSlotRef && oldSlotDoc && oldSlotDoc.exists) {
+          transaction.update(oldSlotRef, {
+            status: "open",
+            clientId: null,
+            clientName: null,
+            bookedAt: null,
+          });
+        }
+
+        // Handle new slot — use existing open slot or create a fresh one
+        let finalSlotRef = newSlotRef;
+        const clientIdForSlot = bd.clientUID || bd.clientId;
+        if (useExistingSlot && existingSlotDoc && existingSlotDoc.exists && existingSlotDoc.data()!.status === "open") {
+          transaction.update(newSlotRef, {
+            status: "booked",
+            clientId: clientIdForSlot,
+            clientName: bd.clientName || null,
+            bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+            orgId,
+          });
+        } else {
+          // Slot not available or not found — create a fresh one
+          finalSlotRef = db.collection("trainers").doc(newTrainerId).collection("schedules").doc();
+          transaction.set(finalSlotRef, {
+            trainerId: newTrainerId,
+            orgId,
+            startTime: newStartTs,
+            endTime: newEndTs,
+            status: "booked",
+            clientId: clientIdForSlot,
+            clientName: bd.clientName || null,
+            bookedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+
+        // Update booking document — no package changes (still paid for)
+        transaction.update(bookingRef, {
+          trainerId: newTrainerId,
+          trainerName: newTrainerFullName,
+          slotId: finalSlotRef.id,
+          scheduleSlotId: finalSlotRef.id,
+          startTime: newStartTs,
+          endTime: newEndTs,
+          location: bd.location || null,
+          rescheduledAt: admin.firestore.FieldValue.serverTimestamp(),
+          rescheduledBy: adminUid,
+        });
+
+        // Activity log
+        const activityTimestamp = Math.floor(Date.now() / 1000);
+        const activityId = `${adminUid}_LESSON_RESCHEDULED_${activityTimestamp}`;
+        transaction.set(db.collection("activities").doc(activityId), {
+          type: "LESSON_RESCHEDULED",
+          actorId: adminUid,
+          actorName: adminFullName,
+          actorRole: "admin",
+          targetId: bd.clientUID || bd.clientId,
+          targetName: clientFullName,
+          targetType: "client",
+          description: `${adminFullName} rescheduled ${clientFullName}'s lesson with ${newTrainerFullName}`,
+          metadata: {
+            bookingId,
+            oldSlotId: bd.slotId || bd.scheduleSlotId || null,
+            newSlotId: finalSlotRef.id,
+            oldTrainerId: bd.trainerId,
+            newTrainerId,
+            oldStartTime: bd.startTime || null,
+            newStartTime: newStartTs,
+          },
+          orgId,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+
+      logger.info(`Admin ${adminUid} rescheduled booking ${bookingId} to ${newStartTime} for trainer ${newTrainerId}`);
+      return { message: "Lesson rescheduled successfully!" };
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      logger.error("Error rescheduling lesson:", error);
+      throw new HttpsError("internal", `An unexpected error occurred: ${(error as Error).message}`);
     }
   }
 );
@@ -1610,14 +1865,25 @@ export const cancelClassRegistration = onCall(
 
         // Get the class pass package and decrement lessonsUsed by number of participants
         const athleteCount = participantsQuery.size;
-        const classPassRef = db
-          .collection("users")
-          .doc(userId)
-          .collection("lessonPackages")
-          .doc(participantData.classPassPackageId);
+        // Get orgId from the class document to resolve the correct package path
+        const classOrgId = classDoc.data()?.orgId || null;
 
-        const classPassDoc = await transaction.get(classPassRef);
-        if (classPassDoc.exists) {
+        // Check new path first (organizations/{orgId}/users/{userId}/packages/),
+        // fall back to legacy path (users/{userId}/lessonPackages/) for backward compatibility
+        const newPathClassPassRef = (classOrgId && participantData.classPassPackageId)
+          ? db.collection("organizations").doc(classOrgId).collection("users").doc(userId).collection("packages").doc(participantData.classPassPackageId)
+          : null;
+        const oldPathClassPassRef = participantData.classPassPackageId
+          ? db.collection("users").doc(userId).collection("lessonPackages").doc(participantData.classPassPackageId)
+          : null;
+
+        const newPathClassPassDoc = newPathClassPassRef ? await transaction.get(newPathClassPassRef) : null;
+        const oldPathClassPassDoc = oldPathClassPassRef ? await transaction.get(oldPathClassPassRef) : null;
+
+        const classPassRef = newPathClassPassDoc?.exists ? newPathClassPassRef! : oldPathClassPassRef;
+        const classPassDoc = newPathClassPassDoc?.exists ? newPathClassPassDoc : oldPathClassPassDoc;
+
+        if (classPassRef && classPassDoc && classPassDoc.exists) {
           transaction.update(classPassRef, {
             lessonsUsed: admin.firestore.FieldValue.increment(-athleteCount),
           });
@@ -1671,6 +1937,14 @@ export const cancelClassRegistration = onCall(
           },
           orgId: userData?.orgId || null,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Write cancellation context so the email notification knows who cancelled
+        const registrationContextRef = db.collection("cancellationContext").doc(registrationId);
+        transaction.set(registrationContextRef, {
+          cancelledByRole: "client",
+          cancelledByName: clientFullName,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       });
 

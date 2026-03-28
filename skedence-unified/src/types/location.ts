@@ -10,6 +10,7 @@ export interface Location {
   zipCode: string;
   orgId: string;
   isActive: boolean;
+  isVisibleToClients?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -98,6 +98,12 @@ export default function SchedulePage() {
   const [selectedClass, setSelectedClass] = useState<GroupClass | null>(null);
   const [cancellingBooking, setCancellingBooking] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleTrainerId, setRescheduleTrainerId] = useState('');
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleStartTime, setRescheduleStartTime] = useState('');
+  const [rescheduleEndTime, setRescheduleEndTime] = useState('');
+  const [rescheduling, setRescheduling] = useState(false);
   const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set());
 
   // Set initial trainer to current user
@@ -510,6 +516,36 @@ export default function SchedulePage() {
     }
   };
 
+  const handleReschedule = async () => {
+    if (!selectedBooking || !orgId || !rescheduleDate || !rescheduleStartTime || !rescheduleEndTime || !rescheduleTrainerId) return;
+    setRescheduling(true);
+    try {
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      const adminRescheduleLesson = httpsCallable(functions, 'adminRescheduleLesson');
+      const [year, month, day] = rescheduleDate.split('-').map(Number);
+      const [startHour, startMin] = rescheduleStartTime.split(':').map(Number);
+      const [endHour, endMin] = rescheduleEndTime.split(':').map(Number);
+      const newStartDate = new Date(year, month - 1, day, startHour, startMin, 0, 0);
+      const newEndDate = new Date(year, month - 1, day, endHour, endMin, 0, 0);
+      await adminRescheduleLesson({
+        bookingId: selectedBooking.id,
+        orgId,
+        newTrainerId: rescheduleTrainerId,
+        newStartTime: newStartDate.toISOString(),
+        newEndTime: newEndDate.toISOString(),
+      });
+      setSelectedBooking(null);
+      setShowReschedule(false);
+      toast.success('Session rescheduled', 'The booking has been moved to the new time.');
+    } catch (error: any) {
+      console.error('Failed to reschedule:', error);
+      toast.error('Failed to reschedule', error.message || 'Please try again');
+    } finally {
+      setRescheduling(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col h-[calc(100vh-8rem)]">
@@ -736,36 +772,17 @@ export default function SchedulePage() {
       </Dialog>
 
       {/* Booking Detail Dialog */}
-      <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
+      <Dialog open={!!selectedBooking} onOpenChange={() => {
+        setSelectedBooking(null);
+        setShowReschedule(false);
+        setShowCancelConfirm(null);
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Booking Details</DialogTitle>
           </DialogHeader>
           {selectedBooking && (
             <div className="space-y-5 py-4">
-              {(() => {
-                console.log('🔴 DIALOG RENDERING - selectedBooking:', selectedBooking);
-                console.log('🔴 CHECK YOUR CONSOLE - Dialog is open!');
-                return null;
-              })()}
-              
-              {/* DEBUG: Test visibility */}
-              <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                backgroundColor: 'red',
-                color: 'white',
-                padding: '20px',
-                fontSize: '24px',
-                fontWeight: 'bold',
-                textAlign: 'center',
-                zIndex: 99999
-              }}>
-                🔴 TEST: CAN YOU SEE THIS RED BAR? 🔴
-              </div>
-              
               {/* Client Header */}
               <div className="flex items-center gap-3 pb-4 border-b">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-xl">
@@ -793,34 +810,132 @@ export default function SchedulePage() {
                   </div>
                 )}
               </div>
-              {/* ========== CANCEL BUTTONS - TOP POSITION ========== */}
-              <div className="p-5 bg-gradient-to-r from-orange-100 to-red-100 border-4 border-red-600 rounded-xl shadow-lg">
-                <h3 className="text-xl font-black text-red-700 mb-4 text-center animate-pulse">
-                  ⚠️ CANCEL THIS SESSION
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => {
-                      console.log('Early cancel clicked');
-                      setShowCancelConfirm('early');
-                    }}
-                    className="px-6 py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-md text-base transform hover:scale-105 transition"
-                  >
-                    🕐 Early Cancel
-                    <div className="text-xs mt-1">Refund Pass</div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      console.log('Late cancel clicked');
-                      setShowCancelConfirm('late');
-                    }}
-                    className="px-6 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md text-base transform hover:scale-105 transition"
-                  >
-                    ⏰ Late Cancel
-                    <div className="text-xs mt-1">No Refund</div>
-                  </button>
+              {/* Admin Actions: Reschedule + Cancel */}
+              {isAdmin && (
+                <div className="space-y-3 pt-2 border-t">
+                  <h3 className="font-semibold text-foreground">Admin Actions</h3>
+                  {!showReschedule && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                        onClick={() => {
+                          const tid = selectedBooking?.trainerId ?? '';
+                          setRescheduleTrainerId(tid);
+                          setShowReschedule(true);
+                          if (selectedBooking) {
+                            const dt = selectedBooking.startTime;
+                            setRescheduleDate(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`);
+                            setRescheduleStartTime(`${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`);
+                            const et = selectedBooking.endTime;
+                            setRescheduleEndTime(`${String(et.getHours()).padStart(2,'0')}:${String(et.getMinutes()).padStart(2,'0')}`);
+                          }
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        Reschedule
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                        onClick={() => setShowCancelConfirm('early')}
+                      >
+                        Early Cancel (Refund)
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-red-300 text-red-700 hover:bg-red-50"
+                        onClick={() => setShowCancelConfirm('late')}
+                      >
+                        Late Cancel (No Refund)
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Reschedule panel */}
+                  {showReschedule && (
+                    <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold text-blue-900">Reschedule Session</h4>
+                        <button
+                          onClick={() => setShowReschedule(false)}
+                          className="text-blue-500 hover:text-blue-700 text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+
+                      {/* Trainer picker */}
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-blue-900">Trainer</Label>
+                        <Select
+                          value={rescheduleTrainerId}
+                          onValueChange={(val) => {
+                            setRescheduleTrainerId(val);
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select trainer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {trainers.map(t => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.firstName} {t.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* New date & time */}
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-sm font-medium text-blue-900">Date</Label>
+                          <input
+                            type="date"
+                            value={rescheduleDate}
+                            onChange={e => setRescheduleDate(e.target.value)}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-sm font-medium text-blue-900">Start Time</Label>
+                            <input
+                              type="time"
+                              value={rescheduleStartTime}
+                              onChange={e => setRescheduleStartTime(e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-sm font-medium text-blue-900">End Time</Label>
+                            <input
+                              type="time"
+                              value={rescheduleEndTime}
+                              onChange={e => setRescheduleEndTime(e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={handleReschedule}
+                        disabled={!rescheduleDate || !rescheduleStartTime || !rescheduleEndTime || !rescheduleTrainerId || rescheduling}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        {rescheduling ? (
+                          <span className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Rescheduling...
+                          </span>
+                        ) : 'Confirm Reschedule'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>              
+              )}              
               {/* Participants - Booked Athletes */}
               {((selectedBooking.athleteNames && selectedBooking.athleteNames.length > 0) || selectedBooking.athleteName || selectedBooking.secondAthleteName) && (
                 <div className="space-y-2">

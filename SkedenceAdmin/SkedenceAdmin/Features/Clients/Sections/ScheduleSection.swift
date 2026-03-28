@@ -15,6 +15,7 @@ struct ScheduleSection: View {
     let isLoading: Bool
     let isAdmin: Bool
     let onCancelBooking: (String) -> Void
+    let onRescheduleBooking: (ClientBooking) -> Void
     
     var body: some View {
         VStack(spacing: Spacing.md) {
@@ -22,7 +23,7 @@ struct ScheduleSection: View {
             CardView {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     HStack {
-                        Text("Upcoming Lessons")
+                        Text("Upcoming Bookings")
                             .font(.headingSmall)
                             .foregroundStyle(AppTheme.textPrimary)
                         
@@ -39,7 +40,7 @@ struct ScheduleSection: View {
                             Image(systemName: "calendar.badge.clock")
                                 .font(.system(size: 32))
                                 .foregroundStyle(AppTheme.textTertiary)
-                            Text("No upcoming lessons")
+                            Text("No upcoming bookings")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
@@ -92,10 +93,10 @@ struct ScheduleSection: View {
                 }
             }
             
-            // Completed Lessons
+            // Completed Bookings
             CardView {
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Completed Lessons")
+                    Text("Completed Bookings")
                         .font(.headingSmall)
                         .foregroundStyle(AppTheme.textPrimary)
                     
@@ -104,7 +105,7 @@ struct ScheduleSection: View {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 32))
                                 .foregroundStyle(AppTheme.textTertiary)
-                            Text("No completed lessons")
+                            Text("No completed bookings")
                                 .font(.bodyMedium)
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
@@ -190,13 +191,13 @@ struct ScheduleSection: View {
                     
                     Spacer()
                     
-                    // Time on right side
+                    // Date + Time on right side
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(booking.formattedStartTime)
-                            .font(.system(size: 14))
+                        Text(booking.formattedDateShort)
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(AppTheme.textPrimary)
-                        Text(booking.formattedEndTime)
-                            .font(.system(size: 14))
+                        Text(booking.formattedStartTime + " – " + booking.formattedEndTime)
+                            .font(.system(size: 12))
                             .foregroundStyle(AppTheme.textSecondary)
                     }
                 }
@@ -250,36 +251,56 @@ struct ScheduleSection: View {
                         
                         Spacer()
                         
-                        // Time on right side
+                        // Date + Time on right side
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(booking.formattedStartTime)
-                                .font(.system(size: 14))
+                            Text(booking.formattedDateShort)
+                                .font(.system(size: 13, weight: .medium))
                                 .foregroundStyle(AppTheme.textPrimary)
-                            Text(booking.formattedEndTime)
-                                .font(.system(size: 14))
+                            Text(booking.formattedStartTime + " – " + booking.formattedEndTime)
+                                .font(.system(size: 12))
                                 .foregroundStyle(AppTheme.textSecondary)
                         }
                     }
                     
-                    // Cancel button for admins/owners (keep functionality)
+                    // Admin action buttons (Reschedule + Cancel)
                     if isAdmin {
-                        Button(action: {
-                            onCancelBooking(booking.id)
-                        }) {
-                            HStack(spacing: Spacing.xs) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.labelSmall)
-                                Text("Cancel")
-                                    .font(.labelMedium)
-                                    .fontWeight(.medium)
+                        HStack(spacing: Spacing.sm) {
+                            Button(action: {
+                                onRescheduleBooking(booking)
+                            }) {
+                                HStack(spacing: Spacing.xs) {
+                                    Image(systemName: "calendar.badge.clock")
+                                        .font(.labelSmall)
+                                    Text("Reschedule")
+                                        .font(.labelMedium)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundStyle(AppTheme.primary)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 12)
+                                .background(AppTheme.primary.opacity(0.1))
+                                .cornerRadius(8)
                             }
-                            .foregroundStyle(.red)
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 12)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(8)
+                            .buttonStyle(.plain)
+
+                            Button(action: {
+                                onCancelBooking(booking.id)
+                            }) {
+                                HStack(spacing: Spacing.xs) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.labelSmall)
+                                    Text("Cancel")
+                                        .font(.labelMedium)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundStyle(.red)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 12)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                         .padding(.top, 4)
                     }
                 }

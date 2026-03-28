@@ -11,6 +11,7 @@ struct ClassPreviewRow: View {
     let groupClass: GroupClass
     @ObservedObject var classesService: ClassesService
     @State private var isRegistered = false
+    @State private var seriesClasses: [GroupClass] = []
 
     var body: some View {
         CardView(padding: Spacing.md) {
@@ -43,13 +44,24 @@ struct ClassPreviewRow: View {
                         }
                     }
 
+                    // Date row — show all series dates or single date
                     HStack(spacing: Spacing.xxs) {
                         Image(systemName: "calendar")
                             .font(.labelSmall)
-                        Text(groupClass.startTime.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                            .font(.labelMedium)
+                        if groupClass.isPartOfSeries == true && !seriesClasses.isEmpty {
+                            Text(formatSeriesDates(seriesClasses))
+                                .font(.labelMedium)
+                        } else {
+                            Text(groupClass.startTime.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                                .font(.labelMedium)
+                        }
                     }
                     .foregroundStyle(AppTheme.textSecondary)
+
+                    // Series badge
+                    if groupClass.isPartOfSeries == true, let total = groupClass.totalSeriesClasses {
+                        BadgeView(text: "\(total)-Day Series", color: AppTheme.secondary)
+                    }
 
                     HStack(spacing: Spacing.xxs) {
                         Image(systemName: "clock")
@@ -92,6 +104,19 @@ struct ClassPreviewRow: View {
             } else {
                 isRegistered = false
             }
+            // Load sibling classes for series date display
+            if groupClass.isPartOfSeries == true, let seriesId = groupClass.seriesId {
+                seriesClasses = classesService.allFetchedUpcomingClasses
+                    .filter { $0.seriesId == seriesId }
+                    .sorted { $0.startTime < $1.startTime }
+            }
         }
+    }
+
+    /// Format series dates as "Mon 3/10, Tue 3/11, Wed 3/12"
+    private func formatSeriesDates(_ classes: [GroupClass]) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "EEE M/d"
+        return classes.map { dateFormatter.string(from: $0.startTime) }.joined(separator: ", ")
     }
 }

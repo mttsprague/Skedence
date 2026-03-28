@@ -120,8 +120,9 @@ export const sendOwnerAppointmentNotification = onDocumentCreated(
       }
 
       // Get client and trainer details
+      const clientUID = booking.clientUID || booking.clientId;
       const [clientDoc, trainerDoc] = await Promise.all([
-        admin.firestore().collection("users").doc(booking.clientUID).get(),
+        admin.firestore().collection("users").doc(clientUID).get(),
         admin.firestore().collection("trainers").doc(booking.trainerId).get(),
       ]);
 
@@ -327,8 +328,9 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
       }
 
       // Get client and trainer details
+      const clientUID = booking.clientUID || booking.clientId;
       const [clientDoc, trainerDoc] = await Promise.all([
-        admin.firestore().collection("users").doc(booking.clientUID).get(),
+        admin.firestore().collection("users").doc(clientUID).get(),
         admin.firestore().collection("trainers").doc(booking.trainerId).get(),
       ]);
 
@@ -359,13 +361,33 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
         timeZone: timezone,
       });
 
+      // Look up who cancelled this booking
+      const contextDoc = await admin.firestore()
+        .collection("cancellationContext").doc(event.params.bookingId).get();
+      const contextData = contextDoc.data();
+      const cancelledByRole = contextData?.cancelledByRole || "client";
+      const cancelledByName = contextData?.cancelledByName || null;
+      if (contextDoc.exists) {
+        admin.firestore().collection("cancellationContext").doc(event.params.bookingId)
+          .delete().catch(console.error);
+      }
+      const emailSubject = cancelledByRole === "admin"
+        ? `${cancelledByName} Cancelled ${clientName}'s Appointment`
+        : `${clientName} Cancelled Their Appointment`;
+      const emailIntro = cancelledByRole === "admin"
+        ? `${cancelledByName} cancelled ${clientName}'s appointment:`
+        : `${clientName} cancelled their appointment:`;
+      const cancelledByDisplay = cancelledByRole === "admin"
+        ? `${cancelledByName} (Admin)`
+        : cancelledByName || clientName;
+
       // Send email to all admins
       await admin.firestore().collection("mail").add({
         to: adminEmails,
         from: `${orgData.name} <no-reply@skedence.com>`,
         replyTo: orgData.email || "support@skedence.com",
         message: {
-          subject: `Appointment Cancelled - ${clientName}`,
+          subject: emailSubject,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background-color: #dc2626; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
@@ -375,7 +397,7 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
               <div style="background-color: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
                 <p style="margin-top: 0;">Hi ${ownerData.firstName || "there"},</p>
                 
-                <p>An appointment has been cancelled:</p>
+                <p>${emailIntro}</p>
                 
                 <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
                   <h3 style="margin-top: 0; color: #dc2626;">Cancelled Appointment</h3>
@@ -395,6 +417,16 @@ export const sendOwnerCancellationNotification = onDocumentDeleted(
                     <tr>
                       <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Time:</td>
                       <td style="padding: 8px 0; text-align: right; font-weight: 600;">${formattedTime}</td>
+                    </tr>
+                    ${booking.location ? `
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Location:</td>
+                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">${booking.location}</td>
+                    </tr>
+                    ` : ""}
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Cancelled By:</td>
+                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">${cancelledByDisplay}</td>
                     </tr>
                   </table>
                 </div>
@@ -564,7 +596,7 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Package:</td>
-                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">${packageData.name || "Package"}</td>
+                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">${packageData.packageName || packageData.packageType || "Package"}</td>
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Sessions:</td>
@@ -572,7 +604,7 @@ export const sendOwnerPackagePurchaseNotification = onDocumentCreated(
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Amount:</td>
-                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">$${(packageData.price || 0).toFixed(2)}</td>
+                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">$${((packageData.amountPaid || 0) / 100).toFixed(2)}</td>
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Date:</td>
@@ -957,13 +989,33 @@ export const sendOwnerClassCancellationNotification = onDocumentDeleted(
         timeZone: timezone,
       }) : "Unknown Time";
 
+      // Look up who cancelled this registration
+      const classContextDoc = await admin.firestore()
+        .collection("cancellationContext").doc(event.params.registrationId).get();
+      const classContextData = classContextDoc.data();
+      const classCancelledByRole = classContextData?.cancelledByRole || "client";
+      const classCancelledByName = classContextData?.cancelledByName || null;
+      if (classContextDoc.exists) {
+        admin.firestore().collection("cancellationContext").doc(event.params.registrationId)
+          .delete().catch(console.error);
+      }
+      const classEmailSubject = classCancelledByRole === "admin"
+        ? `${classCancelledByName} Cancelled ${clientName}'s Class Registration`
+        : `${clientName} Cancelled Their Class Registration`;
+      const classEmailIntro = classCancelledByRole === "admin"
+        ? `${classCancelledByName} cancelled ${clientName}'s class registration:`
+        : `${clientName} cancelled their class registration:`;
+      const classCancelledByDisplay = classCancelledByRole === "admin"
+        ? `${classCancelledByName} (Admin)`
+        : classCancelledByName || clientName;
+
       // Send email to all admins
       await admin.firestore().collection("mail").add({
         to: adminEmails,
         from: `${orgData.name} <no-reply@skedence.com>`,
         replyTo: orgData.email || "support@skedence.com",
         message: {
-          subject: `Class Registration Cancelled - ${clientName}`,
+          subject: classEmailSubject,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background-color: #dc2626; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
@@ -973,7 +1025,7 @@ export const sendOwnerClassCancellationNotification = onDocumentDeleted(
               <div style="background-color: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
                 <p style="margin-top: 0;">Hi ${ownerData.firstName || "there"},</p>
                 
-                <p>A class registration has been cancelled:</p>
+                <p>${classEmailIntro}</p>
                 
                 <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
                   <h3 style="margin-top: 0; color: #dc2626;">Cancelled Class Registration</h3>
@@ -997,6 +1049,10 @@ export const sendOwnerClassCancellationNotification = onDocumentDeleted(
                     <tr>
                       <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Time:</td>
                       <td style="padding: 8px 0; text-align: right; font-weight: 600;">${formattedTime}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Cancelled By:</td>
+                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">${classCancelledByDisplay}</td>
                     </tr>
                   </table>
                 </div>

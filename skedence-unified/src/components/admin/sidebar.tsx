@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { 
   Calendar, 
   BarChart3, 
@@ -13,6 +15,7 @@ import {
   FileText,
   Activity,
   ChevronRight,
+  ChevronLeft,
   Crown,
   BookOpen
 } from 'lucide-react';
@@ -64,10 +67,76 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { userData, signOut } = useAuth();
+  const router = useRouter();
+  const { userData, signOut, orgId } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Mini calendar state — lazy initialisers ensure dates are always ready (no isMounted needed)
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
+  const [daysWithBookings, setDaysWithBookings] = useState<Set<string>>(new Set());
+  const [calendarToday] = useState<Date>(() => new Date());
+
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
+  // Load booking dots for current month
+  useEffect(() => {
+    if (!orgId || !currentMonth) return;
+    async function loadMonthBookings() {
+      if (!currentMonth) return;
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'bookings'),
+          where('orgId', '==', orgId),
+          where('startTime', '>=', Timestamp.fromDate(startDate)),
+          where('startTime', '<=', Timestamp.fromDate(endDate))
+        ));
+        const days = new Set<string>();
+        snap.docs.forEach(d => {
+          const date = d.data().startTime.toDate();
+          days.add(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`);
+        });
+        setDaysWithBookings(days);
+      } catch {}
+    }
+    loadMonthBookings();
+  }, [orgId, currentMonth]);
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayAbbrevs = ['S','M','T','W','T','F','S'];
+
+  const navigateCalendarMonth = (dir: 'prev' | 'next') => {
+    setCurrentMonth(prev => {
+      if (!prev) return prev;
+      const d = new Date(prev);
+      d.setMonth(prev.getMonth() + (dir === 'next' ? 1 : -1));
+      return d;
+    });
+  };
+
+  const getCalendarDays = (date: Date): (Date | null)[] => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const days: (Date | null)[] = [];
+    for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
+    for (let dd = 1; dd <= daysInMonth; dd++) days.push(new Date(year, month, dd));
+    return days;
+  };
+
+  const handleCalendarDayClick = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    router.push(`/scheduling?date=${y}-${m}-${d}`);
+    closeMobileMenu();
+  };
+
+  const calendarDays = currentMonth ? getCalendarDays(currentMonth) : [];
 
   const isSchedulingActive = () => {
     return pathname === '/scheduling' || 
@@ -141,6 +210,60 @@ export function Sidebar() {
             )}
           </div>
         )}
+
+        {/* Mini Calendar */}
+        <div className="px-5 py-4 border-b border-sidebar-border">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-sidebar-foreground tracking-tight">
+                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </span>
+              <div className="flex gap-0.5">
+                <button
+                  onClick={() => navigateCalendarMonth('prev')}
+                  className="p-1 hover:bg-sidebar-accent/50 rounded-md transition-all duration-200 active:scale-95"
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 text-sidebar-foreground/60" />
+                </button>
+                <button
+                  onClick={() => navigateCalendarMonth('next')}
+                  className="p-1 hover:bg-sidebar-accent/50 rounded-md transition-all duration-200 active:scale-95"
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="h-3.5 w-3.5 text-sidebar-foreground/60" />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {dayAbbrevs.map((d, i) => (
+                <div key={`ch-${i}`} className="text-[10px] text-center text-sidebar-foreground/40 font-semibold pb-1 tracking-wider">
+                  {d}
+                </div>
+              ))}
+              {calendarDays.map((date, index) => {
+                if (!date) return <div key={index} className="invisible aspect-square" />;
+                const isToday = date.toDateString() === calendarToday.toDateString();
+                const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+                const hasBooking = daysWithBookings.has(dateKey);
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleCalendarDayClick(date)}
+                    className={cn(
+                      'relative aspect-square text-[10px] flex items-center justify-center rounded-md transition-all duration-200 hover:bg-sidebar-accent/50',
+                      isToday && 'bg-sidebar-foreground text-sidebar font-bold shadow-sm',
+                      !isToday && 'text-sidebar-foreground/70 hover:text-sidebar-foreground'
+                    )}
+                  >
+                    {date.getDate()}
+                    {hasBooking && !isToday && (
+                      <div className="absolute bottom-0.5 w-1 h-1 bg-sidebar-foreground/50 rounded-full" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+        </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 scrollbar-premium">

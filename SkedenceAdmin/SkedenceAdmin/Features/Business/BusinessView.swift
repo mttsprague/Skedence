@@ -126,6 +126,7 @@ struct BusinessView: View {
                     locationToEdit = nil
                 }
             )
+            .id(locationToEdit?.id ?? "new")
             .environmentObject(dependencies)
         }
         .sheet(isPresented: $showingProcessPayment) {

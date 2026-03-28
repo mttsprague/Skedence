@@ -6,7 +6,6 @@ import { GoogleTagManager, GoogleTagManagerNoScript } from '@/components/analyti
 import { ToastProvider } from '@/components/ui/toast-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { PWAProvider } from '@/components/pwa-provider';
-import CrispChat from '@/components/crisp-chat';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -79,9 +78,6 @@ export default function RootLayout({
             <ToastProvider />
           </TooltipProvider>
         </AuthProvider>
-        
-        {/* Crisp Chat Widget - Only on marketing/support pages */}
-        <CrispChat />
       </body>
     </html>
   );

@@ -140,11 +140,17 @@ async function sendDailySummary(orgId: string, orgData: any, timezone: string) {
       return;
     }
 
-    // Get today's appointments
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    // Get today's appointments — compute midnight-to-midnight in the org's timezone
+    const nowUtcDaily = new Date();
+    const tzStringDaily = nowUtcDaily.toLocaleString("en-US", { timeZone: timezone });
+    const nowInTzDaily = new Date(tzStringDaily);
+    const tzOffsetMsDaily = nowUtcDaily.getTime() - nowInTzDaily.getTime();
+    const startInTzDaily = new Date(tzStringDaily);
+    startInTzDaily.setHours(0, 0, 0, 0);
+    const endInTzDaily = new Date(tzStringDaily);
+    endInTzDaily.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(startInTzDaily.getTime() + tzOffsetMsDaily);
+    const endOfDay = new Date(endInTzDaily.getTime() + tzOffsetMsDaily);
 
     const bookingsSnapshot = await admin.firestore()
       .collection("bookings")
@@ -162,20 +168,46 @@ async function sendDailySummary(orgId: string, orgData: any, timezone: string) {
     // Get client and trainer details for all bookings
     const bookingsWithDetails = await Promise.all(
       bookings.map(async (booking: any) => {
-        const [clientDoc, trainerDoc] = await Promise.all([
-          admin.firestore().collection("users").doc(booking.clientUID).get(),
+        const clientUID = booking.clientUID || booking.clientId;
+        const slotId = booking.slotId || booking.scheduleSlotId;
+        const needsLocationLookup = !booking.location || booking.location === "Location TBD";
+
+        const fetchPromises: Promise<any>[] = [
+          admin.firestore().collection("users").doc(clientUID).get(),
           admin.firestore().collection("trainers").doc(booking.trainerId).get(),
-        ]);
+        ];
+        if (slotId && booking.trainerId && needsLocationLookup) {
+          fetchPromises.push(
+            admin.firestore().collection("trainers").doc(booking.trainerId)
+              .collection("schedules").doc(slotId).get()
+          );
+        }
+
+        const [clientDoc, trainerDoc, scheduleDoc] = await Promise.all(fetchPromises);
 
         const clientData = clientDoc.data();
         const trainerData = trainerDoc.data();
+        const scheduleLocation = (scheduleDoc as any)?.data()?.location;
+
+        const resolvedTrainerName =
+          (trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || trainerData.email : null) ||
+          booking.trainerName ||
+          "Unknown Trainer";
+
+        const resolvedClientName =
+          (clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || clientData.email : null) ||
+          booking.clientName ||
+          "Unknown Client";
+
+        const resolvedLocation = (booking.location && booking.location !== "Location TBD")
+          ? booking.location
+          : (scheduleLocation && scheduleLocation !== "Location TBD" ? scheduleLocation : null);
 
         return {
           ...booking,
-          clientName: clientData ?
-            `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || clientData.email :
-            "Unknown",
-          trainerName: trainerData?.name || "Unknown",
+          clientName: resolvedClientName,
+          trainerName: resolvedTrainerName,
+          resolvedLocation,
         };
       })
     );
@@ -213,7 +245,7 @@ async function sendDailySummary(orgId: string, orgData: any, timezone: string) {
               <div>
                 <div style="font-weight: 600; color: #111827; margin-bottom: 4px;">${time}</div>
                 <div style="color: #6b7280; font-size: 14px;">${booking.clientName} with ${booking.trainerName}</div>
-                ${booking.location ? `<div style="color: #9ca3af; font-size: 12px; margin-top: 4px;">📍 ${booking.location}</div>` : ""}
+                ${booking.resolvedLocation ? `<div style="color: #9ca3af; font-size: 12px; margin-top: 4px;">📍 ${booking.resolvedLocation}</div>` : ""}
               </div>
             </div>
           </div>
@@ -323,12 +355,18 @@ async function sendWeeklySummary(orgId: string, orgData: any, timezone: string) 
       return;
     }
 
-    // Get this week's appointments (next 7 days)
-    const startOfWeek = new Date();
-    startOfWeek.setHours(0, 0, 0, 0);
-    const endOfWeek = new Date();
-    endOfWeek.setDate(endOfWeek.getDate() + 7);
-    endOfWeek.setHours(23, 59, 59, 999);
+    // Get this week's appointments (next 7 days) — timezone-aware window
+    const nowUtcWeekly = new Date();
+    const tzStringWeekly = nowUtcWeekly.toLocaleString("en-US", { timeZone: timezone });
+    const nowInTzWeekly = new Date(tzStringWeekly);
+    const tzOffsetMsWeekly = nowUtcWeekly.getTime() - nowInTzWeekly.getTime();
+    const startInTzWeekly = new Date(tzStringWeekly);
+    startInTzWeekly.setHours(0, 0, 0, 0);
+    const endInTzWeekly = new Date(tzStringWeekly);
+    endInTzWeekly.setDate(endInTzWeekly.getDate() + 7);
+    endInTzWeekly.setHours(23, 59, 59, 999);
+    const startOfWeek = new Date(startInTzWeekly.getTime() + tzOffsetMsWeekly);
+    const endOfWeek = new Date(endInTzWeekly.getTime() + tzOffsetMsWeekly);
 
     const bookingsSnapshot = await admin.firestore()
       .collection("bookings")
@@ -346,20 +384,46 @@ async function sendWeeklySummary(orgId: string, orgData: any, timezone: string) 
     // Get client and trainer details for all bookings
     const bookingsWithDetails = await Promise.all(
       bookings.map(async (booking: any) => {
-        const [clientDoc, trainerDoc] = await Promise.all([
-          admin.firestore().collection("users").doc(booking.clientUID).get(),
+        const clientUID = booking.clientUID || booking.clientId;
+        const slotId = booking.slotId || booking.scheduleSlotId;
+        const needsLocationLookup = !booking.location || booking.location === "Location TBD";
+
+        const fetchPromises: Promise<any>[] = [
+          admin.firestore().collection("users").doc(clientUID).get(),
           admin.firestore().collection("trainers").doc(booking.trainerId).get(),
-        ]);
+        ];
+        if (slotId && booking.trainerId && needsLocationLookup) {
+          fetchPromises.push(
+            admin.firestore().collection("trainers").doc(booking.trainerId)
+              .collection("schedules").doc(slotId).get()
+          );
+        }
+
+        const [clientDoc, trainerDoc, scheduleDoc] = await Promise.all(fetchPromises);
 
         const clientData = clientDoc.data();
         const trainerData = trainerDoc.data();
+        const scheduleLocation = (scheduleDoc as any)?.data()?.location;
+
+        const resolvedTrainerName =
+          (trainerData ? `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim() || trainerData.email : null) ||
+          booking.trainerName ||
+          "Unknown Trainer";
+
+        const resolvedClientName =
+          (clientData ? `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || clientData.email : null) ||
+          booking.clientName ||
+          "Unknown Client";
+
+        const resolvedLocation = (booking.location && booking.location !== "Location TBD")
+          ? booking.location
+          : (scheduleLocation && scheduleLocation !== "Location TBD" ? scheduleLocation : null);
 
         return {
           ...booking,
-          clientName: clientData ?
-            `${clientData.firstName || ""} ${clientData.lastName || ""}`.trim() || clientData.email :
-            "Unknown",
-          trainerName: trainerData?.name || "Unknown",
+          clientName: resolvedClientName,
+          trainerName: resolvedTrainerName,
+          resolvedLocation,
         };
       })
     );
@@ -404,7 +468,7 @@ async function sendWeeklySummary(orgId: string, orgData: any, timezone: string) 
               <div style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
                 <div style="font-weight: 600; color: #111827;">${time} - ${booking.clientName}</div>
                 <div style="color: #6b7280; font-size: 14px; margin-top: 2px;">with ${booking.trainerName}</div>
-                ${booking.location ? `<div style="color: #9ca3af; font-size: 12px; margin-top: 2px;">📍 ${booking.location}</div>` : ""}
+                ${booking.resolvedLocation ? `<div style="color: #9ca3af; font-size: 12px; margin-top: 2px;">📍 ${booking.resolvedLocation}</div>` : ""}
               </div>
             `;
             })

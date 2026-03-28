@@ -28,7 +28,7 @@ final class LocationsRepository: ListenerRepositoryProtocol {
         
         return snapshot.documents.compactMap { doc in
             decodeLocation(id: doc.documentID, data: doc.data())
-        }
+        }.filter { $0.isVisibleToClients != false }
     }
     
     func fetchById(id: String, orgId: String) async throws -> Location? {
@@ -103,7 +103,7 @@ final class LocationsRepository: ListenerRepositoryProtocol {
                 
                 let locations = snapshot?.documents.compactMap { doc in
                     self.decodeLocation(id: doc.documentID, data: doc.data())
-                } ?? []
+                }.filter { $0.isVisibleToClients != false } ?? []
                 
                 onChange(locations)
             }
@@ -139,7 +139,8 @@ final class LocationsRepository: ListenerRepositoryProtocol {
             orgId: orgId,
             createdAt: data["createdAt"] as? Timestamp,
             updatedAt: data["updatedAt"] as? Timestamp,
-            isActive: data["isActive"] as? Bool ?? true
+            isActive: data["isActive"] as? Bool ?? true,
+            isVisibleToClients: data["isVisibleToClients"] as? Bool
         )
     }
     

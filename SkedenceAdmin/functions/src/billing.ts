@@ -654,6 +654,9 @@ export const stripeWebhook = onRequest(
           const trialEnd = subscription.trial_end ?
             admin.firestore.Timestamp.fromDate(new Date(subscription.trial_end * 1000)) :
             null;
+          const periodEnd = subscription.current_period_end ?
+            admin.firestore.Timestamp.fromDate(new Date(subscription.current_period_end * 1000)) :
+            null;
 
           await db.collection("organizations").doc(orgId).update({
             "billing.subscriptionId": subscriptionId,
@@ -663,9 +666,7 @@ export const stripeWebhook = onRequest(
             "billing.status": subscription.status,
             "billing.plan": planName,
             "billing.isActive": subscription.status === "active" || subscription.status === "trialing",
-            "billing.currentPeriodEnd": admin.firestore.Timestamp.fromDate(
-              new Date(subscription.current_period_end * 1000)
-            ),
+            "billing.currentPeriodEnd": periodEnd,
             "billing.trialEndsAt": trialEnd,
             "billing.cancelAtPeriodEnd": subscription.cancel_at_period_end,
             "billing.lastUpdated": admin.firestore.FieldValue.serverTimestamp(),
@@ -694,14 +695,15 @@ export const stripeWebhook = onRequest(
           const trialEnd = subscription.trial_end ?
             admin.firestore.Timestamp.fromDate(new Date(subscription.trial_end * 1000)) :
             null;
+          const periodEnd = subscription.current_period_end ?
+            admin.firestore.Timestamp.fromDate(new Date(subscription.current_period_end * 1000)) :
+            null;
 
           await db.collection("organizations").doc(orgId).update({
             "billing.status": subscription.status,
             "billing.plan": planName,
             "billing.isActive": subscription.status === "active" || subscription.status === "trialing",
-            "billing.currentPeriodEnd": admin.firestore.Timestamp.fromDate(
-              new Date(subscription.current_period_end * 1000)
-            ),
+            "billing.currentPeriodEnd": periodEnd,
             "billing.trialEndsAt": trialEnd,
             "billing.cancelAtPeriodEnd": subscription.cancel_at_period_end,
             "billing.subscriptionId": subscription.id,

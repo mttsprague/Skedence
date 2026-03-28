@@ -13,16 +13,15 @@ import {
   MapPin,
   Package,
   DollarSign,
-  Crown,
   Menu,
   X,
   Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SidebarMiniCalendar } from '@/components/admin/sidebar-mini-calendar';
 
 const submenuItems = [
   { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Subscription', href: '/settings/subscription', icon: Crown },
   { name: 'Billboard', href: '/settings/billboard', icon: Megaphone },
   { name: 'Waiver', href: '/waiver', icon: FileText },
   { name: 'Intake Forms', href: '/settings/intake-forms', icon: FileText },
@@ -85,6 +84,9 @@ export function BusinessSettingsSubmenu({ children }: BusinessSettingsSubmenuPro
             <span>Back to Activity Feed</span>
           </Link>
         </div>
+
+        {/* Mini Calendar */}
+        <SidebarMiniCalendar onDayClick={closeMobileMenu} />
 
         {/* Navigation Menu */}
         <nav className="flex-1 p-4">

@@ -337,6 +337,45 @@ final class FunctionsService {
         #endif
     }
     
+    func adminRescheduleLesson(
+        bookingId: String,
+        orgId: String,
+        newTrainerId: String,
+        newStartTime: Date,
+        newEndTime: Date
+    ) async throws {
+        #if canImport(FirebaseFunctions)
+        guard Auth.auth().currentUser != nil else {
+            throw FunctionsServiceError.unauthenticated
+        }
+        
+        let isoFormatter = ISO8601DateFormatter()
+        let payload: [String: Any] = [
+            "bookingId": bookingId,
+            "orgId": orgId,
+            "newTrainerId": newTrainerId,
+            "newStartTime": isoFormatter.string(from: newStartTime),
+            "newEndTime": isoFormatter.string(from: newEndTime)
+        ]
+        
+        do {
+            _ = try await functions.httpsCallable("adminRescheduleLesson").call(payload)
+        } catch let error as NSError {
+            if error.domain == FunctionsErrorDomain {
+                let code = error.code
+                var message = error.localizedDescription
+                if let details = error.userInfo["details"] as? String {
+                    message = details
+                }
+                throw FunctionsServiceError.server(code: code, message: message)
+            }
+            throw error
+        }
+        #else
+        throw FunctionsServiceError.notAvailable
+        #endif
+    }
+    
     #if canImport(FirebaseAuth)
     // Bridge the completion-handler API to async/await
     private func forceRefreshIDToken(for user: User) async throws {

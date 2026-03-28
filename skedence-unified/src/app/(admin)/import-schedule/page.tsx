@@ -3,12 +3,22 @@
 import { useState, useEffect } from 'react';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { useAuth } from '@/hooks/useAuth';
-import { collection, query, where, getDocs, deleteDoc, doc, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, deleteDoc, doc, orderBy, Timestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format, startOfWeek, endOfWeek, addDays, isSameDay, startOfDay, endOfDay } from 'date-fns';
-import { Calendar, Plus, X, ChevronLeft, ChevronRight, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
+import { Calendar, Plus, X, ChevronLeft, ChevronRight, Trash2, RefreshCw, ExternalLink, Pencil, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
+
+interface ImportedCalendarSource {
+  id: string;          // Firestore doc ID (stable, derived from googleCalendarId)
+  googleCalendarId: string;
+  googleName: string;  // Original name from Google
+  displayName: string; // Custom name set by admin (defaults to googleName)
+  visible: boolean;    // Admin-controlled — false hides from all users
+  color: string;       // Hex color
+  connectedCalendarId: string; // Parent importedCalendars doc ID
+}
 
 interface ImportedCalendar {
   id: string;
@@ -28,9 +38,12 @@ interface ImportedEvent {
   title: string;
   startTime: Date;
   endTime: Date;
+  isAllDay?: boolean;
   location?: string;
   description?: string;
   color: string;
+  sourceCalendarId?: string;
+  sourceCalendarName?: string;
 }
 
 export default function ImportSchedulePage() {
@@ -38,6 +51,7 @@ export default function ImportSchedulePage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [weekStart, setWeekStart] = useState<Date | null>(null);
   const [importedCalendars, setImportedCalendars] = useState<ImportedCalendar[]>([]);
+  const [calendarSources, setCalendarSources] = useState<ImportedCalendarSource[]>([]);
   const [importedEvents, setImportedEvents] = useState<ImportedEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -45,6 +59,11 @@ export default function ImportSchedulePage() {
   const [today, setToday] = useState<Date | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [showAddCalendarModal, setShowAddCalendarModal] = useState(false);
+  const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
+  const [editingSourceName, setEditingSourceName] = useState('');
+  const [calendarTitle, setCalendarTitle] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitle, setEditingTitle] = useState('');
 
   // Touch swipe state for calendar navigation
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -71,6 +90,8 @@ export default function ImportSchedulePage() {
   useEffect(() => {
     if (!orgId) return;
     loadImportedCalendars();
+    loadCalendarSources();
+    loadCalendarTitle();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
@@ -79,7 +100,84 @@ export default function ImportSchedulePage() {
     if (!orgId || !weekStart) return;
     loadImportedEvents();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, weekStart, importedCalendars]);
+  }, [orgId, weekStart, importedCalendars, calendarSources]);
+
+  const loadCalendarTitle = async () => {
+    if (!orgId) return;
+    try {
+      const orgDoc = await getDoc(doc(db, 'organizations', orgId));
+      setCalendarTitle(orgDoc.data()?.importedCalendarTitle || '');
+    } catch (error) {
+      console.error('Error loading calendar title:', error);
+    }
+  };
+
+  const saveCalendarTitle = async () => {
+    if (!orgId) return;
+    const trimmed = editingTitle.trim();
+    setCalendarTitle(trimmed);
+    setIsEditingTitle(false);
+    try {
+      await updateDoc(doc(db, 'organizations', orgId), { importedCalendarTitle: trimmed });
+      toast.success('Calendar title saved');
+    } catch (error) {
+      console.error('Error saving calendar title:', error);
+      toast.error('Failed to save calendar title');
+    }
+  };
+
+  const loadCalendarSources = async () => {
+    if (!orgId) return;
+    try {
+      const sourcesRef = collection(db, 'organizations', orgId, 'importedCalendarSources');
+      const snapshot = await getDocs(sourcesRef);
+      const sources: ImportedCalendarSource[] = snapshot.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          googleCalendarId: data.googleCalendarId || '',
+          googleName: data.googleName || d.id,
+          displayName: data.displayName || data.googleName || d.id,
+          visible: data.visible !== false, // default true
+          color: data.color || '#3B82F6',
+          connectedCalendarId: data.connectedCalendarId || '',
+        };
+      });
+      setCalendarSources(sources);
+    } catch (error) {
+      console.error('Error loading calendar sources:', error);
+    }
+  };
+
+  const handleToggleSourceVisibility = async (sourceId: string) => {
+    if (!orgId) return;
+    const source = calendarSources.find(s => s.id === sourceId);
+    if (!source) return;
+    const newVisible = !source.visible;
+    // Optimistic update
+    setCalendarSources(prev => prev.map(s => s.id === sourceId ? { ...s, visible: newVisible } : s));
+    try {
+      await updateDoc(doc(db, 'organizations', orgId, 'importedCalendarSources', sourceId), { visible: newVisible });
+    } catch (error) {
+      console.error('Error updating visibility:', error);
+      // Revert on failure
+      setCalendarSources(prev => prev.map(s => s.id === sourceId ? { ...s, visible: !newVisible } : s));
+      toast.error('Failed to update visibility');
+    }
+  };
+
+  const handleRenameSource = async (sourceId: string) => {
+    if (!orgId || !editingSourceName.trim()) return;
+    const trimmed = editingSourceName.trim();
+    setCalendarSources(prev => prev.map(s => s.id === sourceId ? { ...s, displayName: trimmed } : s));
+    setEditingSourceId(null);
+    try {
+      await updateDoc(doc(db, 'organizations', orgId, 'importedCalendarSources', sourceId), { displayName: trimmed });
+    } catch (error) {
+      console.error('Error renaming calendar source:', error);
+      toast.error('Failed to save name');
+    }
+  };
 
   const loadImportedCalendars = async () => {
     if (!orgId) return;
@@ -131,20 +229,26 @@ export default function ImportSchedulePage() {
       
       const snapshot = await getDocs(q);
 
-      const events: ImportedEvent[] = snapshot.docs.map(doc => {
-        const data = doc.data();
+      const events: ImportedEvent[] = snapshot.docs.map(d => {
+        const data = d.data();
         const calendar = importedCalendars.find(cal => cal.id === data.calendarId);
+        // Use source calendar's display name and color if available
+        const safeSourceId = data.sourceCalendarId?.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const source = calendarSources.find(s => s.id === safeSourceId || s.googleCalendarId === data.sourceCalendarId);
         
         return {
-          id: doc.id,
+          id: d.id,
           calendarId: data.calendarId,
-          calendarName: calendar?.name || 'Unknown Calendar',
+          calendarName: source?.displayName || data.sourceCalendarName || calendar?.name || 'Unknown Calendar',
           title: data.title || 'Busy',
           startTime: data.startTime?.toDate() || new Date(),
           endTime: data.endTime?.toDate() || new Date(),
+          isAllDay: data.isAllDay || false,
           location: data.location,
           description: data.description,
-          color: calendar?.color || '#9CA3AF',
+          color: source?.color || calendar?.color || '#9CA3AF',
+          sourceCalendarId: data.sourceCalendarId,
+          sourceCalendarName: data.sourceCalendarName,
         };
       });
 
@@ -178,29 +282,57 @@ export default function ImportSchedulePage() {
     }
   };
 
-  const handleSyncCalendar = async (_calendarId: string) => {
+  const handleSyncCalendar = async (calendarId: string) => {
+    if (!orgId) return;
     setSyncing(true);
     toast.info('Syncing calendar... This may take a moment.');
-    
-    // TODO: Call Cloud Function to sync this specific calendar
-    // For now, just reload the data
-    setTimeout(async () => {
+    try {
+      const { httpsCallable } = await import('firebase/functions');
+      const { functions } = await import('@/lib/firebase');
+      const syncFn = httpsCallable(functions, 'syncGoogleCalendar');
+      const result = await syncFn({ orgId, calendarId }) as { data: { calendarsFound?: { name: string; calendarId?: string; eventCount: number }[]; totalEvents?: number } };
+      await loadImportedCalendars();
       await loadImportedEvents();
+      await loadCalendarSources(); // Refresh after sync — new sources may have been created
+      // Log diagnostic info to console for debugging
+      if (result.data.calendarsFound) {
+        console.group('[Skedence] Calendar Sync Results');
+        console.log(`Total events synced: ${result.data.totalEvents ?? 0}`);
+        console.log(`Calendars found (${result.data.calendarsFound.length}):`);
+        console.table(result.data.calendarsFound.map(c => ({ name: c.name, events: c.eventCount, calendarId: c.calendarId ?? '(not returned)' })));
+        console.groupEnd();
+        toast.success(`Synced ${result.data.totalEvents ?? 0} events from ${result.data.calendarsFound.length} calendars`);
+      } else {
+        toast.success('Calendar synced successfully');
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sync calendar');
+    } finally {
       setSyncing(false);
-      toast.success('Calendar synced successfully');
-    }, 2000);
+    }
   };
 
   const handleSyncAllCalendars = async () => {
+    if (!orgId) return;
     setSyncing(true);
     toast.info('Syncing all calendars... This may take a moment.');
-    
-    // TODO: Call Cloud Function to sync all calendars
-    setTimeout(async () => {
+    try {
+      const { httpsCallable } = await import('firebase/functions');
+      const { functions } = await import('@/lib/firebase');
+      const syncFn = httpsCallable(functions, 'syncGoogleCalendar');
+      await Promise.all(
+        importedCalendars.map(cal => syncFn({ orgId, calendarId: cal.id }))
+      );
+      await loadImportedCalendars();
       await loadImportedEvents();
-      setSyncing(false);
       toast.success('All calendars synced successfully');
-    }, 3000);
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sync calendars');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const handleAddCalendar = async () => {
@@ -299,10 +431,17 @@ export default function ImportSchedulePage() {
   // Time slots (6 AM to 10 PM)
   const timeSlots = Array.from({ length: 17 }, (_, i) => i + 6);
 
-  // Get events for a specific day
+  // Get events for a specific day (respects source calendar visibility)
   const getEventsForDay = (day: Date) => {
-    return importedEvents.filter(event => 
-      isSameDay(event.startTime, day)
+    return visibleEvents.filter(event =>
+      !event.isAllDay && isSameDay(event.startTime, day)
+    );
+  };
+
+  // Get all-day events for a specific day
+  const getAllDayEventsForDay = (day: Date) => {
+    return visibleEvents.filter(event =>
+      event.isAllDay && isSameDay(event.startTime, day)
     );
   };
 
@@ -319,23 +458,23 @@ export default function ImportSchedulePage() {
   };
 
   // Calculate Y offset for positioning events
+  // Each row = 70px cell (h-[70px]) + 1px border-b = 71px pitch between hour gridlines.
+  // Use ROW_PITCH for whole-hour offsets; ROW_HEIGHT/60 for intra-hour minutes.
+  const ROW_HEIGHT = 70;
+  const ROW_PITCH  = 71; // ROW_HEIGHT + 1px border-b per row
+
   const getEventYOffset = (startTime: Date) => {
     const startHour = startTime.getHours();
     const startMinutes = startTime.getMinutes();
-    const hourFromTop = startHour - 6; // Subtract 6 because we start at 6 AM
-    const pixelsPerHour = 70;
-    const pixelsPerMinute = pixelsPerHour / 60;
-    
-    return hourFromTop * pixelsPerHour + startMinutes * pixelsPerMinute;
+    const hourFromTop = startHour - 6;
+    return hourFromTop * ROW_PITCH + startMinutes * (ROW_HEIGHT / 60);
   };
 
   // Calculate height for events
   const getEventHeight = (startTime: Date, endTime: Date) => {
     const durationMs = endTime.getTime() - startTime.getTime();
     const durationMinutes = durationMs / (1000 * 60);
-    const pixelsPerMinute = 70 / 60;
-    
-    return durationMinutes * pixelsPerMinute;
+    return durationMinutes * (ROW_PITCH / 60);
   };
 
   // Calculate timeline position for current time indicator
@@ -346,11 +485,39 @@ export default function ImportSchedulePage() {
     if (currentHour < 6 || currentHour >= 23) return null;
     
     const hourFromTop = currentHour - 6;
-    const pixelsPerHour = 70;
-    const pixelsPerMinute = pixelsPerHour / 60;
-    
-    return hourFromTop * pixelsPerHour + currentMinutes * pixelsPerMinute;
+    return hourFromTop * ROW_PITCH + currentMinutes * (ROW_HEIGHT / 60);
   })() : null;
+
+  // visibleEvents: filter by Firestore-backed visibility.
+  // Sources not yet in calendarSources (first sync in progress) default to visible.
+  const visibleEvents = importedEvents.filter(e => {
+    const sourceKey = e.sourceCalendarId || e.calendarId;
+    const source = calendarSources.find(s => s.googleCalendarId === sourceKey || s.id === sourceKey);
+    return !source || source.visible; // default visible if source not yet loaded
+  });
+
+  // Map source calendars for the filter UI — prefer Firestore sources, fall back to event-derived
+  const displaySources: { id: string; name: string; color: string; visible: boolean; firestoreId?: string }[] = (() => {
+    if (calendarSources.length > 0) {
+      return calendarSources.map(s => ({
+        id: s.googleCalendarId,
+        name: s.displayName,
+        color: s.color,
+        visible: s.visible,
+        firestoreId: s.id,
+      }));
+    }
+    // Fallback: derive from events (before first sync creates source docs)
+    const seen = new Map<string, { id: string; name: string; color: string; visible: boolean }>();
+    for (const event of importedEvents) {
+      const key = event.sourceCalendarId || event.calendarId;
+      if (!seen.has(key)) {
+        const cal = importedCalendars.find(c => c.id === event.calendarId);
+        seen.set(key, { id: key, name: event.sourceCalendarName || event.calendarName, color: cal?.color || '#9CA3AF', visible: true });
+      }
+    }
+    return Array.from(seen.values());
+  })();
 
   // Check if user is admin
   const isAdmin = userData?.role === 'admin' || userData?.role === 'owner';
@@ -379,6 +546,39 @@ export default function ImportSchedulePage() {
               <p className="text-sm text-muted-foreground mt-1">
                 Connect external calendars to view facility availability
               </p>
+              {/* Editable calendar display name */}
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-muted-foreground">Calendar name:</span>
+                {isEditingTitle ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={editingTitle}
+                      onChange={e => setEditingTitle(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveCalendarTitle();
+                        if (e.key === 'Escape') setIsEditingTitle(false);
+                      }}
+                      placeholder="e.g. Facility Schedule"
+                      className="text-sm border border-border rounded px-2 py-0.5 bg-background outline-none focus:ring-1 focus:ring-primary w-48"
+                    />
+                    <button onClick={saveCalendarTitle} className="text-primary hover:text-primary/80" title="Save">
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => setIsEditingTitle(false)} className="text-muted-foreground hover:text-foreground" title="Cancel">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setEditingTitle(calendarTitle); setIsEditingTitle(true); }}
+                    className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors group"
+                  >
+                    <span>{calendarTitle || <span className="text-muted-foreground italic">Untitled Calendar</span>}</span>
+                    <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -440,6 +640,67 @@ export default function ImportSchedulePage() {
             </div>
           )}
 
+          {/* Source Calendar Filters — appear after first sync */}
+          {displaySources.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium mr-1">Show:</span>
+              {displaySources.map(src => {
+                const isEditing = editingSourceId === src.firestoreId;
+                return (
+                  <div key={src.id} className="flex items-center gap-1">
+                    {isEditing ? (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-primary bg-background">
+                        <input
+                          autoFocus
+                          value={editingSourceName}
+                          onChange={e => setEditingSourceName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleRenameSource(src.firestoreId!);
+                            if (e.key === 'Escape') setEditingSourceId(null);
+                          }}
+                          className="text-xs w-28 bg-transparent outline-none"
+                        />
+                        <button onClick={() => handleRenameSource(src.firestoreId!)} className="text-primary hover:text-primary/80">
+                          <Check className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => setEditingSourceId(null)} className="text-muted-foreground hover:text-foreground">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => src.firestoreId ? handleToggleSourceVisibility(src.firestoreId) : undefined}
+                        className={cn(
+                          'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
+                          src.visible
+                            ? 'border-transparent text-white'
+                            : 'border-border bg-transparent text-muted-foreground'
+                        )}
+                        style={src.visible ? { backgroundColor: src.color } : {}}
+                        title={src.visible ? `Hide "${src.name}"` : `Show "${src.name}"`}
+                      >
+                        <span
+                          className={cn('w-2 h-2 rounded-full flex-shrink-0', !src.visible && 'border border-current')}
+                          style={src.visible ? { backgroundColor: 'rgba(255,255,255,0.6)' } : { backgroundColor: src.color }}
+                        />
+                        {src.name}
+                      </button>
+                    )}
+                    {src.firestoreId && !isEditing && (
+                      <button
+                        onClick={() => { setEditingSourceId(src.firestoreId!); setEditingSourceName(src.name); }}
+                        className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                        title={`Rename "${src.name}"`}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Week Navigation */}
           <div className="flex items-center justify-between mt-4">
             <button
@@ -453,6 +714,16 @@ export default function ImportSchedulePage() {
               <h2 className="text-lg font-semibold text-foreground">
                 {weekStart && isMounted && `${format(weekStart, 'MMM d')} - ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`}
               </h2>
+              {isMounted && importedCalendars.length > 0 && !loading && (
+                <span className={cn(
+                  'px-2 py-0.5 rounded-full text-xs font-medium',
+                  visibleEvents.length > 0
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-500'
+                )}>
+                  {visibleEvents.length} event{visibleEvents.length !== 1 ? 's' : ''}
+                </span>
+              )}
               <button
                 onClick={goToToday}
                 className="px-3 py-1 text-sm bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
@@ -509,19 +780,32 @@ export default function ImportSchedulePage() {
                   <div
                     key={day.toISOString()}
                     className={cn(
-                      'p-3 text-center border-l border-border',
+                      'border-l border-border',
                       today && isSameDay(day, today) && 'bg-primary/5'
                     )}
                   >
-                    <div className="text-xs font-medium text-muted-foreground">
-                      {format(day, 'EEE')}
+                    <div className="p-3 text-center">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        {format(day, 'EEE')}
+                      </div>
+                      <div className={cn(
+                        'text-2xl font-bold mt-1',
+                        today && isSameDay(day, today) ? 'text-primary' : 'text-foreground'
+                      )}>
+                        {format(day, 'd')}
+                      </div>
                     </div>
-                    <div className={cn(
-                      'text-2xl font-bold mt-1',
-                      today && isSameDay(day, today) ? 'text-primary' : 'text-foreground'
-                    )}>
-                      {format(day, 'd')}
-                    </div>
+                    {/* All-day event banners */}
+                    {getAllDayEventsForDay(day).map(event => (
+                      <div
+                        key={event.id}
+                        className="mx-1 mb-1 px-1.5 py-0.5 rounded text-[10px] font-medium truncate"
+                        style={{ backgroundColor: `${event.color}25`, color: event.color, borderLeft: `3px solid ${event.color}` }}
+                        title={event.title}
+                      >
+                        {event.title}
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -550,7 +834,7 @@ export default function ImportSchedulePage() {
                   
                   return (
                     <div key={hour} className="grid grid-cols-8 border-b border-border">
-                      <div className="p-3 text-xs text-muted-foreground font-medium border-r border-border">
+                      <div className="px-3 pt-0 pb-3 text-xs text-muted-foreground font-medium border-r border-border">
                         {hourLabel}
                       </div>
                       {weekDays.map(day => {

@@ -22,6 +22,8 @@ final class ClassesService: ObservableObject {
     // MARK: - Additional Published State (domain-specific)
     
     @Published private(set) var upcomingClasses: [GroupClass] = []
+    /// All upcoming classes fetched (pre-dedup) — used for series sibling lookup in previews
+    @Published private(set) var allFetchedUpcomingClasses: [GroupClass] = []
     @Published private(set) var myRegisteredClasses: [GroupClass] = []
     @Published var registrationChangeToken = UUID() // Triggers UI refresh after registration
     
@@ -96,7 +98,21 @@ final class ClassesService: ObservableObject {
         
         do {
             let classes = try await repository.fetchUpcomingClasses(orgId: orgId)
-            upcomingClasses = Array(classes.prefix(3))
+            allFetchedUpcomingClasses = classes
+            // Deduplicate series — only keep the first occurrence of each series
+            var seenSeries = Set<String>()
+            var deduped: [GroupClass] = []
+            for c in classes {
+                if let sid = c.seriesId, c.isPartOfSeries == true {
+                    if !seenSeries.contains(sid) {
+                        seenSeries.insert(sid)
+                        deduped.append(c)
+                    }
+                } else {
+                    deduped.append(c)
+                }
+            }
+            upcomingClasses = Array(deduped.prefix(3))
         } catch {
             self.error = mapRepositoryError(error)
             print("Error loading upcoming classes: \(error)")

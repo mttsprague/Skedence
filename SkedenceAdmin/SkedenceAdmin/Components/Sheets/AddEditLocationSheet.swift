@@ -24,6 +24,7 @@ struct AddEditLocationSheet: View {
     @State private var zipCode: String
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var isVisibleToClients: Bool
     
     init(locationsService: LocationsService, locationToEdit: Location? = nil, onSave: @escaping () -> Void) {
         self.locationsService = locationsService
@@ -36,6 +37,7 @@ struct AddEditLocationSheet: View {
         _city = State(initialValue: locationToEdit?.city ?? "")
         _state = State(initialValue: locationToEdit?.state ?? "")
         _zipCode = State(initialValue: locationToEdit?.zipCode ?? "")
+        _isVisibleToClients = State(initialValue: locationToEdit?.isVisibleToClients ?? true)
     }
     
     var body: some View {
@@ -72,6 +74,16 @@ struct AddEditLocationSheet: View {
                             .textContentType(.postalCode)
                             .keyboardType(.numberPad)
                     }
+                }
+                
+                Section {
+                    Toggle("Visible to clients", isOn: $isVisibleToClients)
+                } header: {
+                    Text("Visibility")
+                } footer: {
+                    Text("When off, clients won't see this location when booking lessons.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 
                 if let error = errorMessage {
@@ -139,6 +151,7 @@ struct AddEditLocationSheet: View {
                     updated.city = city.trimmingCharacters(in: .whitespaces)
                     updated.state = state.trimmingCharacters(in: .whitespaces).uppercased()
                     updated.zipCode = zipCode.trimmingCharacters(in: .whitespaces)
+                    updated.isVisibleToClients = isVisibleToClients
                     
                     try await locationsService.updateLocation(updated)
                 } else {
@@ -151,7 +164,8 @@ struct AddEditLocationSheet: View {
                         state: state.trimmingCharacters(in: .whitespaces).uppercased(),
                         zipCode: zipCode.trimmingCharacters(in: .whitespaces),
                         orgId: orgId,
-                        isActive: true
+                        isActive: true,
+                        isVisibleToClients: isVisibleToClients
                     )
                     
                     try await locationsService.addLocation(newLocation)

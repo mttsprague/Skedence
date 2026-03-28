@@ -83,6 +83,7 @@ struct EditProfileView: View {
                             selection: Binding(
                                 get: {
                                     if let dateString = athletes[index].birthday,
+                                       !dateString.isEmpty,
                                        let date = dateFromString(dateString) {
                                         return date
                                     }
@@ -94,6 +95,11 @@ struct EditProfileView: View {
                             ),
                             displayedComponents: .date
                         )
+                        .onAppear {
+                            if athletes[index].birthday == nil || athletes[index].birthday?.isEmpty == true {
+                                athletes[index].birthday = stringFromDate(Date())
+                            }
+                        }
                         
                         TextField("School/Club Team", text: Binding(
                             get: { athletes[index].schoolClubTeam ?? "" },

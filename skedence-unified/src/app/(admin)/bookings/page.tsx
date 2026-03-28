@@ -234,9 +234,8 @@ export default function BookingsPage() {
       const bookLesson = httpsCallable(functions, 'bookLesson');
       
       // Get admin info for activity logging
-      const adminName = userData 
-        ? `${userData.firstName || ''} ${userData.lastName || ''}`.trim() 
-        : user?.email?.split('@')[0] || 'Admin';
+      const fullName = userData ? `${userData.firstName || ''} ${userData.lastName || ''}`.trim() : '';
+      const adminName = fullName || user?.email?.split('@')[0] || 'Admin';
       
       await bookLesson({
         trainerId: selectedTrainer,

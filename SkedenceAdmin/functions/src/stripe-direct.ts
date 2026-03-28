@@ -254,7 +254,7 @@ export const createPaymentIntentDirect = onCall(
           purchase_date: purchaseDate,
           pricing_tier_id: pricingTierId || "",
           pricing_tier_name: pricingTierName || "",
-          price_per_lesson: pricePerLesson ? pricePerLesson.toString() : "",
+          price_per_lesson: pricePerLesson ? (pricePerLesson / 100).toFixed(2) : "",
         },
       });
 
@@ -563,7 +563,7 @@ export const createAndConfirmPaymentDirect = onCall(
           // NEW: Tier pricing fields
           pricing_tier_id: pricingTierId || "",
           pricing_tier_name: pricingTierName || "",
-          price_per_lesson: pricePerLesson ? pricePerLesson.toString() : "",
+          price_per_lesson: pricePerLesson ? (pricePerLesson / 100).toFixed(2) : "",
         },
       });
 
@@ -626,7 +626,7 @@ export const createAndConfirmPaymentDirect = onCall(
           packageData.pricingTierName = resolvedPricingTierName;
         }
         if (pricePerLesson) {
-          packageData.pricePerLesson = pricePerLesson;
+          packageData.pricePerLesson = pricePerLesson / 100; // convert cents to dollars
         }
 
         await db
@@ -809,7 +809,7 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
       let pricingTierId = paymentIntent.metadata.pricing_tier_id || undefined;
       let pricingTierName = paymentIntent.metadata.pricing_tier_name || undefined;
       const pricePerLesson = paymentIntent.metadata.price_per_lesson ?
-        parseInt(paymentIntent.metadata.price_per_lesson, 10) :
+        parseFloat(paymentIntent.metadata.price_per_lesson) :
         undefined;
 
       if (!packageType || !trainerId) {
@@ -934,7 +934,7 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
         packageData.pricingTierName = pricingTierName;
       }
       if (pricePerLesson) {
-        packageData.pricePerLesson = pricePerLesson;
+        packageData.pricePerLesson = pricePerLesson; // already in dollars (from metadata)
       }
       
       await db

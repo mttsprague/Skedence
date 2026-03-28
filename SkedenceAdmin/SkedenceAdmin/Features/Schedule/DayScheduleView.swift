@@ -118,14 +118,6 @@ struct DayScheduleView: View {
                                             RoundedRectangle(cornerRadius: 8)
                                                 .fill(slot.visualColor(viewingTrainerId: auth.userId))
                                         )
-                                        
-                                        if slot.isBooked, let name = slot.clientName {
-                                            Text(name)
-                                                .font(.body)
-                                                .foregroundStyle(.primary)
-                                        }
-                                        
-                                        Spacer()
                                     }
                                     .onTapGesture {
                                         handleSlotTap(slot)
