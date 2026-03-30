@@ -103,6 +103,7 @@ interface BookingSnapshot {
   emergencyContactName?: string;
   emergencyContactNumber?: string;
   referredBy?: string;
+  notesForCoach?: string;
 }
 
 interface WeeklyStats {
@@ -572,19 +573,50 @@ export default function ActivityPage() {
         );
         
         const bookingsSnap = await getDocs(bookingsQuery);
-        
-        const bookings: BookingSnapshot[] = bookingsSnap.docs
-          .filter(doc => {
-            const data = doc.data();
-            // Filter for confirmed bookings in code instead of query
-            return data.status === 'confirmed';
-          })
-          .map(doc => {
-            const data = doc.data();
+
+        const confirmedDocs = bookingsSnap.docs.filter(doc => doc.data().status === 'confirmed');
+
+        // Enrich bookings: resolve trainerName and location from source docs when missing/corrupted
+        const bookings: BookingSnapshot[] = await Promise.all(
+          confirmedDocs.map(async (docSnap) => {
+            const data = docSnap.data();
+            const trainerId: string = data.trainerId || '';
+
+            // Resolve trainer name — treat single-word values like "trainer" as missing
+            let trainerName: string = data.trainerName || '';
+            const nameIsSuspect = !trainerName || !trainerName.includes(' ');
+            if (nameIsSuspect && trainerId) {
+              try {
+                const trainerDoc = await getDoc(doc(db, 'trainers', trainerId));
+                if (trainerDoc.exists()) {
+                  const td = trainerDoc.data();
+                  const resolved = `${td.firstName || ''} ${td.lastName || ''}`.trim();
+                  if (resolved) trainerName = resolved;
+                }
+              } catch {
+                // keep whatever we have
+              }
+            }
+            if (!trainerName) trainerName = 'Unknown Trainer';
+
+            // Resolve location — look up the schedule slot when missing
+            let location: string = data.location || '';
+            if (!location && trainerId && data.slotId) {
+              try {
+                const slotDoc = await getDoc(doc(db, 'trainers', trainerId, 'schedules', data.slotId));
+                if (slotDoc.exists()) {
+                  location = slotDoc.data().location || '';
+                }
+              } catch {
+                // keep whatever we have
+              }
+            }
+            if (!location) location = 'TBD';
+
             return {
-              id: doc.id,
-              trainerId: data.trainerId || '',
-              trainerName: data.trainerName || 'Unknown Trainer',
+              id: docSnap.id,
+              trainerId,
+              trainerName,
               clientName: data.clientName || 'Unknown Client',
               clientEmail: data.clientEmail,
               clientPhone: data.clientPhone,
@@ -592,7 +624,7 @@ export default function ActivityPage() {
               clientId: data.clientId,
               startTime: data.startTime?.toDate() || new Date(),
               endTime: data.endTime?.toDate() || new Date(),
-              location: data.location || 'TBD',
+              location,
               lessonNotes: data.lessonNotes,
               athleteName: data.athleteName,
               secondAthleteName: data.secondAthleteName,
@@ -601,8 +633,10 @@ export default function ActivityPage() {
               emergencyContactName: data.emergencyContactName,
               emergencyContactNumber: data.emergencyContactNumber,
               referredBy: data.referredBy,
+              notesForCoach: data.notesForCoach,
             };
-          });
+          })
+        );
         
         setTodayBookings(bookings);
       } catch (error) {
@@ -959,14 +993,36 @@ export default function ActivityPage() {
       );
       
       const bookingsSnap = await getDocs(bookingsQuery);
-      const bookings: BookingSnapshot[] = bookingsSnap.docs
-        .filter(doc => doc.data().status === 'confirmed')
-        .map(doc => {
-          const data = doc.data();
+      const confirmedCancelDocs = bookingsSnap.docs.filter(d => d.data().status === 'confirmed');
+      const bookings: BookingSnapshot[] = await Promise.all(
+        confirmedCancelDocs.map(async (docSnap) => {
+          const data = docSnap.data();
+          const trainerId: string = data.trainerId || '';
+          let trainerName: string = data.trainerName || '';
+          const nameIsSuspect = !trainerName || !trainerName.includes(' ');
+          if (nameIsSuspect && trainerId) {
+            try {
+              const trainerDoc = await getDoc(doc(db, 'trainers', trainerId));
+              if (trainerDoc.exists()) {
+                const td = trainerDoc.data();
+                const resolved = `${td.firstName || ''} ${td.lastName || ''}`.trim();
+                if (resolved) trainerName = resolved;
+              }
+            } catch { /* keep */ }
+          }
+          if (!trainerName) trainerName = 'Unknown Trainer';
+          let location: string = data.location || '';
+          if (!location && trainerId && data.slotId) {
+            try {
+              const slotDoc = await getDoc(doc(db, 'trainers', trainerId, 'schedules', data.slotId));
+              if (slotDoc.exists()) location = slotDoc.data().location || '';
+            } catch { /* keep */ }
+          }
+          if (!location) location = 'TBD';
           return {
-            id: doc.id,
-            trainerId: data.trainerId || '',
-            trainerName: data.trainerName || 'Unknown Trainer',
+            id: docSnap.id,
+            trainerId,
+            trainerName,
             clientName: data.clientName || 'Unknown Client',
             clientEmail: data.clientEmail,
             clientPhone: data.clientPhone,
@@ -974,7 +1030,7 @@ export default function ActivityPage() {
             clientId: data.clientId,
             startTime: data.startTime?.toDate() || new Date(),
             endTime: data.endTime?.toDate() || new Date(),
-            location: data.location || 'TBD',
+            location,
             lessonNotes: data.lessonNotes,
             athleteName: data.athleteName,
             secondAthleteName: data.secondAthleteName,
@@ -983,8 +1039,10 @@ export default function ActivityPage() {
             emergencyContactName: data.emergencyContactName,
             emergencyContactNumber: data.emergencyContactNumber,
             referredBy: data.referredBy,
+            notesForCoach: data.notesForCoach,
           };
-        });
+        })
+      );
       setTodayBookings(bookings);
     } catch (error: any) {
       console.error('Failed to cancel session:', error);
@@ -2129,6 +2187,16 @@ export default function ActivityPage() {
                 </div>
               )}
               
+              {/* Notes for Coach */}
+              {selectedBooking.notesForCoach && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">Notes for Coach</h3>
+                  <div className="text-sm text-foreground/80 bg-amber-50 border border-amber-100 p-3 rounded-lg">
+                    {selectedBooking.notesForCoach}
+                  </div>
+                </div>
+              )}
+
               {/* Session Notes */}
               {selectedBooking.lessonNotes && (
                 <div className="space-y-2">
