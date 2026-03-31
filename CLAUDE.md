@@ -276,26 +276,37 @@ organizations/{orgId}
 
 #### **users**
 ```
-users/{userId}
+users/{userId}    ← IMPORTANT: userId is NAME-BASED (e.g., "john_doe"), NOT Firebase Auth UID
 ├── firstName: string
 ├── lastName: string
 ├── email: string (or emailAddress)
+├── authUserId: string  ← Firebase Auth UID (CRITICAL: used to resolve doc ID from Auth UID)
 ├── phoneNumber: string
 ├── role: "admin" | "trainer" | "client"
 ├── orgId: string (PRIMARY - reference to organization)
 ├── organizationId: string (LEGACY - backwards compatibility only)
 ├── isActive: boolean
 ├── createdAt: timestamp
-└── profileImageUrl?: string
+├── profileImageUrl?: string
+├── athleteFirstName?: string (optional athlete name fields)
+└── athleteLastName?: string
 
-  SUBCOLLECTION: packages (NEW STANDARD PATH)
+  SUBCOLLECTION: documents
+  users/{userId}/documents/{documentId}
+  ├── name: string (filename)
+  ├── type: string (document type)
+  ├── url: string (download URL)
+  ├── uploadedAt: timestamp
+  └── athleteName?: string
+
+  SUBCOLLECTION: packages (STANDARD PATH - ALL systems use this)
   organizations/{orgId}/users/{userId}/packages/{packageId}
   ├── packageType: string (e.g., "private", "2_athlete", "class_10_pack")
-  ├── packageCategory: string ("pass" or "class")
+  ├── packageCategory: string ("oneAthlete"|"twoAthlete"|"threeAthlete"|"fourAthlete"|"classPass")
   ├── packageName?: string (optional display title)
   ├── totalLessons: number
   ├── lessonsUsed: number
-  ├── remainingLessons: number (computed)
+  ├── remainingLessons: number  ← NOT STORED - computed as totalLessons - lessonsUsed
   ├── purchaseDate: timestamp
   ├── expirationDate: timestamp
   ├── transactionId: string
@@ -309,12 +320,23 @@ users/{userId}
 
 #### **orgMembers** (Junction table)
 ```
-orgMembers/{memberId}
+orgMembers/{memberId}    ← Document ID format: {authUid}_{orgId}
 ├── orgId: string
-├── userId: string
-├── role: "admin" | "trainer" | "client"
-├── joinedAt: timestamp
+├── userId: string          ← Name-based user document ID (e.g., "john_doe")
+├── authUserId: string      ← Firebase Auth UID (CRITICAL: used for queries by auth state)
+├── role: "admin" | "trainer" | "client" | "owner"
+├── joinedAt: timestamp (or createdAt)
 └── isActive: boolean
+```
+
+**How orgMembers is queried:**
+```typescript
+// Look up orgId from Auth UID
+db.collection('orgMembers')
+  .where('authUserId', '==', authUid)   // Use authUserId field, NOT document ID
+  .where('isActive', '==', true)
+  .limit(1)
+// Returns: orgId, userId (name-based doc ID), role
 ```
 
 #### **trainers**
@@ -338,27 +360,41 @@ trainers/{trainerId}
   trainers/{trainerId}/schedules/{scheduleId}
   ├── startTime: timestamp
   ├── endTime: timestamp
-  ├── isBooked: boolean
+  ├── status: string         ← "available" | "booked" (NOT isBooked boolean)
   ├── location?: string
+  ├── title?: string
   ├── notes?: string
+  ├── orgId?: string
   └── createdAt: timestamp
-  **NOTE:** No trainerId field in schedule docs (inherited from parent)
+  **NOTE:** No trainerId field in schedule docs (inherited from parent path)
+  **QUERY:** Use where('status', '==', 'available') NOT where('isBooked', '==', false)
+  **CLASS BOOKINGS:** status='booked', clientId='CLASS', isClassBooking=true
 ```
 
 #### **bookings**
 ```
-bookings/{bookingId}
-├── clientId: string
-├── trainerId: string
+bookings/{bookingId}    ← Human-readable ID: {clientDocId}_{trainerId}_{timestamp}
+├── clientId: string    ← Name-based user document ID (NOT Firebase Auth UID)
+├── clientUID: string   ← Same as clientId (alias used in some queries)
+├── trainerUID: string  ← Trainer document ID (also stored as trainerId in legacy)
+├── trainerId: string   ← Alias for trainerUID (backward compat)
 ├── orgId: string
-├── packageId: string (reference to lessonPackage)
-├── scheduleId: string
+├── lessonPackageId: string  ← Package document ID (also stored as packageId)
+├── packageId: string   ← Alias for lessonPackageId (backward compat)
+├── scheduleSlotId: string   ← Schedule document ID (also stored as scheduleId/slotId)
+├── scheduleId: string  ← Alias for scheduleSlotId (backward compat)
 ├── startTime: timestamp
 ├── endTime: timestamp
 ├── status: "confirmed" | "cancelled" | "completed"
 ├── location?: string
-├── notes?: string
+├── athleteName?: string
+├── secondAthleteName?: string
+├── athleteNames?: string[]
+├── lessonNotes?: string
 └── createdAt: timestamp
+
+**QUERY clientId:** clientId is the name-based user doc ID, NOT Firebase Auth UID.
+Resolve Auth UID → doc ID first via: db.collection('users').where('authUserId', '==', authUid)
 ```
 
 #### **classes** (Group Classes)
@@ -378,6 +414,40 @@ classes/{classId}
 ├── isOpenForRegistration: boolean
 ├── price: number
 ├── imageUrl?: string
+└── createdAt: timestamp
+
+  SUBCOLLECTION: participants
+  classes/{classId}/participants/{userId}
+  ├── userId: string (name-based user doc ID)
+  ├── firstName: string
+  ├── lastName: string
+  └── registeredAt: timestamp
+```
+
+#### **classRegistrations**
+```
+classRegistrations/{registrationId}
+├── classId: string
+├── clientId: string    ← Name-based user document ID
+├── orgId: string
+└── registeredAt: timestamp
+```
+
+#### **locations**
+```
+locations/{locationId}    ← Document ID is sanitized location name (e.g., "gym_1")
+├── name: string
+├── orgId: string
+├── isActive: boolean
+├── isVisibleToClients: boolean
+├── createdAt: timestamp
+└── updatedAt: timestamp
+```
+
+#### **activities**
+```
+activities/{activityId}
+├── (activity log fields)
 └── createdAt: timestamp
 ```
 

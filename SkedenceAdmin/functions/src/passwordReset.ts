@@ -43,8 +43,14 @@ export const sendPasswordResetEmail = onCall(
         return {success: true}; // Return success anyway for security
       }
 
-      // Generate password reset link (this only generates the link, doesn't send email)
-      const resetLink = await admin.auth().generatePasswordResetLink(email);
+      // Generate password reset link with redirect to custom page
+      // handleCodeInApp: true causes Firebase's action handler to redirect to our
+      // custom /setup-password page with the oobCode as a query param
+      const actionCodeSettings: admin.auth.ActionCodeSettings = {
+        url: "https://skedence.com/setup-password",
+        handleCodeInApp: true,
+      };
+      const resetLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
 
       // Send email via SendGrid extension (mail collection)
       // Using default FROM and REPLY-TO from extension configuration

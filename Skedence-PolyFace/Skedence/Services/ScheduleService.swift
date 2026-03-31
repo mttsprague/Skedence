@@ -85,7 +85,7 @@ final class ScheduleService: ObservableObject {
                 trainerId: trainerId,
                 orgId: orgId
             )
-            daySlots = allSlots.filter { $0.status == "open" }
+            daySlots = allSlots.filter { $0.status == "open" && !($0.location?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) }
         } catch {
             self.error = mapRepositoryError(error)
             print("ScheduleService: failed to load day slots: \(error)")
@@ -113,7 +113,7 @@ final class ScheduleService: ObservableObject {
                 orgId: orgId
             )
             
-            let openSlots = allSlots.filter { $0.status == "open" }
+            let openSlots = allSlots.filter { $0.status == "open" && !($0.location?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) }
             
             var counts: [Date: Int] = [:]
             for slot in openSlots {

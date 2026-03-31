@@ -1,0 +1,510 @@
+/**
+ * Shared Firestore data-fetch helpers.
+ * All functions throw on error — callers should wrap in try/catch.
+ */
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+  addDoc,
+  doc,
+  Timestamp,
+} from 'firebase/firestore';
+import { db, ORG_ID } from './firebase';
+import type { Trainer, TrainerScheduleSlot, LessonPackage, Booking, GroupClass, UserProfile, UserDocument, AthleteInfo } from '@/types';
+import { toDate, computeRemaining } from './utils';
+import { athleteDisplayName } from '@/types';
+
+/** Fetch all active trainers for the org, sorted by displayOrder then name. */
+export async function fetchOrgTrainers(): Promise<Trainer[]> {
+  // Single-field query — avoid composite index requirement
+  const snap = await getDocs(
+    query(collection(db, 'trainers'), where('orgId', '==', ORG_ID))
+  );
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Trainer))
+    .filter((t) => t.active !== false)
+    .sort((a, b) => {
+      const aOrder = (a as any).displayOrder ?? 999;
+      const bOrder = (b as any).displayOrder ?? 999;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+    });
+}
+
+/** Decode a raw Firestore schedule doc into a TrainerScheduleSlot. */
+function decodeSlot(id: string, data: Record<string, any>, trainerId: string): TrainerScheduleSlot {
+  return {
+    id,
+    trainerId,
+    ...data,
+    startTime: toDate(data.startTime),
+    endTime: toDate(data.endTime),
+    location: typeof data.location === 'string' ? data.location.trim() || undefined : data.location,
+  } as TrainerScheduleSlot;
+}
+
+/**
+ * Fetch open slots for a trainer in a specific month.
+ * Mirrors iOS ScheduleRepository.fetchInRange — range query on startTime (no status in
+ * Firestore query), then filter status == 'open' client-side. No composite index needed.
+ */
+export async function fetchSlotsForMonth(
+  trainerId: string,
+  year: number,
+  month: number // 0-indexed
+): Promise<TrainerScheduleSlot[]> {
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0, 23, 59, 59);
+  const snap = await getDocs(
+    query(
+      collection(db, `trainers/${trainerId}/schedules`),
+      where('startTime', '>=', Timestamp.fromDate(start)),
+      where('startTime', '<=', Timestamp.fromDate(end)),
+      orderBy('startTime')
+    )
+  );
+  const now = new Date();
+  return snap.docs
+    .map((d) => decodeSlot(d.id, d.data(), trainerId))
+    .filter((s) => s.status === 'open' && s.startTime > now && !!s.location);
+}
+
+/**
+ * Fetch open slots for a trainer on a specific day.
+ * Mirrors iOS ScheduleService.loadOpenSlots — startOfDay to endOfDay range query.
+ */
+export async function fetchSlotsForDay(
+  trainerId: string,
+  date: Date
+): Promise<TrainerScheduleSlot[]> {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+  const snap = await getDocs(
+    query(
+      collection(db, `trainers/${trainerId}/schedules`),
+      where('startTime', '>=', Timestamp.fromDate(start)),
+      where('startTime', '<=', Timestamp.fromDate(end)),
+      orderBy('startTime')
+    )
+  );
+  const now = new Date();
+  return snap.docs
+    .map((d) => decodeSlot(d.id, d.data(), trainerId))
+    .filter((s) => s.status === 'open' && s.startTime > now && !!s.location);
+}
+
+/**
+ * Fetch all lesson packages for a user.
+ * `remainingLessons` is computed client-side (not stored in Firestore).
+ */
+export async function fetchUserPackages(userDocId: string): Promise<LessonPackage[]> {
+  const snap = await getDocs(
+    collection(db, 'organizations', ORG_ID, 'users', userDocId, 'packages')
+  );
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      ...data,
+      remainingLessons: computeRemaining(data.totalLessons, data.lessonsUsed),
+      purchaseDate: toDate(data.purchaseDate),
+      expirationDate: toDate(data.expirationDate),
+    } as LessonPackage;
+  });
+}
+
+/** Build a map of trainerId → full name for in-memory enrichment. */
+async function buildTrainerMap(): Promise<Map<string, string>> {
+  const snap = await getDocs(
+    query(collection(db, 'trainers'), where('orgId', '==', ORG_ID))
+  );
+  const map = new Map<string, string>();
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    const name = [data.firstName, data.lastName].filter(Boolean).join(' ');
+    if (name) map.set(d.id, name);
+  });
+  return map;
+}
+
+/** Build a map of packageId → { packageName, packageType } from the user's packages. */
+async function buildPackageMap(
+  userDocId: string
+): Promise<Map<string, { name: string; type: string }>> {
+  const snap = await getDocs(
+    collection(db, 'organizations', ORG_ID, 'users', userDocId, 'packages')
+  );
+  const map = new Map<string, { name: string; type: string }>();
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    const name =
+      data.packageName ??
+      data.title ??
+      (data.packageType as string | undefined) ??
+      'Lesson Pass';
+    map.set(d.id, { name, type: data.packageType ?? '' });
+  });
+  return map;
+}
+
+/** Parse a raw Firestore booking doc into a typed Booking, enriched with trainer/package names. */
+function parseBooking(
+  id: string,
+  data: Record<string, unknown>,
+  trainerMap: Map<string, string>,
+  packageMap: Map<string, { name: string; type: string }>
+): Booking {
+  const trainerId = (data.trainerUID ?? data.trainerId ?? '') as string;
+  const packageId = (data.lessonPackageId ?? data.packageId ?? '') as string;
+  const pkg = packageMap.get(packageId);
+  return {
+    id,
+    ...data,
+    startTime: toDate(data.startTime as Parameters<typeof toDate>[0]),
+    endTime: toDate(data.endTime as Parameters<typeof toDate>[0]),
+    createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
+    trainerName: trainerMap.get(trainerId) ?? undefined,
+    packageName: pkg?.name,
+    packageType: pkg?.type,
+  } as Booking;
+}
+
+/** Fetch all bookings for a user, enriched with trainer and package names. */
+export async function fetchAllBookings(userDocId: string): Promise<Booking[]> {
+  const [snap, trainerMap, packageMap] = await Promise.all([
+    getDocs(query(collection(db, 'bookings'), where('clientId', '==', userDocId))),
+    buildTrainerMap(),
+    buildPackageMap(userDocId),
+  ]);
+  return snap.docs
+    .map((d) => parseBooking(d.id, d.data() as Record<string, unknown>, trainerMap, packageMap))
+    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+}
+
+/** Fetch upcoming confirmed bookings for a user (dashboard use). */
+export async function fetchUpcomingBookings(userDocId: string, maxResults = 5): Promise<Booking[]> {
+  const all = await fetchAllBookings(userDocId);
+  const now = new Date();
+  return all
+    .filter((b) => b.status === 'confirmed' && b.startTime >= now)
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+    .slice(0, maxResults);
+}
+
+// ─── Pricing & Stripe ─────────────────────────────────────────────────────────
+
+import type { PricingStructure, PricingTier, PackageOption, PackageCategory } from '@/types';
+
+/** Normalize Firestore packageCategory/packageType → canonical PackageCategory enum */
+function normalizeCategory(cat: string): PackageCategory {
+  const v = (cat ?? '').toLowerCase();
+  if (['class', 'classpass', 'class_pass', 'class_10_pack', 'class_pack'].some((x) => v.includes(x))) return 'classPass';
+  if (['4_athlete', 'four_athlete', 'fourathletes', 'fourathletes'].includes(v)) return 'fourAthlete';
+  if (['3_athlete', 'three_athlete', 'threeathletes', 'threeathletes'].includes(v)) return 'threeAthlete';
+  if (['2_athlete', 'two_athlete', 'twoathletes', 'semi_private'].includes(v)) return 'twoAthlete';
+  if (['private', '1_athlete', 'one_athlete', 'oneathletes', 'pass'].includes(v)) return 'oneAthlete';
+  // already a valid enum value
+  if (['oneathlete', 'twoathlete', 'threeathlete', 'fourathlete'].includes(v.toLowerCase())) return cat as PackageCategory;
+  // default: treat as single-athlete private lesson
+  return 'oneAthlete';
+}
+
+/** Fetch the dynamic pricing structure from organizations/{orgId}/pricingStructure */
+export async function fetchPricingStructure(): Promise<PricingStructure | null> {
+  const snap = await getDoc(doc(db, 'organizations', ORG_ID));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  const ps = data.pricingStructure;
+  if (!ps?.tiers) return null;
+  return {
+    tiers: (ps.tiers as Array<Record<string, unknown>>).map((tier) => ({
+      id: tier.id as string,
+      tierName: tier.tierName as string,
+      packages: ((tier.packages ?? []) as Array<Record<string, unknown>>)
+        .filter((pkg) => pkg.active !== false) // exclude inactive packages
+        .map((pkg) => ({
+          id: pkg.id as string,
+          title: pkg.title as string,
+          priceInCents: pkg.priceInCents as number,
+          packageType: pkg.packageType as string,
+          packageCategory: normalizeCategory((pkg.packageCategory ?? pkg.packageType ?? 'oneAthlete') as string),
+          lessonCount: (pkg.lessonCount as number) ?? 1,
+          description: pkg.description as string | undefined,
+          pricingTierId: (pkg.pricingTierId as string | undefined) ?? (tier.id as string),
+          pricingTierName: (pkg.pricingTierName as string | undefined) ?? (tier.tierName as string),
+          expirationDays: pkg.expirationDays as number | undefined,
+          active: pkg.active as boolean | undefined,
+        } as PackageOption)),
+    } as PricingTier)),
+    lastUpdated: ps.lastUpdated ? toDate(ps.lastUpdated) : undefined,
+  } as PricingStructure;
+}
+
+/**
+ * Fetch org's Stripe publishable key and Connect account ID.
+ * connectAccountId may be null if onboarding is incomplete — callers must handle.
+ */
+export async function fetchOrgStripeInfo(): Promise<{ publishableKey: string; connectAccountId: string | null } | null> {
+  const snap = await getDoc(doc(db, 'organizations', ORG_ID));
+  if (!snap.exists()) return null;
+  const stripe = snap.data().stripe as Record<string, string | null> | undefined;
+  if (!stripe?.publishableKey) return null;
+  return {
+    publishableKey: stripe.publishableKey as string,
+    connectAccountId: (stripe.connectAccountId ?? null) as string | null,
+  };
+}
+
+/**
+ * Fetch upcoming open group classes for the org.
+ * Mirrors iOS ClassesService.loadOpenClasses().
+ */
+export async function fetchGroupClasses(): Promise<GroupClass[]> {
+  // Single where clause — avoids composite index requirement; filter/sort client-side
+  const snap = await getDocs(
+    query(collection(db, 'classes'), where('orgId', '==', ORG_ID))
+  );
+  const now = new Date();
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        title: (data.title ?? data.className ?? 'Class') as string,
+        startTime: toDate(data.startTime),
+        endTime: toDate(data.endTime),
+        eligiblePackageIds: (data.eligiblePackageIds as string[]) ?? [],
+      } as GroupClass;
+    })
+    .filter((c) => c.isOpenForRegistration !== false && c.startTime >= now)
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+}
+
+/**
+ * Fetch athlete objects from a user's profile document.
+ * Merges new 'athletes' array with legacy individual fields.
+ * Mirrors iOS BookView.allAthletes computed property.
+ */
+export async function fetchUserAthletes(userDocId: string): Promise<AthleteInfo[]> {
+  const snap = await getDoc(doc(db, 'users', userDocId));
+  if (!snap.exists()) return [];
+  const data = snap.data();
+  const seen = new Set<string>();
+  const athletes: AthleteInfo[] = [];
+
+  // New format: athletes array (primary source)
+  if (Array.isArray(data.athletes)) {
+    for (const a of data.athletes as Array<Record<string, unknown>>) {
+      const info: AthleteInfo = {
+        firstName: (a.firstName as string) ?? '',
+        lastName: (a.lastName as string) ?? '',
+        birthday: a.birthday as string | undefined,
+        schoolClubTeam: a.schoolClubTeam as string | undefined,
+        experienceLevel: a.experienceLevel as string | undefined,
+        position: a.position as string | undefined,
+      };
+      const name = athleteDisplayName(info);
+      if (name && !seen.has(name)) { seen.add(name); athletes.push(info); }
+    }
+  }
+
+  // Legacy individual fields (backward compat)
+  const legacyFields = [
+    { first: data.athleteFirstName, last: data.athleteLastName, bday: data.athleteBirthday, club: data.athleteSchoolClubTeam, exp: data.athleteExperienceLevel },
+    { first: data.athlete2FirstName, last: data.athlete2LastName, bday: data.athlete2Birthday, club: data.athlete2SchoolClubTeam, exp: data.athlete2ExperienceLevel },
+    { first: data.athlete3FirstName, last: data.athlete3LastName, bday: data.athlete3Birthday, club: data.athlete3SchoolClubTeam, exp: data.athlete3ExperienceLevel },
+    { first: data.athlete4FirstName, last: data.athlete4LastName, bday: data.athlete4Birthday, club: data.athlete4SchoolClubTeam, exp: data.athlete4ExperienceLevel },
+  ] as Array<{ first?: unknown; last?: unknown; bday?: unknown; club?: unknown; exp?: unknown }>;
+
+  for (const f of legacyFields) {
+    const info: AthleteInfo = { firstName: (f.first as string) ?? '', lastName: (f.last as string) ?? '', birthday: f.bday as string | undefined, schoolClubTeam: f.club as string | undefined, experienceLevel: f.exp as string | undefined };
+    const name = athleteDisplayName(info);
+    if (name && !seen.has(name)) { seen.add(name); athletes.push(info); }
+  }
+
+  return athletes;
+}
+
+// ─── Org Settings & Waiver ────────────────────────────────────────────────────
+
+
+
+export interface OrgSettings {
+  requireWaiver: boolean;
+  waiverText: string;
+}
+
+/** Fetch requireWaiver + waiverText from organizations/{orgId}. */
+export async function fetchOrgSettings(): Promise<OrgSettings> {
+  const snap = await getDoc(doc(db, 'organizations', ORG_ID));
+  if (!snap.exists()) return { requireWaiver: false, waiverText: '' };
+  const data = snap.data();
+  return {
+    requireWaiver: data.requireWaiver === true,
+    waiverText: (data.waiverText as string) ?? '',
+  };
+}
+
+/**
+ * Return all signed waiver athlete names for this user.
+ * Waivers are per-athlete — athleteName field on each waiver doc.
+ */
+export async function fetchSignedWaiverAthletes(userDocId: string): Promise<string[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, 'users', userDocId, 'documents'),
+      where('type', 'in', ['waiver', 'waiver_agreement'])
+    )
+  );
+  return snap.docs
+    .map(d => (d.data().athleteName as string | undefined) ?? '')
+    .filter(Boolean)
+    .map(n => n.toLowerCase().trim());
+}
+
+/**
+ * Check if a specific athlete has a signed waiver.
+ * Pass empty string to check if ANY waiver exists (legacy fallback).
+ */
+export async function checkUserWaiver(userDocId: string, athleteName?: string): Promise<boolean> {
+  const signed = await fetchSignedWaiverAthletes(userDocId);
+  if (!athleteName) return signed.length > 0;
+  return signed.includes(athleteName.toLowerCase().trim());
+}
+
+export interface WaiverSignatureData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  athleteName?: string;
+}
+
+/**
+ * Save a signed waiver to users/{userId}/documents.
+ * Mirrors iOS DocumentsRepository.uploadDocument() (no PDF on web — metadata only).
+ */
+export async function saveWaiver(
+  userDocId: string,
+  signature: WaiverSignatureData
+): Promise<void> {
+  const timestamp = Date.now();
+  const athletePart = signature.athleteName
+    ? signature.athleteName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') + '_'
+    : '';
+  const filename = `${athletePart}waiver_${timestamp}.pdf`;
+
+  await addDoc(collection(db, 'users', userDocId, 'documents'), {
+    name: filename,
+    displayName: signature.athleteName ? `${signature.athleteName} Waiver` : 'Release of Liability Waiver',
+    type: 'waiver',
+    uploadedAt: Timestamp.now(),
+    url: '', // No PDF upload on web
+    signedBy: `${signature.firstName} ${signature.lastName}`.trim(),
+    signatoryEmail: signature.email,
+    isMinor: true,
+    athleteName: signature.athleteName ?? null,
+  });
+}
+
+// ─── User Profile ─────────────────────────────────────────────────────────────
+
+function decodeProfile(id: string, data: Record<string, unknown>): UserProfile {
+  const athletes = Array.isArray(data.athletes)
+    ? (data.athletes as Array<Record<string, unknown>>).map((a) => ({
+        firstName: (a.firstName as string) ?? '',
+        lastName: (a.lastName as string) ?? '',
+        birthday: a.birthday as string | undefined,
+        schoolClubTeam: a.schoolClubTeam as string | undefined,
+        experienceLevel: a.experienceLevel as string | undefined,
+        position: a.position as string | undefined,
+      }))
+    : undefined;
+  return {
+    id,
+    firstName: (data.firstName as string) ?? '',
+    lastName: (data.lastName as string) ?? '',
+    email: ((data.emailAddress ?? data.email) as string) ?? '',
+    authUserId: data.authUserId as string | undefined,
+    phoneNumber: data.phoneNumber as string | undefined,
+    photoURL: data.photoURL as string | undefined,
+    role: (data.role as UserProfile['role']) ?? 'client',
+    orgId: (data.orgId as string) ?? ORG_ID,
+    isActive: (data.isActive as boolean) ?? (data.active as boolean) ?? true,
+    createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
+    updatedAt: data.updatedAt ? toDate(data.updatedAt as Parameters<typeof toDate>[0]) : undefined,
+    referenceCode: data.referenceCode as string | undefined,
+    emergencyContactName: data.emergencyContactName as string | undefined,
+    emergencyContactNumber: data.emergencyContactNumber as string | undefined,
+    notesForCoach: data.notesForCoach as string | undefined,
+    referredBy: data.referredBy as string | undefined,
+    athletes,
+    athleteFirstName: data.athleteFirstName as string | undefined,
+    athleteLastName: data.athleteLastName as string | undefined,
+    athleteBirthday: data.athleteBirthday as string | undefined,
+    athlete2FirstName: data.athlete2FirstName as string | undefined,
+    athlete2LastName: data.athlete2LastName as string | undefined,
+    athlete2Birthday: data.athlete2Birthday as string | undefined,
+    athlete3FirstName: data.athlete3FirstName as string | undefined,
+    athlete3LastName: data.athlete3LastName as string | undefined,
+    athlete3Birthday: data.athlete3Birthday as string | undefined,
+    athlete4FirstName: data.athlete4FirstName as string | undefined,
+    athlete4LastName: data.athlete4LastName as string | undefined,
+    athlete4Birthday: data.athlete4Birthday as string | undefined,
+  };
+}
+
+/** Fetch a full user profile by their name-based document ID. */
+export async function fetchUserProfile(userDocId: string): Promise<UserProfile | null> {
+  const snap = await getDoc(doc(db, 'users', userDocId));
+  if (!snap.exists()) return null;
+  return decodeProfile(snap.id, snap.data() as Record<string, unknown>);
+}
+
+/** Save editable profile fields — merge so only provided fields overwrite. */
+export async function saveUserProfile(
+  userDocId: string,
+  fields: {
+    firstName?: string;
+    lastName?: string;
+    phoneNumber?: string;
+    emergencyContactName?: string;
+    emergencyContactNumber?: string;
+    notesForCoach?: string;
+    referredBy?: string;
+    athletes?: AthleteInfo[];
+  }
+): Promise<void> {
+  await setDoc(doc(db, 'users', userDocId), { ...fields, updatedAt: Timestamp.now() }, { merge: true });
+}
+
+// ─── User Documents ───────────────────────────────────────────────────────────
+
+/** Fetch all documents for a user, ordered newest first. */
+export async function fetchUserDocuments(userDocId: string): Promise<UserDocument[]> {
+  const snap = await getDocs(
+    query(collection(db, 'users', userDocId, 'documents'), orderBy('uploadedAt', 'desc'))
+  );
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      name: (data.name as string) ?? 'Document',
+      displayName: data.displayName as string | undefined,
+      type: (data.type as string) ?? 'document',
+      uploadedAt: toDate(data.uploadedAt as Parameters<typeof toDate>[0]),
+      url: (data.url as string) ?? '',
+      signedBy: data.signedBy as string | undefined,
+      signatoryEmail: data.signatoryEmail as string | undefined,
+      isMinor: data.isMinor as boolean | undefined,
+      athleteName: data.athleteName as string | undefined,
+    } as UserDocument;
+  });
+}

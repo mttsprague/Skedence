@@ -279,7 +279,14 @@ function BlogPostContent() {
             <div className="flex items-center gap-4 text-sm text-foreground/40">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                <span>{format(post.publishedAt || post.createdAt, 'MMMM d, yyyy')}</span>
+                <span>
+                  {post.publishedAt 
+                    ? format(post.publishedAt, 'MMMM d, yyyy')
+                    : post.createdAt
+                    ? format(post.createdAt, 'MMMM d, yyyy')
+                    : 'Recently published'
+                  }
+                </span>
               </div>
               {post.views && (
                 <div className="flex items-center gap-2">
@@ -400,7 +407,14 @@ function BlogPostContent() {
                   </p>
                   
                   <div className="flex items-center justify-between text-xs text-foreground/40 pt-4 border-t border-border/50">
-                    <span>{format(relatedPost.publishedAt || relatedPost.createdAt, 'MMM d')}</span>
+                    <span>
+                      {relatedPost.publishedAt 
+                        ? format(relatedPost.publishedAt, 'MMM d')
+                        : relatedPost.createdAt
+                        ? format(relatedPost.createdAt, 'MMM d')
+                        : 'Recent'
+                      }
+                    </span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </Link>
