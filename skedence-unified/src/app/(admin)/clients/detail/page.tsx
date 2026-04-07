@@ -17,6 +17,14 @@ interface ClientData {
   email: string;
   phone: string;
   createdAt: any;
+  athletes?: Array<{
+    firstName?: string;
+    lastName?: string;
+    birthday?: string;
+    schoolClubTeam?: string;
+    experienceLevel?: string;
+    position?: string;
+  }>;
 }
 
 interface Booking {
@@ -112,6 +120,7 @@ function ClientDetailContent() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [receipts, setReceipts] = useState<Transaction[]>([]);
   const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>([]);
+  const [fieldLabels, setFieldLabels] = useState({ birthday: 'Birthday', schoolClubTeam: 'School / Club Team', experienceLevel: 'Experience Level', position: 'Position' });
 
   useEffect(() => {
     if (!orgId || !clientId) return;
@@ -128,6 +137,7 @@ function ClientDetailContent() {
         }
 
         const userData = userDoc.data();
+        const athletesRaw: any[] = userData.athletes || [];
         setClient({
           id: clientId,
           firstName: userData.firstName || '',
@@ -135,6 +145,14 @@ function ClientDetailContent() {
           email: userData.emailAddress || userData.email || '',
           phone: userData.phoneNumber || '',
           createdAt: userData.createdAt,
+          athletes: athletesRaw.map((a: any) => ({
+            firstName: a.firstName,
+            lastName: a.lastName,
+            birthday: a.birthday,
+            schoolClubTeam: a.schoolClubTeam,
+            experienceLevel: a.experienceLevel,
+            position: a.position,
+          })),
         });
 
         // Load bookings
@@ -213,6 +231,16 @@ function ClientDetailContent() {
             });
             setPricingPackages(allPackages);
           }
+          // Load field labels from intake form config
+          const fields: any[] = orgData.intakeFormFieldsPrivate || orgData.intakeFormFields || [];
+          const getLabel = (id: string, def: string) => fields.find((f: any) => f.id === id)?.label || def;
+          const posField = fields.find((f: any) => typeof f.label === 'string' && f.label.toLowerCase().includes('position'));
+          setFieldLabels({
+            birthday: getLabel('athleteBirthday', 'Birthday'),
+            schoolClubTeam: getLabel('schoolTeam', 'School / Club Team'),
+            experienceLevel: getLabel('experienceLevel', 'Experience Level'),
+            position: posField?.label || 'Position',
+          });
         }
 
         // Load payment methods using Cloud Function (like iOS app)
@@ -393,6 +421,7 @@ function ClientDetailContent() {
               activePackagesCount={activePasses.length}
               totalSessions={packages.reduce((sum, p) => sum + p.totalLessons, 0)}
               completedSessions={packages.reduce((sum, p) => sum + p.lessonsUsed, 0)}
+              fieldLabels={fieldLabels}
             />
           )}
           {activeTab === 'upcoming' && (
@@ -424,13 +453,15 @@ function OverviewTab({
   upcomingCount, 
   activePackagesCount, 
   totalSessions,
-  completedSessions 
+  completedSessions,
+  fieldLabels,
 }: { 
   client: ClientData; 
   upcomingCount: number; 
   activePackagesCount: number;
   totalSessions: number;
   completedSessions: number;
+  fieldLabels: { birthday: string; schoolClubTeam: string; experienceLevel: string; position: string };
 }) {
   return (
     <div className="p-6 space-y-6">
@@ -488,6 +519,25 @@ function OverviewTab({
           </div>
         </CardContent>
       </Card>
+
+      {client.athletes && client.athletes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Athletes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {client.athletes.map((athlete, idx) => (
+              <div key={idx} className="p-3 bg-gray-50 rounded-lg space-y-1">
+                <p className="font-semibold">{athlete.firstName} {athlete.lastName}</p>
+                {athlete.birthday && <p className="text-sm text-muted-foreground">{fieldLabels.birthday}: {athlete.birthday}</p>}
+                {athlete.schoolClubTeam && <p className="text-sm text-muted-foreground">{fieldLabels.schoolClubTeam}: {athlete.schoolClubTeam}</p>}
+                {athlete.experienceLevel && <p className="text-sm text-muted-foreground">{fieldLabels.experienceLevel}: {athlete.experienceLevel}</p>}
+                {athlete.position && <p className="text-sm text-muted-foreground">{fieldLabels.position}: {athlete.position}</p>}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

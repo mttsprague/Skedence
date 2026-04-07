@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchAllBookings } from '@/lib/firestore';
 import type { Booking } from '@/types';
 import Spinner from '@/components/Spinner';
 import EmptyState from '@/components/EmptyState';
-import BookingCard from '@/components/BookingCard';
+import BookingCard, { BookingCardSkeleton } from '@/components/BookingCard';
 import BookingDetailModal from '@/components/BookingDetailModal';
 import { isFuture, isPast } from 'date-fns';
 
@@ -16,16 +16,21 @@ export default function SchedulePage() {
   const { user, userDocId } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [selected, setSelected] = useState<Booking | null>(null);
 
-  useEffect(() => {
+  function loadBookings() {
     if (!user || !userDocId) return;
+    setLoading(true);
+    setError('');
     fetchAllBookings(userDocId)
       .then(setBookings)
-      .catch((err) => console.error('Failed to fetch bookings:', err))
+      .catch(() => setError('Failed to load bookings. Please refresh.'))
       .finally(() => setLoading(false));
-  }, [user, userDocId]);
+  }
+
+  useEffect(() => { loadBookings(); }, [user, userDocId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const upcoming = bookings.filter((b) => b.status === 'confirmed' && isFuture(b.startTime));
   const past = bookings.filter((b) => b.status !== 'confirmed' || isPast(b.startTime));
@@ -57,9 +62,15 @@ export default function SchedulePage() {
           ))}
         </div>
 
+        {error && (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium mb-4">
+            <AlertCircle size={16} className="flex-shrink-0" />{error}
+          </div>
+        )}
+
         {loading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" />
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => <BookingCardSkeleton key={i} />)}
           </div>
         ) : displayed.length === 0 ? (
           <EmptyState
@@ -87,7 +98,14 @@ export default function SchedulePage() {
       </div>
 
       {/* Lesson detail modal */}
-      <BookingDetailModal booking={selected} onClose={() => setSelected(null)} />
+      <BookingDetailModal
+        booking={selected}
+        onClose={() => setSelected(null)}
+        onCancelled={() => {
+          setSelected(null);
+          loadBookings();
+        }}
+      />
     </>
   );
 }

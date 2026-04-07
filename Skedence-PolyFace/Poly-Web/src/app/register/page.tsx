@@ -1,4 +1,3 @@
-// @ts-nocheck — full file rewrite below
 'use client';
 
 import { useState } from 'react';
@@ -28,8 +27,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function TextInput({ value, onChange, placeholder, type = 'text', className = '' }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; className?: string;
+function TextInput({ value, onChange, placeholder, type = 'text', className = '', autoComplete, maxLength }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; className?: string; autoComplete?: string; maxLength?: number;
 }) {
   return (
     <input
@@ -37,7 +36,9 @@ function TextInput({ value, onChange, placeholder, type = 'text', className = ''
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-pva-teal transition ${className}`}
+      autoComplete={autoComplete}
+      maxLength={maxLength}
+      className={`w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-pva-teal transition ${className}`}
     />
   );
 }
@@ -64,16 +65,8 @@ function formatBirthday(input: string): string {
 function isValidBirthday(b: string): boolean {
   if (!/^\d{2}\/\d{2}\/\d{4}$/.test(b)) return false;
   const [m, d, y] = b.split('/').map(Number);
-  return m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 1900 && y <= 2030;
-}
-
-function PasswordRequirement({ met, label }: { met: boolean; label: string }) {
-  return (
-    <li className={`flex items-center gap-2 text-xs ${met ? 'text-green-600' : 'text-gray-400'}`}>
-      <Check size={12} className={met ? 'text-green-500' : 'text-gray-300'} />
-      {label}
-    </li>
-  );
+  const date = new Date(y, m - 1, d);
+  return date.getMonth() === m - 1 && date.getDate() === d && y >= 1900 && y <= 2030;
 }
 
 export default function RegisterPage() {
@@ -120,7 +113,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signUp(email, password, firstName, lastName, phone, athleteFirst, athleteLast, athleteBirthday);
-      router.push('/portal');
+      router.push('/verify-email');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       setError(
@@ -135,7 +128,7 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout subtitle="Create your client account">
-      <div className="bg-white rounded-2xl shadow-2xl p-8">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
         <h1 className="text-2xl font-black text-pva-navy mb-6">Create Account</h1>
 
         {error && (
@@ -150,7 +143,7 @@ export default function RegisterPage() {
           <SectionHeader title="Account Credentials" />
 
           <Field label="Email Address">
-            <TextInput type="email" value={email} onChange={setEmail} placeholder="you@example.com" />
+            <TextInput type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" maxLength={254} />
           </Field>
 
           <Field label="Password">
@@ -159,8 +152,7 @@ export default function RegisterPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:border-pva-teal transition"
+                placeholder="••••••••"              autoComplete="new-password"                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pr-12 text-base focus:outline-none focus:border-pva-teal transition"
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600">
@@ -183,7 +175,8 @@ export default function RegisterPage() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="••••••••"
-              className={`w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none transition ${
+              autoComplete="new-password"
+              className={`w-full border-2 rounded-xl px-4 py-3 text-base focus:outline-none transition ${
                 confirm && !passwordsMatch ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-pva-teal'
               }`}
             />
@@ -197,15 +190,15 @@ export default function RegisterPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="First Name">
-              <TextInput value={firstName} onChange={setFirstName} placeholder="Alex" />
+              <TextInput value={firstName} onChange={setFirstName} placeholder="Alex" autoComplete="given-name" maxLength={50} />
             </Field>
             <Field label="Last Name">
-              <TextInput value={lastName} onChange={setLastName} placeholder="Smith" />
+              <TextInput value={lastName} onChange={setLastName} placeholder="Smith" autoComplete="family-name" maxLength={50} />
             </Field>
           </div>
 
           <Field label="Phone Number">
-            <TextInput type="tel" value={phone} onChange={setPhone} placeholder="(555) 000-0000" />
+            <TextInput type="tel" value={phone} onChange={setPhone} placeholder="(555) 000-0000" autoComplete="tel" maxLength={20} />
           </Field>
 
           {/* ── Athlete Information ── */}

@@ -148,7 +148,7 @@ final class FirestoreService {
                 (data["slotId"] as? String) ??
                 doc.documentID
 
-            let clientUID = data["clientUID"] as? String
+            let clientUID = data["clientUID"] as? String ?? data["clientId"] as? String
             let clientName = data["clientName"] as? String
 
             var slot = TrainerScheduleSlot(

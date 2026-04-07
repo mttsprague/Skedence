@@ -55,7 +55,7 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
         if isBooked { return .blue }
         switch status {
         case .open: return .green
-        case .unavailable: return .red
+        case .unavailable: return Color(UIColor.systemGray4)
         case .booked: return .blue
         }
     }
@@ -77,7 +77,7 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
         if isBooked { return .blue }
         switch status {
         case .open: return .green
-        case .unavailable: return .red
+        case .unavailable: return Color(UIColor.systemGray4)
         case .booked: return .blue
         }
     }

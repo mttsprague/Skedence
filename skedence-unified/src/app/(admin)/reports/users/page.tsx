@@ -7,7 +7,11 @@ import { SubscriptionPaywall } from '@/components/admin/subscription-paywall';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc as firestoreDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts';
+import dynamic from 'next/dynamic';
+const UsersComposedChart = dynamic(() => import('@/components/charts/users-composed-chart'), {
+  ssr: false,
+  loading: () => <div className="h-[300px] animate-pulse rounded-md bg-muted" />,
+});
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval, parseISO, addMonths, differenceInDays } from 'date-fns';
 import { Download, Calendar, Filter, ArrowUpDown, Users, TrendingUp, UserPlus } from 'lucide-react';
 import { Skeleton, StatCardSkeleton, TableSkeleton } from '@/components/ui/skeleton';
@@ -597,18 +601,7 @@ export default function UsersReportPage() {
           <CardTitle>Signups Over Time</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
-              <Legend />
-              <Bar yAxisId="left" dataKey="signups" fill="#3b82f6" name="New Signups" />
-              <Line yAxisId="right" type="monotone" dataKey="cumulativeSignups" stroke="#10b981" name="Total Signups" strokeWidth={2} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <UsersComposedChart data={chartData} />
         </CardContent>
       </Card>
 

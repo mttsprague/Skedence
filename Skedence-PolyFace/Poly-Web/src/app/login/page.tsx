@@ -39,7 +39,7 @@ export default function LoginPage() {
 
   return (
     <AuthLayout subtitle="Sign in to your client account">
-      <div className="bg-white rounded-2xl shadow-2xl p-8">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
         <h1 className="text-2xl font-black text-pva-navy mb-6">Welcome Back</h1>
 
         {error && (
@@ -57,7 +57,8 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-pva-teal transition"
+              autoComplete="email"
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-pva-teal transition"
             />
           </div>
 
@@ -69,8 +70,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                required
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:border-pva-teal transition"
+                required              autoComplete="current-password"                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pr-12 text-base focus:outline-none focus:border-pva-teal transition"
               />
               <button
                 type="button"

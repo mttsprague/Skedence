@@ -128,13 +128,29 @@ export const sendPurchaseConfirmation = onDocumentCreated(
         packageName = packageTypeNames[packageData.packageType] || packageData.packageType;
       }
 
-      // Format purchase date
+      // Fetch org timezone from settings subcollection
+      let purchaseTimezone = "America/New_York";
+      if (orgId) {
+        try {
+          const alertSettingsDoc = await admin.firestore()
+            .collection("organizations").doc(orgId)
+            .collection("settings").doc("bookingAlerts").get();
+          if (alertSettingsDoc.exists) {
+            purchaseTimezone = alertSettingsDoc.data()?.timezone || purchaseTimezone;
+          }
+        } catch (tzErr) {
+          console.warn("Could not load org timezone for purchase email:", tzErr);
+        }
+      }
+
+      // Format purchase date in org timezone
       const purchaseDate = packageData.purchaseDate?.toDate() || new Date();
       const formattedDate = purchaseDate.toLocaleDateString("en-US", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
+        timeZone: purchaseTimezone,
       });
 
       // Generate email from template
@@ -205,10 +221,12 @@ export const sendBookingConfirmation = onDocumentCreated(
         return;
       }
       // Fetch related data - Note: trainers are in trainers collection, not users
-      const [clientDoc, trainerDoc, orgDoc] = await Promise.all([
+      const [clientDoc, trainerDoc, orgDoc, alertSettingsDoc] = await Promise.all([
         admin.firestore().collection("users").doc(booking.clientUID || booking.clientId).get(),
         admin.firestore().collection("trainers").doc(booking.trainerId).get(),
         admin.firestore().collection("organizations").doc(booking.orgId).get(),
+        admin.firestore().collection("organizations").doc(booking.orgId)
+          .collection("settings").doc("bookingAlerts").get(),
       ]);
 
       const client = clientDoc.data();
@@ -228,8 +246,8 @@ export const sendBookingConfirmation = onDocumentCreated(
       const location = booking.location || "Location TBD";
       const athleteName = booking.athleteName || "";
 
-      // Get timezone from org settings, default to America/New_York
-      const orgTimezone = org?.settings?.timezone || "America/New_York";
+      // Get timezone from settings subcollection (organizations/{orgId}/settings/bookingAlerts)
+      const orgTimezone = alertSettingsDoc.data()?.timezone || "America/New_York";
 
       const startTime = booking.startTime.toDate();
       const endTime = booking.endTime?.toDate() || new Date(startTime.getTime() + 60 * 60 * 1000); // Default 1 hour
@@ -325,8 +343,18 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
       const orgName = org?.name || "Skedence";
       const location = classData?.location || "Location TBD";
 
-      // Get timezone from org settings, default to America/New_York
-      const orgTimezone = org?.settings?.timezone || "America/New_York";
+      // Get timezone from settings subcollection (organizations/{orgId}/settings/bookingAlerts)
+      let orgTimezone = "America/New_York";
+      try {
+        const alertSettingsDoc = await admin.firestore()
+          .collection("organizations").doc(orgId)
+          .collection("settings").doc("bookingAlerts").get();
+        if (alertSettingsDoc.exists) {
+          orgTimezone = alertSettingsDoc.data()?.timezone || orgTimezone;
+        }
+      } catch (tzErr) {
+        console.warn("Could not load org timezone for class email:", tzErr);
+      }
 
       const startTime = classData?.startTime.toDate();
       const endTime = classData?.endTime.toDate();

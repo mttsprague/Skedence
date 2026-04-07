@@ -267,7 +267,7 @@ struct ClientCardView: View {
             
             // Athletes with enhanced details
             if let profile = viewModel.userProfile {
-                EnhancedAthletesSection(profile: profile)
+                EnhancedAthletesSection(profile: profile, fieldLabels: viewModel.fieldLabels)
             } else {
                 AthletesSection(client: client)
             }
@@ -379,6 +379,7 @@ class ClientCardViewModel: ObservableObject {
     @Published var isAdmin = false
     @Published var userProfile: UserProfile?
     
+    @Published var fieldLabels = IntakeFieldLabels()
     @Published var isLoadingPackages = false
     @Published var isLoadingBookings = false
     @Published var isLoadingDocuments = false
@@ -411,7 +412,7 @@ class ClientCardViewModel: ObservableObject {
         // Load data in parallel (packages, documents, profile always; bookings only if orgId available)
         async let packagesTask: () = loadPackages(clientId: clientId)
         async let documentsTask: () = loadDocuments(clientId: clientId)
-        async let profileTask: () = loadUserProfile(clientId: clientId)
+        async let profileTask: () = loadUserProfile(clientId: clientId, orgId: orgId)
         async let bookingsTask: () = {
             if let orgId = orgId {
                 await loadBookings(clientId: clientId, orgId: orgId)
@@ -585,12 +586,29 @@ class ClientCardViewModel: ObservableObject {
         self.paymentMethodInfo = self.paymentMethods.first?.last4
     }
     
-    private func loadUserProfile(clientId: String) async {
+    private func loadUserProfile(clientId: String, orgId: String? = nil) async {
         isLoadingProfile = true
         defer { isLoadingProfile = false }
         
         #if canImport(FirebaseFirestore)
         do {
+            if let orgId = orgId {
+                let orgDoc = try await Firestore.firestore().collection("organizations").document(orgId).getDocument()
+                if let orgData = orgDoc.data() {
+                    let fields = orgData["intakeFormFieldsPrivate"] as? [[String: Any]] ?? []
+                    let getLabel: (String, String) -> String = { id, def in
+                        fields.first(where: { $0["id"] as? String == id })?["label"] as? String ?? def
+                    }
+                    let posField = fields.first(where: { ($0["label"] as? String)?.lowercased().contains("position") == true })
+                    self.fieldLabels = IntakeFieldLabels(
+                        birthday: getLabel("athleteBirthday", "Birthday"),
+                        schoolClubTeam: getLabel("schoolTeam", "School / Club Team"),
+                        experienceLevel: getLabel("experienceLevel", "Level"),
+                        position: posField?["label"] as? String ?? "Position"
+                    )
+                }
+            }
+            
             let doc = try await Firestore.firestore().collection("users").document(clientId).getDocument()
             guard let data = doc.data() else { return }
             

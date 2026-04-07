@@ -1,9 +1,17 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct EditProfileView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var usersService: UsersService
+    @EnvironmentObject var auth: AuthManager
+    
+    // Dynamic field labels
+    @State private var birthdayLabel = "Birthday"
+    @State private var schoolTeamLabel = "School/Club Team"
+    @State private var experienceLevelLabel = "Experience Level"
+    @State private var positionLabel = "Position (Optional)"
     
     // Parent/Guardian fields
     @State private var firstName: String = ""
@@ -79,7 +87,7 @@ struct EditProfileView: View {
                         .autocapitalization(.words)
                         
                         DatePicker(
-                            "Birthday",
+                            birthdayLabel,
                             selection: Binding(
                                 get: {
                                     if let dateString = athletes[index].birthday,
@@ -101,13 +109,13 @@ struct EditProfileView: View {
                             }
                         }
                         
-                        TextField("School/Club Team", text: Binding(
+                        TextField(schoolTeamLabel, text: Binding(
                             get: { athletes[index].schoolClubTeam ?? "" },
                             set: { athletes[index].schoolClubTeam = $0 }
                         ))
                         .autocapitalization(.words)
                         
-                        Picker("Experience Level", selection: Binding(
+                        Picker(experienceLevelLabel, selection: Binding(
                             get: { athletes[index].experienceLevel ?? "Beginner" },
                             set: { athletes[index].experienceLevel = $0 }
                         )) {
@@ -118,7 +126,7 @@ struct EditProfileView: View {
                         }
                         .pickerStyle(.menu)
                         
-                        TextField("Position (Optional)", text: Binding(
+                        TextField(positionLabel, text: Binding(
                             get: { athletes[index].position ?? "" },
                             set: { athletes[index].position = $0 }
                         ))
@@ -196,6 +204,7 @@ struct EditProfileView: View {
             }
             .task {
                 await loadProfile()
+                await loadFieldLabels()
             }
         }
     }
@@ -207,6 +216,26 @@ struct EditProfileView: View {
     private func removeAthlete(at index: Int) {
         guard athletes.count > 1 else { return }
         athletes.remove(at: index)
+    }
+    
+    private func loadFieldLabels() async {
+        guard let orgId = auth.currentOrgId else { return }
+        do {
+            let db = Firestore.firestore()
+            let orgDoc = try await db.collection("organizations").document(orgId).getDocument()
+            guard let orgData = orgDoc.data() else { return }
+            let fields = orgData["intakeFormFieldsPrivate"] as? [[String: Any]] ?? []
+            let getLabel: (String, String) -> String = { id, def in
+                fields.first(where: { $0["id"] as? String == id })?["label"] as? String ?? def
+            }
+            let posField = fields.first(where: { ($0["label"] as? String)?.lowercased().contains("position") == true })
+            birthdayLabel = getLabel("athleteBirthday", "Birthday")
+            schoolTeamLabel = getLabel("schoolTeam", "School/Club Team")
+            experienceLevelLabel = getLabel("experienceLevel", "Experience Level")
+            positionLabel = (posField?["label"] as? String).map { $0 } ?? "Position (Optional)"
+        } catch {
+            // Keep default labels
+        }
     }
     
     private func loadProfile() async {

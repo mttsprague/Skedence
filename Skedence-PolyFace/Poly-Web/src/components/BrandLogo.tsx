@@ -25,7 +25,7 @@ export default function BrandLogo({
   const inner = (
     <div className="flex items-center gap-3">
       <img
-        src="/polyface-logo.png"
+        src="/polyface-logo.webp"
         alt="PolyFace Volleyball Academy"
         className={`${IMG_SIZES[size]} rounded-xl ${size === 'lg' ? 'shadow-xl' : 'shadow-lg'}`}
       />

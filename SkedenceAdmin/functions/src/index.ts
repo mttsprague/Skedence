@@ -80,6 +80,9 @@ export * from "./wallet";
 // Export password reset functions
 export * from "./passwordReset";
 
+// Export SendGrid email verification
+export * from "./sendVerificationEmail";
+
 // Export calendar sync functions
 export * from "./calendarSync";
 
@@ -1141,14 +1144,16 @@ export const cancelLesson = onCall(
         const packageDoc = newPathPackageDoc?.exists ? newPathPackageDoc : oldPathPackageDoc;
 
         // Read trainer's schedule slot
+        // Check both slotId and scheduleSlotId (legacy field name) for backwards compatibility
         let slotDoc = null;
         let trainerSlotRef = null;
-        if (bookingData.trainerId && bookingData.slotId) {
+        const resolvedSlotId = bookingData.slotId || bookingData.scheduleSlotId;
+        if (bookingData.trainerId && resolvedSlotId) {
           trainerSlotRef = db
             .collection("trainers")
             .doc(bookingData.trainerId)
             .collection("schedules")
-            .doc(bookingData.slotId);
+            .doc(resolvedSlotId);
 
           slotDoc = await transaction.get(trainerSlotRef);
         }
@@ -1180,7 +1185,7 @@ export const cancelLesson = onCall(
 
         // Update trainer's schedule slot back to open
         if (slotDoc && slotDoc.exists && trainerSlotRef) {
-          logger.info(`Updating slot ${bookingData.slotId} for trainer ${bookingData.trainerId} to open`);
+          logger.info(`Updating slot ${resolvedSlotId} for trainer ${bookingData.trainerId} to open`);
           transaction.update(trainerSlotRef, {
             status: "open",
             clientId: admin.firestore.FieldValue.delete(),
@@ -1453,12 +1458,14 @@ export const adminCancelLesson = onCall(
           }
         }
         
-        if (bookingData.trainerId && bookingData.slotId) {
+        // Check both slotId and scheduleSlotId for backwards compatibility
+        const adminResolvedSlotId = bookingData.slotId || bookingData.scheduleSlotId;
+        if (bookingData.trainerId && adminResolvedSlotId) {
           const trainerSlotRef = db
             .collection("trainers")
             .doc(bookingData.trainerId)
             .collection("schedules")
-            .doc(bookingData.slotId);
+            .doc(adminResolvedSlotId);
           slotDoc = await transaction.get(trainerSlotRef);
         }
 
@@ -1477,13 +1484,13 @@ export const adminCancelLesson = onCall(
         }
 
         // Update trainer's schedule slot back to open
-        if (bookingData.trainerId && bookingData.slotId && slotDoc) {
-          logger.info(`Opening slot ${bookingData.slotId} for trainer ${bookingData.trainerId}`);
+        if (bookingData.trainerId && adminResolvedSlotId && slotDoc) {
+          logger.info(`Opening slot ${adminResolvedSlotId} for trainer ${bookingData.trainerId}`);
           const trainerSlotRef = db
             .collection("trainers")
             .doc(bookingData.trainerId)
             .collection("schedules")
-            .doc(bookingData.slotId);
+            .doc(adminResolvedSlotId);
 
           if (slotDoc.exists) {
             transaction.update(trainerSlotRef, {
@@ -1493,7 +1500,7 @@ export const adminCancelLesson = onCall(
               bookedAt: null,
             });
           } else {
-            logger.warn(`Slot ${bookingData.slotId} not found for trainer ${bookingData.trainerId}`);
+            logger.warn(`Slot ${adminResolvedSlotId} not found for trainer ${bookingData.trainerId}`);
           }
         }
 

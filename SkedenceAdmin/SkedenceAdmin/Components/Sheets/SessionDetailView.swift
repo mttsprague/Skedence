@@ -27,6 +27,7 @@ struct SessionDetailView: View {
     @State private var userProfile: UserProfile?
     @State private var isLoadingProfile = false
     @State private var requiredFields: Set<String> = []
+    @State private var fieldLabels = IntakeFieldLabels()
     
     var body: some View {
         NavigationView {
@@ -374,7 +375,7 @@ struct SessionDetailView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.textSecondary)
                             .frame(width: 16)
-                        Text("Birthday: \(birthday)")
+                        Text("\(fieldLabels.birthday): \(birthday)")
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -387,7 +388,7 @@ struct SessionDetailView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.textSecondary)
                             .frame(width: 16)
-                        Text(school)
+                        Text("\(fieldLabels.schoolClubTeam): \(school)")
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -400,7 +401,7 @@ struct SessionDetailView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.textSecondary)
                             .frame(width: 16)
-                        Text(experience)
+                        Text("\(fieldLabels.experienceLevel): \(experience)")
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -413,7 +414,7 @@ struct SessionDetailView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.textSecondary)
                             .frame(width: 16)
-                        Text(position)
+                        Text("\(fieldLabels.position): \(position)")
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -642,6 +643,16 @@ struct SessionDetailView: View {
                    let fields = orgData["intakeFormFieldsPrivate"] as? [[String: Any]] {
                     requiredFields = Set(fields.filter { ($0["required"] as? Bool) == true }
                         .compactMap { $0["id"] as? String })
+                    let getLabel: (String, String) -> String = { id, def in
+                        fields.first(where: { $0["id"] as? String == id })?["label"] as? String ?? def
+                    }
+                    let posField = fields.first(where: { ($0["label"] as? String)?.lowercased().contains("position") == true })
+                    fieldLabels = IntakeFieldLabels(
+                        birthday: getLabel("athleteBirthday", "Birthday"),
+                        schoolClubTeam: getLabel("schoolTeam", "School / Club Team"),
+                        experienceLevel: getLabel("experienceLevel", "Level"),
+                        position: posField?["label"] as? String ?? "Position"
+                    )
                 }
             }
             

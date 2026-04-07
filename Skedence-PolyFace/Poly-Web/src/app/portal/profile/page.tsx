@@ -2,17 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  User, Phone, AlertCircle, FileText, ChevronDown, ChevronUp,
-  Plus, Trash2, Save, Pencil, X, CheckCircle, ExternalLink,
+  User, Phone, AlertCircle, ChevronDown, ChevronUp,
+  Plus, Trash2, Save, Pencil, X, CheckCircle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  fetchUserProfile, saveUserProfile, fetchUserDocuments,
+  fetchUserProfile, saveUserProfile,
 } from '@/lib/firestore';
-import type { UserProfile, AthleteInfo, UserDocument } from '@/types';
+import type { UserProfile, AthleteInfo } from '@/types';
 import { resolveAthletes, athleteDisplayName } from '@/types';
 import Spinner from '@/components/Spinner';
-import EmptyState from '@/components/EmptyState';
 
 // ─── Experience level options (mirrors iOS picker) ────────────────────────────
 const EXPERIENCE_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite'];
@@ -49,7 +48,7 @@ function AthleteCard({
         {total > 1 && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            onClick={(e) => { e.stopPropagation(); if (window.confirm('Remove this athlete from your profile?')) onRemove(); }}
             className="p-1 text-red-400 hover:text-red-600 rounded transition-colors mr-1"
             aria-label="Remove athlete"
           >
@@ -75,7 +74,7 @@ function AthleteCard({
             <select
               value={athlete.experienceLevel ?? 'Beginner'}
               onChange={(e) => update('experienceLevel', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pva-navy/30 bg-white"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-pva-navy/30 bg-white"
             >
               {EXPERIENCE_LEVELS.map((l) => <option key={l}>{l}</option>)}
             </select>
@@ -89,10 +88,10 @@ function AthleteCard({
 
 // ─── Simple labelled input ────────────────────────────────────────────────────
 function Field({
-  label, value, onChange, placeholder, disabled, type,
+  label, value, onChange, placeholder, disabled, type, maxLength,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  placeholder?: string; disabled?: boolean; type?: string;
+  placeholder?: string; disabled?: boolean; type?: string; maxLength?: number;
 }) {
   return (
     <div>
@@ -103,7 +102,8 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pva-navy/30 disabled:bg-gray-100 disabled:text-gray-400"
+        maxLength={maxLength}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-pva-navy/30 disabled:bg-gray-100 disabled:text-gray-400"
       />
     </div>
   );
@@ -124,41 +124,11 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   );
 }
 
-// ─── Document row ─────────────────────────────────────────────────────────────
-function DocumentRow({ doc }: { doc: UserDocument }) {
-  const isWaiver = doc.type === 'waiver' || doc.type === 'waiver_agreement';
-  const label = doc.displayName ?? doc.name;
-  const dateStr = doc.uploadedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-
-  return (
-    <div className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
-      <div className="w-10 h-10 rounded-xl bg-pva-navy/10 flex items-center justify-center shrink-0">
-        <FileText size={18} className="text-pva-navy" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-pva-navy truncate">{label}</p>
-        <p className="text-xs text-gray-500">
-          {isWaiver ? 'Signed' : 'Uploaded'} {dateStr}
-          {doc.athleteName ? ` · ${doc.athleteName}` : ''}
-        </p>
-      </div>
-      {doc.url ? (
-        <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-gray-400 hover:text-pva-navy transition-colors">
-          <ExternalLink size={16} />
-        </a>
-      ) : (
-        <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Signed</span>
-      )}
-    </div>
-  );
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const { userDocId, profile: authProfile } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [athletes, setAthletes] = useState<AthleteInfo[]>([]);
-  const [documents, setDocuments] = useState<UserDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -181,10 +151,7 @@ export default function ProfilePage() {
     if (!userDocId) return;
     setLoading(true);
     try {
-      const [prof, docs] = await Promise.all([
-        fetchUserProfile(userDocId),
-        fetchUserDocuments(userDocId).catch(() => [] as UserDocument[]),
-      ]);
+      const prof = await fetchUserProfile(userDocId);
       if (prof) {
         setProfile(prof);
         setFirstName(prof.firstName);
@@ -196,7 +163,6 @@ export default function ProfilePage() {
         setReferredBy(prof.referredBy ?? '');
         setAthletes(resolveAthletes(prof).length > 0 ? resolveAthletes(prof) : [{ firstName: '', lastName: '' }]);
       }
-      setDocuments(docs);
     } finally {
       setLoading(false);
     }
@@ -271,13 +237,13 @@ export default function ProfilePage() {
       {/* Parent / Guardian */}
       <Section title="Parent / Guardian Information" icon={<User size={16} />}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="First Name" value={firstName} onChange={setFirstName} />
-          <Field label="Last Name" value={lastName} onChange={setLastName} />
+          <Field label="First Name" value={firstName} onChange={setFirstName} maxLength={50} />
+          <Field label="Last Name" value={lastName} onChange={setLastName} maxLength={50} />
           <div className="sm:col-span-2">
             <Field label="Email Address" value={email} onChange={() => {}} disabled />
           </div>
           <div className="sm:col-span-2">
-            <Field label="Phone Number" value={phone} onChange={setPhone} type="tel" placeholder="(555) 000-0000" />
+            <Field label="Phone Number" value={phone} onChange={setPhone} type="tel" placeholder="(555) 000-0000" maxLength={20} />
           </div>
         </div>
       </Section>
@@ -286,10 +252,10 @@ export default function ProfilePage() {
       <Section title="Emergency Contact" icon={<Phone size={16} />}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="sm:col-span-2">
-            <Field label="Contact Name" value={emergencyName} onChange={setEmergencyName} placeholder="Full name" />
+            <Field label="Contact Name" value={emergencyName} onChange={setEmergencyName} placeholder="Full name" maxLength={100} />
           </div>
           <div className="sm:col-span-2">
-            <Field label="Contact Phone Number" value={emergencyPhone} onChange={setEmergencyPhone} type="tel" placeholder="(555) 000-0000" />
+            <Field label="Contact Phone Number" value={emergencyPhone} onChange={setEmergencyPhone} type="tel" placeholder="(555) 000-0000" maxLength={20} />
           </div>
         </div>
       </Section>
@@ -331,23 +297,10 @@ export default function ProfilePage() {
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Anything you'd like your coach to know..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pva-navy/30 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-pva-navy/30 resize-none"
             />
           </div>
         </div>
-      </Section>
-
-      {/* Documents & Waivers */}
-      <Section title="Documents & Waivers" icon={<FileText size={16} />}>
-        {documents.length === 0 ? (
-          <EmptyState
-            icon={<FileText size={40} className="text-gray-300" />}
-            title="No Documents Yet"
-            description="Signed waivers and other documents will appear here."
-          />
-        ) : (
-          <div>{documents.map((d) => <DocumentRow key={d.id} doc={d} />)}</div>
-        )}
       </Section>
 
       {/* Save button */}

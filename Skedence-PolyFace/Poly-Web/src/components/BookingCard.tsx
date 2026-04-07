@@ -3,12 +3,21 @@
 import { Clock, MapPin, User, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Booking } from '@/types';
+import { resolveDisplayStatus, resolveAthleteNames, isValidDate, statusMeta } from '@/lib/bookingUtils';
 
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string }> = {
-  confirmed: { label: 'Confirmed', icon: <CheckCircle size={13} />, bg: 'bg-green-100', text: 'text-green-700' },
-  completed: { label: 'Completed', icon: <CheckCircle size={13} />, bg: 'bg-blue-100',  text: 'text-blue-700'  },
-  cancelled: { label: 'Cancelled', icon: <XCircle size={13} />,     bg: 'bg-red-100',   text: 'text-red-600'   },
-};
+/** Pulsing placeholder shown while bookings are loading. */
+export function BookingCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border-2 border-gray-100 p-5 flex gap-4 items-start animate-pulse">
+      <div className="w-14 h-14 bg-gray-200 rounded-xl flex-shrink-0" />
+      <div className="flex-1 space-y-2 pt-1">
+        <div className="h-4 bg-gray-200 rounded w-2/3" />
+        <div className="h-3 bg-gray-100 rounded w-1/2" />
+        <div className="h-3 bg-gray-100 rounded w-1/3" />
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   booking: Booking;
@@ -17,22 +26,15 @@ interface Props {
 
 /** Clickable booking row — tap to see full lesson details. */
 export default function BookingCard({ booking, onClick }: Props) {
-  const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.confirmed;
-  const isValidDate = (d: unknown): d is Date => d instanceof Date && !isNaN(d.getTime());
-
-  // Resolve all athletes into a single display string
-  const athletes: string[] = [];
-  if (booking.athleteNames?.length) {
-    athletes.push(...booking.athleteNames);
-  } else {
-    if (booking.athleteName) athletes.push(booking.athleteName);
-    if (booking.secondAthleteName) athletes.push(booking.secondAthleteName);
-  }
+  const displayStatus = resolveDisplayStatus(booking);
+  const { label, isCheck, bg, text } = statusMeta(displayStatus);
+  const athletes = resolveAthleteNames(booking);
 
   return (
     <button
       onClick={() => onClick(booking)}
-      className="w-full text-left bg-white rounded-2xl border-2 border-gray-100 hover:border-pva-teal active:scale-[0.99] transition-all p-5 flex gap-4 items-start"
+      aria-label={`View lesson${booking.trainerName ? ` with ${booking.trainerName}` : ''}${isValidDate(booking.startTime) ? ` on ${format(booking.startTime, 'MMM d')}` : ''}`}
+      className="w-full text-left bg-white rounded-2xl border-2 border-gray-100 hover:border-pva-teal active:scale-[0.99] transition-all p-5 flex gap-4 items-start touch-manipulation"
     >
       {/* Date badge */}
       <div className="w-14 h-14 bg-pva-navy rounded-xl flex flex-col items-center justify-center flex-shrink-0">
@@ -60,8 +62,8 @@ export default function BookingCard({ booking, onClick }: Props) {
           <h3 className="font-black text-pva-navy text-base leading-tight">
             {booking.trainerName ? `With ${booking.trainerName}` : 'Training Session'}
           </h3>
-          <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>
-            {cfg.icon} {cfg.label}
+          <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${bg} ${text}`}>
+            {isCheck ? <CheckCircle size={13} /> : <XCircle size={13} />} {label}
           </span>
         </div>
 

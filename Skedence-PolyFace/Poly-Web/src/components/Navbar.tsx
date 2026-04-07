@@ -25,9 +25,18 @@ export default function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-6 text-sm font-bold text-gray-700">
-            <a href="#programs" className="hover:text-pva-orange transition">TRAINING</a>
-            <a href="#about" className="hover:text-pva-orange transition">ABOUT</a>
-            <a href="#contact" className="hover:text-pva-orange transition">CONTACT</a>
+            <a href="/#programs" className="hover:text-pva-orange transition">TRAINING</a>
+            <Link href="/about" className="hover:text-pva-orange transition">ABOUT POLYFACE</Link>
+            <a href="/#contact" className="hover:text-pva-orange transition">CONTACT</a>
+            <a
+              href="https://www.instagram.com/polyface_volleyball_academy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-500 hover:text-pva-orange transition"
+              aria-label="Instagram"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            </a>
           </div>
 
           {/* Auth Buttons */}
@@ -80,9 +89,18 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {mobileOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-3">
-          <a href="#programs" className="block py-2 font-bold text-gray-700 hover:text-pva-orange" onClick={() => setMobileOpen(false)}>TRAINING</a>
-          <a href="#about" className="block py-2 font-bold text-gray-700 hover:text-pva-orange" onClick={() => setMobileOpen(false)}>ABOUT</a>
-          <a href="#contact" className="block py-2 font-bold text-gray-700 hover:text-pva-orange" onClick={() => setMobileOpen(false)}>CONTACT</a>
+          <a href="/#programs" className="block py-2 font-bold text-gray-700 hover:text-pva-orange" onClick={() => setMobileOpen(false)}>TRAINING</a>
+          <Link href="/about" className="block py-2 font-bold text-gray-700 hover:text-pva-orange" onClick={() => setMobileOpen(false)}>ABOUT POLYFACE</Link>
+          <a href="/#contact" className="block py-2 font-bold text-gray-700 hover:text-pva-orange" onClick={() => setMobileOpen(false)}>CONTACT</a>
+          <a
+            href="https://www.instagram.com/polyface_volleyball_academy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 py-2 font-bold text-gray-700 hover:text-pva-orange"
+            onClick={() => setMobileOpen(false)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg> Instagram
+          </a>
           <div className="pt-2 border-t border-gray-100 space-y-2">
             {user ? (
               <>

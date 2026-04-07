@@ -358,7 +358,8 @@ struct ScheduleView: View {
         }
         
         // Handle regular client booking
-        if slot.isBooked, let clientId = slot.clientId {
+        if slot.isBooked {
+            let clientId = slot.clientId ?? slot.id // fallback to slot id if clientId missing
             // Fetch the actual booking document to get complete information
             Task {
                 // First, try to get the booking from the bookings collection
@@ -1173,7 +1174,8 @@ private struct SheetModifiers: ViewModifier {
         }
         
         // Regular client booking
-        if slot.isBooked, let clientId = slot.clientId {
+        if slot.isBooked {
+            let clientId = slot.clientId ?? slot.id // fallback to slot id if clientId missing
             Task {
                 let db = Firestore.firestore()
                 var booking: ClientBooking?

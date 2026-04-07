@@ -7,7 +7,11 @@ import { SubscriptionPaywall } from '@/components/admin/subscription-paywall';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ComposedChart } from 'recharts';
+import dynamic from 'next/dynamic';
+const RevenueComposedChart = dynamic(() => import('@/components/charts/revenue-composed-chart'), {
+  ssr: false,
+  loading: () => <div className="h-[300px] animate-pulse rounded-md bg-muted" />,
+});
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, addMonths } from 'date-fns';
 import { Download, Calendar, Filter, ArrowUpDown, DollarSign, TrendingUp, Package } from 'lucide-react';
 import { Skeleton, StatCardSkeleton, TableSkeleton } from '@/components/ui/skeleton';
@@ -649,63 +653,7 @@ export default function RevenueReportPage() {
           <CardTitle>Revenue Over Time</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis 
-                yAxisId="left"
-                domain={[0, (dataMax: number) => Math.max(5, Math.ceil(dataMax * 1.2))]}
-                tickFormatter={(value) => `$${value}`}
-                label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft' }}
-              />
-              <YAxis 
-                yAxisId="right"
-                orientation="right"
-                domain={[0, (dataMax: number) => Math.max(5, Math.ceil(dataMax * 1.2))]}
-                label={{ value: 'Passes', angle: 90, position: 'insideRight' }}
-              />
-              <Tooltip 
-                formatter={(value: any, name?: string) => {
-                  if (name && name.includes('Revenue')) {
-                    return [`$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name];
-                  }
-                  return [value, name || ''];
-                }}
-              />
-              <Legend />
-              <Line 
-                yAxisId="right"
-                type="monotone" 
-                dataKey="totalPassCount" 
-                stroke="#3b82f6" 
-                strokeWidth={2}
-                dot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }}
-                isAnimationActive={false}
-                name="Total Passes" 
-              />
-              <Line 
-                yAxisId="left"
-                type="monotone" 
-                dataKey="adminRevenue" 
-                stroke="#f59e0b" 
-                strokeWidth={2}
-                dot={{ r: 3, fill: '#f59e0b', strokeWidth: 0 }}
-                isAnimationActive={false}
-                name="Admin Revenue ($)" 
-              />
-              <Line 
-                yAxisId="left"
-                type="monotone" 
-                dataKey="paidRevenue" 
-                stroke="#10b981" 
-                strokeWidth={2}
-                dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
-                isAnimationActive={false}
-                name="Paid Revenue ($)" 
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <RevenueComposedChart data={chartData} />
         </CardContent>
       </Card>
 

@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthLayout subtitle="Reset your password">
-      <div className="bg-white rounded-2xl shadow-2xl p-8">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
         {sent ? (
           <div className="text-center py-4">
             <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
@@ -73,7 +73,8 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-pva-teal transition"
+                  autoComplete="email"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-pva-teal transition"
                 />
               </div>
 

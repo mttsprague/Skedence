@@ -2,6 +2,7 @@
 
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ChevronRight, Users, Calendar, Star, Phone, Mail, MapPin } from 'lucide-react'
 
 export default function HomePage() {
@@ -10,7 +11,7 @@ export default function HomePage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-pva-navy via-pva-navy/95 to-pva-teal/90">
+      <section className="relative min-h-[100dvh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-pva-navy via-pva-navy/95 to-pva-teal/90">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(78,166,176,0.15),transparent_50%)] pointer-events-none" />
         {/* Volleyball net graphic overlay */}
         <div className="absolute inset-0 opacity-5 pointer-events-none"
@@ -20,12 +21,12 @@ export default function HomePage() {
           <div className="inline-block px-6 py-2 bg-pva-orange/20 backdrop-blur-sm rounded-full mb-8 border border-pva-orange/30">
             <span className="text-pva-orange font-bold text-sm tracking-wider uppercase">✦ Over 20 Years of Elite Coaching</span>
           </div>
-          <h1 className="text-6xl md:text-8xl font-black text-white mb-6 leading-none tracking-tight">
+          <h1 className="text-5xl sm:text-6xl md:text-8xl font-black text-white mb-6 leading-none tracking-tight">
             PUSH YOUR<br />
             <span className="text-pva-teal">LIMITS</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-2xl mx-auto font-light">
-            Professional volleyball training for athletes of all levels in the LA area.
+            Professional volleyball training for athletes of all levels in the Chattanooga area.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -98,7 +99,7 @@ export default function HomePage() {
                   Personalized one-on-one sessions focused on your specific goals — serving, passing, attacking, and more.
                 </p>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-black text-pva-orange">$85</span>
+                  <span className="text-4xl font-black text-pva-orange">$80</span>
                   <span className="text-gray-500">/session</span>
                 </div>
                 <Link href="/portal/book" className="block w-full text-center bg-pva-navy text-white py-4 rounded-lg font-bold hover:bg-pva-teal transition">
@@ -140,7 +141,7 @@ export default function HomePage() {
                 Bring a training partner and share the cost of a private lesson. Great for partners working on the same skills.
               </p>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-black text-pva-orange">$120</span>
+                <span className="text-3xl font-black text-pva-orange">$140</span>
                 <span className="text-gray-500">/session</span>
               </div>
               <Link href="/portal/book" className="block w-full text-center bg-pva-orange/10 text-pva-orange py-3 rounded-lg font-bold hover:bg-pva-orange hover:text-white transition">
@@ -158,7 +159,7 @@ export default function HomePage() {
                 Perfect for a small group wanting focused instruction at a more affordable per-athlete cost.
               </p>
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-black text-pva-green">$150</span>
+                <span className="text-3xl font-black text-pva-green">$180</span>
                 <span className="text-gray-500">/session</span>
               </div>
               <Link href="/portal/book" className="block w-full text-center bg-pva-green/10 text-pva-green py-3 rounded-lg font-bold hover:bg-pva-green hover:text-white transition">
@@ -244,9 +245,9 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-3 gap-8 text-center">
             {[
-              { icon: <Phone size={24} />, label: 'Phone', value: 'Contact via app' },
-              { icon: <Mail size={24} />, label: 'Email', value: 'polyfacevba@gmail.com' },
-              { icon: <MapPin size={24} />, label: 'Location', value: 'Los Angeles, CA' },
+              { icon: <Phone size={24} />, label: 'Phone', value: '314-898-2580' },
+              { icon: <Mail size={24} />, label: 'Email', value: 'Jeff@polyfacevolleyball.com' },
+              { icon: <MapPin size={24} />, label: 'Location', value: 'Chattanooga, TN' },
             ].map((item) => (
               <div key={item.label} className="flex flex-col items-center p-6">
                 <div className="w-14 h-14 bg-pva-navy rounded-xl flex items-center justify-center text-white mb-4">
@@ -265,7 +266,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center space-x-3">
-              <img src="/polyface-logo.png" alt="Polyface" className="h-12 w-12 rounded-xl" />
+              <Image src="/polyface-logo.webp" alt="Polyface" width={48} height={48} className="rounded-xl" />
               <div>
                 <div className="text-xl font-black">
                   <span className="text-white">POLY</span>
@@ -278,6 +279,7 @@ export default function HomePage() {
               <a href="#programs" className="hover:text-pva-orange transition">Training</a>
               <a href="#about" className="hover:text-pva-orange transition">About</a>
               <Link href="/login" className="hover:text-pva-orange transition">Client Login</Link>
+              <Link href="/privacy" className="hover:text-pva-orange transition">Privacy Policy</Link>
             </div>
             <div className="text-sm text-gray-400 text-center md:text-right">
               <div>© 2026 PolyFace Volleyball Academy</div>

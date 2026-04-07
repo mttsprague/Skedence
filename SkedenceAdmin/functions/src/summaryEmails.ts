@@ -160,10 +160,12 @@ async function sendDailySummary(orgId: string, orgData: any, timezone: string) {
       .orderBy("startTime", "asc")
       .get();
 
-    const bookings = bookingsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const bookings = bookingsSnapshot.docs
+      .filter((doc) => doc.data().status !== "cancelled")
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
     // Get client and trainer details for all bookings
     const bookingsWithDetails = await Promise.all(
@@ -376,10 +378,12 @@ async function sendWeeklySummary(orgId: string, orgData: any, timezone: string) 
       .orderBy("startTime", "asc")
       .get();
 
-    const bookings = bookingsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const bookings = bookingsSnapshot.docs
+      .filter((doc) => doc.data().status !== "cancelled")
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
     // Get client and trainer details for all bookings
     const bookingsWithDetails = await Promise.all(

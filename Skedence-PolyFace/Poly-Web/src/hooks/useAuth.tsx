@@ -16,6 +16,7 @@ import {
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
 } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import {
   doc,
   setDoc,
@@ -27,7 +28,7 @@ import {
   getDocs,
   limit,
 } from 'firebase/firestore';
-import { auth, db, ORG_ID } from '@/lib/firebase';
+import { auth, db, functions, ORG_ID } from '@/lib/firebase';
 import { UserProfile } from '@/types';
 import { generateUserDocId } from '@/lib/utils';
 
@@ -135,6 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     athleteBirthday: string
   ) {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
+    // Send verification email via SendGrid Cloud Function
+    const sendVerificationEmail = httpsCallable(functions, 'sendVerificationEmail');
+    await sendVerificationEmail({ email });
     const uid = credential.user.uid;
 
     // Generate name-based doc ID matching iOS convention: firstname_lastname

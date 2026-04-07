@@ -467,6 +467,9 @@ final class ScheduleViewModel: ObservableObject {
                             let status = data["status"] as? String ?? ""
                             let clientName = data["clientName"] as? String ?? ""
                             
+                            // Only flag booked lessons as real conflicts — open/unavailable slots can be overwritten
+                            if !isClassBooking && status != "booked" { continue }
+                            
                             let name: String
                             let type: String
                             if isClassBooking {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
@@ -91,7 +91,7 @@ interface Transaction {
 type TabType = 'profile' | 'upcoming' | 'history' | 'passes' | 'documents' | 'payments' | 'receipts';
 
 export default function ClientsPage() {
-  const { orgId, user, userData } = useAuth();
+  const { orgId, user, userData, orgData } = useAuth();
   const router = useRouter();
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +110,7 @@ export default function ClientsPage() {
   const [receipts, setReceipts] = useState<Transaction[]>([]);
   const [pricingPackages, setPricingPackages] = useState<PricingPackage[]>([]);
   const [inviteCode, setInviteCode] = useState<string>('');
+  const [fieldLabels, setFieldLabels] = useState({ birthday: 'Birthday', schoolClubTeam: 'School / Club Team', experienceLevel: 'Experience Level', position: 'Position' });
   
   // Client invitation
   const [inviteEmail, setInviteEmail] = useState<string>('');
@@ -189,16 +190,40 @@ export default function ClientsPage() {
     };
   }, [clients, searchQuery]); // Changed from filteredClients to dependencies
 
-  // Load organization data including invite code
+  // Load organization data including invite code — use cached orgData if available
   useEffect(() => {
     if (!orgId) return;
+
+    // If org data is already cached in auth context, use it directly
+    if (orgData) {
+      setInviteCode(orgData.inviteCode || '');
+      const fields: any[] = orgData.intakeFormFieldsPrivate || orgData.intakeFormFields || [];
+      const getLabel = (id: string, def: string) => fields.find((f: any) => f.id === id)?.label || def;
+      const posField = fields.find((f: any) => typeof f.label === 'string' && f.label.toLowerCase().includes('position'));
+      setFieldLabels({
+        birthday: getLabel('athleteBirthday', 'Birthday'),
+        schoolClubTeam: getLabel('schoolTeam', 'School / Club Team'),
+        experienceLevel: getLabel('experienceLevel', 'Experience Level'),
+        position: posField?.label || 'Position',
+      });
+      return;
+    }
 
     async function loadOrganizationData() {
       try {
         const orgDoc = await getDoc(doc(db, 'organizations', orgId!));
         if (orgDoc.exists()) {
-          const orgData = orgDoc.data();
-          setInviteCode(orgData.inviteCode || '');
+          const data = orgDoc.data();
+          setInviteCode(data.inviteCode || '');
+          const fields: any[] = data.intakeFormFieldsPrivate || data.intakeFormFields || [];
+          const getLabel = (id: string, def: string) => fields.find((f: any) => f.id === id)?.label || def;
+          const posField = fields.find((f: any) => typeof f.label === 'string' && f.label.toLowerCase().includes('position'));
+          setFieldLabels({
+            birthday: getLabel('athleteBirthday', 'Birthday'),
+            schoolClubTeam: getLabel('schoolTeam', 'School / Club Team'),
+            experienceLevel: getLabel('experienceLevel', 'Experience Level'),
+            position: posField?.label || 'Position',
+          });
         }
       } catch (error) {
         console.error('Error loading organization data:', error);
@@ -206,7 +231,7 @@ export default function ClientsPage() {
     }
 
     loadOrganizationData();
-  }, [orgId]);
+  }, [orgId, orgData]);
 
   // Load clients
   useEffect(() => {
@@ -337,10 +362,10 @@ export default function ClientsPage() {
           where('orgId', '==', orgId)
         );
         const bookingsSnap = await getDocs(bookingsQuery);
-        const bookingsData = bookingsSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Booking[];
+        // Filter cancelled bookings client-side (Firestore can't combine != with range filters)
+        const bookingsData = bookingsSnap.docs
+          .filter(doc => doc.data().status !== 'cancelled' || doc.data().startTime?.toDate() < now)
+          .map(doc => ({ id: doc.id, ...doc.data() })) as Booking[];
 
         setUpcomingBookings(
           bookingsData
@@ -453,7 +478,7 @@ export default function ClientsPage() {
     loadTabData();
   }, [orgId, selectedClient]);
 
-  const filteredClients = clients.filter(client => {
+  const filteredClients = useMemo(() => clients.filter(client => {
     // Search filter
     if (searchQuery) {
       const search = searchQuery.toLowerCase();
@@ -471,38 +496,40 @@ export default function ClientsPage() {
   }).sort((a, b) => {
     // Sort logic
     switch (sortBy) {
-      case 'name':
+      case 'name': {
         const nameA = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
         const nameB = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
         return nameA.localeCompare(nameB);
-      case 'joined':
+      }
+      case 'joined': {
         // Handle both Firestore Timestamp and Date
-        const dateA = a.createdAt 
-          ? (typeof (a.createdAt as any).toMillis === 'function' 
-            ? (a.createdAt as any).toMillis() 
-            : a.createdAt instanceof Date 
-              ? a.createdAt.getTime() 
+        const dateA = a.createdAt
+          ? (typeof (a.createdAt as any).toMillis === 'function'
+            ? (a.createdAt as any).toMillis()
+            : a.createdAt instanceof Date
+              ? a.createdAt.getTime()
               : 0)
           : 0;
-        const dateB = b.createdAt 
-          ? (typeof (b.createdAt as any).toMillis === 'function' 
-            ? (b.createdAt as any).toMillis() 
-            : b.createdAt instanceof Date 
-              ? b.createdAt.getTime() 
+        const dateB = b.createdAt
+          ? (typeof (b.createdAt as any).toMillis === 'function'
+            ? (b.createdAt as any).toMillis()
+            : b.createdAt instanceof Date
+              ? b.createdAt.getTime()
               : 0)
           : 0;
         return dateB - dateA; // Most recent first
+      }
       default:
         return 0;
     }
-  });
+  }), [clients, searchQuery, sortBy]);
 
-  const handleClientSelect = (client: User) => {
+  const handleClientSelect = useCallback((client: User) => {
     setSelectedClient(client);
     setEditedClient(JSON.parse(JSON.stringify(client)));
     setActiveTab('profile');
     setSheetOpen(true);
-  };
+  }, []);
 
   const handleSave = async () => {
     if (!editedClient || !editedClient.id) return;
@@ -1074,8 +1101,10 @@ export default function ClientsPage() {
                               {selectedClient.athletes.map((athlete, idx) => (
                                 <div key={idx} className="p-3 bg-gray-50 rounded-lg">
                                   <p className="font-semibold">{athlete.firstName} {athlete.lastName}</p>
-                                  {athlete.birthday && <p className="text-sm text-muted-foreground">DOB: {athlete.birthday}</p>}
-                                  {athlete.position && <p className="text-sm text-muted-foreground">Position: {athlete.position}</p>}
+                                  {athlete.birthday && <p className="text-sm text-muted-foreground">{fieldLabels.birthday}: {athlete.birthday}</p>}
+                                  {athlete.schoolClubTeam && <p className="text-sm text-muted-foreground">{fieldLabels.schoolClubTeam}: {athlete.schoolClubTeam}</p>}
+                                  {athlete.experienceLevel && <p className="text-sm text-muted-foreground">{fieldLabels.experienceLevel}: {athlete.experienceLevel}</p>}
+                                  {athlete.position && <p className="text-sm text-muted-foreground">{fieldLabels.position}: {athlete.position}</p>}
                                 </div>
                               ))}
                             </CardContent>

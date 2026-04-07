@@ -12,17 +12,20 @@ import {
   Menu,
   X,
   UserCircle,
+  FileText,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import BrandLogo from '@/components/BrandLogo';
 import Spinner from '@/components/Spinner';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const NAV_ITEMS = [
   { href: '/portal', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
   { href: '/portal/book', icon: <BookOpen size={20} />, label: 'Book a Lesson' },
   { href: '/portal/schedule', icon: <CalendarCheck size={20} />, label: 'My Schedule' },
   { href: '/portal/passes', icon: <Ticket size={20} />, label: 'My Passes' },
+  { href: '/portal/documents', icon: <FileText size={20} />, label: 'Documents' },
   { href: '/portal/profile', icon: <UserCircle size={20} />, label: 'My Profile' },
 ];
 
@@ -35,6 +38,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
+    } else if (!loading && user && !user.emailVerified) {
+      router.push('/verify-email');
     }
   }, [user, loading, router]);
 
@@ -147,8 +152,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6 lg:p-8">
-          {children}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-10">
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>
     </div>

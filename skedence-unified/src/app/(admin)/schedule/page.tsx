@@ -105,6 +105,7 @@ export default function SchedulePage() {
   const [rescheduleEndTime, setRescheduleEndTime] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
   const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set());
+  const [fieldLabels, setFieldLabels] = useState({ birthday: 'Birthday', schoolClubTeam: 'School / Club Team', experienceLevel: 'Experience Level', position: 'Position' });
 
   // Set initial trainer to current user
   useEffect(() => {
@@ -129,6 +130,15 @@ export default function SchedulePage() {
               .map((field: any) => field.id as string)
           );
           setRequiredFields(required);
+          // Set field labels based on what the admin named them
+          const getLabel = (id: string, def: string) => fields.find((f: any) => f.id === id)?.label || def;
+          const posField = fields.find((f: any) => typeof f.label === 'string' && f.label.toLowerCase().includes('position'));
+          setFieldLabels({
+            birthday: getLabel('athleteBirthday', 'Birthday'),
+            schoolClubTeam: getLabel('schoolTeam', 'School / Club Team'),
+            experienceLevel: getLabel('experienceLevel', 'Experience Level'),
+            position: posField?.label || 'Position',
+          });
         }
       } catch (error) {
         console.error('Error loading required fields:', error);
@@ -954,16 +964,16 @@ export default function SchedulePage() {
                             {matchedAthlete && (
                               <>
                                 {matchedAthlete.birthday && (
-                                  <div className="text-sm text-foreground/80">DOB: {matchedAthlete.birthday}</div>
+                                  <div className="text-sm text-foreground/80">{fieldLabels.birthday}: {matchedAthlete.birthday}</div>
                                 )}
                                 {matchedAthlete.schoolClubTeam && (
-                                  <div className="text-sm text-foreground/80">Team: {matchedAthlete.schoolClubTeam}</div>
+                                  <div className="text-sm text-foreground/80">{fieldLabels.schoolClubTeam}: {matchedAthlete.schoolClubTeam}</div>
                                 )}
                                 {matchedAthlete.experienceLevel && (
-                                  <div className="text-sm text-foreground/80">Experience: {matchedAthlete.experienceLevel}</div>
+                                  <div className="text-sm text-foreground/80">{fieldLabels.experienceLevel}: {matchedAthlete.experienceLevel}</div>
                                 )}
                                 {matchedAthlete.position && (
-                                  <div className="text-sm text-foreground/80">Position: {matchedAthlete.position}</div>
+                                  <div className="text-sm text-foreground/80">{fieldLabels.position}: {matchedAthlete.position}</div>
                                 )}
                               </>
                             )}
@@ -1000,16 +1010,16 @@ export default function SchedulePage() {
                           {athlete.firstName} {athlete.lastName}
                         </div>
                         {athlete.birthday && (
-                          <div className="text-sm text-foreground/80">DOB: {athlete.birthday}</div>
+                          <div className="text-sm text-foreground/80">{fieldLabels.birthday}: {athlete.birthday}</div>
                         )}
                         {athlete.schoolClubTeam && (
-                          <div className="text-sm text-foreground/80">Team: {athlete.schoolClubTeam}</div>
+                          <div className="text-sm text-foreground/80">{fieldLabels.schoolClubTeam}: {athlete.schoolClubTeam}</div>
                         )}
                         {athlete.experienceLevel && (
-                          <div className="text-sm text-foreground/80">Experience: {athlete.experienceLevel}</div>
+                          <div className="text-sm text-foreground/80">{fieldLabels.experienceLevel}: {athlete.experienceLevel}</div>
                         )}
                         {athlete.position && (
-                          <div className="text-sm text-foreground/80">Position: {athlete.position}</div>
+                          <div className="text-sm text-foreground/80">{fieldLabels.position}: {athlete.position}</div>
                         )}
                       </div>
                     ))}

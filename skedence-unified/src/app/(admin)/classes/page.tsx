@@ -714,36 +714,50 @@ export default function ClassesPage() {
         const participantsQuery = query(collection(db, 'classes', classItem.id, 'participants'));
         const participantsSnapshot = await getDocs(participantsQuery);
         totalParticipants += participantsSnapshot.size;
-        
-        // Delete participant registrations and update user bookings
-        for (const participantDoc of participantsSnapshot.docs) {
-          const participantData = participantDoc.data();
-          
-          // Remove from user's bookings if they have any related booking
-          if (participantData.userId) {
-            // Query bookings that reference this class
-            const userBookingsQuery = query(
-              collection(db, 'bookings'),
-              where('userId', '==', participantData.userId),
-              where('classId', '==', classItem.id)
-            );
-            const userBookingsSnapshot = await getDocs(userBookingsQuery);
-            
-            // Delete or cancel related bookings
-            for (const bookingDoc of userBookingsSnapshot.docs) {
-              await updateDoc(doc(db, 'bookings', bookingDoc.id), {
-                status: 'cancelled',
-                cancelledAt: Timestamp.now(),
-                cancelReason: isGroupedClass 
-                  ? 'Class series was deleted by administrator'
-                  : 'Class was deleted by administrator'
-              });
-            }
-          }
-          
-          // Delete participant document
-          await deleteDoc(participantDoc.ref);
+
+        // Cancel all bookings for this class (query by classId — correct field on booking docs)
+        try {
+          const classBookingsSnapshot = await getDocs(query(
+            collection(db, 'bookings'),
+            where('classId', '==', classItem.id)
+          ));
+          await Promise.all(classBookingsSnapshot.docs.map(bookingDoc =>
+            updateDoc(doc(db, 'bookings', bookingDoc.id), {
+              status: 'cancelled',
+              cancelledAt: Timestamp.now(),
+              cancelReason: isGroupedClass
+                ? 'Class series was deleted by administrator'
+                : 'Class was deleted by administrator',
+            })
+          ));
+        } catch (err) {
+          console.error('Error cancelling class bookings:', err);
         }
+
+        // Delete all classRegistrations for this class
+        try {
+          const regsSnapshot = await getDocs(query(
+            collection(db, 'classRegistrations'),
+            where('classId', '==', classItem.id)
+          ));
+          await Promise.all(regsSnapshot.docs.map(r => deleteDoc(r.ref)));
+        } catch (err) {
+          console.error('Error deleting classRegistrations:', err);
+        }
+
+        // Delete the trainer schedule slot(s) for this class so the time opens up
+        try {
+          const slotSnapshot = await getDocs(query(
+            collection(db, 'trainers', classItem.trainerId, 'schedules'),
+            where('classId', '==', classItem.id)
+          ));
+          await Promise.all(slotSnapshot.docs.map(s => deleteDoc(s.ref)));
+        } catch (err) {
+          console.error('Error deleting class schedule slots:', err);
+        }
+
+        // Delete all participant subcollection docs
+        await Promise.all(participantsSnapshot.docs.map(p => deleteDoc(p.ref)));
         
         // Log activity for each class deletion
         if (orgId && user && userData) {

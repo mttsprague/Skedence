@@ -7,8 +7,17 @@
 
 import SwiftUI
 
+// Shared field labels loaded from org's intake form config
+struct IntakeFieldLabels {
+    var birthday: String = "Birthday"
+    var schoolClubTeam: String = "School / Club Team"
+    var experienceLevel: String = "Level"
+    var position: String = "Position"
+}
+
 struct EnhancedAthletesSection: View {
     let profile: UserProfile
+    var fieldLabels: IntakeFieldLabels = IntakeFieldLabels()
     
     private var athletesList: [AthleteDetails] {
         var athletes: [AthleteDetails] = []
@@ -119,7 +128,7 @@ struct EnhancedAthletesSection: View {
                             .font(.system(size: 12))
                             .foregroundStyle(AppTheme.textTertiary)
                             .frame(width: 20)
-                        Text("Birthday:")
+                        Text("\(fieldLabels.birthday):")
                             .font(.labelSmall)
                             .foregroundStyle(AppTheme.textSecondary)
                         Text(birthday)
@@ -135,7 +144,7 @@ struct EnhancedAthletesSection: View {
                             .font(.system(size: 12))
                             .foregroundStyle(AppTheme.textTertiary)
                             .frame(width: 20)
-                        Text("Team:")
+                        Text("\(fieldLabels.schoolClubTeam):")
                             .font(.labelSmall)
                             .foregroundStyle(AppTheme.textSecondary)
                         Text(school)
@@ -151,7 +160,7 @@ struct EnhancedAthletesSection: View {
                             .font(.system(size: 12))
                             .foregroundStyle(experienceLevelColor(experience))
                             .frame(width: 20)
-                        Text("Level:")
+                        Text("\(fieldLabels.experienceLevel):")
                             .font(.labelSmall)
                             .foregroundStyle(AppTheme.textSecondary)
                         Text(experience)

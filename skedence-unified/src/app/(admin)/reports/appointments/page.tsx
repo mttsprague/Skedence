@@ -5,7 +5,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { collection, query, where, getDocs, getDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import dynamic from 'next/dynamic';
+const AppointmentsBarChart = dynamic(() => import('@/components/charts/appointments-bar-chart'), {
+  ssr: false,
+  loading: () => <div className="h-[300px] animate-pulse rounded-md bg-muted" />,
+});
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, addMonths, differenceInMinutes } from 'date-fns';
 import { Download, Calendar, Filter, ChevronDown, ArrowUpDown, Users, Clock, TrendingUp } from 'lucide-react';
 import { trackPageView, trackFeature } from '@/lib/analytics';
@@ -827,19 +831,7 @@ export default function AppointmentsReportPage() {
           <CardTitle>Appointments Over Time</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="scheduled" fill="#3b82f6" name="Scheduled" />
-              <Bar dataKey="completed" fill="#10b981" name="Completed" />
-              <Bar dataKey="cancelled" fill="#f59e0b" name="Cancelled" />
-              <Bar dataKey="no-show" fill="#ef4444" name="No-show" />
-            </BarChart>
-          </ResponsiveContainer>
+          <AppointmentsBarChart data={chartData} />
         </CardContent>
       </Card>
 

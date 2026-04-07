@@ -52,6 +52,7 @@ import type { AthleteInfo } from '@/types';
 import { saveUserProfile } from '@/lib/firestore';
 import Spinner from '@/components/Spinner';
 import WaiverModal from '@/components/WaiverModal';
+import Image from 'next/image';
 import { format } from 'date-fns';
 
 type PrivateStep = 'trainer' | 'slot' | 'pass' | 'athletes' | 'confirm' | 'done';
@@ -172,7 +173,7 @@ function ClassModal({
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Athlete</label>
                     <select value={selectedAthlete} onChange={(e) => setSelectedAthlete(e.target.value)}
-                      className="w-full border-2 border-gray-200 rounded-xl p-3 text-sm font-medium text-gray-700 focus:border-pva-teal focus:outline-none">
+                      className="w-full border-2 border-gray-200 rounded-xl p-3 text-base font-medium text-gray-700 focus:border-pva-teal focus:outline-none">
                       {athleteNames.map((a) => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
@@ -234,24 +235,24 @@ function AddAthleteModal({ userDocId, existingAthletes, onSaved, onClose }: {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">First Name</label>
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pva-navy/30" />
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-pva-navy/30" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Last Name</label>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pva-navy/30" />
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-pva-navy/30" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Birthday (MM/DD/YYYY)</label>
-            <input value={birthday} onChange={(e) => setBirthday(e.target.value)} placeholder="MM/DD/YYYY" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pva-navy/30" />
+            <input value={birthday} onChange={(e) => setBirthday(e.target.value)} placeholder="MM/DD/YYYY" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-pva-navy/30" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">School / Club Team</label>
-            <input value={club} onChange={(e) => setClub(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pva-navy/30" />
+            <input value={club} onChange={(e) => setClub(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-pva-navy/30" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Experience Level</label>
-            <select value={level} onChange={(e) => setLevel(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pva-navy/30 bg-white">
+            <select value={level} onChange={(e) => setLevel(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-pva-navy/30 bg-white">
               {EXPERIENCE_LEVELS.map((l) => <option key={l}>{l}</option>)}
             </select>
           </div>
@@ -270,15 +271,20 @@ function AddAthleteModal({ userDocId, existingAthletes, onSaved, onClose }: {
 // ─── TRAINER AVATAR ──────────────────────────────────────────────────────────
 function TrainerAvatar({ trainer, size = 'md' }: { trainer: Trainer; size?: 'sm' | 'md' | 'lg' }) {
   const imgUrl = trainer.profileImageUrl || trainer.photoURL || trainer.imageUrl;
+  const [imgFailed, setImgFailed] = useState(false);
   const initials = `${trainer.firstName?.[0] ?? ''}${trainer.lastName?.[0] ?? ''}` || '?';
   const dims = size === 'sm' ? 'w-10 h-10 text-sm' : size === 'lg' ? 'w-20 h-20 text-2xl' : 'w-14 h-14 text-lg';
-  if (imgUrl) {
+  const sizePx = size === 'sm' ? 40 : size === 'lg' ? 80 : 56;
+  if (imgUrl && !imgFailed) {
     return (
-      <img
+      <Image
         src={imgUrl}
         alt={`${trainer.firstName} ${trainer.lastName}`}
+        width={sizePx}
+        height={sizePx}
+        unoptimized
         className={`${dims} rounded-full object-cover flex-shrink-0 ring-2 ring-white/40`}
-        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement | null)?.style.setProperty('display', 'flex'); }}
+        onError={() => setImgFailed(true)}
       />
     );
   }
@@ -354,7 +360,7 @@ function TrainerCard({ trainer, onSelect }: { trainer: Trainer; onSelect: () => 
   return (
     <>
       <div className="bg-white rounded-2xl border-2 border-gray-100 overflow-hidden transition hover:border-pva-teal/60">
-        <button onClick={onSelect} className="w-full flex items-center gap-4 p-5 text-left hover:bg-gray-50 transition">
+        <button onClick={onSelect} aria-label={`Select coach ${trainer.firstName} ${trainer.lastName}`} className="w-full flex items-center gap-4 p-5 text-left hover:bg-gray-50 transition touch-manipulation">
           <TrainerAvatar trainer={trainer} size="md" />
           <div className="flex-1 min-w-0">
             <div className="font-black text-pva-navy text-base">
@@ -631,8 +637,19 @@ export default function BookPage() {
   // Book private lesson
   async function handleBook() {
     if (!user || !userDocId || !selectedTrainer || !selectedSlot || !selectedPass) return;
+    // Defensive waiver gate — re-verify before committing transaction
+    const unsigned = firstUnsignedAthlete();
+    if (unsigned) {
+      setPendingWaiverAthlete(unsigned);
+      setShowWaiver(true);
+      return;
+    }
     setLoading(true); setError('');
     try {
+      const clientName = profile
+        ? `${profile.firstName} ${profile.lastName}`.trim()
+        : userDocId.replace(/_/g, ' ');
+      const trainerName = `${selectedTrainer.firstName} ${selectedTrainer.lastName}`.trim();
       const slotRef = doc(db, `trainers/${selectedTrainer.id}/schedules/${selectedSlot.id}`);
       const passRef = doc(db, 'organizations', ORG_ID, 'users', userDocId, 'packages', selectedPass.id);
       await runTransaction(db, async (tx) => {
@@ -642,19 +659,29 @@ export default function BookPage() {
         if (!passSnap.exists()) throw new Error('Pass not found');
         const pd = passSnap.data();
         if ((pd.totalLessons as number) - (pd.lessonsUsed as number) <= 0) throw new Error('No lessons remaining on this pass');
-        tx.update(slotRef, { status: 'booked' });
+        // Update slot: status + clientName so admin schedule shows the client name
+        tx.update(slotRef, {
+          status: 'booked',
+          clientId: userDocId,
+          clientName,
+          bookedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
         tx.update(passRef, { lessonsUsed: (pd.lessonsUsed as number) + 1 });
         tx.set(doc(collection(db, 'bookings')), {
           clientId: userDocId, clientUID: userDocId,
+          clientName,
           trainerUID: selectedTrainer.id, trainerId: selectedTrainer.id,
+          trainerName,
           orgId: ORG_ID, lessonPackageId: selectedPass.id, packageId: selectedPass.id,
-          scheduleSlotId: selectedSlot.id, scheduleId: selectedSlot.id,
+          scheduleSlotId: selectedSlot.id, scheduleId: selectedSlot.id, slotId: selectedSlot.id,
           startTime: Timestamp.fromDate(selectedSlot.startTime),
           endTime: Timestamp.fromDate(selectedSlot.endTime),
           status: 'confirmed', location: selectedSlot.location ?? '',
           athleteName: selectedAthletes[0] ?? null,
           secondAthleteName: selectedAthletes[1] ?? null,
           athleteNames: selectedAthletes.filter(Boolean),
+          bookedAt: serverTimestamp(),
           createdAt: serverTimestamp(),
         });
       });
@@ -755,14 +782,15 @@ export default function BookPage() {
       {mode === 'privates' && (
         <>
           {/* Progress indicator */}
-          <div className="flex items-center gap-1.5 mb-7 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-1.5 mb-7">
             {PRIVATE_STEPS.map((s, i) => (
-              <div key={s} className="flex items-center gap-1.5">
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition ${
+              <div key={s} className="flex items-center gap-1 sm:gap-1.5">
+                <div className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs font-bold transition ${
                   i < stepIndex ? 'bg-pva-teal/10 text-pva-teal' : i === stepIndex ? 'bg-pva-navy text-white' : 'bg-gray-100 text-gray-400'}`}>
-                  <span>{i < stepIndex ? <Check size={11} /> : i + 1}</span>{stepLabels[s]}
+                  <span>{i < stepIndex ? <Check size={11} /> : i + 1}</span>
+                  <span className="hidden sm:inline">{stepLabels[s]}</span>
                 </div>
-                {i < PRIVATE_STEPS.length - 1 && <div className={`h-px w-3 ${i < stepIndex ? 'bg-pva-teal' : 'bg-gray-200'}`} />}
+                {i < PRIVATE_STEPS.length - 1 && <div className={`h-px w-2 sm:w-3 ${i < stepIndex ? 'bg-pva-teal' : 'bg-gray-200'}`} />}
               </div>
             ))}
           </div>
@@ -834,7 +862,8 @@ export default function BookPage() {
                               return (
                                 <button key={slot.id}
                                   onClick={() => setSelectedSlot(isSelected ? null : slot)}
-                                  className={`rounded-2xl border-2 p-4 transition text-left ${
+                                  aria-label={`${isSelected ? 'Deselect' : 'Select'} ${format(slot.startTime, 'h:mm a')} time slot`}
+                                  className={`rounded-2xl border-2 p-4 transition text-left touch-manipulation ${
                                     isSelected ? 'border-pva-navy bg-pva-navy/5' : 'bg-white border-gray-100 hover:border-pva-teal hover:bg-pva-teal/5'
                                   }`}>
                                   <div className={`flex items-center gap-1.5 font-bold text-sm mb-1 ${isSelected ? 'text-pva-navy' : 'text-pva-navy'}`}>
@@ -1054,7 +1083,7 @@ export default function BookPage() {
           <div className="flex items-center gap-3 bg-white border-2 border-gray-100 rounded-xl px-4 py-3 mb-5">
             <Search size={16} className="text-gray-400 flex-shrink-0" />
             <input type="text" placeholder="Search classes…" value={classSearch} onChange={(e) => setClassSearch(e.target.value)}
-              className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400" />
+              className="flex-1 bg-transparent text-base outline-none placeholder-gray-400" />
             {classSearch && <button onClick={() => setClassSearch('')}><X size={14} className="text-gray-400" /></button>}
           </div>
           {loading ? <div className="flex justify-center py-12"><Spinner size="lg" /></div> : filteredClasses.length === 0 ? (

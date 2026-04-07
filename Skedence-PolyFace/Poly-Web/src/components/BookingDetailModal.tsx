@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import {
   X,
@@ -12,34 +13,17 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import type { Booking } from '@/types';
+import { resolveDisplayStatus, resolveAthleteNames, isValidDate, statusMeta } from '@/lib/bookingUtils';
+import { cancelBooking } from '@/lib/firestore';
 
 interface Props {
   booking: Booking | null;
   onClose: () => void;
+  onCancelled?: () => void;
 }
-
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; bg: string; text: string }> = {
-  confirmed: {
-    label: 'Confirmed',
-    icon: <CheckCircle size={15} />,
-    bg: 'bg-green-100',
-    text: 'text-green-700',
-  },
-  completed: {
-    label: 'Completed',
-    icon: <CheckCircle size={15} />,
-    bg: 'bg-blue-100',
-    text: 'text-blue-700',
-  },
-  cancelled: {
-    label: 'Cancelled',
-    icon: <XCircle size={15} />,
-    bg: 'bg-red-100',
-    text: 'text-red-600',
-  },
-};
 
 function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -55,21 +39,37 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
   );
 }
 
-export default function BookingDetailModal({ booking, onClose }: Props) {
+export default function BookingDetailModal({ booking, onClose, onCancelled }: Props) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+
+  useEffect(() => {
+    if (!booking) return;
+    const t = setTimeout(() => closeRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [booking]);
+
   if (!booking) return null;
 
-  const cfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.confirmed;
+  const displayStatus = resolveDisplayStatus(booking);
+  const { label, isCheck, bg, text } = statusMeta(displayStatus);
+  const athletes = resolveAthleteNames(booking);
+  const canCancel = displayStatus === 'confirmed' && booking.startTime > new Date();
 
-  // Resolve athlete list — combine all sources
-  const athletes: string[] = [];
-  if (booking.athleteNames && booking.athleteNames.length > 0) {
-    athletes.push(...booking.athleteNames);
-  } else {
-    if (booking.athleteName) athletes.push(booking.athleteName);
-    if (booking.secondAthleteName) athletes.push(booking.secondAthleteName);
+  async function handleCancel() {
+    setCancelling(true);
+    setCancelError('');
+    try {
+      await cancelBooking(booking!.id, booking!);
+      onCancelled?.();
+      onClose();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Failed to cancel. Please try again.');
+      setCancelling(false);
+    }
   }
-
-  const isValidDate = (d: unknown): d is Date => d instanceof Date && !isNaN(d.getTime());
 
   return (
     /* Backdrop */
@@ -101,7 +101,9 @@ export default function BookingDetailModal({ booking, onClose }: Props) {
               )}
             </div>
             <button
+              ref={closeRef}
               onClick={onClose}
+              aria-label="Close lesson details"
               className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition flex-shrink-0"
             >
               <X size={16} />
@@ -109,9 +111,9 @@ export default function BookingDetailModal({ booking, onClose }: Props) {
           </div>
 
           {/* Status chip */}
-          <div className={`inline-flex items-center gap-1.5 mt-4 px-3 py-1 rounded-full text-xs font-bold ${cfg.bg} ${cfg.text}`}>
-            {cfg.icon}
-            {cfg.label}
+          <div className={`inline-flex items-center gap-1.5 mt-4 px-3 py-1 rounded-full text-xs font-bold ${bg} ${text}`}>
+            {isCheck ? <CheckCircle size={15} /> : <XCircle size={15} />}
+            {label}
           </div>
         </div>
 
@@ -174,8 +176,40 @@ export default function BookingDetailModal({ booking, onClose }: Props) {
           )}
         </div>
 
-        {/* Close button */}
-        <div className="px-6 pb-6 pt-3">
+        {/* Actions */}
+        <div className="px-6 pb-6 pt-3 space-y-2">
+          {canCancel && !confirmCancel && (
+            <button
+              onClick={() => setConfirmCancel(true)}
+              className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-600 font-bold hover:bg-red-50 transition"
+            >
+              Cancel Lesson
+            </button>
+          )}
+          {confirmCancel && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3">
+              <p className="text-sm font-bold text-red-700 text-center">Cancel this booking?</p>
+              <p className="text-xs text-red-500 text-center">The time slot will be freed for others.</p>
+              {cancelError && <p className="text-xs text-red-600 text-center">{cancelError}</p>}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmCancel(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-white border border-red-200 text-red-500 font-bold text-sm hover:bg-red-50 transition"
+                >
+                  Keep Lesson
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {cancelling
+                    ? <><Loader2 size={14} className="animate-spin" /> Cancelling…</>
+                    : 'Yes, Cancel'}
+                </button>
+              </div>
+            </div>
+          )}
           <button
             onClick={onClose}
             className="w-full py-3 rounded-2xl bg-gray-100 text-pva-navy font-bold hover:bg-gray-200 transition"

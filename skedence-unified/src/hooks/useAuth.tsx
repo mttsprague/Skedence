@@ -15,6 +15,7 @@ interface AuthContextType {
   user: FirebaseUser | null;
   userData: User | null;
   orgId: string | null;
+  orgData: Record<string, any> | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   userData: null,
   orgId: null,
+  orgData: null,
   loading: true,
   signIn: async () => {},
   signOut: async () => {},
@@ -33,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<User | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgData, setOrgData] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const isCheckingAuth = useRef(false);
   const hasCompletedInitialCheck = useRef(false);
@@ -60,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setUserData(null);
         setOrgId(null);
+        setOrgData(null);
         hasCompletedInitialCheck.current = false;
         validatedUserId.current = null;
         setLoading(false);
@@ -137,6 +141,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setOrgId(userOrgId);
             hasCompletedInitialCheck.current = true;
             validatedUserId.current = firebaseUser.uid;
+
+            // Pre-fetch org data once so pages don't each need to call getDoc
+            try {
+              const orgDoc = await getDoc(doc(db, 'organizations', userOrgId));
+              if (orgDoc.exists()) setOrgData(orgDoc.data());
+            } catch {
+              // Non-critical — pages can fall back to their own fetches
+            }
           } else {
             // User is not owner/admin - deny access
             setUserData(null);
@@ -183,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userData, orgId, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, userData, orgId, orgData, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

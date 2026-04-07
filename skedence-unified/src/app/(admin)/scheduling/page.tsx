@@ -18,6 +18,9 @@ interface Trainer {
   id: string;
   firstName: string;
   lastName: string;
+  userId?: string;
+  authUserId?: string;
+  email?: string;
 }
 
 interface ScheduleItem {
@@ -85,6 +88,7 @@ export default function SchedulingPage() {
   const [modalSlotId, setModalSlotId] = useState<string>(''); // Actual slot document ID
   const [modalTrainerId, setModalTrainerId] = useState<string>('');
   const [modalTrainerName, setModalTrainerName] = useState<string>('');
+  const [modalSlotStatus, setModalSlotStatus] = useState<string>('open');
   
   // Cancel booking states
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
@@ -95,6 +99,7 @@ export default function SchedulingPage() {
   const [rescheduleStartTime, setRescheduleStartTime] = useState('');
   const [rescheduleEndTime, setRescheduleEndTime] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
+  const [fieldLabels, setFieldLabels] = useState({ birthday: 'Birthday', schoolClubTeam: 'School / Club Team', experienceLevel: 'Experience Level', position: 'Position' });
 
   // Touch swipe state for calendar navigation
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -123,17 +128,38 @@ export default function SchedulingPage() {
     return () => clearInterval(timer);
   }, [isMounted]);
 
+  // Load field labels from org's intake form config
+  useEffect(() => {
+    if (!orgId) return;
+    import('firebase/firestore').then(({ doc, getDoc }) => {
+      getDoc(doc(db, 'organizations', orgId)).then(snap => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const fields: any[] = data.intakeFormFieldsPrivate || data.intakeFormFields || [];
+        const getLabel = (id: string, def: string) => fields.find((f: any) => f.id === id)?.label || def;
+        const posField = fields.find((f: any) => typeof f.label === 'string' && f.label.toLowerCase().includes('position'));
+        setFieldLabels({
+          birthday: getLabel('athleteBirthday', 'Birthday'),
+          schoolClubTeam: getLabel('schoolTeam', 'School / Club Team'),
+          experienceLevel: getLabel('experienceLevel', 'Experience Level'),
+          position: posField?.label || 'Position',
+        });
+      }).catch(() => {});
+    });
+  }, [orgId]);
+
   // Set initial trainer to current user or first trainer
   useEffect(() => {
     if (trainers.length > 0 && !selectedTrainer) {
       if (userData) {
-        const currentUserName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-        // Check if current user is in trainers list
-        const userIsTrainer = trainers.find(t => 
-          `${t.firstName} ${t.lastName}` === currentUserName
+        // Match by auth UID (userId or authUserId) or email (case-insensitive)
+        const userEmail = userData.email?.toLowerCase().trim();
+        const userIsTrainer = trainers.find(t =>
+          (userData.id && (t.userId === userData.id || t.authUserId === userData.id)) ||
+          (userEmail && t.email?.toLowerCase().trim() === userEmail)
         );
         if (userIsTrainer) {
-          setSelectedTrainer(currentUserName);
+          setSelectedTrainer(`${userIsTrainer.firstName} ${userIsTrainer.lastName}`);
           return;
         }
       }
@@ -164,17 +190,21 @@ export default function SchedulingPage() {
           id: doc.id,
           firstName: doc.data().firstName,
           lastName: doc.data().lastName,
+          userId: doc.data().userId as string | undefined,
+          authUserId: doc.data().authUserId as string | undefined,
+          email: doc.data().email as string | undefined,
         }));
         
-        // Sort: Owner first, then alphabetically by first name
-        const currentUserName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        // Sort: current admin/owner first (match by auth UID or email), then alphabetically
+        const userEmail = userData?.email?.toLowerCase().trim();
         const sortedTrainers = trainersList.sort((a, b) => {
-          const aFullName = `${a.firstName} ${a.lastName}`;
-          const bFullName = `${b.firstName} ${b.lastName}`;
+          const aIsCurrentUser = (userData?.id && (a.userId === userData.id || a.authUserId === userData.id)) || 
+                                 (userEmail && a.email?.toLowerCase().trim() === userEmail);
+          const bIsCurrentUser = (userData?.id && (b.userId === userData.id || b.authUserId === userData.id)) || 
+                                 (userEmail && b.email?.toLowerCase().trim() === userEmail);
           
-          // Owner goes first
-          if (aFullName === currentUserName) return -1;
-          if (bFullName === currentUserName) return 1;
+          if (aIsCurrentUser) return -1;
+          if (bIsCurrentUser) return 1;
           
           // Otherwise alphabetically by first name
           return a.firstName.localeCompare(b.firstName);
@@ -704,15 +734,16 @@ export default function SchedulingPage() {
     }
   };
 
-  // Handle clicking an available (green) shift to book or mark unavailable
+  // Handle clicking an available (green) or unavailable (red) shift
   const handleAvailableShiftClick = (item: ScheduleItem) => {
-    if (item.type === 'shift' && item.status === 'open' && item.trainerId) {
+    if (item.type === 'shift' && item.trainerId) {
       setModalSlotDate(item.startTime);
       setModalSlotHour(item.startTime.getHours());
       setModalSlotId(item.id); // Pass the actual slot document ID
       setModalTrainerId(item.trainerId);
       setModalTrainerName(item.trainerName);
-      setShowSlotActionDialog(true); // Show choice dialog instead of directly opening booking
+      setModalSlotStatus(item.status || 'open');
+      setShowSlotActionDialog(true);
     } else {
       setSelectedItem(item);
     }
@@ -736,6 +767,27 @@ export default function SchedulingPage() {
     } catch (error) {
       console.error('Error marking slot unavailable:', error);
       alert('Failed to mark slot as unavailable. Please try again.');
+    }
+  };
+
+  // Mark slot as open (re-open a previously unavailable slot)
+  const handleMarkOpen = async () => {
+    if (!modalSlotId || !modalTrainerId || !orgId) return;
+    
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const scheduleRef = doc(db, `trainers/${modalTrainerId}/schedules/${modalSlotId}`);
+      
+      await updateDoc(scheduleRef, {
+        status: 'open',
+        isBooked: false
+      });
+      
+      setShowSlotActionDialog(false);
+      reloadSchedule();
+    } catch (error) {
+      console.error('Error marking slot open:', error);
+      alert('Failed to mark slot as open. Please try again.');
     }
   };
 
@@ -799,6 +851,7 @@ export default function SchedulingPage() {
           ? "The client's pass has been refunded." 
           : "The client's pass was not refunded."
       );
+      reloadSchedule();
     } catch (error: any) {
       console.error('Failed to cancel session:', error);
       toast.error('Failed to cancel session', error.message || 'Please try again');
@@ -1147,7 +1200,7 @@ export default function SchedulingPage() {
                                       item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                       item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
                                       item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
-                                      item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
+                                      item.type === 'shift' && item.status === 'unavailable' && 'bg-gray-100 border border-gray-300 hover:bg-gray-200'
                                     )}
                                     style={{
                                       top: `${yOffset}px`,
@@ -1265,7 +1318,7 @@ export default function SchedulingPage() {
                                       key={item.id}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (item.type === 'shift' && item.status === 'open') {
+                                        if (item.type === 'shift') {
                                           handleAvailableShiftClick(item);
                                         } else {
                                           setSelectedItem(item);
@@ -1414,16 +1467,16 @@ export default function SchedulingPage() {
                                 {matchedAthlete && (
                                   <>
                                     {matchedAthlete.birthday && (
-                                      <div className="text-sm text-foreground/80">DOB: {matchedAthlete.birthday}</div>
+                                      <div className="text-sm text-foreground/80">{fieldLabels.birthday}: {matchedAthlete.birthday}</div>
                                     )}
                                     {matchedAthlete.schoolClubTeam && (
-                                      <div className="text-sm text-foreground/80">Team: {matchedAthlete.schoolClubTeam}</div>
+                                      <div className="text-sm text-foreground/80">{fieldLabels.schoolClubTeam}: {matchedAthlete.schoolClubTeam}</div>
                                     )}
                                     {matchedAthlete.experienceLevel && (
-                                      <div className="text-sm text-foreground/80">Experience: {matchedAthlete.experienceLevel}</div>
+                                      <div className="text-sm text-foreground/80">{fieldLabels.experienceLevel}: {matchedAthlete.experienceLevel}</div>
                                     )}
                                     {matchedAthlete.position && (
-                                      <div className="text-sm text-foreground/80">Position: {matchedAthlete.position}</div>
+                                      <div className="text-sm text-foreground/80">{fieldLabels.position}: {matchedAthlete.position}</div>
                                     )}
                                   </>
                                 )}
@@ -1461,22 +1514,22 @@ export default function SchedulingPage() {
                             </div>
                             {athlete.birthday && (
                               <div className="text-sm text-foreground/80">
-                                <span className="font-medium">DOB:</span> {athlete.birthday}
+                                <span className="font-medium">{fieldLabels.birthday}:</span> {athlete.birthday}
                               </div>
                             )}
                             {athlete.schoolClubTeam && (
                               <div className="text-sm text-foreground/80">
-                                <span className="font-medium">Team:</span> {athlete.schoolClubTeam}
+                                <span className="font-medium">{fieldLabels.schoolClubTeam}:</span> {athlete.schoolClubTeam}
                               </div>
                             )}
                             {athlete.experienceLevel && (
                               <div className="text-sm text-foreground/80">
-                                <span className="font-medium">Experience:</span> {athlete.experienceLevel}
+                                <span className="font-medium">{fieldLabels.experienceLevel}:</span> {athlete.experienceLevel}
                               </div>
                             )}
                             {athlete.position && (
                               <div className="text-sm text-foreground/80">
-                                <span className="font-medium">Position:</span> {athlete.position}
+                                <span className="font-medium">{fieldLabels.position}:</span> {athlete.position}
                               </div>
                             )}
                           </div>
@@ -1741,34 +1794,51 @@ export default function SchedulingPage() {
             </p>
             
             <div className="space-y-3">
-              <button
-                onClick={() => {
-                  setShowSlotActionDialog(false);
-                  setShowBookLessonModal(true);
-                }}
-                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 2v4"/>
-                  <path d="M16 2v4"/>
-                  <rect width="18" height="18" x="3" y="4" rx="2"/>
-                  <path d="M3 10h18"/>
-                  <path d="m9 16 2 2 4-4"/>
-                </svg>
-                Book Lesson for Client
-              </button>
+              {modalSlotStatus === 'open' && (
+                <button
+                  onClick={() => {
+                    setShowSlotActionDialog(false);
+                    setShowBookLessonModal(true);
+                  }}
+                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 2v4"/>
+                    <path d="M16 2v4"/>
+                    <rect width="18" height="18" x="3" y="4" rx="2"/>
+                    <path d="M3 10h18"/>
+                    <path d="m9 16 2 2 4-4"/>
+                  </svg>
+                  Book Lesson for Client
+                </button>
+              )}
               
-              <button
-                onClick={handleMarkUnavailable}
-                className="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <path d="m15 9-6 6"/>
-                  <path d="m9 9 6 6"/>
-                </svg>
-                Mark as Unavailable
-              </button>
+              {modalSlotStatus === 'open' && (
+                <button
+                  onClick={handleMarkUnavailable}
+                  className="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="m15 9-6 6"/>
+                    <path d="m9 9 6 6"/>
+                  </svg>
+                  Mark as Unavailable
+                </button>
+              )}
+
+              {(modalSlotStatus === 'unavailable' || modalSlotStatus === 'booked') && (
+                <button
+                  onClick={handleMarkOpen}
+                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="m9 12 2 2 4-4"/>
+                  </svg>
+                  {modalSlotStatus === 'booked' ? 'Reset to Open (Fix Stuck Slot)' : 'Mark as Open'}
+                </button>
+              )}
               
               <button
                 onClick={() => setShowSlotActionDialog(false)}

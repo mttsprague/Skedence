@@ -38,7 +38,11 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format, startOfDay, endOfDay, subDays, addDays, startOfWeek, endOfWeek, addWeeks, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ActivityType } from '@/lib/activity-logger';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import dynamic from 'next/dynamic';
+const ActivityLineChart = dynamic(() => import('@/components/charts/activity-line-chart'), {
+  ssr: false,
+  loading: () => <div className="h-[300px] animate-pulse rounded-md bg-muted" />,
+});
 import { OnboardingChecklist } from '@/components/admin/onboarding-checklist';
 import { OnboardingCelebration } from '@/components/admin/onboarding-celebration';
 import { TrialBanner } from '@/components/admin/trial-banner';
@@ -125,6 +129,7 @@ export default function ActivityPage() {
   const [dateRangeMode, setDateRangeMode] = useState<'today' | 'yesterday' | 'week' | 'last-week' | 'month' | 'last-month' | 'all' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [fieldLabels, setFieldLabels] = useState({ birthday: 'Birthday', schoolClubTeam: 'School / Club Team', experienceLevel: 'Experience Level', position: 'Position' });
 
   // Track page view
   useEffect(() => {
@@ -373,6 +378,23 @@ export default function ActivityPage() {
   // Load activities and static data
   useEffect(() => {
     if (!orgId) return;
+
+    // Load field labels from org's intake form config
+    import('firebase/firestore').then(({ doc, getDoc }) => {
+      getDoc(doc(db, 'organizations', orgId)).then(snap => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const fields: any[] = data.intakeFormFieldsPrivate || data.intakeFormFields || [];
+        const getLabel = (id: string, def: string) => fields.find((f: any) => f.id === id)?.label || def;
+        const posField = fields.find((f: any) => typeof f.label === 'string' && f.label.toLowerCase().includes('position'));
+        setFieldLabels({
+          birthday: getLabel('athleteBirthday', 'Birthday'),
+          schoolClubTeam: getLabel('schoolTeam', 'School / Club Team'),
+          experienceLevel: getLabel('experienceLevel', 'Experience Level'),
+          position: posField?.label || 'Position',
+        });
+      }).catch(() => {});
+    });
 
     async function loadActivities() {
       try {
@@ -1787,88 +1809,7 @@ export default function ActivityPage() {
           {/* Line Chart */}
           <div className="mt-6">
             <h3 className="text-sm font-semibold text-foreground mb-4">Activity Trends Comparison</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={comparisonChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="day" 
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis 
-                  label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip 
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-card p-3 border border-border rounded shadow-lg text-foreground">
-                          <p className="font-semibold mb-2">{data.day}</p>
-                          <div className="space-y-1 text-sm">
-                            <p className="text-emerald-500 font-medium">
-                              {range1Label} ({data.date1}): {data.range1Bookings} bookings
-                            </p>
-                            <p className="text-blue-500 font-medium">
-                              {range2Label} ({data.date2}): {data.range2Bookings} bookings
-                            </p>
-                            <p className="text-amber-500 font-medium">
-                              {range1Label}: {data.range1Cancellations} cancellations
-                            </p>
-                            <p className="text-red-500 font-medium">
-                              {range2Label}: {data.range2Cancellations} cancellations
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '20px' }}
-                  iconType="line"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="range1Bookings" 
-                  stroke="#10b981" 
-                  strokeWidth={3}
-                  name={`${range1Label} Bookings`}
-                  dot={{ r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 7 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="range2Bookings" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  name={`${range2Label} Bookings`}
-                  dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 7 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="range1Cancellations" 
-                  stroke="#f59e0b" 
-                  strokeWidth={3}
-                  name={`${range1Label} Cancellations`}
-                  dot={{ r: 6, fill: '#f59e0b', strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 7 }}
-                  strokeDasharray="8 4"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="range2Cancellations" 
-                  stroke="#ef4444" 
-                  strokeWidth={3}
-                  name={`${range2Label} Cancellations`}
-                  dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 7 }}
-                  strokeDasharray="8 4"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <ActivityLineChart data={comparisonChartData} range1Label={range1Label} range2Label={range2Label} />
           </div>
         </CardContent>
       </Card>
@@ -2104,16 +2045,16 @@ export default function ActivityPage() {
                             {matchedAthlete && (
                               <>
                                 {matchedAthlete.birthday && (
-                                  <div className="text-sm text-foreground/80">DOB: {matchedAthlete.birthday}</div>
+                                  <div className="text-sm text-foreground/80">{fieldLabels.birthday}: {matchedAthlete.birthday}</div>
                                 )}
                                 {matchedAthlete.schoolClubTeam && (
-                                  <div className="text-sm text-foreground/80">Team: {matchedAthlete.schoolClubTeam}</div>
+                                  <div className="text-sm text-foreground/80">{fieldLabels.schoolClubTeam}: {matchedAthlete.schoolClubTeam}</div>
                                 )}
                                 {matchedAthlete.experienceLevel && (
-                                  <div className="text-sm text-foreground/80">Experience: {matchedAthlete.experienceLevel}</div>
+                                  <div className="text-sm text-foreground/80">{fieldLabels.experienceLevel}: {matchedAthlete.experienceLevel}</div>
                                 )}
                                 {matchedAthlete.position && (
-                                  <div className="text-sm text-foreground/80">Position: {matchedAthlete.position}</div>
+                                  <div className="text-sm text-foreground/80">{fieldLabels.position}: {matchedAthlete.position}</div>
                                 )}
                               </>
                             )}
@@ -2149,16 +2090,16 @@ export default function ActivityPage() {
                           {athlete.firstName} {athlete.lastName}
                         </div>
                         {athlete.birthday && (
-                          <div className="text-sm text-foreground/80">DOB: {athlete.birthday}</div>
+                          <div className="text-sm text-foreground/80">{fieldLabels.birthday}: {athlete.birthday}</div>
                         )}
                         {athlete.schoolClubTeam && (
-                          <div className="text-sm text-foreground/80">Team: {athlete.schoolClubTeam}</div>
+                          <div className="text-sm text-foreground/80">{fieldLabels.schoolClubTeam}: {athlete.schoolClubTeam}</div>
                         )}
                         {athlete.experienceLevel && (
-                          <div className="text-sm text-foreground/80">Experience: {athlete.experienceLevel}</div>
+                          <div className="text-sm text-foreground/80">{fieldLabels.experienceLevel}: {athlete.experienceLevel}</div>
                         )}
                         {athlete.position && (
-                          <div className="text-sm text-foreground/80">Position: {athlete.position}</div>
+                          <div className="text-sm text-foreground/80">{fieldLabels.position}: {athlete.position}</div>
                         )}
                       </div>
                     ))}

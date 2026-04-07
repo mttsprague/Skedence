@@ -465,9 +465,8 @@ export function CreateAvailabilityModal({
       for (const scheduleDoc of schedulesSnapshot.docs) {
         const scheduleData = scheduleDoc.data();
         
-        // Only consider active slots — skip cancelled, deleted, or unavailable
-        const activeStatuses = ['open', 'booked'];
-        if (scheduleData.status && !activeStatuses.includes(scheduleData.status)) continue;
+        // Only flag booked lessons as real conflicts — open/unavailable slots can be overwritten
+        if (scheduleData.status !== 'booked') continue;
         
         const scheduleStart = scheduleData.startTime.toDate();
         const scheduleEnd = scheduleData.endTime.toDate();

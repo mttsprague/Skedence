@@ -119,8 +119,16 @@ export async function fetchUserPackages(userDocId: string): Promise<LessonPackag
   });
 }
 
-/** Build a map of trainerId → full name for in-memory enrichment. */
+/** Module-level trainer map cache — avoids redundant Firestore reads across bookings fetches. */
+let _trainerMapCache: { map: Map<string, string>; ts: number } | null = null;
+const TRAINER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/** Build a map of trainerId → full name, with 5-minute in-memory cache. */
 async function buildTrainerMap(): Promise<Map<string, string>> {
+  const now = Date.now();
+  if (_trainerMapCache && now - _trainerMapCache.ts < TRAINER_CACHE_TTL) {
+    return _trainerMapCache.map;
+  }
   const snap = await getDocs(
     query(collection(db, 'trainers'), where('orgId', '==', ORG_ID))
   );
@@ -130,6 +138,7 @@ async function buildTrainerMap(): Promise<Map<string, string>> {
     const name = [data.firstName, data.lastName].filter(Boolean).join(' ');
     if (name) map.set(d.id, name);
   });
+  _trainerMapCache = { map, ts: now };
   return map;
 }
 
@@ -185,6 +194,30 @@ export async function fetchAllBookings(userDocId: string): Promise<Booking[]> {
   return snap.docs
     .map((d) => parseBooking(d.id, d.data() as Record<string, unknown>, trainerMap, packageMap))
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+}
+
+/**
+ * Cancel a booking and restore the schedule slot to 'open' for future lessons.
+ * Safe to call even if the slot no longer exists.
+ */
+export async function cancelBooking(
+  bookingId: string,
+  booking: Pick<Booking, 'trainerUID' | 'trainerId' | 'scheduleSlotId' | 'scheduleId' | 'startTime'>
+): Promise<void> {
+  const bookingRef = doc(db, 'bookings', bookingId);
+  const updates: Promise<void>[] = [
+    updateDoc(bookingRef, { status: 'cancelled', cancelledAt: Timestamp.now() }),
+  ];
+  // Only restore slot for future bookings — past slots don't need to be re-opened
+  const slotId = booking.scheduleSlotId ?? booking.scheduleId;
+  const trainerId = booking.trainerUID ?? booking.trainerId;
+  if (slotId && trainerId && booking.startTime > new Date()) {
+    const slotRef = doc(db, `trainers/${trainerId}/schedules/${slotId}`);
+    updates.push(
+      updateDoc(slotRef, { status: 'open', clientId: null, clientName: null, bookedAt: null })
+    );
+  }
+  await Promise.all(updates);
 }
 
 /** Fetch upcoming confirmed bookings for a user (dashboard use). */
@@ -388,29 +421,68 @@ export interface WaiverSignatureData {
 }
 
 /**
- * Save a signed waiver to users/{userId}/documents.
- * Mirrors iOS DocumentsRepository.uploadDocument() (no PDF on web — metadata only).
+ * Save a signed waiver. Naming mirrors iOS exactly:
+ *   filename:    {SanitizedAthlete}_waiver_{unixSeconds}.pdf
+ *   Storage:     users/{userId}/documents/{filename}
+ *   Firestore ID: {userId}_waiver_{unixSeconds}
  */
 export async function saveWaiver(
   userDocId: string,
   signature: WaiverSignatureData
 ): Promise<void> {
-  const timestamp = Date.now();
-  const athletePart = signature.athleteName
-    ? signature.athleteName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') + '_'
-    : '';
-  const filename = `${athletePart}waiver_${timestamp}.pdf`;
+  const { generateWaiverPDF, uploadWaiverPDF } = await import('./waiverPDF');
 
-  await addDoc(collection(db, 'users', userDocId, 'documents'), {
+  // Unix seconds — matches iOS Date().timeIntervalSince1970
+  const seconds = Math.floor(Date.now() / 1000);
+
+  // iOS sanitization: split on whitespace → join "_" → remove all non-alphanumeric (including "_")
+  // e.g. "Emma Johnson" → "EmmaJohnson", "" → ""
+  const sanitizedAthlete = (signature.athleteName ?? '')
+    .split(/\s+/)
+    .join('_')
+    .replace(/[^a-zA-Z0-9]/g, '');
+
+  const filename = sanitizedAthlete
+    ? `${sanitizedAthlete}_waiver_${seconds}.pdf`
+    : `waiver_${seconds}.pdf`;
+
+  // Firestore document ID matches iOS IDGenerator.generateDocumentId:
+  //   "{userId}_waiver_{timestamp}" e.g. "john_doe_waiver_1740045600"
+  const documentId = `${userDocId}_waiver_${seconds}`;
+
+  // Generate PDF (matches iOS WaiverPDFGenerator layout)
+  const pdfBlob = generateWaiverPDF(
+    {
+      fullName: `${signature.firstName} ${signature.lastName}`.trim(),
+      email: signature.email,
+      phoneNumber: signature.phoneNumber,
+      signedAt: new Date(),
+      isMinor: true,
+    },
+    signature.athleteName ?? ''
+  );
+
+  // Upload to Firebase Storage at users/{userId}/documents/{filename}
+  let pdfUrl = '';
+  try {
+    pdfUrl = await uploadWaiverPDF(userDocId, filename, pdfBlob);
+  } catch {
+    // Non-fatal — waiver metadata saved even if Storage upload fails
+    console.error('Waiver PDF upload failed; saving metadata without URL');
+  }
+
+  // setDoc with explicit iOS-matching document ID (instead of addDoc random ID)
+  await setDoc(doc(db, 'users', userDocId, 'documents', documentId), {
     name: filename,
     displayName: signature.athleteName ? `${signature.athleteName} Waiver` : 'Release of Liability Waiver',
     type: 'waiver',
     uploadedAt: Timestamp.now(),
-    url: '', // No PDF upload on web
+    url: pdfUrl,
     signedBy: `${signature.firstName} ${signature.lastName}`.trim(),
     signatoryEmail: signature.email,
     isMinor: true,
     athleteName: signature.athleteName ?? null,
+    originalFilename: filename,
   });
 }
 

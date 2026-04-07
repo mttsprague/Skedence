@@ -13,6 +13,10 @@ interface Props {
   /** The specific athlete this waiver is being signed for */
   specificAthlete: string;
   onSigned: () => void;
+  /** Override the confirm button label (default: "I Agree — Continue Booking") */
+  confirmLabel?: string;
+  /** Optional back/close handler shown as an X in the header */
+  onClose?: () => void;
 }
 
 /**
@@ -21,7 +25,7 @@ interface Props {
  * Pre-fills parent/guardian info from UserProfile.
  * Saves to users/{userId}/documents on submit.
  */
-export default function WaiverModal({ waiverText, userProfile, userDocId, specificAthlete, onSigned }: Props) {
+export default function WaiverModal({ waiverText, userProfile, userDocId, specificAthlete, onSigned, confirmLabel, onClose }: Props) {
   const [agreed, setAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -71,8 +75,19 @@ export default function WaiverModal({ waiverText, userProfile, userDocId, specif
             )}
             <p className="text-white/60 text-sm mt-1">Please read and agree to continue booking</p>
           </div>
-          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-            <FileText size={20} className="text-white" />
+          <div className="flex items-center gap-3">
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition"
+                aria-label="Close"
+              >
+                <X size={20} className="text-white" />
+              </button>
+            )}
+            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+              <FileText size={20} className="text-white" />
+            </div>
           </div>
         </div>
       </div>
@@ -183,7 +198,7 @@ export default function WaiverModal({ waiverText, userProfile, userDocId, specif
             ) : (
               <>
                 <CheckSquare size={18} />
-                I Agree — Continue Booking
+                {confirmLabel ?? 'I Agree — Continue Booking'}
               </>
             )}
           </button>
