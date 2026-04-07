@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import DOMPurify from 'dompurify';
 import { Save, ArrowLeft, Eye, Globe, FileText } from 'lucide-react';
 import { BlogPost, BlogStatus, BlogCategory, BLOG_CATEGORIES } from '@/types/blog';
 import { 
@@ -253,7 +254,7 @@ function BlogEditorContent() {
               <p className="text-xl text-foreground/60 mb-8">{excerpt}</p>
               <div 
                 className="prose prose-lg prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: content }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
               />
             </article>
           </div>

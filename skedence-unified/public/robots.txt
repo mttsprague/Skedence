@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /blog-admin
+Disallow: /blog-admin/
+
+Sitemap: https://skedence.com/sitemap.xml

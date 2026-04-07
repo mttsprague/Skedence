@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { StatCardSkeleton } from '@/components/ui/skeleton';
 import { Users, Calendar, DollarSign, TrendingUp } from 'lucide-react';
@@ -34,14 +34,14 @@ export default function DashboardPage() {
         const [clientsSnap, todayBookingsSnap, monthPackagesSnap, activePassesSnap] = await Promise.all([
           getDocs(query(collection(db, 'orgMembers'), where('orgId', '==', orgId), where('role', '==', 'client'), where('isActive', '==', true))),
           getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId), where('startTime', '>=', Timestamp.fromDate(startOfToday)), where('startTime', '<=', Timestamp.fromDate(endOfToday)), where('status', '!=', 'cancelled'))),
-          getDocs(query(collection(db, 'organizations', orgId!, 'users').toString().includes('undefined') ? collection(db, 'bookings') : collection(db, 'organizations', orgId!, 'users'), where('purchaseDate', '>=', Timestamp.fromDate(startOfMonth)))),
+          getDocs(query(collectionGroup(db, 'packages'), where('orgId', '==', orgId), where('purchaseDate', '>=', Timestamp.fromDate(startOfMonth)))),
           getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId), where('status', '==', 'confirmed'))),
         ]);
 
         setStats({
           totalClients: clientsSnap.size,
           todaySessions: todayBookingsSnap.size,
-          monthlyRevenue: 0, // Revenue requires package sub-collection queries
+          monthlyRevenue: monthPackagesSnap.size, // Count of passes purchased this month
           activePasses: activePassesSnap.size,
         });
       } catch {
@@ -58,7 +58,7 @@ export default function DashboardPage() {
     { label: 'Total Clients', value: stats?.totalClients ?? 0, icon: Users, color: 'text-blue-600' },
     { label: "Today's Sessions", value: stats?.todaySessions ?? 0, icon: Calendar, color: 'text-green-600' },
     { label: 'Active Bookings', value: stats?.activePasses ?? 0, icon: TrendingUp, color: 'text-purple-600' },
-    { label: 'Monthly Revenue', value: '—', icon: DollarSign, color: 'text-amber-600' },
+    { label: 'Passes This Month', value: stats?.monthlyRevenue ?? 0, icon: DollarSign, color: 'text-amber-600' },
   ];
 
   return (

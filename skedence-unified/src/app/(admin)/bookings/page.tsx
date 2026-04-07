@@ -294,6 +294,24 @@ export default function BookingsPage() {
   const selectedPackageData = packages.find(p => p.id === selectedPackage);
   const selectedSlotData = slots.find(s => s.id === selectedSlot);
 
+  const bookingSteps = [
+    { label: 'Client', complete: !!selectedClient },
+    { label: 'Pass', complete: !!selectedPackage },
+    { label: 'Trainer', complete: !!selectedTrainer },
+    { label: 'Date & Slot', complete: !!selectedSlot },
+  ];
+  const currentStep = bookingSteps.findIndex(s => !s.complete);
+  const completedCount = bookingSteps.filter(s => s.complete).length;
+
+  const bookingSteps = [
+    { label: 'Client', complete: !!selectedClient },
+    { label: 'Pass', complete: !!selectedPackage },
+    { label: 'Trainer', complete: !!selectedTrainer },
+    { label: 'Date & Slot', complete: !!selectedSlot },
+  ];
+  const currentStep = bookingSteps.findIndex(s => !s.complete);
+  const completedCount = bookingSteps.filter(s => s.complete).length;
+
   return (
     <SchedulingSubmenu>
       <div className="p-6 lg:p-8">
@@ -308,6 +326,37 @@ export default function BookingsPage() {
             <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
+          <>
+            {/* Step Progress Indicator */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              {bookingSteps.map((step, idx) => (
+                <div key={step.label} className="flex items-center gap-1 sm:gap-2 flex-1">
+                  <div className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+                    step.complete
+                      ? 'bg-green-100 text-green-700'
+                      : idx === currentStep
+                        ? 'bg-primary/10 text-primary ring-1 ring-primary'
+                        : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    <span className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full text-xs flex items-center justify-center font-bold ${
+                      step.complete ? 'bg-green-500 text-white' : idx === currentStep ? 'bg-primary text-white' : 'bg-gray-300 text-white'
+                    }`}>
+                      {step.complete ? '✓' : idx + 1}
+                    </span>
+                    <span className="hidden sm:inline">{step.label}</span>
+                  </div>
+                  {idx < bookingSteps.length - 1 && (
+                    <div className={`h-0.5 flex-1 rounded-full ${step.complete ? 'bg-green-300' : 'bg-gray-200'}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+            {completedCount < bookingSteps.length && (
+              <p className="text-sm text-muted-foreground">
+                Step {completedCount + 1} of {bookingSteps.length}: <span className="font-medium text-foreground">{bookingSteps[currentStep]?.label}</span>
+              </p>
+            )}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Booking Form */}
             <Card className="lg:col-span-2">
@@ -534,6 +583,7 @@ export default function BookingsPage() {
               </CardContent>
             </Card>
           </div>
+          </>
         )}
         </div>
       </div>

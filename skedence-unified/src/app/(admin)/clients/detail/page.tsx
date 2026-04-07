@@ -365,6 +365,15 @@ function ClientDetailContent() {
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <button onClick={() => router.push('/clients')} className="hover:text-foreground transition-colors">
+              Clients
+            </button>
+            <span>/</span>
+            <span className="text-foreground font-medium">{client.firstName} {client.lastName}</span>
+          </nav>
+
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/clients')}

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { WeekScheduleGrid } from '@/components/admin/schedule/WeekScheduleGrid';
 import { AllTrainersDayGrid } from '@/components/admin/schedule/AllTrainersDayGrid';
-import { collection, query, where, getDocs, doc, getDoc, Timestamp, addDoc, updateDoc, deleteDoc, orderBy, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp, addDoc, updateDoc, deleteDoc, orderBy, setDoc, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -193,51 +193,44 @@ export default function SchedulePage() {
           collection(db, 'bookings'),
           where('trainerId', '==', selectedTrainerId),
           where('startTime', '>=', Timestamp.fromDate(weekStart)),
-          where('startTime', '<', Timestamp.fromDate(weekEnd))
+          where('startTime', '<', Timestamp.fromDate(weekEnd)),
+          limit(500)
         )
       : query(
           collection(db, 'bookings'),
           where('orgId', '==', orgId),
           where('startTime', '>=', Timestamp.fromDate(weekStart)),
-          where('startTime', '<', Timestamp.fromDate(weekEnd))
+          where('startTime', '<', Timestamp.fromDate(weekEnd)),
+          limit(500)
         );
     
     const unsubBookings = onSnapshot(bookingsQuery, async (snapshot) => {
-      const bookingsData: Booking[] = [];
-      
-      for (const bookingDoc of snapshot.docs) {
+      // Fetch all client docs in parallel instead of sequentially
+      const clientIds = snapshot.docs.map(d => d.data().clientUID || d.data().clientId).filter(Boolean) as string[];
+      const uniqueClientIds = [...new Set(clientIds)];
+
+      const clientDocsMap: Record<string, any> = {};
+      await Promise.all(
+        uniqueClientIds.map(async (clientId) => {
+          try {
+            const clientDoc = await getDoc(doc(db, 'users', clientId));
+            if (clientDoc.exists()) clientDocsMap[clientId] = clientDoc.data();
+          } catch {
+            // client not found — leave as undefined
+          }
+        })
+      );
+
+      const bookingsData: Booking[] = snapshot.docs.map((bookingDoc) => {
         const data = bookingDoc.data() as any;
         const actualClientId = data.clientUID || data.clientId;
-        
-        let clientName = 'Unknown Client';
-        let clientEmail: string | undefined;
-        let clientPhone: string | undefined;
-        let emergencyContactName: string | undefined;
-        let emergencyContactNumber: string | undefined;
-        let referredBy: string | undefined;
-        let notesForCoach: string | undefined;
-        let athletes: AthleteInfo[] | undefined;
-        
-        if (actualClientId) {
-          try {
-            const clientDoc = await getDoc(doc(db, 'users', actualClientId));
-            if (clientDoc.exists()) {
-              const clientData = clientDoc.data();
-              clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim();
-              clientEmail = clientData.emailAddress || clientData.email;
-              clientPhone = clientData.phoneNumber;
-              emergencyContactName = clientData.emergencyContactName;
-              emergencyContactNumber = clientData.emergencyContactNumber;
-              referredBy = clientData.referredBy;
-              notesForCoach = clientData.notesForCoach;
-              athletes = clientData.athletes;
-            }
-          } catch (err) {
-            console.error('Error fetching client:', err);
-          }
-        }
+        const clientData = actualClientId ? clientDocsMap[actualClientId] : undefined;
 
-        bookingsData.push({
+        const clientName = clientData
+          ? `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim()
+          : 'Unknown Client';
+
+        return {
           id: bookingDoc.id,
           clientUID: data.clientUID,
           clientId: data.clientId,
@@ -246,21 +239,22 @@ export default function SchedulePage() {
           endTime: data.endTime.toDate(),
           status: data.status || 'confirmed',
           clientName,
-          clientEmail,
-          clientPhone,
-          emergencyContactName,
-          emergencyContactNumber,
-          referredBy,
-          notesForCoach,
-          athletes,
-          athleteName: data.athleteName, // Legacy
-          secondAthleteName: data.secondAthleteName, // Legacy
-          athleteNames: data.athleteNames, // New array format
+          clientEmail: clientData?.emailAddress || clientData?.email,
+          clientPhone: clientData?.phoneNumber,
+          emergencyContactName: clientData?.emergencyContactName,
+          emergencyContactNumber: clientData?.emergencyContactNumber,
+          referredBy: clientData?.referredBy,
+          notesForCoach: clientData?.notesForCoach,
+          athletes: clientData?.athletes,
+          athleteName: data.athleteName,
+          secondAthleteName: data.secondAthleteName,
+          athleteNames: data.athleteNames,
           lessonNotes: data.lessonNotes,
-          isClassBooking: data.isClassBooking || false, // Class vs Lesson indicator
-          classId: data.classId, // Reference to class document
-        });
-      }
+          isClassBooking: data.isClassBooking || false,
+          classId: data.classId,
+        } as Booking;
+      });
+
       setBookings(bookingsData);
       setLoading(false);
     });

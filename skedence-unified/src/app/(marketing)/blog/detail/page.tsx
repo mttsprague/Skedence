@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import DOMPurify from 'dompurify';
 import { Clock, ArrowLeft, ArrowRight, Eye, Tag, Menu, X } from 'lucide-react';
 import { BlogPost, BLOG_CATEGORIES } from '@/types/blog';
 import { getPostBySlug, incrementViews, getRelatedPosts } from '@/lib/blog-service';
@@ -256,6 +258,14 @@ function BlogPostContent() {
       {/* Back to Blog */}
       <div className="pt-32 pb-8 px-6">
         <div className="container mx-auto max-w-4xl">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm text-foreground/50 mb-4">
+            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+            <span>/</span>
+            <Link href="/blog" className="hover:text-primary transition-colors">Blog</Link>
+            <span>/</span>
+            <span className="text-foreground/80 line-clamp-1">{post.title}</span>
+          </nav>
           <Link 
             href="/blog" 
             className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-primary transition-colors"
@@ -310,10 +320,13 @@ function BlogPostContent() {
           {/* Author */}
           <div className="flex items-center gap-4 pb-8 mb-8 border-b border-border/50">
             {post.authorImage ? (
-              <img 
+              <Image 
                 src={post.authorImage} 
                 alt={post.authorName}
+                width={48}
+                height={48}
                 className="w-12 h-12 rounded-full object-cover"
+                unoptimized
               />
             ) : (
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -333,7 +346,7 @@ function BlogPostContent() {
           {/* Article Content */}
           <div 
             className="prose prose-lg prose-invert max-w-none mb-12"
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
           />
 
           {/* Tags */}
@@ -390,10 +403,12 @@ function BlogPostContent() {
                 >
                   {relatedPost.featuredImage && (
                     <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden bg-muted">
-                      <img 
+                      <Image 
                         src={relatedPost.featuredImage} 
                         alt={relatedPost.featuredImageAlt || relatedPost.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        unoptimized
                       />
                     </div>
                   )}

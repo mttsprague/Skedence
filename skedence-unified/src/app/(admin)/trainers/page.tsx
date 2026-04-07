@@ -548,11 +548,15 @@ export default function TrainersPage() {
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : filteredTrainers.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <p className="text-muted-foreground">
-              {searchQuery 
-                ? `No ${activeTab} trainers found matching your search.` 
-                : `No ${activeTab} trainers yet.`}
+          <div className="text-center py-16 bg-white rounded-lg border">
+            <UserCog className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              {searchQuery ? 'No trainers found' : `No ${activeTab} trainers yet`}
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              {searchQuery
+                ? `Try a different search term`
+                : `Click "Add Trainer" above to invite your first trainer`}
             </p>
           </div>
         ) : (
