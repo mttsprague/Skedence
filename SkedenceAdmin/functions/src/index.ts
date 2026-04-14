@@ -1786,6 +1786,161 @@ export const adminRescheduleLesson = onCall(
       });
 
       logger.info(`Admin ${adminUid} rescheduled booking ${bookingId} to ${newStartTime} for trainer ${newTrainerId}`);
+
+      // ── Send reschedule notification emails ────────────────────────────────
+      try {
+        // Check notification setting
+        const alertSettings = await db
+          .collection("organizations").doc(orgId)
+          .collection("settings").doc("bookingAlerts").get();
+        const alertData = alertSettings.data();
+        const notifsEnabled = alertData?.sendAppointmentNotifications === true;
+
+        const [orgDoc, clientDoc, trainerDoc] = await Promise.all([
+          db.collection("organizations").doc(orgId).get(),
+          db.collection("users").doc(bookingData.clientUID || bookingData.clientId).get(),
+          db.collection("trainers").doc(newTrainerId).get(),
+        ]);
+
+        const orgData = orgDoc.data() || {};
+        const clientData = clientDoc.data();
+        const trainerData = trainerDoc.data();
+        const orgName = (orgData.name as string) || "Skedence";
+        const orgEmail = (orgData.email as string) || "support@skedence.com";
+        const timezone = alertData?.timezone || "America/Los_Angeles";
+
+        const formattedDate = newStartDate.toLocaleDateString("en-US", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: timezone,
+        });
+        const formattedTime = newStartDate.toLocaleTimeString("en-US", {
+          hour: "numeric", minute: "2-digit", hour12: true, timeZone: timezone,
+        });
+        const formattedOldDate = (bookingData.startTime as admin.firestore.Timestamp).toDate().toLocaleDateString("en-US", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: timezone,
+        });
+        const formattedOldTime = (bookingData.startTime as admin.firestore.Timestamp).toDate().toLocaleTimeString("en-US", {
+          hour: "numeric", minute: "2-digit", hour12: true, timeZone: timezone,
+        });
+        const durationMinutes = Math.round((newEndDate.getTime() - newStartDate.getTime()) / 60000);
+        const location = (bookingData.location as string) || "";
+
+        const detailsTable = `
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px 0;color:#6b7280;font-weight:500;">Client:</td><td style="padding:8px 0;text-align:right;font-weight:600;">${clientFullName}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280;font-weight:500;">Trainer:</td><td style="padding:8px 0;text-align:right;font-weight:600;">${newTrainerFullName}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280;font-weight:500;">New Date:</td><td style="padding:8px 0;text-align:right;font-weight:600;">${formattedDate}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280;font-weight:500;">New Time:</td><td style="padding:8px 0;text-align:right;font-weight:600;">${formattedTime}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280;font-weight:500;">Duration:</td><td style="padding:8px 0;text-align:right;font-weight:600;">${durationMinutes} min</td></tr>
+            ${location ? `<tr><td style="padding:8px 0;color:#6b7280;font-weight:500;">Location:</td><td style="padding:8px 0;text-align:right;font-weight:600;">${location}</td></tr>` : ""}
+            <tr><td style="padding:8px 0;color:#6b7280;font-weight:500;">Rescheduled By:</td><td style="padding:8px 0;text-align:right;font-weight:600;">${adminFullName} (Admin)</td></tr>
+          </table>`;
+
+        const emailHtml = (greeting: string, intro: string) => `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+            <div style="background-color:#f59e0b;color:white;padding:20px;border-radius:8px 8px 0 0;">
+              <h2 style="margin:0;">🔄 Session Rescheduled</h2>
+            </div>
+            <div style="background-color:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
+              <p style="margin-top:0;">${greeting}</p>
+              <p>${intro}</p>
+              <p style="color:#6b7280;font-size:0.9em;">Previously scheduled: ${formattedOldDate} at ${formattedOldTime}</p>
+              <div style="background-color:white;padding:20px;border-radius:8px;margin:20px 0;border:1px solid #e5e7eb;">
+                <h3 style="margin-top:0;color:#f59e0b;">New Session Details</h3>
+                ${detailsTable}
+              </div>
+              <p style="margin-bottom:0;">Questions? Contact <a href="mailto:${orgEmail}" style="color:#3258A3;">${orgEmail}</a></p>
+            </div>
+          </div>`;
+
+        const mailBatch: Promise<any>[] = [];
+
+        // 1. Client email
+        const clientEmail = clientData?.email || clientData?.emailAddress;
+        if (clientEmail) {
+          mailBatch.push(db.collection("mail").add({
+            to: clientEmail,
+            from: `${orgName} <no-reply@skedence.com>`,
+            replyTo: orgEmail,
+            message: {
+              subject: `🔄 Session Rescheduled – New Time with ${newTrainerFullName}`,
+              html: emailHtml(
+                `Hi ${clientData?.firstName || "there"},`,
+                `Your upcoming session with <strong>${newTrainerFullName}</strong> has been rescheduled.`
+              ),
+            },
+          }));
+        }
+
+        // 2. Trainer email
+        const trainerEmail = trainerData?.email || trainerData?.emailAddress;
+        if (trainerEmail) {
+          mailBatch.push(db.collection("mail").add({
+            to: trainerEmail,
+            from: `${orgName} <no-reply@skedence.com>`,
+            replyTo: orgEmail,
+            message: {
+              subject: `🔄 Session Rescheduled – ${clientFullName}`,
+              html: emailHtml(
+                `Hi ${trainerData?.firstName || "there"},`,
+                `A session with <strong>${clientFullName}</strong> has been rescheduled.`
+              ),
+            },
+          }));
+        }
+
+        // 3. Admin/owner email (only if notifications are enabled)
+        if (notifsEnabled) {
+          const adminMembers = await db
+            .collection("orgMembers")
+            .where("orgId", "==", orgId)
+            .where("role", "in", ["admin", "owner"])
+            .where("isActive", "==", true)
+            .get();
+
+          const adminEmails: string[] = [];
+          for (const memberDoc of adminMembers.docs) {
+            const authId = memberDoc.data().authUserId;
+            if (!authId) continue;
+            const uq = await db.collection("users").where("authUserId", "==", authId).limit(1).get();
+            if (!uq.empty) {
+              const e = uq.docs[0].data().email || uq.docs[0].data().emailAddress;
+              if (e && !adminEmails.includes(e)) adminEmails.push(e);
+            } else {
+              const tq = await db.collection("trainers").where("authUserId", "==", authId).where("orgId", "==", orgId).limit(1).get();
+              if (!tq.empty) {
+                const e = tq.docs[0].data().email;
+                if (e && !adminEmails.includes(e)) adminEmails.push(e);
+              }
+            }
+          }
+          if (adminEmails.length === 0 && (orgData.adminEmail as string)) {
+            adminEmails.push(orgData.adminEmail as string);
+          }
+          if (adminEmails.length > 0) {
+            const ownerFirstName = orgData.ownerFirstName || "there";
+            mailBatch.push(db.collection("mail").add({
+              to: adminEmails,
+              from: `${orgName} <no-reply@skedence.com>`,
+              replyTo: orgEmail,
+              message: {
+                subject: `🔄 Session Rescheduled – ${clientFullName}`,
+                html: emailHtml(
+                  `Hi ${ownerFirstName},`,
+                  `An appointment has been rescheduled by <strong>${adminFullName}</strong>.`
+                ),
+              },
+            }));
+          }
+        }
+
+        await Promise.all(mailBatch);
+        logger.info(`✅ Reschedule emails sent for booking ${bookingId}`);
+      } catch (emailErr) {
+        // Non-fatal — log but don't fail the reschedule
+        logger.error("Error sending reschedule notification emails:", emailErr);
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       return { message: "Lesson rescheduled successfully!" };
     } catch (error) {
       if (error instanceof HttpsError) throw error;
