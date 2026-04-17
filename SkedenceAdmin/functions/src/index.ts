@@ -602,9 +602,11 @@ export const bookLesson = onCall(
         }
       });
 
-      // Increment booking usage counter after successful transaction
+      // Increment booking usage counter after successful transaction (non-fatal)
       if (orgId) {
-        await incrementUsage(orgId, "bookings");
+        incrementUsage(orgId, "bookings").catch((err) => {
+          logger.warn(`Failed to increment usage counter for org ${orgId}:`, err);
+        });
       }
 
       logger.info(
