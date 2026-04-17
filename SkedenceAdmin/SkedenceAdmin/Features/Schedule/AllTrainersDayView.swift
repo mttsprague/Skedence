@@ -32,8 +32,6 @@ final class AllTrainersDayViewModel: ObservableObject {
     }
 
     func reload(for day: Date, orgId: String) async {
-        currentDay = day
-
         let cal = Calendar.current
         let startOfDay = cal.startOfDay(for: day)
         let endOfDay = cal.date(byAdding: .day, value: 1, to: startOfDay) ?? startOfDay.addingTimeInterval(86400)
@@ -50,6 +48,9 @@ final class AllTrainersDayViewModel: ObservableObject {
             }
         }
 
+        // Update currentDay and slotsByTrainer together so the view never renders
+        // a frame where the day label has changed but slot Y-positions haven't yet.
+        self.currentDay = day
         self.slotsByTrainer = newMap
     }
 
@@ -188,11 +189,16 @@ struct AllTrainersDayView: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 50)
                     .onEnded { value in
-                        let horizontalMovement = value.translation.width
-                        if horizontalMovement < -50 {
+                        let h = value.translation.width
+                        let v = value.translation.height
+                        // Only trigger if the gesture is clearly more horizontal than vertical.
+                        // Without this check, a mostly-vertical scroll with slight horizontal
+                        // movement (>50px) would accidentally trigger a day change.
+                        guard abs(h) > abs(v) else { return }
+                        if h < -50 {
                             // Swipe left - next day
                             shiftDay(by: 1)
-                        } else if horizontalMovement > 50 {
+                        } else if h > 50 {
                             // Swipe right - previous day
                             shiftDay(by: -1)
                         }
