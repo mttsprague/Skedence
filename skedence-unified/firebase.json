@@ -75,22 +75,6 @@
           ]
         }
       ]
-    },
-    {
-      "target": "polyface-redirect",
-      "public": "public-redirect",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ],
-      "redirects": [
-        {
-          "source": "**",
-          "destination": "https://skedence.com/:path*",
-          "type": 301
-        }
-      ]
     }
   ]
 }

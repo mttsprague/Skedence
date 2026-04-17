@@ -20,7 +20,7 @@ export default function BrandLogo({
   href = '/',
 }: BrandLogoProps) {
   const polyColor = theme === 'dark' ? 'text-white' : 'text-pva-navy';
-  const taglineColor = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
+  const taglineColor = 'text-pva-orange';
 
   const inner = (
     <div className="flex items-center gap-3">

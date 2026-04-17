@@ -17,6 +17,28 @@ export default function HomePage() {
         <div className="absolute inset-0 opacity-5 pointer-events-none"
           style={{ backgroundImage: 'repeating-linear-gradient(0deg, #fff, #fff 1px, transparent 1px, transparent 60px), repeating-linear-gradient(90deg, #fff, #fff 1px, transparent 1px, transparent 60px)' }}
         />
+        {/* Left background image — hidden on mobile, visible md+ */}
+        <div className="hidden md:block absolute bottom-0 left-0 w-[420px] lg:w-[500px] pointer-events-none select-none opacity-60" style={{ mixBlendMode: 'multiply' }}>
+          <Image
+            src="/coach-tablet-1on1.png"
+            alt="Coach with athlete"
+            width={500}
+            height={500}
+            className="w-full h-auto object-contain object-bottom"
+            priority
+          />
+        </div>
+        {/* Right background image — smaller/more transparent on mobile */}
+        <div className="absolute bottom-0 right-0 w-[260px] sm:w-[360px] md:w-[560px] lg:w-[640px] pointer-events-none select-none opacity-30 md:opacity-60" style={{ mixBlendMode: 'multiply' }}>
+          <Image
+            src="/coach-tablet-group.png"
+            alt="Coach showing feedback on screen"
+            width={1366}
+            height={768}
+            className="w-full h-auto object-contain object-bottom"
+            priority
+          />
+        </div>
         <div className="relative z-10 text-center px-4 max-w-5xl mx-auto">
           <div className="inline-block px-6 py-2 bg-pva-orange/20 backdrop-blur-sm rounded-full mb-8 border border-pva-orange/30">
             <span className="text-pva-orange font-bold text-sm tracking-wider uppercase">✦ Over 20 Years of Elite Coaching</span>
@@ -184,11 +206,28 @@ export default function HomePage() {
                 Whether you&apos;re picking up a volleyball for the first time or preparing for club competition,
                 our coaches will help you reach your potential.
               </p>
+              {/* Trainer headshot */}
+              <div className="flex gap-4 mb-8 items-end">
+                <div className="relative w-36 h-44 flex-shrink-0 rounded-2xl overflow-hidden bg-white shadow-xl border border-gray-100">
+                  <Image
+                    src="/trainer-headshot.png"
+                    alt="Head coach"
+                    fill
+                    className="object-cover object-top"
+                  />
+                </div>
+              </div>
               <Link
                 href="/portal/book"
                 className="inline-flex items-center gap-2 bg-pva-orange hover:bg-pva-orange/90 text-white px-8 py-4 rounded-lg font-bold text-lg transition transform hover:scale-105 shadow-xl"
               >
                 Start Training <ChevronRight size={20} />
+              </Link>
+              <Link
+                href="/about"
+                className="inline-flex items-center gap-2 ml-4 text-pva-teal font-semibold hover:underline text-lg"
+              >
+                Meet Jeff →
               </Link>
             </div>
             <div className="space-y-5">
@@ -272,7 +311,7 @@ export default function HomePage() {
                   <span className="text-white">POLY</span>
                   <span className="text-pva-teal">FACE</span>
                 </div>
-                <div className="text-xs text-gray-400 tracking-widest">VOLLEYBALL ACADEMY</div>
+                <div className="text-xs text-pva-orange tracking-widest">VOLLEYBALL ACADEMY</div>
               </div>
             </div>
             <div className="flex gap-6 text-sm font-semibold text-gray-400">

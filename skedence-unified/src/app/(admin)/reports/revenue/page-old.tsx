@@ -1,0 +1,921 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent } from '@/components/ui/card';
+import { collection, query, where, getDocs, getDoc, doc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
+import { Download, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
+
+interface RevenueData {
+  date: string;
+  revenue: number;
+  passes?: number;
+}
+
+interface PackageRevenue {
+  packageType: string;
+  count: number;
+  paidCount: number;
+  adminAddedCount: number;
+  totalRevenue: number;
+}
+
+interface AppointmentDetail {
+  id: string;
+  date: Date;
+  clientName: string;
+  clientEmail: string;
+  trainerName: string;
+  type: string;
+  cost: number;
+  paidViaPass: boolean;
+  packageType?: string;
+  status: 'scheduled' | 'cancelled' | 'no-show';
+}
+
+type SortField = 'packageType' | 'count' | 'paidCount' | 'adminAddedCount' | 'totalRevenue';
+type SortDirection = 'asc' | 'desc';
+type ChartFilter = 'all' | 'paid' | 'adminAdded' | 'none';
+
+export default function RevenuePage() {
+  const { orgId } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState<RevenueData[]>([]);
+  const [tableData, setTableData] = useState<PackageRevenue[]>([]);
+  const [sortField, setSortField] = useState<SortField>('packageType');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [appointments, setAppointments] = useState<AppointmentDetail[]>([]);
+  
+  // Filters
+  const [dateRange, setDateRange] = useState(format(new Date(), 'yyyy-MM'));
+  const [chartFilter, setChartFilter] = useState<ChartFilter>('all');
+  
+  // Detailed appointments list state
+  const [showDetailedList, setShowDetailedList] = useState(false);
+  const [detailPaymentFilter, setDetailPaymentFilter] = useState<'all' | 'pass' | 'direct'>('all');
+
+  // Generate month options: 4 months future + current + all past months + "All"
+  const monthOptions = (() => {
+    const options: { value: string; label: string }[] = [];
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    // Add "All" option
+    options.push({ value: 'all', label: 'All Time (Past)' });
+    
+    // Add 4 months into the future
+    for (let i = 4; i >= 1; i--) {
+      const futureDate = new Date(currentYear, currentMonth + i, 1);
+      options.push({
+        value: format(futureDate, 'yyyy-MM'),
+        label: format(futureDate, 'MMMM yyyy')
+      });
+    }
+    
+    // Add current month
+    options.push({
+      value: format(now, 'yyyy-MM'),
+      label: format(now, 'MMMM yyyy') + ' (Current)'
+    });
+    
+    // Add all past months (going back 24 months)
+    for (let i = 1; i <= 24; i++) {
+      const pastDate = new Date(currentYear, currentMonth - i, 1);
+      options.push({
+        value: format(pastDate, 'yyyy-MM'),
+        label: format(pastDate, 'MMMM yyyy')
+      });
+    }
+    
+    return options;
+  })();
+
+  useEffect(() => {
+    if (!orgId) return;
+    loadRevenue();
+  }, [orgId, dateRange]);
+
+  // Separate chart data that tracks paid vs admin added separately
+  const [dailyPaidRevenue, setDailyPaidRevenue] = useState<{ [key: string]: number }>({});
+  const [dailyAdminRevenue, setDailyAdminRevenue] = useState<{ [key: string]: number }>({});
+  const [dailyPaidPasses, setDailyPaidPasses] = useState<{ [key: string]: number }>({});
+  const [dailyAdminPasses, setDailyAdminPasses] = useState<{ [key: string]: number }>({});
+  const [dailyAllPasses, setDailyAllPasses] = useState<{ [key: string]: number }>({});
+
+  async function loadRevenue() {
+    if (!orgId) return;
+    
+    try {
+      setLoading(true);
+      
+      console.log('Revenue: Selected dateRange:', dateRange);
+      
+      let startDate: Date;
+      let endDate: Date;
+      
+      // Handle "All" date range - all past data only
+      if (dateRange === 'all') {
+        startDate = new Date(2020, 0, 1); // Start from Jan 1, 2020
+        endDate = new Date(); // Up to now
+      } else {
+        startDate = startOfMonth(parseISO(`${dateRange}-01`));
+        endDate = endOfMonth(startDate);
+      }
+      
+      console.log('Revenue: Date range calculated:', startDate, 'to', endDate);
+
+      // Get all org members to find clients
+      const orgMembersQuery = query(
+        collection(db, 'orgMembers'),
+        where('orgId', '==', orgId),
+        where('role', '==', 'client')
+      );
+      const orgMembersSnap = await getDocs(orgMembersQuery);
+
+      const dailyRevenue: { [key: string]: number } = {};
+      const dailyPaid: { [key: string]: number } = {};
+      const dailyAdmin: { [key: string]: number } = {};
+      const dailyPassesAll: { [key: string]: number } = {};
+      const dailyPassesPaid: { [key: string]: number } = {};
+      const dailyPassesAdmin: { [key: string]: number } = {};
+      const packageRevenue: { [key: string]: { count: number; paidCount: number; adminAddedCount: number; total: number } } = {};
+
+      // Process each client's packages
+      for (const memberDoc of orgMembersSnap.docs) {
+        const memberData = memberDoc.data();
+        
+        try {
+          // Try new organization path first
+          let packagesSnap = await getDocs(
+            collection(db, 'organizations', orgId, 'users', memberData.userId, 'packages')
+          );
+          
+          // Fall back to old path if no packages found
+          if (packagesSnap.empty) {
+            packagesSnap = await getDocs(
+              collection(db, 'users', memberData.userId, 'lessonPackages')
+            );
+          }
+          
+          for (const pkgDoc of packagesSnap.docs) {
+            const pkgData = pkgDoc.data();
+            
+            console.log('Revenue: Processing package', pkgDoc.id, 'ALL FIELDS:', Object.keys(pkgData));
+            console.log('Revenue: Package full data:', pkgData);
+            
+            // Check if package was purchased in date range
+            let purchaseDate: Date | null = null;
+            if (pkgData.purchaseDate) {
+              purchaseDate = pkgData.purchaseDate?.toDate?.() || new Date(pkgData.purchaseDate);
+            } else if (pkgData.purchasedAt) {
+              purchaseDate = pkgData.purchasedAt?.toDate?.() || new Date(pkgData.purchasedAt);
+            }
+            
+            if (!purchaseDate) {
+              console.warn('Revenue: No purchase date found for package', pkgDoc.id);
+              continue;
+            }
+            
+            if (purchaseDate < startDate || purchaseDate > endDate) {
+              console.log('Revenue: Package outside date range', purchaseDate, 'range:', startDate, 'to', endDate);
+              continue;
+            }
+            
+            const isAdminAdded = pkgData.transactionId?.startsWith('ADMIN_ADDED');
+            const revenue = pkgData.amountPaid ? pkgData.amountPaid / 100 : 0; // Convert cents to dollars
+            const dateKey = format(purchaseDate, 'yyyy-MM-dd');
+            
+            if (!pkgData.amountPaid) {
+              console.warn('Revenue: No amountPaid for package', pkgDoc.id, '- counting package but $0 revenue');
+            } else {
+              console.log('Revenue: Adding revenue', revenue, 'for date', dateKey);
+            }
+            
+            // Track daily revenue (all)
+            dailyRevenue[dateKey] = (dailyRevenue[dateKey] || 0) + revenue;
+            
+            // Track paid vs admin added separately for chart
+            if (isAdminAdded) {
+              dailyAdmin[dateKey] = (dailyAdmin[dateKey] || 0) + revenue;
+              dailyPassesAdmin[dateKey] = (dailyPassesAdmin[dateKey] || 0) + 1;
+            } else {
+              dailyPaid[dateKey] = (dailyPaid[dateKey] || 0) + revenue;
+              dailyPassesPaid[dateKey] = (dailyPassesPaid[dateKey] || 0) + 1;
+            }
+            
+            // Track all passes
+            dailyPassesAll[dateKey] = (dailyPassesAll[dateKey] || 0) + 1;
+            
+            // Track package type revenue - count package even if no revenue
+            const packageType = pkgData.packageType || pkgData.packageName || 'Unknown Package';
+            if (!packageRevenue[packageType]) {
+              packageRevenue[packageType] = { count: 0, paidCount: 0, adminAddedCount: 0, total: 0 };
+            }
+            packageRevenue[packageType].count += 1;
+            if (isAdminAdded) {
+              packageRevenue[packageType].adminAddedCount += 1;
+            } else {
+              packageRevenue[packageType].paidCount += 1;
+            }
+            packageRevenue[packageType].total += revenue;
+          }
+        } catch (err) {
+          console.warn('Revenue: Could not load packages for user', memberData.userId, err);
+        }
+      }
+
+      // Process chart data based on filter
+      const days = eachDayOfInterval({ start: startDate, end: endDate });
+      const chartDataArray: RevenueData[] = days.map(day => {
+        const dateKey = format(day, 'yyyy-MM-dd');
+        let revenueValue = 0;
+        let passesValue: number | undefined;
+        
+        if (chartFilter === 'all') {
+          revenueValue = dailyRevenue[dateKey] || 0;
+          passesValue = dailyPassesAll[dateKey] || 0;
+        } else if (chartFilter === 'paid') {
+          revenueValue = dailyPaid[dateKey] || 0;
+          passesValue = dailyPassesPaid[dateKey] || 0;
+        } else if (chartFilter === 'adminAdded') {
+          revenueValue = dailyAdmin[dateKey] || 0;
+          passesValue = dailyPassesAdmin[dateKey] || 0;
+        } else if (chartFilter === 'none') {
+          revenueValue = dailyRevenue[dateKey] || 0;
+          passesValue = undefined; // Don't show passes line
+        }
+        
+        return {
+          date: format(day, 'MMM d'),
+          revenue: revenueValue,
+          passes: passesValue
+        };
+      });
+      
+      setChartData(chartDataArray);
+      setDailyPaidRevenue(dailyPaid);
+      setDailyAdminRevenue(dailyAdmin);
+      setDailyPaidPasses(dailyPassesPaid);
+      setDailyAdminPasses(dailyPassesAdmin);
+      setDailyAllPasses(dailyPassesAll);
+
+      // Process table data
+      const tableDataArray: PackageRevenue[] = Object.entries(packageRevenue).map(([type, data]) => ({
+        packageType: type,
+        count: data.count,
+        paidCount: data.paidCount,
+        adminAddedCount: data.adminAddedCount,
+        totalRevenue: data.total
+      }));
+      
+      setTableData(tableDataArray);
+      
+      // Load appointment details
+      await loadAppointmentDetails(startDate, endDate);
+      
+    } catch (error) {
+      console.error('Error loading revenue:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadAppointmentDetails(startDate: Date, endDate: Date) {
+    if (!orgId) return;
+    
+    try {
+      const appointmentsList: AppointmentDetail[] = [];
+      
+      // Load bookings
+      const bookingsQuery = query(
+        collection(db, 'bookings'),
+        where('orgId', '==', orgId),
+        where('startTime', '>=', Timestamp.fromDate(startDate)),
+        where('startTime', '<=', Timestamp.fromDate(endDate))
+      );
+      
+      const bookingsSnapshot = await getDocs(bookingsQuery);
+      
+      for (const bookingDoc of bookingsSnapshot.docs) {
+        const data = bookingDoc.data();
+        const startTime = data.startTime.toDate();
+        
+        // Determine status
+        let status: 'scheduled' | 'cancelled' | 'no-show' = 'scheduled';
+        if (data.status === 'cancelled' || data.cancelled === true) {
+          status = 'cancelled';
+        } else if (data.status === 'no-show' || data.noShow === true) {
+          status = 'no-show';
+        }
+        
+        // Get client info
+        const clientId = data.clientUID || data.clientId;
+        let clientName = 'Unknown Client';
+        let clientEmail = '';
+        
+        if (clientId) {
+          try {
+            const clientDoc = await getDocs(query(
+              collection(db, 'users'),
+              where('__name__', '==', clientId)
+            ));
+            if (!clientDoc.empty) {
+              const clientData = clientDoc.docs[0].data();
+              clientName = `${clientData.firstName || ''} ${clientData.lastName || ''}`.trim();
+              clientEmail = clientData.emailAddress || clientData.email || '';
+            }
+          } catch (err) {
+            // Ignore
+          }
+        }
+        
+        // Get trainer info
+        let trainerName = 'Unknown Trainer';
+        if (data.trainerId) {
+          try {
+            const trainerDoc = await getDocs(query(
+              collection(db, 'trainers'),
+              where('__name__', '==', data.trainerId)
+            ));
+            if (!trainerDoc.empty) {
+              const trainerData = trainerDoc.docs[0].data();
+              trainerName = `${trainerData.firstName || ''} ${trainerData.lastName || ''}`.trim();
+            }
+          } catch (err) {
+            // Ignore
+          }
+        }
+        
+        // Determine type and cost
+        const athleteCount = Array.isArray(data.athletes) ? data.athletes.length : 1;
+        const type = athleteCount > 1 ? `${athleteCount}-Athlete Session` : 'Private Session (1 Athlete)';
+        const cost = data.cost || (athleteCount > 1 ? 80 + (athleteCount - 1) * 20 : 80);
+        
+        // Check if paid via pass
+        const paidViaPass = !!data.packageId;
+        let packageType: string | undefined;
+        
+        if (paidViaPass && clientId) {
+          // Try to get package type
+          try {
+            let pkgDoc = await getDocs(query(
+              collection(db, 'organizations', orgId, 'users', clientId, 'packages'),
+              where('__name__', '==', data.packageId)
+            ));
+            
+            if (pkgDoc.empty) {
+              pkgDoc = await getDocs(query(
+                collection(db, 'users', clientId, 'lessonPackages'),
+                where('__name__', '==', data.packageId)
+              ));
+            }
+            
+            if (!pkgDoc.empty) {
+              const pkgData = pkgDoc.docs[0].data();
+              packageType = pkgData.packageName || pkgData.name || 'Package';
+            }
+          } catch (err) {
+            // Ignore
+          }
+        }
+        
+        appointmentsList.push({
+          id: bookingDoc.id,
+          date: startTime,
+          clientName,
+          clientEmail,
+          trainerName,
+          type,
+          cost,
+          paidViaPass,
+          packageType,
+          status
+        });
+      }
+      
+      // Sort by most recent first
+      appointmentsList.sort((a, b) => b.date.getTime() - a.date.getTime());
+      setAppointments(appointmentsList);
+      
+    } catch (error) {
+      console.error('Error loading appointment details:', error);
+    }
+  }
+
+  // Update chart when filter changes
+  useEffect(() => {
+    if (!orgId) return;
+    
+    // Recalculate chart data based on filter
+    const days = dateRange === 'all' 
+      ? eachDayOfInterval({ start: new Date(2020, 0, 1), end: new Date() })
+      : eachDayOfInterval({ 
+          start: startOfMonth(parseISO(`${dateRange}-01`)), 
+          end: endOfMonth(startOfMonth(parseISO(`${dateRange}-01`)))
+        });
+    
+    const chartDataArray: RevenueData[] = days.map(day => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      let revenueValue = 0;
+      let passesValue: number | undefined;
+      
+      if (chartFilter === 'all') {
+        revenueValue = (dailyPaidRevenue[dateKey] || 0) + (dailyAdminRevenue[dateKey] || 0);
+        passesValue = dailyAllPasses[dateKey] || 0;
+      } else if (chartFilter === 'paid') {
+        revenueValue = dailyPaidRevenue[dateKey] || 0;
+        passesValue = dailyPaidPasses[dateKey] || 0;
+      } else if (chartFilter === 'adminAdded') {
+        revenueValue = dailyAdminRevenue[dateKey] || 0;
+        passesValue = dailyAdminPasses[dateKey] || 0;
+      } else if (chartFilter === 'none') {
+        revenueValue = (dailyPaidRevenue[dateKey] || 0) + (dailyAdminRevenue[dateKey] || 0);
+        passesValue = undefined;
+      }
+      
+      return {
+        date: format(day, 'MMM d'),
+        revenue: revenueValue,
+        passes: passesValue
+      };
+    });
+    
+    setChartData(chartDataArray);
+  }, [chartFilter, dailyPaidRevenue, dailyAdminRevenue, dailyPaidPasses, dailyAdminPasses, dailyAllPasses, dateRange]);
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  function getSortedTableData() {
+    const sorted = [...tableData].sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortDirection === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      return sortDirection === 'asc' 
+        ? (aVal as number) - (bVal as number)
+        : (bVal as number) - (aVal as number);
+    });
+    
+    return sorted;
+  }
+
+  function exportToSpreadsheet() {
+    const csv = [
+      ['Package Type', 'Count', 'Paid', 'Admin Added', 'Total Revenue'],
+      ...getSortedTableData().map(row => [
+        row.packageType,
+        row.count,
+        row.paidCount,
+        row.adminAddedCount,
+        `$${row.totalRevenue.toFixed(2)}`
+      ]),
+      [
+        'Total',
+        tableData.reduce((sum, r) => sum + r.count, 0),
+        tableData.reduce((sum, r) => sum + r.paidCount, 0),
+        tableData.reduce((sum, r) => sum + r.adminAddedCount, 0),
+        `$${tableData.reduce((sum, r) => sum + r.totalRevenue, 0).toFixed(2)}`
+      ]
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `revenue-${dateRange}.csv`;
+    a.click();
+  }
+
+  function getFilteredDetailedAppointments() {
+    return appointments.filter(apt => {
+      // Payment filter
+      if (detailPaymentFilter === 'pass' && !apt.paidViaPass) {
+        return false;
+      }
+      if (detailPaymentFilter === 'direct' && apt.paidViaPass) {
+        return false;
+      }
+      
+      return true;
+    });
+  }
+
+  function exportDetailedAppointments() {
+    const filtered = getFilteredDetailedAppointments();
+    const csv = [
+      ['Date', 'Time', 'Client', 'Email', 'Trainer', 'Type', 'Status', 'Cost', 'Paid Via Pass', 'Package'],
+      ...filtered.map(apt => [
+        format(apt.date, 'MMM d, yyyy'),
+        format(apt.date, 'h:mm a'),
+        apt.clientName,
+        apt.clientEmail,
+        apt.trainerName,
+        apt.type,
+        apt.status,
+        `$${apt.cost.toFixed(2)}`,
+        apt.paidViaPass ? 'Yes' : 'No',
+        apt.packageType || 'N/A'
+      ])
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `appointments-revenue-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+  }
+
+  const totalCount = tableData.reduce((sum, row) => sum + row.count, 0);
+  const totalPaidCount = tableData.reduce((sum, row) => sum + row.paidCount, 0);
+  const totalAdminAddedCount = tableData.reduce((sum, row) => sum + row.adminAddedCount, 0);
+  const totalRevenue = tableData.reduce((sum, row) => sum + row.totalRevenue, 0);
+
+  if (loading) {
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="text-center py-12">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 lg:p-8">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            {dateRange === 'all' 
+              ? 'Revenue Report - All Time (Past)' 
+              : `Revenue Report - ${format(parseISO(`${dateRange}-01`), 'MMMM yyyy')}`
+            }
+          </h1>
+          <p className="text-foreground/80 mt-2">
+            Total Revenue: <span className="font-bold text-primary text-xl">${totalRevenue.toFixed(2)}</span>
+          </p>
+        </div>
+
+        {/* Line Chart */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="mb-4 flex items-center gap-4">
+              <label className="text-sm font-medium text-foreground">
+                Chart Filter:
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setChartFilter('all')}
+                  className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
+                    chartFilter === 'all'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setChartFilter('paid')}
+                  className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
+                    chartFilter === 'paid'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
+                  }`}
+                >
+                  Paid
+                </button>
+                <button
+                  onClick={() => setChartFilter('adminAdded')}
+                  className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
+                    chartFilter === 'adminAdded'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
+                  }`}
+                >
+                  Admin Added
+                </button>
+                <button
+                  onClick={() => setChartFilter('none')}
+                  className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
+                    chartFilter === 'none'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-foreground hover:bg-gray-200'
+                  }`}
+                >
+                  None
+                </button>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  yAxisId="left"
+                  label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft' }}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  label={{ value: 'Passes', angle: 90, position: 'insideRight' }}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  formatter={(value: number | undefined, name: string | undefined) => {
+                    if (name === 'Revenue') {
+                      return value !== undefined ? [`$${value.toFixed(2)}`, 'Revenue'] : ['$0.00', 'Revenue'];
+                    }
+                    if (name === 'Passes') {
+                      return value !== undefined ? [value, 'Passes'] : [0, 'Passes'];
+                    }
+                    return [value, name || ''];
+                  }}
+                />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="line"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#22c55e" 
+                  strokeWidth={2}
+                  name="Revenue"
+                  yAxisId="left"
+                  dot={{ r: 3 }}
+                />
+                {chartFilter !== 'none' && (
+                  <Line 
+                    type="monotone" 
+                    dataKey="passes" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    name="Passes"
+                    yAxisId="right"
+                    dot={{ r: 3 }}
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Date range:
+                </label>
+                <select
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
+                >
+                  {monthOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={loadRevenue}
+                className="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors font-medium"
+              >
+                SHOW
+              </button>
+            </div>
+
+            <div className="mt-4 text-right">
+              <button
+                onClick={exportToSpreadsheet}
+                className="text-primary hover:underline text-sm font-medium flex items-center gap-2 ml-auto"
+              >
+                <Download className="h-4 w-4" />
+                Export to spreadsheet
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Revenue Table */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th 
+                      onClick={() => handleSort('packageType')}
+                      className="text-left py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
+                    >
+                      <div className="flex items-center gap-2">
+                        Package Type
+                        <ArrowUpDown className="h-4 w-4" />
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('count')}
+                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        Count
+                        <ArrowUpDown className="h-4 w-4" />
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('paidCount')}
+                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        Paid
+                        <ArrowUpDown className="h-4 w-4" />
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('adminAddedCount')}
+                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        Admin Added
+                        <ArrowUpDown className="h-4 w-4" />
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('totalRevenue')}
+                      className="text-right py-3 px-4 font-semibold text-foreground cursor-pointer hover:bg-background"
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        Total Revenue
+                        <ArrowUpDown className="h-4 w-4" />
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getSortedTableData().map((row, index) => (
+                    <tr key={index} className="border-b border-gray-100 hover:bg-background">
+                      <td className="py-3 px-4 text-foreground">{row.packageType}</td>
+                      <td className="py-3 px-4 text-right text-foreground">{row.count}</td>
+                      <td className="py-3 px-4 text-right text-foreground">{row.paidCount}</td>
+                      <td className="py-3 px-4 text-right text-foreground">{row.adminAddedCount}</td>
+                      <td className="py-3 px-4 text-right text-foreground">${row.totalRevenue.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-input font-semibold bg-background">
+                    <td className="py-3 px-4 text-foreground">Total</td>
+                    <td className="py-3 px-4 text-right text-foreground">{totalCount}</td>
+                    <td className="py-3 px-4 text-right text-foreground">{totalPaidCount}</td>
+                    <td className="py-3 px-4 text-right text-foreground">{totalAdminAddedCount}</td>
+                    <td className="py-3 px-4 text-right text-foreground">${totalRevenue.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 text-center">
+              <button 
+                onClick={() => setShowDetailedList(!showDetailedList)}
+                className="text-sm text-foreground/80 hover:text-foreground font-medium inline-flex items-center gap-2"
+              >
+                View Past Appointments
+                {showDetailedList ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Detailed Appointments List */}
+        {showDetailedList && (
+          <Card>
+            <CardContent className="pt-6">
+              {/* Filter and Export */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium text-foreground">Filter by:</label>
+                  <select
+                    value={detailPaymentFilter}
+                    onChange={(e) => setDetailPaymentFilter(e.target.value as 'all' | 'pass' | 'direct')}
+                    className="px-3 py-2 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-transparent"
+                  >
+                    <option value="all">All Payments</option>
+                    <option value="pass">Paid via Pass</option>
+                    <option value="direct">Direct Payment</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={exportDetailedAppointments}
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors font-medium inline-flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </button>
+              </div>
+
+              {/* Appointments Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-background">
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Date & Time</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Client</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Trainer</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Type</th>
+                      <th className="text-center py-3 px-4 font-semibold text-foreground">Status</th>
+                      <th className="text-right py-3 px-4 font-semibold text-foreground">Cost</th>
+                      <th className="text-center py-3 px-4 font-semibold text-foreground">Paid Via Pass</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Package</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredDetailedAppointments().length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                          No appointments found matching the selected filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      getFilteredDetailedAppointments().map(apt => (
+                        <tr key={apt.id} className="border-b border-gray-100 hover:bg-background">
+                          <td className="py-3 px-4">
+                            <div className="text-sm font-medium text-foreground">
+                              {format(apt.date, 'MMM d, yyyy')}
+                            </div>
+                            <div className="text-xs text-foreground/80">
+                              {format(apt.date, 'h:mm a')}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-sm font-medium text-foreground">{apt.clientName}</div>
+                            <div className="text-xs text-foreground/80">{apt.clientEmail}</div>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-foreground">{apt.trainerName}</td>
+                          <td className="py-3 px-4 text-sm text-foreground">{apt.type}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              apt.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                              apt.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {apt.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
+                            ${apt.cost.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              apt.paidViaPass ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {apt.paidViaPass ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-foreground">
+                            {apt.packageType || '-'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {getFilteredDetailedAppointments().length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-sm text-foreground/80">
+                    Showing {getFilteredDetailedAppointments().length} of {appointments.length} appointments
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

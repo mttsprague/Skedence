@@ -9,6 +9,7 @@ import { BlogPost, BLOG_CATEGORIES } from '@/types/blog';
 import { getPostBySlug, incrementViews, getRelatedPosts } from '@/lib/blog-service';
 import { format } from 'date-fns';
 import { trackPageView, trackEvent } from '@/lib/analytics';
+import './blog-detail.css';
 
 function BlogPostContent() {
   const [post, setPost] = useState<BlogPost | null>(null);
@@ -345,8 +346,13 @@ function BlogPostContent() {
 
           {/* Article Content */}
           <div 
-            className="prose prose-lg prose-invert max-w-none mb-12"
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(
+              // Remove inline style tags since styles are now in CSS file
+              post.content.replace(/<style>[\s\S]*?<\/style>/gi, ''),
+              { 
+                ADD_ATTR: ['class', 'style']
+              }
+            ) }}
           />
 
           {/* Tags */}

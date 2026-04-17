@@ -303,15 +303,6 @@ export default function BookingsPage() {
   const currentStep = bookingSteps.findIndex(s => !s.complete);
   const completedCount = bookingSteps.filter(s => s.complete).length;
 
-  const bookingSteps = [
-    { label: 'Client', complete: !!selectedClient },
-    { label: 'Pass', complete: !!selectedPackage },
-    { label: 'Trainer', complete: !!selectedTrainer },
-    { label: 'Date & Slot', complete: !!selectedSlot },
-  ];
-  const currentStep = bookingSteps.findIndex(s => !s.complete);
-  const completedCount = bookingSteps.filter(s => s.complete).length;
-
   return (
     <SchedulingSubmenu>
       <div className="p-6 lg:p-8">

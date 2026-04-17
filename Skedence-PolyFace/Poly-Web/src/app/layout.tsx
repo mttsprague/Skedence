@@ -34,9 +34,9 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/polyface-logo-512.png',
-        width: 512,
-        height: 512,
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
         alt: 'PolyFace Volleyball Academy',
       },
     ],
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: 'summary',
     title: 'PolyFace Volleyball Academy',
     description: 'Elite volleyball training in the Chattanooga area.',
-    images: ['/polyface-logo-512.png'],
+    images: ['/og-image.png'],
   },
   other: {
     'theme-color': '#1a2d5a',
