@@ -241,7 +241,8 @@ export default function ClientsPage() {
       try {
         const membersQuery = query(
           collection(db, 'orgMembers'),
-          where('orgId', '==', orgId)
+          where('orgId', '==', orgId),
+          where('isActive', '==', true)
         );
         const membersSnapshot = await getDocs(membersQuery);
 
@@ -479,6 +480,9 @@ export default function ClientsPage() {
   }, [orgId, selectedClient]);
 
   const filteredClients = useMemo(() => clients.filter(client => {
+    // Exclude soft-deleted clients (users.isActive === false)
+    if (!client.isActive) return false;
+
     // Search filter
     if (searchQuery) {
       const search = searchQuery.toLowerCase();
