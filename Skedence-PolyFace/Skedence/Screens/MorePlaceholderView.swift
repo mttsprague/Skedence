@@ -368,6 +368,39 @@ struct MorePlaceholderView: View {
                                             .foregroundStyle(AppTheme.textTertiary)
                                     }
                                 }
+                                
+                                Divider()
+                                
+                                // Cancellation Policy
+                                NavigationLink(destination: CancellationPolicyView()) {
+                                    HStack(spacing: Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)
+                                                .fill(Color.orange.opacity(0.15))
+                                                .frame(width: 48, height: 48)
+                                            
+                                            Image(systemName: "calendar.badge.exclamationmark")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(.orange)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text("Cancellation Policy")
+                                                .font(.bodyMedium)
+                                                .foregroundStyle(AppTheme.primary)
+                                            
+                                            Text("Rescheduling & no-show rules")
+                                                .font(.labelMedium)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textTertiary)
+                                    }
+                                }
                             }
                         }
                     }

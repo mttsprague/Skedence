@@ -1224,7 +1224,7 @@ struct PackageDetailsSheet: View {
                                 .font(.labelLarge)
                                 .fontWeight(.semibold)
                         } icon: {
-                            Image(systemName: package.packageCategory == .classPass ? "person.3.fill" : "figure.run")
+                            Image(systemName: package.packageCategory == .classPass ? "book.closed.fill" : "figure.run")
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)

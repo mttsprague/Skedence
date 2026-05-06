@@ -81,7 +81,7 @@ struct BookView: View {
     @State private var hasSearched = false
     @State private var classSearchText = ""
 
-    enum Mode: String, CaseIterable { case lessons = "Privates", classes = "Classes" }
+    enum Mode: String, CaseIterable { case lessons = "Privates", classes = "Camps & Classes" }
     
     // Get available lesson packages (excluding class passes)
     private var availableLessonPackages: [LessonPackage] {
@@ -512,7 +512,7 @@ struct BookView: View {
     private var modePicker: some View {
         Picker("Mode", selection: $mode) {
             Text("Privates").tag(Mode.lessons)
-            Text("Classes").tag(Mode.classes)
+            Text("Camps & Classes").tag(Mode.classes)
         }
         .pickerStyle(.segmented)
         .padding(.horizontal, Spacing.lg)
@@ -1286,7 +1286,7 @@ struct BookView: View {
     
     private var classesContent: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Available Classes")
+            Text("Available Camps & Classes")
                 .font(.headingMedium)
                 .foregroundStyle(AppTheme.textPrimary)
             .padding(.horizontal, Spacing.lg)
@@ -1330,7 +1330,7 @@ struct BookView: View {
             } else if availableClasses.isEmpty {
                 EmptyStateView(
                     icon: "calendar",
-                    title: "No Classes Available",
+                    title: "No Camps or Classes Available",
                     message: "Check back soon for upcoming group classes!"
                 )
                 .padding(.horizontal, Spacing.lg)

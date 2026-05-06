@@ -711,7 +711,7 @@ private struct SignedInProfileScreen: View {
                     totalRemaining: totalRemaining,
                     nextExpiration: nextExp,
                     purchases: purchases,
-                    icon: "calendar.badge.clock",
+                    icon: "book.closed.fill",
                     category: .classPass
                 ))
             }
