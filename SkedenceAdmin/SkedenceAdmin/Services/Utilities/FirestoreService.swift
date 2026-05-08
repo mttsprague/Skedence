@@ -99,7 +99,11 @@ final class FirestoreService {
                 bookedAt: (data["bookedAt"] as? Timestamp)?.dateValue(),
                 updatedAt: (data["updatedAt"] as? Timestamp)?.dateValue(),
                 isClassBooking: isClassBooking,
-                classId: classId
+                classId: classId,
+                location: data["location"] as? String,
+                createdByRole: data["createdByRole"] as? String,
+                createdById: data["createdById"] as? String,
+                isOrgWide: data["isOrgWide"] as? Bool
             )
         }
 
@@ -205,7 +209,7 @@ final class FirestoreService {
         return String(format: "%04d-%02d-%02dT%02d", y, m, d, h)
     }
 
-    func upsertTrainerSlot(trainerId: String, orgId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String? = nil) async throws {
+    func upsertTrainerSlot(trainerId: String, orgId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String? = nil, createdByRole: String? = nil, createdById: String? = nil, isOrgWide: Bool = false) async throws {
         #if canImport(FirebaseFirestore)
         let db = Firestore.firestore()
         let docId = scheduleDocId(for: startTime)
@@ -222,6 +226,17 @@ final class FirestoreService {
         // Add location if provided
         if let location = location {
             data["location"] = location
+        }
+        
+        // Write creator metadata for unavailability coloring and edit guards
+        if let role = createdByRole {
+            data["createdByRole"] = role
+        }
+        if let creator = createdById {
+            data["createdById"] = creator
+        }
+        if isOrgWide {
+            data["isOrgWide"] = true
         }
         
         try await ref.setData(data, merge: true)

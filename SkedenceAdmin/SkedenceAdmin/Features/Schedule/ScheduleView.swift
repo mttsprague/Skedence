@@ -37,6 +37,10 @@ struct ScheduleView: View {
     // Track if we've done initial scroll to current time
     @State private var hasScrolledToCurrentTime = false
 
+    // Delete unavailability confirmation
+    @State private var showDeleteUnavailableAlert = false
+    @State private var pendingDeleteSlot: TrainerScheduleSlot?
+
     var body: some View {
         NavigationStack {
             mainContent
@@ -449,9 +453,27 @@ struct ScheduleView: View {
                     self.sessionDetailContext = SessionDetailContext(client: client, booking: booking!)
                 }
             }
+        } else if slot.status == .unavailable {
+            // Org-wide unavailability is read-only for non-creator trainers
+            if slot.isOrgWide == true && slot.createdById != auth.userId && !auth.isAdmin {
+                return
+            }
+            pendingDeleteSlot = slot
+            showDeleteUnavailableAlert = true
         } else {
             // Drive the sheet with an Identifiable item so init sees the correct values
             editorContext = ScheduleEditorContext(day: defaultDay, hour: defaultHour)
+        }
+    }
+
+    private func deleteUnavailableSlot(_ slot: TrainerScheduleSlot) {
+        Task {
+            do {
+                try await FirestoreService.shared.deleteTrainerSlot(trainerId: slot.trainerId, startTime: slot.startTime)
+                await viewModel.loadWeek()
+            } catch {
+                // Silently ignore — slot may already be gone
+            }
         }
     }
     
@@ -982,6 +1004,23 @@ private struct ViewLifecycleModifiers: ViewModifier {
                     Text("This availability overlaps with:\n\n\(conflictText)\n\nBoth sessions will appear side-by-side on the schedule.")
                 }
             }
+            .confirmationDialog(
+                "Delete Unavailability",
+                isPresented: $showDeleteUnavailableAlert,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let slot = pendingDeleteSlot {
+                        deleteUnavailableSlot(slot)
+                    }
+                    pendingDeleteSlot = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    pendingDeleteSlot = nil
+                }
+            } message: {
+                Text("This will remove the unavailability block and restore the slot to empty.")
+            }
     }
 }
 
@@ -1256,6 +1295,13 @@ private struct SheetModifiers: ViewModifier {
                     sessionDetailContext = SessionDetailContext(client: client, booking: booking!)
                 }
             }
+        } else if slot.status == .unavailable {
+            // Org-wide unavailability is read-only for non-creator trainers
+            if slot.isOrgWide == true && slot.createdById != auth.userId && !auth.isAdmin {
+                return
+            }
+            pendingDeleteSlot = slot
+            showDeleteUnavailableAlert = true
         } else {
             editorContext = ScheduleEditorContext(day: defaultDay, hour: defaultHour)
         }

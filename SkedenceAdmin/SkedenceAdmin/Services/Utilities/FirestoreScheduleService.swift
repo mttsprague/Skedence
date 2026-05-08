@@ -27,9 +27,9 @@ final class FirestoreScheduleService {
         #endif
     }
     
-    func upsertTrainerSlot(trainerId: String, orgId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String? = nil) async throws {
+    func upsertTrainerSlot(trainerId: String, orgId: String, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String? = nil, createdByRole: String? = nil, createdById: String? = nil, isOrgWide: Bool = false) async throws {
         #if canImport(FirebaseFirestore)
-        try await FirestoreService.shared.upsertTrainerSlot(trainerId: trainerId, orgId: orgId, startTime: startTime, endTime: endTime, status: status, location: location)
+        try await FirestoreService.shared.upsertTrainerSlot(trainerId: trainerId, orgId: orgId, startTime: startTime, endTime: endTime, status: status, location: location, createdByRole: createdByRole, createdById: createdById, isOrgWide: isOrgWide)
         #else
         throw FirestoreServiceError.notAvailable
         #endif

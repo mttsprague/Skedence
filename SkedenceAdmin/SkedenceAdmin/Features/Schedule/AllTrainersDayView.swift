@@ -258,7 +258,9 @@ struct AllTrainersDayView: View {
                                     startTime: start,
                                     endTime: end,
                                     status: status,
-                                    location: location
+                                    location: location,
+                                    createdByRole: auth.isAdmin ? "admin" : "trainer",
+                                    createdById: auth.userId
                                 )
                             } else {
                                 // Set which trainer we're editing, then save single/multi-hour slots
@@ -268,7 +270,9 @@ struct AllTrainersDayView: View {
                                     startTime: start,
                                     endTime: end,
                                     status: status,
-                                    location: location
+                                    location: location,
+                                    createdByRole: auth.isAdmin ? "admin" : "trainer",
+                                    createdById: auth.userId
                                 )
                             }
                             // Reload day view after saving

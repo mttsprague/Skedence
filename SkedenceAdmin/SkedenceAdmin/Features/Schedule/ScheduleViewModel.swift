@@ -498,7 +498,7 @@ final class ScheduleViewModel: ObservableObject {
 
     // Allows custom start/end (from the wheel editor)
     // Updated: Splits multi-hour blocks into one-hour slots
-    func setCustomSlot(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, billingPlan: String = "free", location: String? = nil) async {
+    func setCustomSlot(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, billingPlan: String = "free", location: String? = nil, createdByRole: String? = nil, createdById: String? = nil, isOrgWide: Bool = false) async {
         guard endTime > startTime else { return }
 
         let calendar = Calendar.current
@@ -561,7 +561,10 @@ final class ScheduleViewModel: ObservableObject {
                     startTime: currentSlotStart,
                     endTime: actualSlotEnd,
                     status: status,
-                    location: location
+                    location: location,
+                    createdByRole: createdByRole,
+                    createdById: createdById,
+                    isOrgWide: isOrgWide
                 )
             } catch {
             }
@@ -633,7 +636,7 @@ final class ScheduleViewModel: ObservableObject {
     }
     
     // Admin-only: Set custom slot for all trainers
-    func setCustomSlotForAllTrainers(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String? = nil) async {
+    func setCustomSlotForAllTrainers(on day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String? = nil, createdByRole: String? = nil, createdById: String? = nil) async {
         guard status == .unavailable else { return }
         guard let orgId = orgId else {
             return
@@ -660,7 +663,10 @@ final class ScheduleViewModel: ObservableObject {
                             startTime: currentSlotStart,
                             endTime: actualSlotEnd,
                             status: status,
-                            location: location
+                            location: location,
+                            createdByRole: createdByRole,
+                            createdById: createdById,
+                            isOrgWide: true
                         )
                     } catch {
                     }

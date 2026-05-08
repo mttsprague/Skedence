@@ -141,7 +141,7 @@ struct TrainerWeekView: View {
                 onSaveSingle: { day, start, end, status, applyToAll, location in
                     Task {
                         if applyToAll && status == .unavailable {
-                            await viewModel.setCustomSlotForAllTrainers(on: day, startTime: start, endTime: end, status: status, location: location)
+                            await viewModel.setCustomSlotForAllTrainers(on: day, startTime: start, endTime: end, status: status, location: location, createdByRole: auth.isAdmin ? "admin" : "trainer", createdById: auth.userId)
                         } else {
                             guard let orgId = auth.currentOrgId else { return }
                             do {
@@ -151,7 +151,9 @@ struct TrainerWeekView: View {
                                     startTime: start,
                                     endTime: end,
                                     status: status,
-                                    location: location
+                                    location: location,
+                                    createdByRole: auth.isAdmin ? "admin" : "trainer",
+                                    createdById: auth.userId
                                 )
                             } catch {
                             }
@@ -367,7 +369,9 @@ struct TrainerWeekView: View {
                 startTime: start,
                 endTime: end,
                 status: status,
-                location: nil
+                location: nil,
+                createdByRole: "admin",
+                createdById: auth.userId
             )
             await refreshSchedule()
         } catch {

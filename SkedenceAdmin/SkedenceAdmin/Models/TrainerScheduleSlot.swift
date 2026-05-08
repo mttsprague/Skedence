@@ -27,6 +27,9 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
     var isClassBooking: Bool? // NEW: Indicates this is a class booking
     var classId: String? // NEW: Reference to the class document
     var location: String? // Location name for this availability slot
+    var createdByRole: String? // "admin" or "trainer" — who created this slot
+    var createdById: String?   // Firebase Auth UID of the creator
+    var isOrgWide: Bool?       // True when applied to all trainers (locks editing for others)
 
     // Consider a slot booked if the backend sets status to "booked" OR if clientId is present.
     var isBooked: Bool { status == .booked || clientId != nil }
@@ -55,7 +58,12 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
         if isBooked { return .blue }
         switch status {
         case .open: return .green
-        case .unavailable: return Color(UIColor.systemGray4)
+        case .unavailable:
+            // Dark gray for admin-created or org-wide (apply to all trainers)
+            if isOrgWide == true || createdByRole == "admin" {
+                return Color(UIColor.systemGray)
+            }
+            return Color(UIColor.systemGray4)
         case .booked: return .blue
         }
     }
@@ -77,7 +85,11 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
         if isBooked { return .blue }
         switch status {
         case .open: return .green
-        case .unavailable: return Color(UIColor.systemGray4)
+        case .unavailable:
+            if isOrgWide == true || createdByRole == "admin" {
+                return Color(UIColor.systemGray)
+            }
+            return Color(UIColor.systemGray4)
         case .booked: return .blue
         }
     }
