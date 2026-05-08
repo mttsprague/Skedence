@@ -328,7 +328,7 @@ export const adminChargeWithSavedCard = onCall(
         customer: customerId,
         payment_method: paymentMethodId,
         confirm: true,
-        return_url: "https://skedence.app/payment-complete",
+        return_url: "https://skedence.com",
         description: `Skedence: ${customerName} - ${description}`,
         statement_descriptor_suffix: "Skedence", // Appears on bank statements (22 chars max)
         receipt_email: userData.email || userData.emailAddress || undefined, // Send receipt

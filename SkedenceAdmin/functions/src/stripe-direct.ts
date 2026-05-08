@@ -266,6 +266,7 @@ export const createPaymentIntentDirect = onCall(
 
       return {
         clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
         publishableKey: orgData.stripe.publishableKey,
         customerId: customerId,
         ephemeralKeySecret: ephemeralKey.secret,
@@ -545,7 +546,7 @@ export const createAndConfirmPaymentDirect = onCall(
         customer: customerId,
         payment_method: paymentMethodId,
         confirm: true,
-        return_url: "https://skedence.app/payment-complete",
+        return_url: "https://skedence.com",
         description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
         statement_descriptor_suffix: "Skedence", // Appears on bank statements (22 chars max)
         receipt_email: userData?.email || userData?.emailAddress || undefined, // Send receipt
@@ -812,7 +813,7 @@ export const confirmPaymentAndCreatePackageDirect = onCall(
         parseFloat(paymentIntent.metadata.price_per_lesson) :
         undefined;
 
-      if (!packageType || !trainerId) {
+      if (!packageType) {
         throw new HttpsError(
           "internal",
           "Payment intent is missing required metadata"

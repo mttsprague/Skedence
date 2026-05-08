@@ -6,15 +6,24 @@
 //
 
 import SwiftUI
+#if canImport(FirebaseFirestore)
+import FirebaseFirestore
+#endif
 
 enum ClientSortOption: String, CaseIterable {
     case nameAZ = "nameAZ"
     case nameZA = "nameZA"
+    case birthdayUpcoming = "birthdayUpcoming"
+    case amountSpentDesc = "amountSpentDesc"
+    case mostRecentBooking = "mostRecentBooking"
 
     var label: String {
         switch self {
-        case .nameAZ: return "Name A→Z"
-        case .nameZA: return "Name Z→A"
+        case .nameAZ:           return "Name A→Z"
+        case .nameZA:           return "Name Z→A"
+        case .birthdayUpcoming: return "Next Birthday"
+        case .amountSpentDesc:  return "Most Spent"
+        case .mostRecentBooking: return "Recent Booking"
         }
     }
 }
@@ -27,6 +36,11 @@ struct ClientsView: View {
     @State private var sortOption: ClientSortOption = .nameAZ
     @State private var positionFilter: String = "All"
     @State private var showFilterPanel: Bool = false
+
+    // Supplementary sort data
+    @State private var clientSpendMap: [String: Int] = [:]        // clientId → total cents
+    @State private var clientLastBookingMap: [String: Date] = [:] // clientId → most recent startTime
+    @State private var isLoadingSupplementary = false
 
     // Convenience accessor
     private var auth: AuthManager { dependencies.auth }
@@ -42,6 +56,36 @@ struct ClientsView: View {
 
     private var activeFilterCount: Int {
         (sortOption != .nameAZ ? 1 : 0) + (positionFilter != "All" ? 1 : 0)
+    }
+
+    // Returns the number of days until a birthday string's next occurrence.
+    // Accepts "YYYY-MM-DD" or "MM/DD/YYYY" formats.
+    private func daysUntilNextBirthday(_ raw: String?) -> Int {
+        guard let raw = raw, !raw.isEmpty else { return Int.max }
+        let today = Calendar.current.startOfDay(for: Date())
+        var components: DateComponents?
+        for fmt in ["yyyy-MM-dd", "MM/dd/yyyy", "M/d/yyyy"] {
+            let f = DateFormatter()
+            f.dateFormat = fmt
+            f.locale = Locale(identifier: "en_US_POSIX")
+            if let d = f.date(from: raw) {
+                var c = Calendar.current.dateComponents([.month, .day], from: d)
+                c.year = Calendar.current.component(.year, from: today)
+                components = c
+                break
+            }
+        }
+        guard let c = components,
+              let thisYear = Calendar.current.date(from: c) else { return Int.max }
+        let target = thisYear < today
+            ? Calendar.current.date(byAdding: .year, value: 1, to: thisYear)!
+            : thisYear
+        return Calendar.current.dateComponents([.day], from: today, to: target).day ?? Int.max
+    }
+
+    private func earliestBirthday(for client: Client) -> Int {
+        let candidates = [client.athleteBirthday, client.athlete2Birthday, client.athlete3Birthday]
+        return candidates.map { daysUntilNextBirthday($0) }.min() ?? Int.max
     }
 
     private var filteredClients: [Client] {
@@ -74,6 +118,16 @@ struct ClientsView: View {
             result.sort { $0.lastName.localizedCompare($1.lastName) == .orderedAscending }
         case .nameZA:
             result.sort { $0.lastName.localizedCompare($1.lastName) == .orderedDescending }
+        case .birthdayUpcoming:
+            result.sort { earliestBirthday(for: $0) < earliestBirthday(for: $1) }
+        case .amountSpentDesc:
+            result.sort { (clientSpendMap[$0.id] ?? 0) > (clientSpendMap[$1.id] ?? 0) }
+        case .mostRecentBooking:
+            result.sort {
+                let a = clientLastBookingMap[$0.id] ?? .distantPast
+                let b = clientLastBookingMap[$1.id] ?? .distantPast
+                return a > b
+            }
         }
         return result
     }
@@ -154,24 +208,40 @@ struct ClientsView: View {
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(AppTheme.textSecondary)
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: Spacing.sm) {
-                                        ForEach(ClientSortOption.allCases, id: \.self) { option in
-                                            Button {
-                                                sortOption = option
-                                            } label: {
-                                                Text(option.label)
-                                                    .font(.subheadline)
-                                                    .padding(.horizontal, 14)
-                                                    .padding(.vertical, 8)
-                                                    .background(
-                                                        Capsule().fill(sortOption == option ? AppTheme.primary : Color(UIColor.systemGray5))
-                                                    )
-                                                    .foregroundStyle(sortOption == option ? .white : AppTheme.textPrimary)
+                                ZStack(alignment: .trailing) {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: Spacing.sm) {
+                                            ForEach(ClientSortOption.allCases, id: \.self) { option in
+                                                Button {
+                                                    sortOption = option
+                                                } label: {
+                                                    Text(option.label)
+                                                        .font(.subheadline)
+                                                        .padding(.horizontal, 14)
+                                                        .padding(.vertical, 8)
+                                                        .background(
+                                                            Capsule().fill(sortOption == option ? AppTheme.primary : Color(UIColor.systemGray5))
+                                                        )
+                                                        .foregroundStyle(sortOption == option ? .white : AppTheme.textPrimary)
+                                                }
+                                                .buttonStyle(.plain)
                                             }
-                                            .buttonStyle(.plain)
                                         }
+                                        .padding(.trailing, 24)
                                     }
+                                    HStack(spacing: 0) {
+                                        LinearGradient(
+                                            colors: [Color(UIColor.systemGray6).opacity(0), Color(UIColor.systemGray6)],
+                                            startPoint: .leading, endPoint: .trailing
+                                        )
+                                        .frame(width: 28)
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                            .frame(width: 16)
+                                            .background(Color(UIColor.systemGray6))
+                                    }
+                                    .allowsHitTesting(false)
                                 }
                             }
 
@@ -182,24 +252,40 @@ struct ClientsView: View {
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundStyle(AppTheme.textSecondary)
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: Spacing.sm) {
-                                            ForEach(uniquePositions, id: \.self) { pos in
-                                                Button {
-                                                    positionFilter = pos
-                                                } label: {
-                                                    Text(pos)
-                                                        .font(.subheadline)
-                                                        .padding(.horizontal, 14)
-                                                        .padding(.vertical, 8)
-                                                        .background(
-                                                            Capsule().fill(positionFilter == pos ? AppTheme.primary : Color(UIColor.systemGray5))
-                                                        )
-                                                        .foregroundStyle(positionFilter == pos ? .white : AppTheme.textPrimary)
+                                    ZStack(alignment: .trailing) {
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(spacing: Spacing.sm) {
+                                                ForEach(uniquePositions, id: \.self) { pos in
+                                                    Button {
+                                                        positionFilter = pos
+                                                    } label: {
+                                                        Text(pos)
+                                                            .font(.subheadline)
+                                                            .padding(.horizontal, 14)
+                                                            .padding(.vertical, 8)
+                                                            .background(
+                                                                Capsule().fill(positionFilter == pos ? AppTheme.primary : Color(UIColor.systemGray5))
+                                                            )
+                                                            .foregroundStyle(positionFilter == pos ? .white : AppTheme.textPrimary)
+                                                    }
+                                                    .buttonStyle(.plain)
                                                 }
-                                                .buttonStyle(.plain)
                                             }
+                                            .padding(.trailing, 24)
                                         }
+                                        HStack(spacing: 0) {
+                                            LinearGradient(
+                                                colors: [Color(UIColor.systemGray6).opacity(0), Color(UIColor.systemGray6)],
+                                                startPoint: .leading, endPoint: .trailing
+                                            )
+                                            .frame(width: 28)
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                                .frame(width: 16)
+                                                .background(Color(UIColor.systemGray6))
+                                        }
+                                        .allowsHitTesting(false)
                                     }
                                 }
                             }
@@ -278,14 +364,80 @@ struct ClientsView: View {
                 }
                 viewModel.setOrgId(auth.currentOrgId)
                 await viewModel.load()
+                await loadSupplementaryData()
             }
-            .refreshable { await viewModel.load() }
+            .onChange(of: viewModel.clients) {
+                Task { await loadSupplementaryData() }
+            }
+            .refreshable {
+                await viewModel.load()
+                await loadSupplementaryData()
+            }
             .sheet(item: $selectedClient) { client in
                 ClientCardView(client: client, selectedBooking: nil)
                     .environmentObject(dependencies)
             }
         }
         .navigationViewStyle(.stack)
+    }
+
+    // MARK: - Supplementary data for sort options
+
+    @MainActor
+    private func loadSupplementaryData() async {
+        guard !viewModel.clients.isEmpty,
+              let orgId = auth.currentOrgId else { return }
+        guard !isLoadingSupplementary else { return }
+        isLoadingSupplementary = true
+        defer { isLoadingSupplementary = false }
+
+        #if canImport(FirebaseFirestore)
+        let db = Firestore.firestore()
+
+        // --- Spend map: parallel per-client package reads ---
+        // More reliable than collectionGroup since some packages may lack orgId field
+        let clientIds = viewModel.clients.map { $0.id }
+        var spendMap: [String: Int] = [:]
+        await withTaskGroup(of: (String, Int).self) { group in
+            for clientId in clientIds {
+                group.addTask {
+                    let snap = try? await db.collection("organizations")
+                        .document(orgId)
+                        .collection("users")
+                        .document(clientId)
+                        .collection("packages")
+                        .getDocuments()
+                    let total = snap?.documents
+                        .compactMap { $0.data()["amountPaid"] as? Int }
+                        .reduce(0, +) ?? 0
+                    return (clientId, total)
+                }
+            }
+            for await (clientId, total) in group {
+                if total > 0 { spendMap[clientId] = total }
+            }
+        }
+        self.clientSpendMap = spendMap
+
+        // --- Last booking map: ordered query (requires composite index on orgId + startTime) ---
+        if let snap = try? await db.collection("bookings")
+            .whereField("orgId", isEqualTo: orgId)
+            .order(by: "startTime", descending: true)
+            .limit(to: 1000)
+            .getDocuments() {
+            var lastBookingMap: [String: Date] = [:]
+            for doc in snap.documents {
+                let data = doc.data()
+                guard let clientId = (data["clientUID"] as? String) ?? (data["clientId"] as? String),
+                      let ts = data["startTime"] as? Timestamp else { continue }
+                // Already ordered descending — first occurrence per client is the most recent
+                if lastBookingMap[clientId] == nil {
+                    lastBookingMap[clientId] = ts.dateValue()
+                }
+            }
+            self.clientLastBookingMap = lastBookingMap
+        }
+        #endif
     }
 
     private var header: some View {

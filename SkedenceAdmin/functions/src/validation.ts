@@ -68,7 +68,7 @@ export const paymentSchemas = {
     orgId: Joi.string().pattern(patterns.firestoreId).required(),
     packageType: Joi.string().min(1).max(100).required(), // Accept any package type (dynamic from org settings)
     amount: Joi.number().integer().min(100).max(1000000).required(), // $1 to $10,000
-    trainerId: Joi.string().min(1).max(100).required(), // Allow "general" or actual IDs
+    trainerId: Joi.string().min(1).max(100).optional(), // Optional - web purchases don't require trainer selection
     userId: Joi.string().pattern(patterns.firestoreId).required(),
     paymentMethodId: Joi.string().optional(), // Stripe payment method ID
   }),

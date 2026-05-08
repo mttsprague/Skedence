@@ -47,7 +47,7 @@ export const sendPasswordResetEmail = onCall(
       // handleCodeInApp: true causes Firebase's action handler to redirect to our
       // custom /setup-password page with the oobCode as a query param
       const actionCodeSettings: admin.auth.ActionCodeSettings = {
-        url: "https://skedence.com/setup-password",
+        url: "https://skedence.com/login",
         handleCodeInApp: true,
       };
       const resetLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);

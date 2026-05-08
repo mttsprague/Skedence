@@ -150,12 +150,12 @@ async function sendBookingConfirmation(bookingId: string, booking: any) {
   const orgData = org.data();
 
   // Generate calendar invite
-  const calendarLink = `https://skedence.app/calendar/${bookingId}.ics`;
+  const calendarLink = `https://skedence.com/calendar/${bookingId}.ics`;
 
   const emailData = {
     to: clientData?.email,
     from: "Skedence <no-reply@skedence.com>",
-    replyTo: "matt.sprague@skedence.com",
+    replyTo: "support@skedence.com",
     message: {
       subject: EMAIL_TEMPLATES.confirmation.subject
         .replace("{{trainerName}}", trainerData?.name || "Your Trainer")
@@ -326,9 +326,9 @@ async function sendEmailFromTemplate(bookingId: string, booking: any, template: 
     duration: booking.durationMinutes,
     packageName: booking.lessonPackage,
     location: booking.location,
-    calendarLink: `https://skedence.app/calendar/${bookingId}.ics`,
-    bookingLink: `https://skedence.app/book/${booking.orgId}`,
-    feedbackLink: `https://skedence.app/feedback/${bookingId}`,
+    calendarLink: `https://skedence.com/calendar/${bookingId}.ics`,
+    bookingLink: `https://skedence.com/book/${booking.orgId}`,
+    feedbackLink: `https://skedence.com/feedback/${bookingId}`,
     orgName: orgData?.name || "Skedence",
     cancellationHours: orgData?.cancellationPolicy?.hours || 24,
   };
@@ -347,7 +347,7 @@ async function sendEmailFromTemplate(bookingId: string, booking: any, template: 
   const emailData = {
     to: clientData?.email,
     from: "Skedence <no-reply@skedence.com>",
-    replyTo: "matt.sprague@skedence.com",
+    replyTo: "support@skedence.com",
     message: {
       subject: renderTemplate(template.subject, templateVars),
       html: renderTemplate(template.body, templateVars),

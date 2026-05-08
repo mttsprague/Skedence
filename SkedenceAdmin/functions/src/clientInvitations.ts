@@ -94,7 +94,7 @@ export const sendClientInvitation = onCall(
       const emailData = {
         to: email,
         from: "Skedence <no-reply@skedence.com>",
-        replyTo: "matt.sprague@skedence.com",
+        replyTo: "support@skedence.com",
         message: {
           subject: `${ownerName} invited you to ${orgName} on Skedence!`,
           text: generateInvitationText(orgName, ownerName, inviteCode, deepLink),

@@ -482,8 +482,10 @@ export const bookLesson = onCall(
           );
         }
 
+        const slotIsBookable = trainerSlotData.status === "open" ||
+          (isAdminBooking && trainerSlotData.status === "unavailable");
         if (
-          trainerSlotData.status !== "open" ||
+          !slotIsBookable ||
           (trainerSlotData.clientId !== null &&
             trainerSlotData.clientId !== undefined)
         ) {

@@ -112,7 +112,7 @@ export const sendTrainerInvitation = onDocumentCreated(
       const emailData = {
         to: emailAddress,
         from: "Skedence <no-reply@skedence.com>",
-        replyTo: "matt.sprague@skedence.com",
+        replyTo: "support@skedence.com",
         message: {
           subject: `You have been invited to ${orgData.name || "Skedence"} by ${ownerName}!`,
           text: generateInvitationText(
@@ -209,7 +209,7 @@ The Skedence Team
 
 ---
 This invitation was sent because you were added to ${orgName}.
-Visit us at: https://skedence.app
+Visit us at: https://skedence.com
   `.trim();
 }
 
@@ -494,7 +494,7 @@ function generateInvitationHTML(
     <div class="footer">
       <p>This invitation was sent because you were added to ${orgName}.</p>
       <p style="margin-top: 12px;">
-        <a href="https://skedence.app">Visit skedence.app</a>
+        <a href="https://skedence.com">Visit skedence.com</a>
       </p>
     </div>
   </div>
@@ -555,7 +555,7 @@ export const sendOwnerWelcomeEmail = onDocumentCreated(
       await admin.firestore().collection("mail").add({
         to: emailAddress,
         from: "Skedence <no-reply@skedence.com>",
-        replyTo: "matt.sprague@skedence.com",
+        replyTo: "support@skedence.com",
         message: {
           subject: `Welcome to Skedence! 🎉`,
           text: generateOwnerWelcomeEmailText(fullName, orgName),
@@ -597,14 +597,14 @@ PRO TIPS
 - Set up Stripe Connect: Enable payments to start accepting bookings and collecting revenue
 - Customize your branding: Add your logo and brand colors in organization settings
 
-If you have questions or need help, reply to this email or reach out at matt.sprague@skedence.com
+If you have questions or need help, reply to this email or reach out at support@skedence.com
 
 We're excited to see your business grow! 💪
 The Skedence Team
 
 ---
 You're receiving this because you created an account with Skedence.
-Visit us at: https://skedence.app
+Visit us at: https://skedence.com
   `.trim();
 }
 
@@ -823,7 +823,7 @@ function generateOwnerWelcomeEmail(name: string, orgName: string): string {
       
       <div class="cta-box">
         <p>Need help getting started?</p>
-        <a href="mailto:matt.sprague@skedence.com" class="button">Contact Support</a>
+        <a href="mailto:support@skedence.com" class="button">Contact Support</a>
       </div>
       
       <p style="margin-top: 32px; padding-top: 32px; border-top: 2px solid #E8F5F4; color: #666;">
@@ -839,7 +839,7 @@ function generateOwnerWelcomeEmail(name: string, orgName: string): string {
     <div class="footer">
       <p>You're receiving this because you created <strong>${orgName}</strong> on Skedence.</p>
       <p style="margin-top: 12px;">
-        <a href="https://skedence.app">Visit skedence.app</a>
+        <a href="https://skedence.com">Visit skedence.com</a>
       </p>
     </div>
   </div>

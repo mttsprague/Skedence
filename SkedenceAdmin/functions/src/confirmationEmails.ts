@@ -166,7 +166,7 @@ export const sendPurchaseConfirmation = onDocumentCreated(
       await admin.firestore().collection("mail").add({
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
-        replyTo: "matt.sprague@skedence.com",
+        replyTo: "support@skedence.com",
         message: {
           subject: emailContent.subject,
           html: emailContent.body,
@@ -286,7 +286,7 @@ export const sendBookingConfirmation = onDocumentCreated(
       await admin.firestore().collection("mail").add({
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
-        replyTo: "matt.sprague@skedence.com",
+        replyTo: "support@skedence.com",
         message: {
           subject: emailContent.subject,
           html: emailContent.body,
@@ -382,7 +382,7 @@ export const sendClassRegistrationConfirmation = onDocumentCreated(
       await admin.firestore().collection("mail").add({
         to: clientEmail,
         from: "Skedence <no-reply@skedence.com>",
-        replyTo: "matt.sprague@skedence.com",
+        replyTo: "support@skedence.com",
         message: {
           subject: `✅ Registered for ${className}`,
           text: `You're Registered!
@@ -495,7 +495,7 @@ export const sendSubscriptionConfirmation = onDocumentCreated(
       await admin.firestore().collection("mail").add({
         to: ownerEmail,
         from: "Skedence <no-reply@skedence.com>",
-        replyTo: "matt.sprague@skedence.com",
+        replyTo: "support@skedence.com",
         message: {
           subject,
           text: `${isTrial ? "Welcome to Your Free Trial!" : "Subscription Confirmed!"}
@@ -712,7 +712,7 @@ export async function sendSubscriptionCancellationEmail(orgId: string) {
     await admin.firestore().collection("mail").add({
       to: ownerData.email,
       from: "Skedence <no-reply@skedence.com>",
-      replyTo: "matt.sprague@skedence.com",
+      replyTo: "support@skedence.com",
       message: {
         subject: `Subscription Cancelled - ${orgData.name}`,
         text: `Hi ${ownerData.firstName || "there"},\n\nYour ${planDisplay} subscription for ${orgData.name} has been cancelled.\n\nYour account will remain active until the end of your current billing period. After that, you'll still be able to access your data, but won't be able to book new appointments or use premium features.\n\nIf you cancelled by mistake or would like to reactivate your subscription, you can do so anytime from your account settings.\n\nWe're sorry to see you go! If there's anything we could have done better, please let us know by replying to this email.\n\nBest,\nThe Skedence Team`,

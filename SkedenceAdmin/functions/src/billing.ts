@@ -898,6 +898,7 @@ export const createStripeCheckout = onRequest(
     const allowedOrigins = [
       "https://polyface-ae6d3.firebaseapp.com",
       "https://polyface-ae6d3.web.app",
+      "https://skedence.com",
     ];
     const origin = req.get("origin");
     if (origin && allowedOrigins.includes(origin)) {

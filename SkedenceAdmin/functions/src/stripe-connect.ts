@@ -82,10 +82,14 @@ export const createConnectAccount = onCall(
 
     const {orgId, email, businessName} = request.data;
 
-    if (!orgId || !email || !businessName) {
+    const missingConnectFields = [];
+    if (!orgId) missingConnectFields.push("orgId");
+    if (!email) missingConnectFields.push("email");
+    if (!businessName) missingConnectFields.push("businessName");
+    if (missingConnectFields.length > 0) {
       throw new HttpsError(
         "invalid-argument",
-        "Missing required fields"
+        `Missing required fields: ${missingConnectFields.join(", ")}`
       );
     }
 
@@ -222,7 +226,7 @@ export const createConnectAccountLink = onCall(
       // Create account link for onboarding
       // After completing onboarding, Stripe redirects to our hosted page
       // which then redirects to the deep link to return to the app
-      const redirectUrl = `https://polyface-ae6d3.web.app/stripe-redirect?orgId=${orgId}`;
+      const redirectUrl = `https://skedence.com/stripe-redirect?orgId=${orgId}`;
       const accountLink = await stripe.accountLinks.create({
         account: connectAccountId,
         refresh_url: redirectUrl,
@@ -348,6 +352,10 @@ interface CreatePaymentIntentConnectData {
   pricingTierId?: string; // NEW: Tier ID for trainer-specific pricing
   pricingTierName?: string; // NEW: Tier name for display
   pricePerLesson?: number; // Price per lesson in cents (converted to dollars for display)
+  lessonCount?: number; // Number of lessons in the package
+  expirationDays?: number; // Days until package expires
+  packageCategory?: string; // e.g. "oneAthlete", "classPass"
+  packageName?: string; // Display name of the package
 }
 
 /**
@@ -365,19 +373,19 @@ export const createPaymentIntentConnect = onCall(
       );
     }
 
-    const {orgId, packageType, amount, trainerId, userId, pricingTierId, pricingTierName, pricePerLesson} = request.data;
+    const {orgId, packageType, amount, trainerId, userId, pricingTierId, pricingTierName, pricePerLesson, lessonCount, expirationDays, packageCategory, packageName} = request.data;
 
-    if (!orgId || !packageType || !amount || !trainerId || !userId) {
+    const missingFields = [];
+    if (!orgId) missingFields.push("orgId");
+    if (!packageType) missingFields.push("packageType");
+    if (!amount) missingFields.push("amount");
+    if (!userId) missingFields.push("userId");
+    // trainerId is optional (web purchases don't require trainer selection)
+
+    if (missingFields.length > 0) {
       throw new HttpsError(
         "invalid-argument",
-        "Missing required fields"
-      );
-    }
-
-    if (request.auth.uid !== userId) {
-      throw new HttpsError(
-        "permission-denied",
-        "User ID does not match authenticated user"
+        `Missing required fields: ${missingFields.join(", ")}`
       );
     }
 
@@ -442,6 +450,14 @@ export const createPaymentIntentConnect = onCall(
       const userDoc = await db.collection("users").doc(userId).get();
       const userData = userDoc.data();
 
+      // Verify the authenticated user owns this user document
+      if (!userData || userData.authUserId !== request.auth.uid) {
+        throw new HttpsError(
+          "permission-denied",
+          "User ID does not match authenticated user"
+        );
+      }
+
       // Create human-readable descriptions
       const customerName = userData?.firstName && userData?.lastName ?
         `${userData.firstName} ${userData.lastName}` :
@@ -487,6 +503,11 @@ export const createPaymentIntentConnect = onCall(
           pricing_tier_id: pricingTierId || "",
           pricing_tier_name: pricingTierName || "",
           price_per_lesson: pricePerLesson ? (pricePerLesson / 100).toFixed(2) : "",
+          // Package fulfillment fields (used by confirmConnectPayment to create the package)
+          lesson_count: (lessonCount ?? 1).toString(),
+          expiration_days: (expirationDays ?? 365).toString(),
+          package_category: packageCategory || "",
+          package_display_name: packageName || packageDisplayName,
         },
         description: `${transactionId} - ${customerName} - ${packageDisplayName} - ${purchaseDate}`,
         application_fee_amount: applicationFeeAmount,
@@ -517,5 +538,89 @@ export const createPaymentIntentConnect = onCall(
       const message = error instanceof Error ? error.message : String(error);
       throw new HttpsError("internal", message);
     }
+  }
+);
+
+/**
+ * Confirm a completed Stripe Connect payment and create the lesson package in Firestore.
+ * Called by the web client after stripe.confirmCardPayment succeeds.
+ */
+export const confirmConnectPayment = onCall(
+  { enforceAppCheck: false },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "You must be signed in");
+    }
+
+    const { paymentIntentId, userId } = request.data as { paymentIntentId: string; userId: string };
+
+    if (!paymentIntentId || !userId) {
+      throw new HttpsError("invalid-argument", "Missing paymentIntentId or userId");
+    }
+
+    // Verify payment intent succeeded on Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (paymentIntent.status !== "succeeded") {
+      throw new HttpsError("failed-precondition", `Payment not yet succeeded (status: ${paymentIntent.status})`);
+    }
+
+    const meta = paymentIntent.metadata;
+    const orgId = meta.org_id;
+    const packageType = meta.package_type;
+
+    if (!orgId || !packageType) {
+      throw new HttpsError("internal", "Payment intent missing required metadata");
+    }
+
+    // Check this payment hasn't already been fulfilled (idempotency)
+    const existing = await db
+      .collection("organizations").doc(orgId)
+      .collection("users").doc(userId)
+      .collection("packages")
+      .where("transactionId", "==", paymentIntentId)
+      .limit(1)
+      .get();
+
+    if (!existing.empty) {
+      console.log(`⚠️ Package already created for paymentIntentId ${paymentIntentId} — returning existing`);
+      return { success: true, packageId: existing.docs[0].id };
+    }
+
+    // Verify requester owns this user doc
+    const userDoc = await db.collection("users").doc(userId).get();
+    const userData = userDoc.data();
+    if (!userData || userData.authUserId !== request.auth.uid) {
+      throw new HttpsError("permission-denied", "User ID does not match authenticated user");
+    }
+
+    const lessonCount = parseInt(meta.lesson_count || "1", 10);
+    const expirationDays = parseInt(meta.expiration_days || "365", 10);
+    const now = admin.firestore.Timestamp.now();
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + expirationDays);
+
+    const packageData: Record<string, unknown> = {
+      packageType,
+      packageCategory: meta.package_category || "",
+      packageName: meta.package_display_name || meta.package_name || packageType,
+      totalLessons: lessonCount,
+      lessonsUsed: 0,
+      remainingLessons: lessonCount,
+      amountPaid: paymentIntent.amount,
+      purchaseDate: now,
+      expirationDate: admin.firestore.Timestamp.fromDate(expirationDate),
+      transactionId: paymentIntentId,
+      orgId,
+      source: "web",
+    };
+
+    const ref = await db
+      .collection("organizations").doc(orgId)
+      .collection("users").doc(userId)
+      .collection("packages")
+      .add(packageData);
+
+    console.log(`✅ Package created at organizations/${orgId}/users/${userId}/packages/${ref.id}`);
+    return { success: true, packageId: ref.id };
   }
 );

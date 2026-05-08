@@ -171,7 +171,7 @@ async function sendSubscriptionEmail(orgId: string, isTrial: boolean) {
     await admin.firestore().collection("mail").add({
       to: ownerEmail,
       from: "Skedence <no-reply@skedence.com>",
-      replyTo: "matt.sprague@skedence.com",
+      replyTo: "support@skedence.com",
       message: {
         subject: subjectText,
         html: `
@@ -445,7 +445,7 @@ async function sendPaymentFailedEmail(orgId: string) {
   await admin.firestore().collection("mail").add({
     to: ownerEmail,
     from: "Skedence <no-reply@skedence.com>",
-    replyTo: "matt.sprague@skedence.com",
+    replyTo: "support@skedence.com",
     template: {
       name: "payment-failed",
       data: {
