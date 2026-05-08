@@ -417,6 +417,10 @@ struct BookView: View {
             .onAppear {
                 setupInitialMode()
             }
+            .onChange(of: auth.currentOrgId) { newOrgId in
+                guard let orgId = newOrgId, pricingService.pricingStructure == nil else { return }
+                Task { await pricingService.loadPricingStructure(for: orgId) }
+            }
             .onChangeCompat(of: initialMode) { _, newValue in
                 mode = newValue == 1 ? .classes : .lessons
             }
@@ -1349,7 +1353,8 @@ struct BookView: View {
                         ClassCard(
                             classItem: classItem,
                             onTap: { selectedClass = classItem },
-                            classesService: classesService
+                            classesService: classesService,
+                            pricingService: pricingService
                         )
                         .padding(.horizontal, Spacing.lg)
                     }

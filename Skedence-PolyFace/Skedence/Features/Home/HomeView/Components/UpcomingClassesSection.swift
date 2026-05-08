@@ -9,6 +9,7 @@ import SwiftUI
 
 struct UpcomingClassesSection: View {
     @ObservedObject var classesService: ClassesService
+    @ObservedObject var pricingService: PricingStructureService
     @Binding var bookViewMode: Int
     @Binding var selectedTab: Int
     @Binding var selectedClassId: String?
@@ -59,7 +60,8 @@ struct UpcomingClassesSection: View {
                             } label: {
                                 ClassPreviewRow(
                                     groupClass: groupClass,
-                                    classesService: classesService
+                                    classesService: classesService,
+                                    pricingService: pricingService
                                 )
                             }
                             .buttonStyle(.plain)

@@ -12,8 +12,37 @@ struct ClassCard: View {
     let classItem: GroupClass
     let onTap: () -> Void
     @ObservedObject var classesService: ClassesService
+    @ObservedObject var pricingService: PricingStructureService
     @State private var isRegistered = false
     @State private var seriesClasses: [GroupClass] = []
+
+    /// Looks up the price of the required class pass from the pricing structure.
+    /// Priority: eligible package IDs → any class-type package → class's own priceInCents.
+    private var classPriceText: String? {
+        let allPackages = pricingService.pricingStructure?.tiers.flatMap(\.packages) ?? []
+        // 1. Match by eligiblePackageIds (stored as packageType strings)
+        for pkgId in classItem.eligiblePackageIds {
+            if let match = allPackages.first(where: { $0.id == pkgId || $0.packageType == pkgId }) {
+                return "\(match.formattedPrice)"
+            }
+        }
+        // 2. Any active class-type package (by decoded category or keyword in type/title)
+        let classPassPkg = allPackages.first { pkg in
+            guard pkg.active else { return false }
+            if pkg.packageCategory == .classPass { return true }
+            let t = pkg.packageType.lowercased()
+            let ttl = pkg.title.lowercased()
+            return t.contains("class") || ttl.contains("class")
+        }
+        if let pkg = classPassPkg {
+            return "\(pkg.formattedPrice)"
+        }
+        // 3. Fall back to the price stored directly on the class document
+        if classItem.priceInCents > 0 {
+            return "\(classItem.formattedPrice)"
+        }
+        return nil
+    }
     
     var body: some View {
         Button(action: onTap) {
@@ -72,6 +101,9 @@ struct ClassCard: View {
                         }
                         DetailRow(icon: "mappin.circle", text: classItem.location)
                         DetailRow(icon: "person.fill", text: classItem.trainerName)
+                        if let price = classPriceText {
+                            DetailRow(icon: "tag", text: price)
+                        }
                     }
                     
                     // Register button (only shown if not registered)

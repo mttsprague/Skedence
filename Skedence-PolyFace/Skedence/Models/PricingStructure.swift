@@ -108,11 +108,33 @@ struct PackageOption: Codable, Identifiable, Hashable {
     // Custom decoding to handle missing fields for backward compatibility
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
+        // id can be a UUID string (iOS-created) or a numeric timestamp (web admin uses Date.now())
+        if let strId = try? container.decode(String.self, forKey: .id) {
+            id = strId
+        } else if let intId = try? container.decode(Int.self, forKey: .id) {
+            id = String(intId)
+        } else if let dblId = try? container.decode(Double.self, forKey: .id) {
+            id = String(Int(dblId))
+        } else {
+            id = UUID().uuidString
+        }
         title = try container.decode(String.self, forKey: .title)
-        priceInCents = try container.decode(Int.self, forKey: .priceInCents)
-        packageType = try container.decode(String.self, forKey: .packageType)
-        packageCategory = try container.decodeIfPresent(PackageCategory.self, forKey: .packageCategory) ?? .oneAthlete
+        // priceInCents may arrive as Int or Double from JSON
+        if let intPrice = try? container.decode(Int.self, forKey: .priceInCents) {
+            priceInCents = intPrice
+        } else if let dblPrice = try? container.decode(Double.self, forKey: .priceInCents) {
+            priceInCents = Int(dblPrice)
+        } else {
+            priceInCents = 0
+        }
+        packageType = (try? container.decode(String.self, forKey: .packageType)) ?? ""
+        // Handle "classPass" (web admin alias) alongside the actual rawValue "class"
+        if let rawCat = try? container.decode(String.self, forKey: .packageCategory) {
+            packageCategory = PackageCategory(rawValue: rawCat)
+                ?? (rawCat == "classPass" ? .classPass : .oneAthlete)
+        } else {
+            packageCategory = .oneAthlete
+        }
         lessonCount = try container.decodeIfPresent(Int.self, forKey: .lessonCount) ?? 1
         description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
         expirationDays = try container.decodeIfPresent(Int.self, forKey: .expirationDays) ?? 365

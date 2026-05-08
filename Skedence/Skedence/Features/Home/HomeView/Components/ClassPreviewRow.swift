@@ -10,8 +10,33 @@ import SwiftUI
 struct ClassPreviewRow: View {
     let groupClass: GroupClass
     @ObservedObject var classesService: ClassesService
+    @ObservedObject var pricingService: PricingStructureService
     @State private var isRegistered = false
     @State private var seriesClasses: [GroupClass] = []
+
+    /// Same priority logic as ClassCard: eligiblePackageIds → class-type package → stored price.
+    private var classPriceText: String? {
+        let allPackages = pricingService.pricingStructure?.tiers.flatMap(\.packages) ?? []
+        for pkgId in groupClass.eligiblePackageIds {
+            if let match = allPackages.first(where: { $0.id == pkgId || $0.packageType == pkgId }) {
+                return match.formattedPrice
+            }
+        }
+        let classPassPkg = allPackages.first { pkg in
+            guard pkg.active else { return false }
+            if pkg.packageCategory == .classPass { return true }
+            let t = pkg.packageType.lowercased()
+            let ttl = pkg.title.lowercased()
+            return t.contains("class") || ttl.contains("class")
+        }
+        if let pkg = classPassPkg {
+            return pkg.formattedPrice
+        }
+        if groupClass.priceInCents > 0 {
+            return groupClass.formattedPrice
+        }
+        return nil
+    }
 
     var body: some View {
         CardView(padding: Spacing.md) {
@@ -78,6 +103,18 @@ struct ClassPreviewRow: View {
                             .font(.labelMedium)
                     }
                     .foregroundStyle(AppTheme.textSecondary)
+                    
+                    // Price
+                    if let price = classPriceText {
+                        HStack(spacing: Spacing.xxs) {
+                            Image(systemName: "tag")
+                                .font(.labelSmall)
+                            Text(price)
+                                .font(.labelMedium)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundStyle(AppTheme.secondary)
+                    }
                     
                     // Capacity badge
                     if !isRegistered && groupClass.spotsRemaining <= 3 {

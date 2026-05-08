@@ -17,6 +17,7 @@ struct HomeView: View {
     @StateObject private var locationsService = LocationsService()
     @StateObject private var adminService = AdminService()
     @StateObject private var billboardService = BillboardService()
+    @StateObject private var homePricingService = PricingStructureService()
     @Environment(\.openURL) private var openURL
     
     @Binding var selectedTab: Int
@@ -52,6 +53,7 @@ struct HomeView: View {
                     // Upcoming Classes
                     UpcomingClassesSection(
                         classesService: classesService,
+                        pricingService: homePricingService,
                         bookViewMode: $bookViewMode,
                         selectedTab: $selectedTab,
                         selectedClassId: $selectedClassId
@@ -97,18 +99,12 @@ struct HomeView: View {
             }
             // Load data once org is available
             if let orgId = auth.currentOrgId {
-                // Load locations (listener-based; no await needed)
-                locationsService.loadLocations(orgId: orgId)
-                // Load upcoming classes
-                await classesService.loadUpcomingClasses(orgId: orgId)
-                // Check admin status for showing admin-only placeholder
-                await adminService.checkAdminStatus()
-                // Load billboard settings
-                await billboardService.loadBillboard(orgId: orgId)
-                
-                // Mark initial data as loaded
-                hasLoadedInitialData = true
+                await loadHomeData(orgId: orgId)
             }
+        }
+        .onChange(of: auth.currentOrgId) { newOrgId in
+            guard let orgId = newOrgId, !hasLoadedInitialData else { return }
+            Task { await loadHomeData(orgId: orgId) }
         }
         .onAppear {
             // Only refresh if we've already loaded initial data (i.e., returning to view)
@@ -124,6 +120,15 @@ struct HomeView: View {
     }
     
     // Refresh data when returning to HomeView
+    private func loadHomeData(orgId: String) async {
+        locationsService.loadLocations(orgId: orgId)
+        await classesService.loadUpcomingClasses(orgId: orgId)
+        await homePricingService.loadPricingStructure(for: orgId)
+        await adminService.checkAdminStatus()
+        await billboardService.loadBillboard(orgId: orgId)
+        hasLoadedInitialData = true
+    }
+
     private func refreshDataOnAppear(orgId: String) async {
         // Force refresh auth token to prevent "insufficient permissions" errors
         if let currentUser = Auth.auth().currentUser {

@@ -12,6 +12,7 @@ struct UpcomingClassesSection: View {
     @Binding var bookViewMode: Int
     @Binding var selectedTab: Int
     @Binding var selectedClassId: String?
+    @ObservedObject var pricingService: PricingStructureService
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -53,13 +54,14 @@ struct UpcomingClassesSection: View {
                     VStack(spacing: Spacing.sm) {
                         ForEach(classes) { groupClass in
                             Button {
-                                selectedClassId = groupClass.id // Set the selected class ID
-                                bookViewMode = 1 // Switch to classes mode
-                                selectedTab = 1 // Switch to Book tab
+                                selectedClassId = groupClass.id
+                                bookViewMode = 1
+                                selectedTab = 1
                             } label: {
                                 ClassPreviewRow(
                                     groupClass: groupClass,
-                                    classesService: classesService
+                                    classesService: classesService,
+                                    pricingService: pricingService
                                 )
                             }
                             .buttonStyle(.plain)
