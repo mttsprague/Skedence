@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { collection, query, where, getDocs, getDoc, doc, limit, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, limit, orderBy, Timestamp, documentId } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trackPageView } from '@/lib/analytics';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -167,8 +167,39 @@ export default function ActivityPage() {
   
   const todayBookingsLive = useRealTimeCount('bookings', todayBookingsConstraints, !!orgId);
   const upcomingClassesLive = useRealTimeCount('classes', upcomingClassesConstraints, !!orgId);
-  const activeClientsLive = useRealTimeCount('orgMembers', activeClientsConstraints, !!orgId);
   const activeTrainersLive = useRealTimeCount('trainers', activeTrainersConstraints, !!orgId);
+
+  // Joined client count: orgMembers cross-checked against users docs (matches /clients page logic)
+  const [activeClientCount, setActiveClientCount] = useState<number>(0);
+  useEffect(() => {
+    if (!orgId) return;
+    let cancelled = false;
+    async function computeClientCount() {
+      const membersSnap = await getDocs(query(
+        collection(db, 'orgMembers'),
+        where('orgId', '==', orgId),
+        where('isActive', '==', true)
+      ));
+      const clientIds = membersSnap.docs
+        .map(d => d.data())
+        .filter((m: any) => m.role === 'client' && !!m.userId)
+        .map((m: any) => m.userId as string);
+      if (clientIds.length === 0) { if (!cancelled) setActiveClientCount(0); return; }
+      const BATCH = 30;
+      let count = 0;
+      for (let i = 0; i < clientIds.length; i += BATCH) {
+        const batch = clientIds.slice(i, i + BATCH);
+        const usersSnap = await getDocs(query(collection(db, 'users'), where(documentId(), 'in', batch)));
+        usersSnap.docs.forEach(d => {
+          const data = d.data();
+          if (data.isActive !== false) count++;
+        });
+      }
+      if (!cancelled) setActiveClientCount(count);
+    }
+    computeClientCount();
+    return () => { cancelled = true; };
+  }, [orgId]);
   
   // Advanced filters
   const [selectedActivityType, setSelectedActivityType] = useState<string>('all');
@@ -1234,9 +1265,9 @@ export default function ActivityPage() {
         />
         <RealTimeStatsCard
           title="Active Clients"
-          count={activeClientsLive.count}
-          isLive={activeClientsLive.isLive}
-          lastUpdate={activeClientsLive.lastUpdate}
+          count={activeClientCount}
+          isLive={true}
+          lastUpdate={new Date()}
           icon={<Users className="w-5 h-5" />}
         />
         <RealTimeStatsCard

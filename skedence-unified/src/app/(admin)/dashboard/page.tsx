@@ -2,95 +2,252 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { collection, query, where, getDocs, Timestamp, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, orderBy, Timestamp, collectionGroup, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { StatCardSkeleton } from '@/components/ui/skeleton';
-import { Users, Calendar, DollarSign, TrendingUp } from 'lucide-react';
+import { Users, Calendar, DollarSign, TrendingUp, Clock, MapPin, Activity, ChevronRight } from 'lucide-react';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import Link from 'next/link';
 
 interface DashboardStats {
   totalClients: number;
   todaySessions: number;
-  monthlyRevenue: number;
-  activePasses: number;
+  monthlyPasses: number;
+  activeBookings: number;
+}
+
+interface TodayBooking {
+  id: string;
+  clientName: string;
+  trainerName: string;
+  startTime: Date;
+  endTime: Date;
+  location: string;
+}
+
+interface RecentActivity {
+  id: string;
+  description: string;
+  timestamp: Date;
+  type: string;
 }
 
 export default function DashboardPage() {
   const { orgId } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [todayBookings, setTodayBookings] = useState<TodayBooking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   useEffect(() => {
     if (!orgId) return;
 
+    const now = new Date();
+    const dayStart = Timestamp.fromDate(startOfDay(now));
+    const dayEnd = Timestamp.fromDate(endOfDay(now));
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Load stats
     async function loadStats() {
       try {
-        const now = new Date();
-        const startOfToday = new Date(now);
-        startOfToday.setHours(0, 0, 0, 0);
-        const endOfToday = new Date(now);
-        endOfToday.setHours(23, 59, 59, 999);
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-        const [clientsSnap, todayBookingsSnap, monthPackagesSnap, activePassesSnap] = await Promise.all([
+        const [clientsSnap, todaySnap, monthPassesSnap, activeSnap] = await Promise.all([
           getDocs(query(collection(db, 'orgMembers'), where('orgId', '==', orgId), where('role', '==', 'client'), where('isActive', '==', true))),
-          getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId), where('startTime', '>=', Timestamp.fromDate(startOfToday)), where('startTime', '<=', Timestamp.fromDate(endOfToday)), where('status', '!=', 'cancelled'))),
+          getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId), where('startTime', '>=', dayStart), where('startTime', '<=', dayEnd), where('status', '==', 'confirmed'))),
           getDocs(query(collectionGroup(db, 'packages'), where('orgId', '==', orgId), where('purchaseDate', '>=', Timestamp.fromDate(startOfMonth)))),
           getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId), where('status', '==', 'confirmed'))),
         ]);
-
-        setStats({
-          totalClients: clientsSnap.size,
-          todaySessions: todayBookingsSnap.size,
-          monthlyRevenue: monthPackagesSnap.size, // Count of passes purchased this month
-          activePasses: activePassesSnap.size,
-        });
+        setStats({ totalClients: clientsSnap.size, todaySessions: todaySnap.size, monthlyPasses: monthPassesSnap.size, activeBookings: activeSnap.size });
       } catch {
-        setStats({ totalClients: 0, todaySessions: 0, monthlyRevenue: 0, activePasses: 0 });
+        setStats({ totalClients: 0, todaySessions: 0, monthlyPasses: 0, activeBookings: 0 });
       } finally {
-        setLoading(false);
+        setStatsLoading(false);
+      }
+    }
+
+    // Load today's bookings
+    async function loadTodayBookings() {
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'bookings'),
+          where('orgId', '==', orgId),
+          where('startTime', '>=', dayStart),
+          where('startTime', '<=', dayEnd),
+          orderBy('startTime', 'asc')
+        ));
+        const confirmed = snap.docs.filter(d => d.data().status === 'confirmed');
+        const bookings: TodayBooking[] = await Promise.all(
+          confirmed.map(async (docSnap) => {
+            const data = docSnap.data();
+            let trainerName = data.trainerName || '';
+            if ((!trainerName || !trainerName.includes(' ')) && data.trainerId) {
+              try {
+                const td = await getDoc(doc(db, 'trainers', data.trainerId));
+                if (td.exists()) trainerName = `${td.data().firstName || ''} ${td.data().lastName || ''}`.trim();
+              } catch { /* keep */ }
+            }
+            return {
+              id: docSnap.id,
+              clientName: data.clientName || 'Unknown Client',
+              trainerName: trainerName || 'Unknown Trainer',
+              startTime: data.startTime?.toDate() || new Date(),
+              endTime: data.endTime?.toDate() || new Date(),
+              location: data.location || 'TBD',
+            };
+          })
+        );
+        setTodayBookings(bookings);
+      } catch {
+        setTodayBookings([]);
+      } finally {
+        setBookingsLoading(false);
+      }
+    }
+
+    // Load recent activity
+    async function loadRecentActivity() {
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'activities'),
+          where('orgId', '==', orgId),
+          orderBy('timestamp', 'desc'),
+          limit(8)
+        ));
+        setRecentActivity(snap.docs.map(d => ({
+          id: d.id,
+          description: d.data().description || '',
+          timestamp: d.data().timestamp?.toDate() || new Date(),
+          type: d.data().type || '',
+        })));
+      } catch {
+        setRecentActivity([]);
+      } finally {
+        setActivityLoading(false);
       }
     }
 
     loadStats();
+    loadTodayBookings();
+    loadRecentActivity();
   }, [orgId]);
 
   const statCards = [
-    { label: 'Total Clients', value: stats?.totalClients ?? 0, icon: Users, color: 'text-blue-600' },
-    { label: "Today's Sessions", value: stats?.todaySessions ?? 0, icon: Calendar, color: 'text-green-600' },
-    { label: 'Active Bookings', value: stats?.activePasses ?? 0, icon: TrendingUp, color: 'text-purple-600' },
-    { label: 'Passes This Month', value: stats?.monthlyRevenue ?? 0, icon: DollarSign, color: 'text-amber-600' },
+    { label: 'Clients', value: stats?.totalClients ?? 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: "Today", value: stats?.todaySessions ?? 0, icon: Calendar, color: 'text-green-600', bg: 'bg-green-50' },
+    { label: 'Bookings', value: stats?.activeBookings ?? 0, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: 'Passes', value: stats?.monthlyPasses ?? 0, icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50' },
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {loading
+    <div className="container mx-auto px-4 py-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-4">{format(new Date(), 'EEEE, MMMM d')}</h1>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {statsLoading
           ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
-          : statCards.map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className="bg-white p-6 rounded-lg shadow-sm border border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-foreground/80 text-sm font-medium">{label}</h3>
-                  <Icon className={`h-5 w-5 ${color}`} />
+          : statCards.map(({ label, value, icon: Icon, color, bg }) => (
+              <div key={label} className="bg-white p-4 rounded-xl shadow-sm border border-border flex flex-col items-center gap-1">
+                <div className={`${bg} p-2 rounded-full`}>
+                  <Icon className={`h-4 w-4 ${color}`} />
                 </div>
-                <p className="text-3xl font-bold mt-1">{value}</p>
+                <p className="text-2xl font-bold leading-none">{value}</p>
+                <p className="text-xs text-foreground/60">{label}</p>
               </div>
             ))}
       </div>
-      <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border border-border">
-        <h2 className="text-xl font-semibold mb-2">Quick Links</h2>
-        <div className="flex flex-wrap gap-3 mt-4">
-          {[
-            { href: '/clients', label: 'Manage Clients' },
-            { href: '/scheduling', label: 'View Schedule' },
-            { href: '/passes', label: 'Assign Passes' },
-            { href: '/reports/appointments', label: 'View Reports' },
-          ].map(({ href, label }) => (
-            <a key={href} href={href} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
-              {label}
-            </a>
-          ))}
+
+      {/* Today's Sessions */}
+      <div className="bg-white rounded-xl shadow-sm border border-border mb-6">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <h2 className="font-semibold text-base flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-green-600" />
+            Today's Sessions
+          </h2>
+          <Link href="/scheduling" className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline">
+            Schedule <ChevronRight className="h-3 w-3" />
+          </Link>
         </div>
+        {bookingsLoading ? (
+          <div className="px-4 pb-4 space-y-2">
+            {[1,2,3].map(i => <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />)}
+          </div>
+        ) : todayBookings.length === 0 ? (
+          <p className="px-4 pb-4 text-sm text-foreground/50">No sessions scheduled for today.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {todayBookings.map(b => (
+              <li key={b.id} className="px-4 py-3 flex items-start gap-3">
+                <div className="bg-green-50 text-green-700 text-xs font-semibold rounded-lg px-2 py-1 min-w-[52px] text-center leading-tight mt-0.5">
+                  {format(b.startTime, 'h:mm')}
+                  <span className="block font-normal text-green-600">{format(b.startTime, 'a')}</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{b.clientName}</p>
+                  <p className="text-xs text-foreground/60 truncate">with {b.trainerName}</p>
+                  {b.location && b.location !== 'TBD' && (
+                    <p className="text-xs text-foreground/50 flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-2.5 w-2.5" />{b.location}
+                    </p>
+                  )}
+                </div>
+                <div className="ml-auto text-xs text-foreground/40 whitespace-nowrap mt-0.5">
+                  {format(b.startTime, 'h:mm')}–{format(b.endTime, 'h:mm a')}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white rounded-xl shadow-sm border border-border mb-6">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <h2 className="font-semibold text-base flex items-center gap-2">
+            <Activity className="h-4 w-4 text-purple-600" />
+            Recent Activity
+          </h2>
+          <Link href="/activity" className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline">
+            See all <ChevronRight className="h-3 w-3" />
+          </Link>
+        </div>
+        {activityLoading ? (
+          <div className="px-4 pb-4 space-y-2">
+            {[1,2,3,4].map(i => <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />)}
+          </div>
+        ) : recentActivity.length === 0 ? (
+          <p className="px-4 pb-4 text-sm text-foreground/50">No recent activity yet.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {recentActivity.map(a => (
+              <li key={a.id} className="px-4 py-3 flex items-start gap-3">
+                <Clock className="h-4 w-4 text-foreground/30 mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm text-foreground/80 truncate">{a.description}</p>
+                  <p className="text-xs text-foreground/40 mt-0.5">
+                    {format(a.timestamp, 'MMM d, h:mm a')}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { href: '/clients', label: 'Manage Clients', icon: Users },
+          { href: '/scheduling', label: 'View Schedule', icon: Calendar },
+          { href: '/passes', label: 'Assign Passes', icon: DollarSign },
+          { href: '/reports/appointments', label: 'View Reports', icon: TrendingUp },
+        ].map(({ href, label, icon: Icon }) => (
+          <Link key={href} href={href} className="bg-white border border-border rounded-xl p-4 flex items-center gap-3 hover:bg-muted/30 transition-colors active:scale-[0.98]">
+            <Icon className="h-5 w-5 text-primary shrink-0" />
+            <span className="text-sm font-medium">{label}</span>
+          </Link>
+        ))}
       </div>
     </div>
   );

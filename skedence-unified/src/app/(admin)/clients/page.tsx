@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
@@ -11,7 +11,7 @@ import { collection, query, where, getDocs, doc, getDoc, updateDoc, Timestamp, d
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
 import { User, AthleteInfo } from '@/types';
-import { Save, X, User as UserIcon, Search, Calendar, Package, FileText, CreditCard, Receipt, History, Download, Smartphone, QrCode, Key } from 'lucide-react';
+import { Save, X, User as UserIcon, Search, Calendar, Package, FileText, CreditCard, Receipt, History, Download, Smartphone, QrCode, Key, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { logClientProfileUpdated } from '@/lib/activity-logger';
 import { trackPageView } from '@/lib/analytics';
 import { toast } from '@/lib/toast';
@@ -115,11 +115,26 @@ export default function ClientsPage() {
   // Client invitation
   const [inviteEmail, setInviteEmail] = useState<string>('');
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [inviteBannerDismissed, setInviteBannerDismissed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('inviteBannerDismissed') === 'true';
+    }
+    return false;
+  });
+
+  const dismissInviteBanner = () => {
+    setInviteBannerDismissed(true);
+    localStorage.setItem('inviteBannerDismissed', 'true');
+  };
   
   // Advanced Filters
   const [packageTypeFilter, setPackageTypeFilter] = useState<string>('all');
   const [passStatusFilter, setPassStatusFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('name'); // 'name', 'joined', 'balance'
+  const [sortBy, setSortBy] = useState<string>('name-asc');
+  const [positionFilter, setPositionFilter] = useState<string>('all');
+  const [showFilterPanel, setShowFilterPanel] = useState<boolean>(false);
+  const [clientBookingSummary, setClientBookingSummary] = useState<Record<string, { lastDate: number; count: number }>>({});
+  const [clientSpentMap, setClientSpentMap] = useState<Record<string, number>>({});
 
   // Track page view
   useEffect(() => {
@@ -233,23 +248,33 @@ export default function ClientsPage() {
     loadOrganizationData();
   }, [orgId, orgData]);
 
-  // Load clients
+  // Load clients — also runs on every mount to handle Next.js router cache restoration
+  const loadClientsRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
-    if (!orgId) return;
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
 
     async function loadClients() {
+      setLoading(true);
+      setClients([]);
       try {
         const membersQuery = query(
           collection(db, 'orgMembers'),
           where('orgId', '==', orgId),
+          where('role', '==', 'client'),
           where('isActive', '==', true)
         );
         const membersSnapshot = await getDocs(membersQuery);
 
-        // Filter to client members only
+        // Filter to client members only (userId must be present)
         const clientMembers = membersSnapshot.docs
           .map(d => d.data())
-          .filter(m => m.role === 'client' && !!m.userId);
+          .filter(m => !!m.userId);
 
         // Batch-fetch all user docs in groups of 30 (Firestore 'in' query limit)
         const userIds = clientMembers.map(m => m.userId as string);
@@ -268,6 +293,8 @@ export default function ClientsPage() {
         for (const memberData of clientMembers) {
           const userData = userDocsMap.get(memberData.userId);
           if (!userData) continue;
+          // Skip soft-deleted users
+          if (userData.isActive === false) continue;
 
           // Convert legacy athlete fields to athletes array if needed
           let athletesArray: AthleteInfo[] = [];
@@ -331,17 +358,63 @@ export default function ClientsPage() {
           } as User);
         }
         clientsData.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
-        
-        setClients(clientsData);
+
+        if (!cancelled) setClients(clientsData);
       } catch (error) {
         console.error('Clients: Error loading:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
+    loadClientsRef.current = loadClients;
     loadClients();
+
+    return () => { cancelled = true; };
   }, [orgId]);
+
+  // Re-trigger fetch on every mount (handles Next.js router-cache restoration
+  // where orgId hasn't changed but component re-mounted after navigation)
+  useEffect(() => {
+    if (loadClientsRef.current) {
+      loadClientsRef.current();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — runs exactly once per mount
+
+  // Load booking & spend summaries for all clients (enables sort-by-booking and sort-by-spend)
+  useEffect(() => {
+    if (!orgId || clients.length === 0) return;
+    let cancelled = false;
+    async function loadSummaries() {
+      const [bookingsSnap, transSnap] = await Promise.all([
+        getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId))),
+        getDocs(query(collection(db, 'transactions'), where('orgId', '==', orgId))),
+      ]);
+      if (cancelled) return;
+      const bookMap: Record<string, { lastDate: number; count: number }> = {};
+      bookingsSnap.forEach(d => {
+        const data = d.data();
+        const cId = data.clientUID || data.clientId;
+        if (!cId) return;
+        const ts = data.startTime?.seconds ?? 0;
+        if (!bookMap[cId]) bookMap[cId] = { lastDate: 0, count: 0 };
+        bookMap[cId].count++;
+        if (ts > bookMap[cId].lastDate) bookMap[cId].lastDate = ts;
+      });
+      const spendMap: Record<string, number> = {};
+      transSnap.forEach(d => {
+        const data = d.data();
+        const cId = data.userId;
+        if (!cId || data.status !== 'succeeded') return;
+        spendMap[cId] = (spendMap[cId] ?? 0) + (data.amount ?? 0);
+      });
+      setClientBookingSummary(bookMap);
+      setClientSpentMap(spendMap);
+    }
+    loadSummaries();
+    return () => { cancelled = true; };
+  }, [orgId, clients.length]);
 
   // Load tab data when client is selected
   useEffect(() => {
@@ -479,54 +552,106 @@ export default function ClientsPage() {
     loadTabData();
   }, [orgId, selectedClient]);
 
-  const filteredClients = useMemo(() => clients.filter(client => {
-    // Exclude soft-deleted clients (users.isActive === false)
-    if (!client.isActive) return false;
+  // Extract all unique athlete positions across all clients
+  const uniquePositions = useMemo(() => {
+    const positions = new Set<string>();
+    clients.forEach(client => {
+      [
+        ...(client.athletes || []).map(a => a.position),
+        client.athletePosition,
+        client.athlete2Position,
+        client.athlete3Position,
+      ].forEach(p => { if (p) positions.add(p); });
+    });
+    return Array.from(positions).sort();
+  }, [clients]);
 
-    // Search filter
-    if (searchQuery) {
-      const search = searchQuery.toLowerCase();
-      const fullName = `${client.firstName || ''} ${client.lastName || ''}`.toLowerCase();
-      const email = (client.email || client.emailAddress || '').toLowerCase();
-      if (!fullName.includes(search) && !email.includes(search)) {
-        return false;
+  const filteredClients = useMemo(() => {
+    const toMs = (ts: any): number => {
+      if (!ts) return 0;
+      if (typeof ts.toMillis === 'function') return ts.toMillis();
+      if (ts instanceof Date) return ts.getTime();
+      return 0;
+    };
+
+    const primaryBirthday = (client: User): number => {
+      const raw = client.athletes?.[0]?.birthday || client.athleteBirthday;
+      if (!raw) return NaN;
+      const t = new Date(raw).getTime();
+      return isNaN(t) ? NaN : t;
+    };
+
+    return clients.filter(client => {
+      if (!client.isActive) return false;
+
+      if (searchQuery) {
+        const search = searchQuery.toLowerCase();
+        const fullName = `${client.firstName || ''} ${client.lastName || ''}`.toLowerCase();
+        const email = (client.email || client.emailAddress || '').toLowerCase();
+        if (!fullName.includes(search) && !email.includes(search)) return false;
       }
-    }
-    
-    // Package type filter (requires loading packages - for now simplified)
-    // Full implementation would require loading all client packages
-    
-    return true;
-  }).sort((a, b) => {
-    // Sort logic
-    switch (sortBy) {
-      case 'name': {
-        const nameA = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
-        const nameB = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
-        return nameA.localeCompare(nameB);
+
+      if (positionFilter !== 'all') {
+        const allPositions = [
+          ...(client.athletes || []).map(a => a.position),
+          client.athletePosition,
+          client.athlete2Position,
+          client.athlete3Position,
+        ].filter(Boolean).map(p => p!.toLowerCase());
+        if (!allPositions.includes(positionFilter.toLowerCase())) return false;
       }
-      case 'joined': {
-        // Handle both Firestore Timestamp and Date
-        const dateA = a.createdAt
-          ? (typeof (a.createdAt as any).toMillis === 'function'
-            ? (a.createdAt as any).toMillis()
-            : a.createdAt instanceof Date
-              ? a.createdAt.getTime()
-              : 0)
-          : 0;
-        const dateB = b.createdAt
-          ? (typeof (b.createdAt as any).toMillis === 'function'
-            ? (b.createdAt as any).toMillis()
-            : b.createdAt instanceof Date
-              ? b.createdAt.getTime()
-              : 0)
-          : 0;
-        return dateB - dateA; // Most recent first
+
+      return true;
+    }).sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+        case 'name': {
+          const la = `${a.lastName || ''} ${a.firstName || ''}`.toLowerCase();
+          const lb = `${b.lastName || ''} ${b.firstName || ''}`.toLowerCase();
+          return la.localeCompare(lb);
+        }
+        case 'name-desc': {
+          const la = `${a.lastName || ''} ${a.firstName || ''}`.toLowerCase();
+          const lb = `${b.lastName || ''} ${b.firstName || ''}`.toLowerCase();
+          return lb.localeCompare(la);
+        }
+        case 'joined-newest':
+        case 'joined':
+          return toMs(b.createdAt) - toMs(a.createdAt);
+        case 'joined-oldest':
+          return toMs(a.createdAt) - toMs(b.createdAt);
+        case 'age-youngest': {
+          const ba = primaryBirthday(a); const bb = primaryBirthday(b);
+          if (isNaN(ba) && isNaN(bb)) return 0;
+          if (isNaN(ba)) return 1; if (isNaN(bb)) return -1;
+          return bb - ba; // younger (more recent birthday) first
+        }
+        case 'age-oldest': {
+          const ba = primaryBirthday(a); const bb = primaryBirthday(b);
+          if (isNaN(ba) && isNaN(bb)) return 0;
+          if (isNaN(ba)) return 1; if (isNaN(bb)) return -1;
+          return ba - bb; // older (earlier birthday) first
+        }
+        case 'booking-recent': {
+          const la = clientBookingSummary[a.id]?.lastDate ?? 0;
+          const lb = clientBookingSummary[b.id]?.lastDate ?? 0;
+          return lb - la;
+        }
+        case 'booking-count': {
+          const ca = clientBookingSummary[a.id]?.count ?? 0;
+          const cb = clientBookingSummary[b.id]?.count ?? 0;
+          return cb - ca;
+        }
+        case 'spent-most': {
+          const sa = clientSpentMap[a.id] ?? 0;
+          const sb = clientSpentMap[b.id] ?? 0;
+          return sb - sa;
+        }
+        default:
+          return 0;
       }
-      default:
-        return 0;
-    }
-  }), [clients, searchQuery, sortBy]);
+    });
+  }, [clients, searchQuery, sortBy, positionFilter, clientBookingSummary, clientSpentMap]);
 
   const handleClientSelect = useCallback((client: User) => {
     setSelectedClient(client);
@@ -708,6 +833,7 @@ export default function ClientsPage() {
         </div>
 
         {/* Client Invitation Instructions */}
+        {!inviteBannerDismissed && (
         <Card className="border-2 border-primary/20 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
@@ -717,14 +843,23 @@ export default function ClientsPage() {
                 </div>
               </div>
               <div className="flex-1 space-y-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
-                    <Download className="h-5 w-5 text-primary" />
-                    How to Invite Clients
-                  </h3>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
+                      <Download className="h-5 w-5 text-primary" />
+                      How to Invite Clients
+                    </h3>
                   <p className="text-sm text-foreground/80">
                     Your clients can download the Skedence app and connect to your business in three easy steps:
                   </p>
+                  </div>
+                  <button
+                    onClick={dismissInviteBanner}
+                    className="flex-shrink-0 p-1.5 rounded-md text-foreground/40 hover:text-foreground/70 hover:bg-black/5 transition-colors"
+                    aria-label="Dismiss"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
                 
                 <ol className="space-y-3 text-sm">
@@ -868,49 +1003,117 @@ export default function ClientsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Search and Filters */}
         <div className="space-y-3">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" aria-hidden="true" />
-            <input
-              type="text"
-              placeholder="Search clients by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation text-base"
-              aria-label="Search clients"
-            />
+          {/* Search + Filter Button Row */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" aria-hidden="true" />
+              <input
+                type="text"
+                placeholder="Search clients by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 sm:py-3.5 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent touch-manipulation text-base"
+                aria-label="Search clients"
+              />
+            </div>
+            {/* Sort & Filter Toggle Button */}
+            {(() => {
+              const activeCount = (sortBy !== 'name-asc' ? 1 : 0) + (positionFilter !== 'all' ? 1 : 0);
+              return (
+                <button
+                  onClick={() => setShowFilterPanel(p => !p)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors whitespace-nowrap touch-manipulation ${
+                    showFilterPanel || activeCount > 0
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-background text-foreground border-input hover:bg-muted'
+                  }`}
+                  aria-expanded={showFilterPanel}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sort &amp; Filter</span>
+                  {activeCount > 0 && (
+                    <span className={`ml-0.5 inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
+                      showFilterPanel ? 'bg-white text-primary' : 'bg-primary text-white'
+                    }`}>{activeCount}</span>
+                  )}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showFilterPanel ? 'rotate-180' : ''}`} />
+                </button>
+              );
+            })()}
           </div>
-          
-          {/* Advanced Filters */}
-          <div className="flex flex-wrap gap-3">
-            {/* Sort By */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-              aria-label="Sort clients by"
-            >
-              <option value="name">Sort by Name</option>
-              <option value="joined">Sort by Join Date</option>
-            </select>
-            
-            {/* Filter badges showing active filters */}
-            {(packageTypeFilter !== 'all' || passStatusFilter !== 'all') && (
-              <button
-                onClick={() => {
-                  setPackageTypeFilter('all');
-                  setPassStatusFilter('all');
-                }}
-                className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm hover:bg-primary/20 transition-colors"
-                aria-label="Clear all filters"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
+
+          {/* Collapsible Filter Panel */}
+          {showFilterPanel && (
+            <div className="rounded-xl border border-input bg-muted/30 p-4 space-y-4">
+              {/* Sort By */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort By</p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: 'name-asc', label: 'Name A→Z' },
+                    { value: 'name-desc', label: 'Name Z→A' },
+                    { value: 'joined-newest', label: 'Joined (Newest)' },
+                    { value: 'joined-oldest', label: 'Joined (Oldest)' },
+                    { value: 'age-youngest', label: 'Age (Youngest)' },
+                    { value: 'age-oldest', label: 'Age (Oldest)' },
+                    { value: 'booking-recent', label: 'Most Recent Booking' },
+                    { value: 'booking-count', label: 'Most Bookings' },
+                    { value: 'spent-most', label: 'Most Spent' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSortBy(opt.value)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors touch-manipulation ${
+                        sortBy === opt.value
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-background text-foreground border-input hover:bg-muted'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Position Filter */}
+              {uniquePositions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Athlete Position</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(['all', ...uniquePositions] as string[]).map(pos => (
+                      <button
+                        key={pos}
+                        onClick={() => setPositionFilter(pos)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors touch-manipulation ${
+                          positionFilter === pos
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-background text-foreground border-input hover:bg-muted'
+                        }`}
+                      >
+                        {pos === 'all' ? 'All Positions' : pos}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Reset */}
+              {(sortBy !== 'name-asc' || positionFilter !== 'all') && (
+                <div className="pt-1 border-t border-border">
+                  <button
+                    onClick={() => { setSortBy('name-asc'); setPositionFilter('all'); }}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Reset to defaults
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Client Cards Grid */}
@@ -1177,9 +1380,9 @@ export default function ClientsPage() {
                                       <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
                                     </div>
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                      booking.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-foreground'
+                                      booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
                                     }`}>
-                                      {booking.status}
+                                      {booking.status === 'cancelled' ? 'Cancelled' : 'Completed'}
                                     </span>
                                   </div>
                                 </CardContent>
@@ -1213,7 +1416,13 @@ export default function ClientsPage() {
                                         <p className="text-sm text-foreground/80">
                                           <span className="font-medium text-primary">{pkg.remainingLessons}</span> of {pkg.totalLessons} sessions remaining
                                         </p>
-                                        <p className="text-sm text-foreground/80">Expires: {pkg.expirationDate.toDate().toLocaleDateString()}</p>
+                                        <p className="text-sm text-foreground/80">Expires: {pkg.expirationDate?.toDate?.()?.toLocaleDateString()}</p>
+                                        <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+                                          <span>Purchased {pkg.purchaseDate?.toDate?.()?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                          {pkg.amountPaid != null && pkg.amountPaid > 0 && (
+                                            <span className="font-medium text-foreground">${(pkg.amountPaid / 100).toFixed(2)}</span>
+                                          )}
+                                        </div>
                                       </CardContent>
                                     </Card>
                                   ))}
@@ -1229,12 +1438,73 @@ export default function ClientsPage() {
                                       <CardContent className="pt-6">
                                         <h4 className="font-semibold mb-2">{pkg.packageName || pkg.packageType}</h4>
                                         <p className="text-sm text-foreground/80">{pkg.lessonsUsed} of {pkg.totalLessons} sessions used</p>
+                                        <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+                                          <span>Purchased {pkg.purchaseDate?.toDate?.()?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                          {pkg.amountPaid != null && pkg.amountPaid > 0 && (
+                                            <span className="font-medium text-foreground">${(pkg.amountPaid / 100).toFixed(2)}</span>
+                                          )}
+                                        </div>
                                       </CardContent>
                                     </Card>
                                   ))}
                                 </div>
                               </div>
                             )}
+
+                            {/* Transaction History */}
+                            <div>
+                              <h3 className="text-lg font-semibold mb-3">Transaction History</h3>
+                              <div className="rounded-lg border border-border overflow-hidden">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="bg-muted/50">
+                                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Date</th>
+                                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Package</th>
+                                      <th className="text-center px-4 py-2 font-medium text-muted-foreground">Sessions</th>
+                                      <th className="text-right px-4 py-2 font-medium text-muted-foreground">Amount</th>
+                                      <th className="text-right px-4 py-2 font-medium text-muted-foreground">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border">
+                                    {[...packages]
+                                      .sort((a, b) => (b.purchaseDate?.seconds ?? 0) - (a.purchaseDate?.seconds ?? 0))
+                                      .map((pkg) => (
+                                        <tr key={pkg.id} className="hover:bg-muted/30 transition-colors">
+                                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                                            {pkg.purchaseDate?.toDate?.()?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) ?? '—'}
+                                          </td>
+                                          <td className="px-4 py-3 font-medium">
+                                            {pkg.packageName || pkg.packageType}
+                                          </td>
+                                          <td className="px-4 py-3 text-center text-muted-foreground">
+                                            {pkg.totalLessons}
+                                          </td>
+                                          <td className="px-4 py-3 text-right font-medium">
+                                            {pkg.amountPaid != null && pkg.amountPaid > 0
+                                              ? `$${(pkg.amountPaid / 100).toFixed(2)}`
+                                              : '—'}
+                                          </td>
+                                          <td className="px-4 py-3 text-right">
+                                            {pkg.remainingLessons > 0 ? (
+                                              <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">Active</span>
+                                            ) : (
+                                              <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-full">Used</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {packages.filter(p => p.amountPaid != null && p.amountPaid > 0).length > 0 && (
+                                <div className="mt-3 flex justify-end text-sm">
+                                  <span className="text-muted-foreground mr-2">Total spent:</span>
+                                  <span className="font-semibold">
+                                    ${(packages.reduce((sum, p) => sum + (p.amountPaid ?? 0), 0) / 100).toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>

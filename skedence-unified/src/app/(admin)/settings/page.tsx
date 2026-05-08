@@ -6,7 +6,19 @@ import { BusinessSettingsSubmenu } from '@/components/admin/business-settings-su
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Clock, Calendar, MapPin } from 'lucide-react';
+import { Clock, Calendar, MapPin, Building2 } from 'lucide-react';
+
+interface OrgProfile {
+  phone: string;
+  contactEmail: string;
+  timezone: string;
+  currency: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
 
 interface OrgSettings {
   minBookingHours: number;
@@ -37,6 +49,22 @@ export default function SettingsPage() {
   const [selectedLocationId, setSelectedLocationId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const [profile, setProfile] = useState<OrgProfile>({
+    phone: '',
+    contactEmail: '',
+    timezone: 'America/New_York',
+    currency: 'USD',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    zipCode: '',
+  });
+
+  // Fields map to Firestore: contactPhone, settings.timezone, settings.currency, addressLine1/2, city, state, zipCode, contactEmail
 
   useEffect(() => {
     if (!orgId) return;
@@ -72,6 +100,18 @@ export default function SettingsPage() {
             defaultSessionLength: data.defaultSessionLength || 60,
             allowSameDayBooking: data.allowSameDayBooking || false,
             requireWaiver: data.requireWaiver === true,
+          });
+
+          setProfile({
+            phone: data.contactPhone || '',
+            contactEmail: data.contactEmail || '',
+            timezone: data.settings?.timezone || 'America/New_York',
+            currency: data.settings?.currency || 'USD',
+            addressLine1: data.addressLine1 || '',
+            addressLine2: data.addressLine2 || '',
+            city: data.city || '',
+            state: data.state || '',
+            zipCode: data.zipCode || '',
           });
         }
         
@@ -121,6 +161,34 @@ export default function SettingsPage() {
     saveSettings(newSettings);
   };
 
+  const saveProfile = async () => {
+    if (!orgId) return;
+    setProfileSaving(true);
+    try {
+      // Save using exact Firestore field names matching the Cloud Function schema:
+      // contactPhone (top-level), settings.timezone, settings.currency (nested)
+      await setDoc(doc(db, 'organizations', orgId), {
+        contactPhone: profile.phone,
+        contactEmail: profile.contactEmail,
+        settings: {
+          timezone: profile.timezone,
+          currency: profile.currency,
+        },
+        addressLine1: profile.addressLine1,
+        addressLine2: profile.addressLine2,
+        city: profile.city,
+        state: profile.state,
+        zipCode: profile.zipCode,
+      }, { merge: true });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   return (
     <BusinessSettingsSubmenu>
       <div className="space-y-6">
@@ -142,6 +210,146 @@ export default function SettingsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Organization Profile */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Organization Profile
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Business Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={profile.phone}
+                      onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Contact Email
+                    </label>
+                    <input
+                      type="email"
+                      value={profile.contactEmail}
+                      onChange={(e) => setProfile({ ...profile, contactEmail: e.target.value })}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                      placeholder="contact@yourbusiness.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Timezone
+                    </label>
+                    <select
+                      value={profile.timezone}
+                      onChange={(e) => setProfile({ ...profile, timezone: e.target.value })}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                    >
+                      <option value="America/New_York">Eastern (ET)</option>
+                      <option value="America/Chicago">Central (CT)</option>
+                      <option value="America/Denver">Mountain (MT)</option>
+                      <option value="America/Los_Angeles">Pacific (PT)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Currency
+                    </label>
+                    <select
+                      value={profile.currency}
+                      onChange={(e) => setProfile({ ...profile, currency: e.target.value })}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                    >
+                      <option value="USD">USD ($)</option>
+                      <option value="CAD">CAD ($)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="GBP">GBP (£)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Address Line 1
+                  </label>
+                  <input
+                    type="text"
+                    value={profile.addressLine1}
+                    onChange={(e) => setProfile({ ...profile, addressLine1: e.target.value })}
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                    placeholder="123 Main Street"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Address Line 2 <span className="text-muted-foreground text-xs">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profile.addressLine2}
+                    onChange={(e) => setProfile({ ...profile, addressLine2: e.target.value })}
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                    placeholder="Suite 100"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">City</label>
+                    <input
+                      type="text"
+                      value={profile.city}
+                      onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                      placeholder="New York"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">State</label>
+                    <input
+                      type="text"
+                      value={profile.state}
+                      onChange={(e) => setProfile({ ...profile, state: e.target.value })}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                      placeholder="NY"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">ZIP Code</label>
+                    <input
+                      type="text"
+                      value={profile.zipCode}
+                      onChange={(e) => setProfile({ ...profile, zipCode: e.target.value })}
+                      className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                      placeholder="10001"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    onClick={saveProfile}
+                    disabled={profileSaving}
+                    className="px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    {profileSaving ? 'Saving...' : 'Save Profile'}
+                  </button>
+                  {profileSaved && (
+                    <span className="text-sm text-green-600 font-medium">✓ Saved</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Booking Settings */}
             <Card>
               <CardHeader>

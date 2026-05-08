@@ -26,27 +26,15 @@ export default function HomePage() {
   const { userData, loading } = useAuth();
   const router = useRouter();
 
-  // Redirect authenticated users to activity feed
+  // Redirect authenticated users to activity feed (non-blocking)
   useEffect(() => {
     if (!loading && userData) {
       router.push('/activity');
     }
   }, [userData, loading, router]);
 
-  // Show loading state while checking auth
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-foreground/60">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render if we're about to redirect
-  if (userData) {
+  // Don't render if we're about to redirect an authenticated user
+  if (!loading && userData) {
     return null;
   }
 
@@ -67,7 +55,6 @@ export default function HomePage() {
               <a href="#features" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Features</a>
               <a href="#pricing" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</a>
               <Link href="/blog" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Blog</Link>
-              <Link href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</Link>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
               <Link href="/register" className="btn-premium text-sm">
                 Start 14-Day Free Trial →
@@ -114,13 +101,6 @@ export default function HomePage() {
               Blog
             </Link>
             <Link
-              href="/support"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
-            >
-              Support
-            </Link>
-            <Link
               href="/login"
               onClick={() => setMobileMenuOpen(false)}
               className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
@@ -147,15 +127,15 @@ export default function HomePage() {
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="max-w-4xl space-y-10">
             <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm">
-              <span className="text-xs font-bold text-primary tracking-widest uppercase">[ We Are Skedence ]</span>
+              <span className="text-xs font-bold text-primary tracking-widest uppercase">[ For Sports Coaches ]</span>
             </div>
             
             <h1 className="text-6xl md:text-8xl font-black tracking-tight text-foreground leading-[0.95] uppercase">
-              Transform Your<br />Coaching <span className="text-primary">Business</span>
+              Stop Chasing Clients<br />for <span className="text-primary">Payments</span>
             </h1>
             
             <p className="text-xl md:text-2xl text-foreground/70 max-w-2xl leading-relaxed font-light">
-              Skedence builds comprehensive coaching platforms, unifying scheduling, payments, and client management into a single evolving execution.
+              Skedence handles booking, lesson passes, and payments for sports coaches — so you can stop juggling spreadsheets and focus on coaching.
             </p>
             
             <div className="flex flex-col sm:flex-row items-start gap-5 pt-4">
@@ -163,12 +143,14 @@ export default function HomePage() {
                 Start 14-Day Free Trial
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              <a href="#features" className="btn-secondary inline-flex items-center gap-3 text-base">
-                View Features
+              <a href="#how-it-works" className="btn-secondary inline-flex items-center gap-3 text-base">
+                Watch the Demo
               </a>
             </div>
+
+            <p className="text-sm text-foreground/40 font-medium">No credit card required</p>
             
-            <div className="flex items-center gap-8 text-sm text-foreground/50 pt-8 font-medium">
+            <div className="flex items-center gap-8 text-sm text-foreground/50 pt-4 font-medium">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-primary" />
                 <span>14-day free trial</span>
@@ -192,9 +174,9 @@ export default function HomePage() {
       <section className="py-32 px-6 bg-gradient-to-b from-background via-muted/10 to-background">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center space-y-6 mb-12">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">The Complete Journey</h2>
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">See How Skedence Works (3 min)</h2>
             <p className="text-lg text-foreground/60 font-light max-w-2xl mx-auto">
-              From setup to bookings: Watch how coaches set pricing, clients purchase passes, and sessions get booked—all in one platform
+              From setup to bookings: watch how coaches set pricing, clients purchase passes, and sessions get booked — all in one platform
             </p>
           </div>
           
@@ -202,7 +184,8 @@ export default function HomePage() {
             <video 
               className="w-full h-full object-contain"
               controls
-              preload="auto"
+              preload="metadata"
+              poster="/Screenshots/WebApp1.png"
               crossOrigin="anonymous"
               playsInline
             >
@@ -215,34 +198,6 @@ export default function HomePage() {
             <Link href="/register" className="btn-premium inline-flex items-center gap-3">
               Start Your Free Trial
               <ArrowRight className="w-5 h-5" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Sport Landing Pages */}
-      <section className="py-24 px-6 bg-background">
-        <div className="container mx-auto max-w-7xl">
-          <div className="text-center space-y-4 mb-12">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">Built For Your Sport</h2>
-            <p className="text-lg text-foreground/60">Explore Skedence pages tailored to your coaching business</p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link href="/volleyball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
-              <h3 className="text-xl font-bold text-foreground mb-2">Volleyball</h3>
-              <p className="text-sm text-foreground/60">Scheduling and packages for volleyball lessons.</p>
-            </Link>
-            <Link href="/basketball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
-              <h3 className="text-xl font-bold text-foreground mb-2">Basketball</h3>
-              <p className="text-sm text-foreground/60">Built for private basketball trainers and clubs.</p>
-            </Link>
-            <Link href="/baseball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
-              <h3 className="text-xl font-bold text-foreground mb-2">Baseball</h3>
-              <p className="text-sm text-foreground/60">Lesson packages and booking for baseball coaches.</p>
-            </Link>
-            <Link href="/soccer" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
-              <h3 className="text-xl font-bold text-foreground mb-2">Soccer</h3>
-              <p className="text-sm text-foreground/60">Scheduling built for soccer training businesses.</p>
             </Link>
           </div>
         </div>
@@ -302,7 +257,11 @@ export default function HomePage() {
                 <Smartphone className="w-7 h-7 text-primary group-hover:text-black transition-colors" />
               </div>
               <h3 className="text-xl font-bold text-foreground mb-3 uppercase tracking-wide">Mobile Apps</h3>
-              <p className="text-sm text-foreground/50 leading-relaxed">Native iOS apps for both coaches and clients. Manage your business and book sessions on the go.</p>
+              <p className="text-sm text-foreground/50 leading-relaxed">Native iOS apps for both coaches and clients. Manage your business and book sessions on the go. Available free on the App Store for iPhone.</p>
+              <a href="https://apps.apple.com/us/app/skedence/id6471890931" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-white/5 border border-border/50 rounded-lg hover:border-primary/40 transition-colors">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 text-foreground fill-current"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                <span className="text-xs font-medium text-foreground/70">App Store</span>
+              </a>
             </div>
             
             <div className="premium-card p-8 hover:shadow-premium-lg transition-all duration-300 group">
@@ -325,7 +284,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-32 px-6 bg-background">
+      <section id="how-it-works" className="py-32 px-6 bg-background">
         <div className="container mx-auto max-w-7xl">
           <div className="text-center space-y-6 mb-20">
             <h2 className="text-5xl md:text-6xl font-black tracking-tight text-foreground uppercase">How It Works</h2>
@@ -360,52 +319,40 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Testimonial */}
       <section className="py-32 px-6 bg-gradient-to-b from-muted/20 to-background">
-        <div className="container mx-auto max-w-7xl">
-          <div className="text-center space-y-6 mb-20">
-            <h2 className="text-5xl md:text-6xl font-black tracking-tight text-foreground uppercase">Trusted Worldwide</h2>
-            <p className="text-xl text-foreground/60 font-light">See what trainers are saying about Skedence</p>
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center space-y-4 mb-16">
+            <h2 className="text-5xl md:text-6xl font-black tracking-tight text-foreground uppercase">From the Field</h2>
           </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="premium-card p-10 space-y-6">
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-primary text-primary" />
-                ))}
-              </div>
-              <p className="text-foreground/70 leading-relaxed text-lg">&quot;Skedence has completely transformed how I run my personal training business. No more back-and-forth texts trying to schedule sessions!&quot;</p>
-              <div className="pt-6 border-t border-border">
-                <p className="font-bold text-foreground text-lg">Sarah Johnson</p>
-                <p className="text-sm text-foreground/50 uppercase tracking-wide">Personal Trainer, Los Angeles</p>
-              </div>
+
+          <div className="premium-card p-10 md:p-14 space-y-8">
+            <div className="flex gap-1">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-6 h-6 fill-primary text-primary" />
+              ))}
             </div>
-            
-            <div className="premium-card p-10 space-y-6">
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-primary text-primary" />
-                ))}
+            <p className="text-foreground/80 leading-relaxed text-xl md:text-2xl font-light">&quot;Before Skedence, I was managing lesson passes in spreadsheets and scheduling through text chains. Now our clients purchase passes in the app, book their own sessions, and our coaches get notified automatically. It&apos;s saved us hours every week and made the whole operation look a lot more professional.&quot;</p>
+            <div className="pt-6 border-t border-border flex items-center justify-between flex-wrap gap-6">
+              <div>
+                <p className="font-bold text-foreground text-lg">Jeffrey Schmitz</p>
+                <p className="text-sm text-foreground/50 uppercase tracking-wide">Owner · PolyFace Volleyball Academy</p>
+                <a
+                  href="https://polyfacevolleyball.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:text-primary/80 transition-colors mt-1 inline-block"
+                >
+                  polyfacevolleyball.com →
+                </a>
               </div>
-              <p className="text-foreground/70 leading-relaxed text-lg">&quot;The payment processing is seamless. I love that clients can purchase packages right from the app. My revenue has increased 40% since switching.&quot;</p>
-              <div className="pt-6 border-t border-border">
-                <p className="font-bold text-foreground text-lg">Mike Chen</p>
-                <p className="text-sm text-foreground/50 uppercase tracking-wide">CrossFit Coach, San Francisco</p>
-              </div>
-            </div>
-            
-            <div className="premium-card p-10 space-y-6">
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-primary text-primary" />
-                ))}
-              </div>
-              <p className="text-foreground/70 leading-relaxed text-lg">&quot;Managing three studio locations used to be a nightmare. Now everything is organized in one place. Game changer for our business.&quot;</p>
-              <div className="pt-6 border-t border-border">
-                <p className="font-bold text-foreground text-lg">Jessica Martinez</p>
-                <p className="text-sm text-foreground/50 uppercase tracking-wide">Yoga Studio Owner, Austin</p>
-              </div>
+              <a href="https://polyfacevolleyball.com" target="_blank" rel="noopener noreferrer">
+                <img
+                  src="/polyface-logo.png"
+                  alt="PolyFace Volleyball Academy"
+                  className="h-20 w-auto opacity-90 hover:opacity-100 transition-opacity"
+                />
+              </a>
             </div>
           </div>
         </div>
@@ -582,7 +529,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-10">
             <div className="space-y-5">
               <h3 className="text-xl font-bold text-foreground">How does the free trial work?</h3>
-              <p className="text-foreground/50 leading-relaxed">Start with a 14-day free trial with full access to all features.</p>
+              <p className="text-foreground/50 leading-relaxed">Sign up and get full access to every feature for 14 days — no credit card required. On day 15, you&apos;ll be asked to choose a plan to keep your account active. If you do nothing, your account is paused (not deleted) and you can reactivate anytime.</p>
             </div>
             
             <div className="space-y-5">
@@ -597,7 +544,7 @@ export default function HomePage() {
             
             <div className="space-y-5">
               <h3 className="text-xl font-bold text-foreground">Do my clients need to download an app?</h3>
-              <p className="text-foreground/50 leading-relaxed">Yes, your clients download the free Skedence app (iOS) to book sessions and manage their schedule.</p>
+              <p className="text-foreground/50 leading-relaxed">Yes — clients download the free Skedence app on iPhone (search &quot;Skedence&quot; on the App Store). They can browse availability, book sessions, and manage their passes entirely from the app.</p>
             </div>
             
             <div className="space-y-5">
@@ -613,6 +560,34 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Sport Landing Pages */}
+      <section className="py-24 px-6 bg-background">
+        <div className="container mx-auto max-w-7xl">
+          <div className="text-center space-y-4 mb-12">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground uppercase">Built For Your Sport</h2>
+            <p className="text-lg text-foreground/60">Explore Skedence pages tailored to your coaching business</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Link href="/volleyball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
+              <h3 className="text-xl font-bold text-foreground mb-2">Volleyball</h3>
+              <p className="text-sm text-foreground/60">Scheduling and packages for volleyball lessons.</p>
+            </Link>
+            <Link href="/basketball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
+              <h3 className="text-xl font-bold text-foreground mb-2">Basketball</h3>
+              <p className="text-sm text-foreground/60">Built for private basketball trainers and clubs.</p>
+            </Link>
+            <Link href="/baseball" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
+              <h3 className="text-xl font-bold text-foreground mb-2">Baseball</h3>
+              <p className="text-sm text-foreground/60">Lesson packages and booking for baseball coaches.</p>
+            </Link>
+            <Link href="/soccer" className="premium-card p-6 hover:shadow-premium-lg transition-all duration-300">
+              <h3 className="text-xl font-bold text-foreground mb-2">Soccer</h3>
+              <p className="text-sm text-foreground/60">Scheduling built for soccer training businesses.</p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="relative py-40 px-6 overflow-hidden">
         {/* Gradient Background */}
@@ -621,10 +596,10 @@ export default function HomePage() {
         
         <div className="container mx-auto max-w-5xl text-center space-y-10 relative z-10">
           <h2 className="text-5xl md:text-7xl font-black tracking-tight text-foreground uppercase leading-tight">Ready to Transform<br />Your Business?</h2>
-          <p className="text-xl md:text-2xl text-foreground/60 font-light">Join hundreds of coaches using Skedence to save time and grow</p>
+          <p className="text-xl md:text-2xl text-foreground/60 font-light">Join coaches using Skedence to stop chasing payments and fill their schedules</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
             <Link href="/register" className="btn-premium">Start 14-Day Free Trial</Link>
-            <Link href="/support" className="btn-secondary">Contact Sales</Link>
+            <Link href="/how-to-use" className="btn-secondary">See How It Works</Link>
           </div>
           <p className="text-sm text-foreground/40 uppercase tracking-wider font-medium">14-day free trial • Cancel anytime</p>
         </div>
@@ -639,6 +614,7 @@ export default function HomePage() {
               <ul className="space-y-3">
                 <li><a href="#features" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Features</a></li>
                 <li><a href="#pricing" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Pricing</a></li>
+                <li><Link href="/how-to-use" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Getting Started</Link></li>
                 <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Support</Link></li>
               </ul>
             </div>
@@ -646,7 +622,8 @@ export default function HomePage() {
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Company</h4>
               <ul className="space-y-3">
-                <li><Link href="/about" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">About</Link></li>
+                <li><Link href="/about" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Who It&apos;s For</Link></li>
+                <li><Link href="/blog" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Blog</Link></li>
                 <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Contact</Link></li>
               </ul>
             </div>
@@ -661,7 +638,7 @@ export default function HomePage() {
             
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Connect</h4>
-              <p className="text-sm text-orange-500">Matt.Sprague@skedence.com</p>
+              <a href="mailto:support@skedence.com" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">support@skedence.com</a>
             </div>
           </div>
           

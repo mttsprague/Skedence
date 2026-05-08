@@ -1,5 +1,27 @@
-// Basic service worker for offline-first experience
-const CACHE_NAME = 'skedence-v1';
+// Service worker — network-first, no caching of JS chunks.
+// Admin portal deploys frequently; stale chunk caches break the app.
+const CACHE_NAME = 'skedence-v4-nocache';
+
+// On install, immediately take control (skip waiting)
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+// On activate, delete ALL caches (clears any stale chunk caches from old installs)
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) =>
+      Promise.all(cacheNames.map((name) => caches.delete(name)))
+    )
+  );
+  self.clients.claim();
+});
+
+// Fetch — always go to network; never cache
+self.addEventListener('fetch', (event) => {
+  // Let the browser handle everything normally
+  event.respondWith(fetch(event.request));
+});
 const urlsToCache = [
   '/',
   '/activity',

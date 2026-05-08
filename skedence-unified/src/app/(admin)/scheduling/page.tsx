@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,6 +36,9 @@ interface ScheduleItem {
   participants?: string[];
   location?: string;
   status?: string; // For shifts: 'open', 'unavailable'
+  createdByRole?: string; // 'admin' | 'trainer' — who created this slot
+  createdById?: string;   // Firebase Auth UID of the creator
+  isOrgWide?: boolean;    // True when applied to all trainers
   // Booking details
   clientUID?: string;
   clientId?: string;
@@ -89,6 +92,9 @@ export default function SchedulingPage() {
   const [modalTrainerId, setModalTrainerId] = useState<string>('');
   const [modalTrainerName, setModalTrainerName] = useState<string>('');
   const [modalSlotStatus, setModalSlotStatus] = useState<string>('open');
+  const [modalIsOrgWide, setModalIsOrgWide] = useState<boolean>(false);
+  const [modalCreatedById, setModalCreatedById] = useState<string>('');
+  const [applyToAllTrainers, setApplyToAllTrainers] = useState<boolean>(false);
   
   // Cancel booking states
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
@@ -101,9 +107,7 @@ export default function SchedulingPage() {
   const [rescheduling, setRescheduling] = useState(false);
   const [fieldLabels, setFieldLabels] = useState({ birthday: 'Birthday', schoolClubTeam: 'School / Club Team', experienceLevel: 'Experience Level', position: 'Position' });
 
-  // Touch swipe state for calendar navigation
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
 
   // Set mounted state and initialize current time on client
   useEffect(() => {
@@ -439,18 +443,29 @@ export default function SchedulingPage() {
           
           // Include both "open" and "unavailable" shifts
           const isAvailable = scheduleData.isBooked === false || scheduleData.status === 'open' || scheduleData.status === 'unavailable';
-          if (isAvailable) {
-            items.push({
-              id: scheduleDoc.id,
-              type: 'shift',
-              startTime: scheduleData.startTime.toDate(),
-              endTime: scheduleData.endTime.toDate(),
-              trainerName: selectedTrainer,
-              trainerId: trainerId,
-              location: scheduleData.location,
-              status: scheduleData.status,
-            });
-          }
+          if (!isAvailable) continue;
+
+          const shiftStart = scheduleData.startTime.toDate().getTime();
+          const shiftEnd = scheduleData.endTime.toDate().getTime();
+          // Skip shift if a booking (lesson) already covers this time
+          const hasOverlappingBooking = items.some(
+            i => i.type === 'lesson' && i.startTime.getTime() === shiftStart && i.endTime.getTime() === shiftEnd
+          );
+          if (hasOverlappingBooking) continue;
+
+          items.push({
+            id: scheduleDoc.id,
+            type: 'shift',
+            startTime: scheduleData.startTime.toDate(),
+            endTime: scheduleData.endTime.toDate(),
+            trainerName: selectedTrainer,
+            trainerId: trainerId,
+            location: scheduleData.location,
+            status: scheduleData.status,
+            createdByRole: scheduleData.createdByRole,
+            createdById: scheduleData.createdById,
+            isOrgWide: scheduleData.isOrgWide,
+          });
         }
 
         // Sort by start time
@@ -599,18 +614,28 @@ export default function SchedulingPage() {
           for (const scheduleDoc of schedulesSnapshot.docs) {
             const scheduleData = scheduleDoc.data();
             const isAvailable = scheduleData.isBooked === false || scheduleData.status === 'open' || scheduleData.status === 'unavailable';
-            if (isAvailable) {
-              items.push({
-                id: scheduleDoc.id,
-                type: 'shift',
-                startTime: scheduleData.startTime.toDate(),
-                endTime: scheduleData.endTime.toDate(),
-                trainerName,
-                trainerId,
-                location: scheduleData.location,
-                status: scheduleData.status,
-              });
-            }
+            if (!isAvailable) continue;
+
+            const shiftStart = scheduleData.startTime.toDate().getTime();
+            const shiftEnd = scheduleData.endTime.toDate().getTime();
+            const hasOverlappingBooking = items.some(
+              i => i.type === 'lesson' && i.startTime.getTime() === shiftStart && i.endTime.getTime() === shiftEnd
+            );
+            if (hasOverlappingBooking) continue;
+
+            items.push({
+              id: scheduleDoc.id,
+              type: 'shift',
+              startTime: scheduleData.startTime.toDate(),
+              endTime: scheduleData.endTime.toDate(),
+              trainerName,
+              trainerId,
+              location: scheduleData.location,
+              status: scheduleData.status,
+              createdByRole: scheduleData.createdByRole,
+              createdById: scheduleData.createdById,
+              isOrgWide: scheduleData.isOrgWide,
+            });
           }
 
           // Sort by start time
@@ -665,47 +690,7 @@ export default function SchedulingPage() {
     setWeekStart(startOfWeek(today, { weekStartsOn: 0 }));
   };
 
-  // Touch swipe handlers for calendar navigation
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.touches[0].clientX);
-    setTouchStartY(e.touches[0].clientY);
-  };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX === null || touchStartY === null) return;
-
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = touchEndY - touchStartY;
-
-    // Only trigger swipe if horizontal movement is greater than vertical
-    // This prevents conflicts with vertical scrolling
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
-      if (deltaX > 0) {
-        // Swipe right - go to previous week/day
-        if (viewMode === 'individual') {
-          goToPreviousWeek();
-        } else {
-          goToPreviousAllTrainersDay();
-        }
-      } else {
-        // Swipe left - go to next week/day
-        if (viewMode === 'individual') {
-          goToNextWeek();
-        } else {
-          goToNextAllTrainersDay();
-        }
-      }
-    }
-
-    setTouchStartX(null);
-    setTouchStartY(null);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    // Optional: can add visual feedback during swipe here
-  };
 
   // Reload schedule after modal actions - just re-trigger the useEffect
   const reloadSchedule = () => {
@@ -743,30 +728,77 @@ export default function SchedulingPage() {
       setModalTrainerId(item.trainerId);
       setModalTrainerName(item.trainerName);
       setModalSlotStatus(item.status || 'open');
+      setModalIsOrgWide(item.isOrgWide || false);
+      setModalCreatedById(item.createdById || '');
+      setApplyToAllTrainers(false);
       setShowSlotActionDialog(true);
     } else {
       setSelectedItem(item);
     }
   };
 
+  // Build a deterministic schedule doc ID matching iOS format: "YYYY-MM-DDTHH"
+  const buildScheduleDocId = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    return `${y}-${m}-${d}T${h}`;
+  };
+
   // Mark slot as unavailable
   const handleMarkUnavailable = async () => {
-    if (!modalSlotId || !modalTrainerId || !orgId) return;
+    if (!modalSlotDate || !modalTrainerId || !orgId) return;
     
     try {
-      const { doc, updateDoc } = await import('firebase/firestore');
-      const scheduleRef = doc(db, `trainers/${modalTrainerId}/schedules/${modalSlotId}`);
-      
-      await updateDoc(scheduleRef, {
+      const { doc, setDoc } = await import('firebase/firestore');
+      const isAdmin = userData?.role === 'admin' || userData?.role === 'owner';
+      const slotData = {
         status: 'unavailable',
-        isBooked: false
-      });
+        isBooked: false,
+        createdByRole: isAdmin ? 'admin' : 'trainer',
+        createdById: user?.uid || '',
+        isOrgWide: applyToAllTrainers,
+        orgId,
+        startTime: modalSlotDate,
+        endTime: new Date(modalSlotDate.getTime() + 60 * 60 * 1000), // +1 hour
+      };
+
+      if (applyToAllTrainers) {
+        // Write the slot to every active trainer
+        const activeTrainers = trainers.filter(t => t.id);
+        await Promise.all(activeTrainers.map(trainer => {
+          const docId = buildScheduleDocId(modalSlotDate);
+          const ref = doc(db, `trainers/${trainer.id}/schedules/${docId}`);
+          return setDoc(ref, slotData, { merge: true });
+        }));
+      } else {
+        const docId = modalSlotId || buildScheduleDocId(modalSlotDate);
+        const scheduleRef = doc(db, `trainers/${modalTrainerId}/schedules/${docId}`);
+        await setDoc(scheduleRef, slotData, { merge: true });
+      }
       
       setShowSlotActionDialog(false);
       reloadSchedule();
     } catch (error) {
       console.error('Error marking slot unavailable:', error);
       alert('Failed to mark slot as unavailable. Please try again.');
+    }
+  };
+
+  // Delete an unavailable slot entirely (restores slot to empty)
+  const handleDeleteUnavailableSlot = async () => {
+    if (!modalSlotId || !modalTrainerId || !orgId) return;
+    
+    try {
+      const { doc, deleteDoc } = await import('firebase/firestore');
+      const scheduleRef = doc(db, `trainers/${modalTrainerId}/schedules/${modalSlotId}`);
+      await deleteDoc(scheduleRef);
+      setShowSlotActionDialog(false);
+      reloadSchedule();
+    } catch (error) {
+      console.error('Error deleting unavailable slot:', error);
+      alert('Failed to delete slot. Please try again.');
     }
   };
 
@@ -1041,12 +1073,34 @@ export default function SchedulingPage() {
                       : format(allTrainersDate!, 'EEEE, MMMM d, yyyy')
                     }
                   </h1>
-                  <p className="text-sm text-foreground/80 mt-1">
-                    {viewMode === 'individual' 
-                      ? `${scheduleItems.length} appointments`
-                      : `${Array.from(allTrainersSchedule.values()).reduce((sum, items) => sum + items.length, 0)} appointments`
-                    }
-                  </p>
+                  <div className="flex items-center gap-3 mt-1">
+                    {viewMode === 'individual' ? (() => {
+                      const bookings = scheduleItems.filter(i => i.type === 'lesson').length;
+                      const opens = scheduleItems.filter(i => i.type === 'shift' && i.status === 'open').length;
+                      const classes = scheduleItems.filter(i => i.type === 'class').length;
+                      return (
+                        <>
+                          {bookings > 0 && <span className="text-xs font-medium px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">{bookings} {bookings === 1 ? 'booking' : 'bookings'}</span>}
+                          {opens > 0 && <span className="text-xs font-medium px-2 py-0.5 bg-green-100 text-green-700 rounded-full">{opens} open</span>}
+                          {classes > 0 && <span className="text-xs font-medium px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">{classes} {classes === 1 ? 'class' : 'classes'}</span>}
+                          {bookings === 0 && opens === 0 && classes === 0 && <span className="text-xs text-foreground/60">No slots this week</span>}
+                        </>
+                      );
+                    })() : (() => {
+                      const allItems = Array.from(allTrainersSchedule.values()).flat();
+                      const bookings = allItems.filter(i => i.type === 'lesson').length;
+                      const opens = allItems.filter(i => i.type === 'shift' && i.status === 'open').length;
+                      const classes = allItems.filter(i => i.type === 'class').length;
+                      return (
+                        <>
+                          {bookings > 0 && <span className="text-xs font-medium px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">{bookings} {bookings === 1 ? 'booking' : 'bookings'}</span>}
+                          {opens > 0 && <span className="text-xs font-medium px-2 py-0.5 bg-green-100 text-green-700 rounded-full">{opens} open</span>}
+                          {classes > 0 && <span className="text-xs font-medium px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">{classes} {classes === 1 ? 'class' : 'classes'}</span>}
+                          {bookings === 0 && opens === 0 && classes === 0 && <span className="text-xs text-foreground/60">No slots today</span>}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <button
                   onClick={viewMode === 'individual' ? goToNextWeek : goToNextAllTrainersDay}
@@ -1107,9 +1161,6 @@ export default function SchedulingPage() {
               /* Week View (Individual Trainer) */
               <div 
                 className="min-w-[900px]"
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
               >
                 {/* Week Days Header */}
                 <div className="grid grid-cols-8 border-b border-gray-200 bg-white sticky top-0" style={{ zIndex: 10 }}>
@@ -1188,7 +1239,7 @@ export default function SchedulingPage() {
                                     key={item.id}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (item.type === 'shift' && item.status === 'open') {
+                                      if (item.type === 'shift') {
                                         handleAvailableShiftClick(item);
                                       } else {
                                         setSelectedItem(item);
@@ -1200,7 +1251,8 @@ export default function SchedulingPage() {
                                       item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                       item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
                                       item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
-                                      item.type === 'shift' && item.status === 'unavailable' && 'bg-gray-100 border border-gray-300 hover:bg-gray-200'
+                                      item.type === 'shift' && item.status === 'unavailable' && !item.isOrgWide && item.createdByRole !== 'admin' && 'bg-gray-100 border border-gray-300 hover:bg-gray-200',
+                                      item.type === 'shift' && item.status === 'unavailable' && (item.isOrgWide || item.createdByRole === 'admin') && 'bg-gray-400 border border-gray-500 hover:bg-gray-500'
                                     )}
                                     style={{
                                       top: `${yOffset}px`,
@@ -1241,9 +1293,6 @@ export default function SchedulingPage() {
               /* All Trainers Day View */
               <div 
                 style={{ minWidth: `${200 + trainers.length * 240}px` }}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
               >
                 {/* Trainers Header */}
                 <div className="flex border-b border-gray-200 bg-white sticky top-0" style={{ zIndex: 10 }}>
@@ -1330,7 +1379,8 @@ export default function SchedulingPage() {
                                         item.type === 'lesson' && !isCompleted && 'bg-blue-100 border border-blue-300 hover:bg-blue-200',
                                         item.type === 'lesson' && isCompleted && 'bg-purple-100 border border-purple-300 hover:bg-purple-200',
                                         item.type === 'shift' && item.status === 'open' && 'bg-green-100 border border-green-300 hover:bg-green-200',
-                                        item.type === 'shift' && item.status === 'unavailable' && 'bg-red-100 border border-red-300 hover:bg-red-200'
+                                        item.type === 'shift' && item.status === 'unavailable' && !item.isOrgWide && item.createdByRole !== 'admin' && 'bg-gray-100 border border-gray-300 hover:bg-gray-200',
+                                        item.type === 'shift' && item.status === 'unavailable' && (item.isOrgWide || item.createdByRole === 'admin') && 'bg-gray-400 border border-gray-500 hover:bg-gray-500'
                                       )}
                                       style={{
                                         top: `${yOffset}px`,
@@ -1827,7 +1877,23 @@ export default function SchedulingPage() {
                 </button>
               )}
 
+              {modalSlotStatus === 'open' && (userData?.role === 'admin' || userData?.role === 'owner') && (
+                <label className="flex items-center gap-3 px-2 py-1 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={applyToAllTrainers}
+                    onChange={e => setApplyToAllTrainers(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-400 accent-gray-700"
+                  />
+                  <span className="text-sm text-gray-700">Apply to all trainers</span>
+                  {applyToAllTrainers && (
+                    <span className="text-xs text-gray-500 italic">(org-wide, dark gray)</span>
+                  )}
+                </label>
+              )}
+
               {(modalSlotStatus === 'unavailable' || modalSlotStatus === 'booked') && (
+                !(modalIsOrgWide && userData?.role !== 'admin' && userData?.role !== 'owner') &&
                 <button
                   onClick={handleMarkOpen}
                   className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
@@ -1839,9 +1905,26 @@ export default function SchedulingPage() {
                   {modalSlotStatus === 'booked' ? 'Reset to Open (Fix Stuck Slot)' : 'Mark as Open'}
                 </button>
               )}
+
+              {modalSlotStatus === 'unavailable' && (
+                !(modalIsOrgWide && userData?.role !== 'admin' && userData?.role !== 'owner') &&
+                <button
+                  onClick={handleDeleteUnavailableSlot}
+                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/>
+                    <path d="M14 11v6"/>
+                    <path d="M9 6V4h6v2"/>
+                  </svg>
+                  Delete Unavailability
+                </button>
+              )}
               
               <button
-                onClick={() => setShowSlotActionDialog(false)}
+                onClick={() => { setShowSlotActionDialog(false); setApplyToAllTrainers(false); }}
                 className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
               >
                 Cancel
@@ -1876,6 +1959,9 @@ export default function SchedulingPage() {
           trainerName={modalTrainerName}
           orgId={orgId || undefined}
           onSuccess={reloadSchedule}
+          isAdmin={userData?.role === 'admin' || userData?.role === 'owner'}
+          allTrainers={trainers}
+          currentUserId={user?.uid || ''}
         />
       )}
     </SchedulingSubmenu>

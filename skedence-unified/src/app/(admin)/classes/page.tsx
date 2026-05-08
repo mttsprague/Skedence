@@ -193,7 +193,7 @@ export default function ClassesPage() {
   }, [orgId]);
 
   // Check for overlapping sessions
-  const checkForOverlaps = async (trainerId: string, dates: string[], startTime: string, endTime: string): Promise<Array<{ name: string; type: string; time: string }>> => {
+  const checkForOverlaps = async (trainerId: string, dates: string[], startTime: string, endTime: string, locationName: string): Promise<Array<{ name: string; type: string; time: string }>> => {
     const conflicts: Array<{ name: string; type: string; time: string }> = [];
     
     for (const dateStr of dates) {
@@ -210,6 +210,8 @@ export default function ClassesPage() {
       
       for (const classDoc of classesSnapshot.docs) {
         const classData = classDoc.data();
+        // Skip if different location
+        if (locationName && classData.location && classData.location !== locationName) continue;
         const classStart = classData.startTime.toDate();
         const classEnd = classData.endTime.toDate();
         
@@ -235,6 +237,8 @@ export default function ClassesPage() {
       
       for (const scheduleDoc of schedulesSnapshot.docs) {
         const scheduleData = scheduleDoc.data();
+        // Skip if different location
+        if (locationName && scheduleData.location && scheduleData.location !== locationName) continue;
         const scheduleStart = scheduleData.startTime.toDate();
         const scheduleEnd = scheduleData.endTime.toDate();
         
@@ -273,7 +277,8 @@ export default function ClassesPage() {
 
     // Check for overlaps before creating
     const allDates = [form.date, ...additionalDates].filter(Boolean);
-    const conflicts = await checkForOverlaps(form.trainerId, allDates, form.startTime, form.endTime);
+    const selectedLocation = locations.find(l => l.id === form.locationId);
+    const conflicts = await checkForOverlaps(form.trainerId, allDates, form.startTime, form.endTime, selectedLocation?.name ?? '');
     
     if (conflicts.length > 0 && !pendingClassData) {
       // Show confirmation dialog
@@ -350,8 +355,8 @@ export default function ClassesPage() {
             totalSeriesClasses: allDates.length,
           };
           
-          // If this is the first date and we're editing the original class, update it
-          if (i === 0 && format(editingClass.startTime.toDate(), 'yyyy-MM-dd') === dateStr) {
+          // The first date always updates the existing class (even if the date changed)
+          if (i === 0) {
             await updateDoc(doc(db, 'classes', editingClass.id), {
               ...classData,
               currentParticipants: editingClass.currentParticipants, // Preserve current count

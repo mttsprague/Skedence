@@ -330,6 +330,12 @@ export function BookLessonModal({
 }
 
 // Create Availability Modal - for empty time slots
+interface TrainerRef {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
 interface CreateAvailabilityModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -339,6 +345,9 @@ interface CreateAvailabilityModalProps {
   trainerName?: string;
   orgId?: string;
   onSuccess: () => void;
+  isAdmin?: boolean;
+  allTrainers?: TrainerRef[];
+  currentUserId?: string;
 }
 
 export function CreateAvailabilityModal({
@@ -350,6 +359,9 @@ export function CreateAvailabilityModal({
   trainerName,
   orgId,
   onSuccess,
+  isAdmin = false,
+  allTrainers = [],
+  currentUserId,
 }: CreateAvailabilityModalProps) {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -365,6 +377,7 @@ export function CreateAvailabilityModal({
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [showOverlapDialog, setShowOverlapDialog] = useState(false);
   const [overlapConflicts, setOverlapConflicts] = useState<Array<{ name: string; type: string; time: string }>>([])
+  const [applyToAll, setApplyToAll] = useState(false);
 
   useEffect(() => {
     if (isOpen && orgId) {
@@ -378,6 +391,8 @@ export function CreateAvailabilityModal({
       setRecurringEndDate(format(defaultEndDate, 'yyyy-MM-dd'));
       // Pre-select the day of week for the clicked slot
       setSelectedWeekdays([slotDate.getDay()]);
+      // Reset applyToAll
+      setApplyToAll(false);
       // Load locations
       loadLocations();
     }
@@ -439,6 +454,9 @@ export function CreateAvailabilityModal({
         // Skip cancelled or deleted classes (soft-deleted by iOS app or other paths)
         if (classData.status === 'cancelled' || classData.status === 'deleted') continue;
         
+        // Skip if different location
+        if (location && classData.location && classData.location !== location) continue;
+        
         const classStart = classData.startTime.toDate();
         const classEnd = classData.endTime.toDate();
         
@@ -468,6 +486,9 @@ export function CreateAvailabilityModal({
         // Only flag booked lessons as real conflicts — open/unavailable slots can be overwritten
         if (scheduleData.status !== 'booked') continue;
         
+        // Skip if different location
+        if (location && scheduleData.location && scheduleData.location !== location) continue;
+        
         const scheduleStart = scheduleData.startTime.toDate();
         const scheduleEnd = scheduleData.endTime.toDate();
         
@@ -495,6 +516,61 @@ export function CreateAvailabilityModal({
     }
     
     return conflicts;
+  };
+
+  // Build deterministic schedule doc ID: "YYYY-MM-DDTHH"
+  const buildDocId = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    return `${y}-${m}-${d}T${h}`;
+  };
+
+  // Write unavailability slots directly (bypasses Cloud Function; no slot limits for unavailability)
+  const writeUnavailabilityDirectly = async (targetTrainerId: string, isOrgWide: boolean) => {
+    const { doc, setDoc } = await import('firebase/firestore');
+    const { getFirestore } = await import('firebase/firestore');
+    const firestoreDb = getFirestore();
+
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+
+    const datesToWrite: string[] = [];
+    if (isRecurring && recurringStartDate && recurringEndDate) {
+      const start = new Date(recurringStartDate + 'T12:00:00');
+      const end = new Date(recurringEndDate + 'T12:00:00');
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        if (selectedWeekdays.length === 0 || selectedWeekdays.includes(d.getDay())) {
+          datesToWrite.push(format(d, 'yyyy-MM-dd'));
+        }
+      }
+    } else {
+      datesToWrite.push(format(slotDate, 'yyyy-MM-dd'));
+    }
+
+    for (const dateStr of datesToWrite) {
+      let currentHour = startHour;
+      while (currentHour < endHour) {
+        const slotStart = new Date(`${dateStr}T${String(currentHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}:00`);
+        const nextHour = currentHour + 1;
+        const slotEnd = new Date(`${dateStr}T${String(Math.min(nextHour, endHour)).padStart(2, '0')}:${String(nextHour >= endHour ? endMin : 0).padStart(2, '0')}:00`);
+        const docId = buildDocId(slotStart);
+        const ref = doc(firestoreDb, `trainers/${targetTrainerId}/schedules/${docId}`);
+        await setDoc(ref, {
+          startTime: slotStart,
+          endTime: slotEnd,
+          status: 'unavailable',
+          isBooked: false,
+          orgId,
+          location: location || undefined,
+          createdByRole: 'admin',
+          createdById: currentUserId || '',
+          isOrgWide,
+        }, { merge: true });
+        currentHour += 1;
+      }
+    }
   };
 
   const handleCreate = async (skipOverlapCheck = false) => {
@@ -547,6 +623,26 @@ export function CreateAvailabilityModal({
     try {
       const [startHour, startMin] = startTime.split(':').map(Number);
       const [endHour, endMin] = endTime.split(':').map(Number);
+
+      // For unavailability with applyToAll, write directly to Firestore for each trainer
+      if (status === 'unavailable' && applyToAll && allTrainers.length > 0) {
+        for (const trainer of allTrainers) {
+          await writeUnavailabilityDirectly(trainer.id, true);
+        }
+        onSuccess();
+        onClose();
+        setLoading(false);
+        return;
+      }
+
+      // For single-trainer unavailability, also write directly to stamp creator fields
+      if (status === 'unavailable') {
+        await writeUnavailabilityDirectly(trainerId, false);
+        onSuccess();
+        onClose();
+        setLoading(false);
+        return;
+      }
       
       const startDateTime = new Date(slotDate);
       startDateTime.setHours(startHour, startMin, 0, 0);
@@ -758,6 +854,21 @@ export function CreateAvailabilityModal({
               </button>
             </div>
           </div>
+
+          {status === 'unavailable' && isAdmin && allTrainers.length > 1 && (
+            <label className="flex items-center gap-3 cursor-pointer select-none bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+              <input
+                type="checkbox"
+                checked={applyToAll}
+                onChange={e => setApplyToAll(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-400 accent-gray-700 flex-shrink-0"
+              />
+              <div>
+                <div className="text-sm font-medium text-gray-800">Apply to all trainers</div>
+                <div className="text-xs text-gray-500 mt-0.5">Blocks this time for all {allTrainers.length} trainers (shown in dark gray)</div>
+              </div>
+            </label>
+          )}
 
           <div>
             <label className="flex items-center gap-2 cursor-pointer">

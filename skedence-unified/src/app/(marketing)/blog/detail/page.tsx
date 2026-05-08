@@ -404,7 +404,7 @@ function BlogPostContent() {
               {relatedPosts.map((relatedPost) => (
                 <Link 
                   key={relatedPost.id} 
-                  href={`/blog/detail?slug=${relatedPost.slug}`}
+                  href={`/blog/${relatedPost.slug}`}
                   className="group premium-card p-6 hover:border-primary/50 transition-all duration-300"
                 >
                   {relatedPost.featuredImage && (

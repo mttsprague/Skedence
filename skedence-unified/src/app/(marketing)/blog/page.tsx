@@ -140,8 +140,9 @@ export default function BlogPage() {
 
   const goToPage = (page: number) => {
     setCurrentPage(page);
-    // Scroll to top of posts grid
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
@@ -337,7 +338,7 @@ export default function BlogPage() {
                 {currentPosts.map((post) => (
                   <a
                     key={post.id} 
-                    href={`/blog/detail#${post.slug}`}
+                    href={`/blog/${post.slug}`}
                     className="group premium-card p-6 hover:border-primary/50 transition-all duration-300 flex flex-col cursor-pointer"
                   >
                     {/* Category & Sport Badges */}

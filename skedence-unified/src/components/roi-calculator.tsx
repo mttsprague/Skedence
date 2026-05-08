@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { Calculator, Clock, DollarSign, TrendingUp } from 'lucide-react';
 
 export default function ROICalculator() {
-  const [currentSpending, setCurrentSpending] = useState(0);
+  const [currentSpending, setCurrentSpending] = useState(50);
   const [hoursPerWeek, setHoursPerWeek] = useState(5);
-  const [hourlyRate, setHourlyRate] = useState(50);
-  const [missedBookings, setMissedBookings] = useState(2);
+  const [hourlyRate, setHourlyRate] = useState(75);
+  const [missedBookings, setMissedBookings] = useState(3);
 
   // Calculations
   const monthlyToolCost = currentSpending;
