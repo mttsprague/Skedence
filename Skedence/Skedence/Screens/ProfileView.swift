@@ -669,51 +669,43 @@ private struct SignedInProfileScreen: View {
             ))
         }
         
-        // Dynamic class categories - only show if purchased and active
+        // Class passes - always show this category (same as 1-4 athlete folders)
         let allPurchases = packagesService.packages
         let classPurchases = allPurchases.filter { pkg in
-            // Only include packages that can book classes
             let canBookClass = pkg.canBookClasses
-            // Only include active packages (not expired and has remaining lessons)
             let isActive = pkg.expirationDate >= Date() && pkg.lessonsRemaining > 0
             return canBookClass && isActive
         }
         
-        if !classPurchases.isEmpty {
-            // Group ALL class purchases into a single "Class Passes" category
-            let purchases = classPurchases.map { pkg in
-                PurchaseDetail(
-                    id: pkg.id ?? UUID().uuidString,
-                    packageName: pkg.packageName ?? "Unknown Package",
-                    totalLessons: pkg.totalLessons,
-                    remainingLessons: max(0, pkg.lessonsRemaining),
-                    purchaseDate: pkg.purchaseDate,
-                    expirationDate: pkg.expirationDate,
-                    isExpired: pkg.expirationDate < Date(),
-                    tierName: pkg.pricingTierName,
-                    pricingTierId: pkg.pricingTierId,
-                    pricePerLesson: pkg.pricePerLesson
-                )
-            }.sorted { $0.purchaseDate > $1.purchaseDate }
-            
-            let activePurchases = purchases.filter { !$0.isExpired }
-            let totalRemaining = activePurchases.reduce(0) { $0 + $1.remainingLessons }
-            let nextExp = activePurchases.compactMap { $0.expirationDate }.min()
-            
-            // Only show class category if there are active passes remaining
-            if totalRemaining > 0 {
-                categories.append(PassCategory(
-                    id: "classPass",
-                    displayName: "Class Passes",
-                    isFixed: false,
-                    totalRemaining: totalRemaining,
-                    nextExpiration: nextExp,
-                    purchases: purchases,
-                    icon: "calendar.badge.clock",
-                    category: .classPass
-                ))
-            }
-        }
+        let classPurchaseDetails = classPurchases.map { pkg in
+            PurchaseDetail(
+                id: pkg.id ?? UUID().uuidString,
+                packageName: pkg.packageName ?? "Unknown Package",
+                totalLessons: pkg.totalLessons,
+                remainingLessons: max(0, pkg.lessonsRemaining),
+                purchaseDate: pkg.purchaseDate,
+                expirationDate: pkg.expirationDate,
+                isExpired: pkg.expirationDate < Date(),
+                tierName: pkg.pricingTierName,
+                pricingTierId: pkg.pricingTierId,
+                pricePerLesson: pkg.pricePerLesson
+            )
+        }.sorted { $0.purchaseDate > $1.purchaseDate }
+        
+        let activeClassPurchases = classPurchaseDetails.filter { !$0.isExpired }
+        let classTotalRemaining = activeClassPurchases.reduce(0) { $0 + $1.remainingLessons }
+        let classNextExp = activeClassPurchases.compactMap { $0.expirationDate }.min()
+        
+        categories.append(PassCategory(
+            id: "classPass",
+            displayName: "Class Passes",
+            isFixed: false,
+            totalRemaining: classTotalRemaining,
+            nextExpiration: classNextExp,
+            purchases: classPurchaseDetails,
+            icon: "calendar.badge.clock",
+            category: .classPass
+        ))
         
         return categories
     }
