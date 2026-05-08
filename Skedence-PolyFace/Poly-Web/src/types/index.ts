@@ -1,5 +1,32 @@
 // Firestore data types mirroring the iOS Skedence client app
 
+// ─── Blog ─────────────────────────────────────────────────────────────────────
+
+export interface BlogPost {
+  id?: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string;
+  categories: string[];
+  tags?: string[];
+  sport?: string;
+  featuredImage?: string;
+  featuredImageAlt?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  status: 'draft' | 'published';
+  authorId?: string;
+  authorName?: string;
+  views?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+  publishedAt?: Date;
+}
+
 // ─── Athlete & User Profile ───────────────────────────────────────────────────
 
 /** Mirrors iOS AthleteInfo struct — stored in users/{userId}.athletes[] array */
@@ -304,3 +331,4 @@ export function formatCurrency(cents: number): string {
     currency: 'USD',
   }).format(cents / 100);
 }
+

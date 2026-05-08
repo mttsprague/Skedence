@@ -275,6 +275,82 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Partners Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-5xl mx-auto px-6 text-center">
+          <p className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-3">Powered By</p>
+          <h2 className="text-3xl font-black text-pva-navy mb-12">Our Trusted Partners</h2>
+          <div className="flex flex-col sm:flex-row gap-8 justify-center items-stretch">
+            {/* VolleyIQ */}
+            <a
+              href="https://appvolleyiq.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 max-w-sm mx-auto bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow p-8 flex flex-col items-center gap-4 group"
+            >
+              <img
+                src="https://appvolleyiq.com/AppIcon.png"
+                alt="VolleyIQ"
+                className="w-20 h-20 rounded-2xl object-contain group-hover:scale-105 transition-transform"
+              />
+              <div>
+                <div className="text-xl font-black text-pva-navy mb-1">VolleyIQ</div>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Expert video coaching — submit your clips and get timestamped feedback from certified coaches.
+                </p>
+              </div>
+              <span className="mt-auto text-pva-orange font-semibold text-sm group-hover:underline">
+                Learn More →
+              </span>
+            </a>
+            {/* All Volleyball */}
+            <a
+              href="https://www.allvolleyball.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 max-w-sm mx-auto bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow p-8 flex flex-col items-center gap-4 group"
+            >
+              <img
+                src="/av-logo.png"
+                alt="All Volleyball"
+                className="w-24 h-20 object-contain group-hover:scale-105 transition-transform"
+              />
+              <div>
+                <div className="text-xl font-black text-pva-navy mb-1">All Volleyball</div>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  The nation&apos;s most trusted volleyball gear supplier since 1995 — shoes, jerseys, equipment and more.
+                </p>
+              </div>
+              <span className="mt-auto text-pva-orange font-semibold text-sm group-hover:underline">
+                Shop Now →
+              </span>
+            </a>
+            {/* Skedence */}
+            <a
+              href="https://skedence.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 max-w-sm mx-auto bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow p-8 flex flex-col items-center gap-4 group"
+            >
+              <img
+                src="/skedence-icon.png"
+                alt="Skedence"
+                className="w-20 h-20 rounded-2xl object-contain group-hover:scale-105 transition-transform"
+              />
+              <div>
+                <div className="text-xl font-black text-pva-navy mb-1">Skedence</div>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  The platform powering our scheduling, lesson packages, and client booking — available for sports organizations everywhere.
+                </p>
+              </div>
+              <span className="mt-auto text-pva-orange font-semibold text-sm group-hover:underline">
+                Learn More →
+              </span>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Contact Section */}
       <section id="contact" className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6">

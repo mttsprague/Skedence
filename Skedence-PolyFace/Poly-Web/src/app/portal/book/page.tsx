@@ -501,7 +501,11 @@ function MonthCalendar({
 
 export default function BookPage() {
   const { user, userDocId, profile } = useAuth();
-  const [mode, setMode] = useState<Mode>('privates');
+  const searchParams = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search)
+    : null;
+  const initialMode: Mode = searchParams?.get('tab') === 'classes' ? 'classes' : 'privates';
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [step, setStep] = useState<PrivateStep>('trainer');
 
   const [trainers, setTrainers] = useState<Trainer[]>([]);

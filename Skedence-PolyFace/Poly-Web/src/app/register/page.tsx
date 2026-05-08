@@ -91,6 +91,7 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [humanChecked, setHumanChecked] = useState(false);
 
   const requirements = {
     length: password.length >= 8,
@@ -104,7 +105,8 @@ export default function RegisterPage() {
   const formValid =
     email && passwordValid && passwordsMatch &&
     firstName && lastName && phone &&
-    athleteFirst && athleteLast && isValidBirthday(athleteBirthday);
+    athleteFirst && athleteLast && isValidBirthday(athleteBirthday) &&
+    humanChecked;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -224,10 +226,25 @@ export default function RegisterPage() {
             )}
           </Field>
 
+          {/* ── Human Verification ── */}
+          <div
+            onClick={() => setHumanChecked(!humanChecked)}
+            className={`flex items-center gap-3 border-2 rounded-xl px-4 py-3.5 cursor-pointer select-none transition mt-2 ${
+              humanChecked ? 'border-pva-teal bg-pva-teal/5' : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition ${
+              humanChecked ? 'border-pva-teal bg-pva-teal' : 'border-gray-300'
+            }`}>
+              {humanChecked && <Check size={14} className="text-white" strokeWidth={3} />}
+            </div>
+            <span className="text-sm font-medium text-gray-700">I am not a robot</span>
+            <span className="ml-auto text-2xl">🛡️</span>
+          </div>
+
           <button
             type="submit"
             disabled={!formValid || loading}
-            className="w-full bg-pva-navy hover:bg-pva-teal disabled:opacity-50 text-white py-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 mt-2"
           >
             {loading
               ? <Spinner size="sm" className="border-white/30 border-t-white" />

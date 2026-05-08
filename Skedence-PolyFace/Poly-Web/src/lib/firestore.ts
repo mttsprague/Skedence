@@ -12,11 +12,14 @@ import {
   setDoc,
   updateDoc,
   addDoc,
+  deleteDoc,
   doc,
   Timestamp,
+  onSnapshot,
+  limit,
 } from 'firebase/firestore';
 import { db, ORG_ID } from './firebase';
-import type { Trainer, TrainerScheduleSlot, LessonPackage, Booking, GroupClass, UserProfile, UserDocument, AthleteInfo } from '@/types';
+import type { Trainer, TrainerScheduleSlot, LessonPackage, Booking, GroupClass, UserProfile, UserDocument, AthleteInfo, BlogPost } from '@/types';
 import { toDate, computeRemaining } from './utils';
 import { athleteDisplayName } from '@/types';
 
@@ -292,6 +295,39 @@ export async function fetchOrgStripeInfo(): Promise<{ publishableKey: string; co
     publishableKey: stripe.publishableKey as string,
     connectAccountId: (stripe.connectAccountId ?? null) as string | null,
   };
+}
+
+/**
+ * Real-time subscription to upcoming open group classes for the org.
+ * Calls `callback` immediately and on every change.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToGroupClasses(
+  callback: (classes: GroupClass[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const q = query(collection(db, 'classes'), where('orgId', '==', ORG_ID));
+  return onSnapshot(q, (snap) => {
+    const now = new Date();
+    const classes = snap.docs
+      .map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ...data,
+          title: (data.title ?? data.className ?? 'Class') as string,
+          startTime: toDate(data.startTime),
+          endTime: toDate(data.endTime),
+          eligiblePackageIds: (data.eligiblePackageIds as string[]) ?? [],
+        } as GroupClass;
+      })
+      .filter((c) => c.isOpenForRegistration !== false && c.startTime >= now)
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    callback(classes);
+  }, (err) => {
+    console.error('[subscribeToGroupClasses] Firestore error:', err);
+    onError?.(err);
+  });
 }
 
 /**
@@ -579,4 +615,169 @@ export async function fetchUserDocuments(userDocId: string): Promise<UserDocumen
       athleteName: data.athleteName as string | undefined,
     } as UserDocument;
   });
+}
+
+// ─── Guest Waiver ─────────────────────────────────────────────────────────────
+
+export interface GuestWaiverData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  athleteName?: string;
+}
+
+/**
+ * Look up a user's name-based document ID by their email address within this org.
+ * Returns null if no matching user is found.
+ */
+export async function findUserDocIdByEmail(email: string): Promise<string | null> {
+  const normalised = email.trim().toLowerCase();
+  // users store email in either 'email' or 'emailAddress' field
+  for (const field of ['email', 'emailAddress']) {
+    const snap = await getDocs(
+      query(
+        collection(db, 'users'),
+        where('orgId', '==', ORG_ID),
+        where(field, '==', normalised),
+        limit(1)
+      )
+    );
+    if (!snap.empty) return snap.docs[0].id;
+  }
+  return null;
+}
+
+/**
+ * Save a guest (unauthenticated) waiver.
+ * Uses iOS-matching field names so the record looks identical to a
+ * users/{userId}/documents waiver — admin can see it the same way.
+ * If the guest has a Skedence account the sign-waiver page calls
+ * saveWaiver() instead (which also generates the PDF).
+ */
+export async function saveGuestWaiver(data: GuestWaiverData): Promise<void> {
+  const seconds = Math.floor(Date.now() / 1000);
+  const sanitizedAthlete = (data.athleteName ?? '')
+    .split(/\s+/).join('_').replace(/[^a-zA-Z0-9]/g, '');
+  const filename = sanitizedAthlete
+    ? `${sanitizedAthlete}_waiver_${seconds}.pdf`
+    : `waiver_${seconds}.pdf`;
+  const displayName = data.athleteName
+    ? `${data.athleteName} Waiver`
+    : 'Release of Liability Waiver';
+
+  await addDoc(collection(db, 'waivers'), {
+    orgId: ORG_ID,
+    // iOS-matching field names
+    name: filename,
+    displayName,
+    type: 'waiver',
+    uploadedAt: Timestamp.now(),
+    signedBy: `${data.firstName} ${data.lastName}`.trim(),
+    signatoryEmail: data.email.trim().toLowerCase(),
+    isMinor: !!data.athleteName,
+    athleteName: data.athleteName ?? null,
+    originalFilename: filename,
+    // extra guest context
+    phoneNumber: data.phoneNumber,
+    url: '',          // no PDF for guest path
+    source: 'web_marketing',
+  });
+}
+
+// ─── Blog ─────────────────────────────────────────────────────────────────────
+
+function decodeBlogPost(id: string, data: Record<string, unknown>): BlogPost {
+  return {
+    id,
+    title: (data.title as string) ?? '',
+    slug: (data.slug as string) ?? '',
+    excerpt: (data.excerpt as string) ?? '',
+    content: (data.content as string) ?? '',
+    metaTitle: data.metaTitle as string | undefined,
+    metaDescription: data.metaDescription as string | undefined,
+    keywords: data.keywords as string | undefined,
+    categories: (data.categories as string[]) ?? [],
+    tags: data.tags as string[] | undefined,
+    sport: data.sport as string | undefined,
+    featuredImage: data.featuredImage as string | undefined,
+    featuredImageAlt: data.featuredImageAlt as string | undefined,
+    ctaText: data.ctaText as string | undefined,
+    ctaLink: data.ctaLink as string | undefined,
+    status: (data.status as BlogPost['status']) ?? 'draft',
+    authorId: data.authorId as string | undefined,
+    authorName: data.authorName as string | undefined,
+    views: data.views as number | undefined,
+    createdAt: data.createdAt ? toDate(data.createdAt as Parameters<typeof toDate>[0]) : undefined,
+    updatedAt: data.updatedAt ? toDate(data.updatedAt as Parameters<typeof toDate>[0]) : undefined,
+    publishedAt: data.publishedAt ? toDate(data.publishedAt as Parameters<typeof toDate>[0]) : undefined,
+  };
+}
+
+/** Fetch all published blog posts, ordered newest first. */
+export async function fetchPublishedBlogPosts(): Promise<BlogPost[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, 'organizations', ORG_ID, 'blogPosts'),
+      where('status', '==', 'published'),
+      orderBy('publishedAt', 'desc'),
+      limit(50)
+    )
+  );
+  return snap.docs.map(d => decodeBlogPost(d.id, d.data() as Record<string, unknown>));
+}
+
+/** Fetch all blog posts (published + draft) — for admin use. */
+export async function fetchAllBlogPosts(): Promise<BlogPost[]> {
+  const snap = await getDocs(
+    query(collection(db, 'organizations', ORG_ID, 'blogPosts'), orderBy('createdAt', 'desc'))
+  );
+  return snap.docs.map(d => decodeBlogPost(d.id, d.data() as Record<string, unknown>));
+}
+
+/** Fetch a single blog post by its URL slug. */
+export async function fetchBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  const snap = await getDocs(
+    query(collection(db, 'organizations', ORG_ID, 'blogPosts'), where('slug', '==', slug), limit(1))
+  );
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return decodeBlogPost(d.id, d.data() as Record<string, unknown>);
+}
+
+/** Create a new blog post. Returns the new document ID. */
+export async function createBlogPost(post: Omit<BlogPost, 'id'>): Promise<string> {
+  const ref = await addDoc(collection(db, 'organizations', ORG_ID, 'blogPosts'), {
+    ...post,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+    views: 0,
+    ...(post.status === 'published' ? { publishedAt: Timestamp.now() } : {}),
+  });
+  return ref.id;
+}
+
+/** Update an existing blog post by document ID. */
+export async function updateBlogPost(id: string, fields: Partial<BlogPost>): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id: _id, ...rest } = fields;
+  await updateDoc(doc(db, 'organizations', ORG_ID, 'blogPosts', id), {
+    ...rest,
+    updatedAt: Timestamp.now(),
+    ...(fields.status === 'published' && !fields.publishedAt ? { publishedAt: Timestamp.now() } : {}),
+  });
+}
+
+/** Delete a blog post by document ID. */
+export async function deleteBlogPost(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'organizations', ORG_ID, 'blogPosts', id));
+}
+
+/** Increment the view counter for a blog post. */
+export async function incrementBlogViews(id: string): Promise<void> {
+  const ref = doc(db, 'organizations', ORG_ID, 'blogPosts', id);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const current = (snap.data().views as number) ?? 0;
+  await updateDoc(ref, { views: current + 1 });
 }

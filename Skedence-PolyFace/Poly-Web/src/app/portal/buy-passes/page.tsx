@@ -97,9 +97,9 @@ function PackageCard({ pkg, selected, onSelect }: {
 
 // ─── Payment Form ─────────────────────────────────────────────────────────────
 
-function PaymentForm({ selectedPackage, userDocId, onSuccess, onCancel }: {
+function PaymentForm({ selectedPackage, authUid, onSuccess, onCancel }: {
   selectedPackage: PackageOption;
-  userDocId: string;
+  authUid: string;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
@@ -119,17 +119,23 @@ function PaymentForm({ selectedPackage, userDocId, onSuccess, onCancel }: {
     try {
       const createIntent = httpsCallable<
         { amount: number; packageType: string; orgId: string; userId: string },
-        { clientSecret: string }
-      >(functions, 'createPaymentIntentConnect');
+        { clientSecret: string; paymentIntentId: string }
+      >(functions, 'createPaymentIntentDirect');
       const { data } = await createIntent({
         amount: selectedPackage.priceInCents,
         packageType: selectedPackage.packageType,
         orgId: process.env.NEXT_PUBLIC_ORG_ID!,
-        userId: userDocId,
+        userId: authUid,
       });
-      const { error } = await stripe.confirmCardPayment(data.clientSecret, { payment_method: { card } });
-      if (error) setCardError(error.message ?? 'Payment failed. Please try again.');
-      else onSuccess();
+      const { error: cardError } = await stripe.confirmCardPayment(data.clientSecret, { payment_method: { card } });
+      if (cardError) {
+        setCardError(cardError.message ?? 'Payment failed. Please try again.');
+        return;
+      }
+      // Confirm payment and create the package in Firestore
+      const confirmFn = httpsCallable<{ paymentIntentId: string; userId: string }, { success: boolean }>(functions, 'confirmPaymentAndCreatePackageDirect');
+      await confirmFn({ paymentIntentId: data.paymentIntentId, userId: authUid });
+      onSuccess();
     } catch (err: unknown) {
       setCardError(err instanceof Error ? err.message : 'Payment failed. Please try again.');
     } finally {
@@ -301,7 +307,7 @@ export default function BuyPassesPage() {
           <Elements stripe={stripePromise}>
             <PaymentForm
               selectedPackage={selectedPackage}
-              userDocId={userDocId}
+              authUid={user.uid}
               onSuccess={() => setStep('success')}
               onCancel={() => setStep('select')}
             />

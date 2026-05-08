@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Ticket, AlertCircle } from 'lucide-react';
+import { Ticket, AlertCircle, Plus } from 'lucide-react';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchUserPackages } from '@/lib/firestore';
 import type { LessonPackage } from '@/types';
@@ -32,9 +33,17 @@ export default function PassesPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-black text-pva-navy">My Passes</h1>
-        <p className="text-gray-500 mt-1">Your lesson passes grouped by type.</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-pva-navy">My Passes</h1>
+          <p className="text-gray-500 mt-1">Your lesson passes grouped by type.</p>
+        </div>
+        <Link
+          href="/portal/buy-passes"
+          className="flex items-center gap-2 bg-pva-navy hover:bg-pva-teal text-white px-4 py-2.5 rounded-xl font-bold text-sm transition flex-shrink-0"
+        >
+          <Plus size={16} />Buy a Pass
+        </Link>
       </div>
 
       {error && (
@@ -50,6 +59,14 @@ export default function PassesPage() {
           icon={<Ticket size={40} />}
           title="No Passes Yet"
           description="Purchase lesson passes to start booking sessions."
+          action={
+            <Link
+              href="/portal/buy-passes"
+              className="inline-flex items-center gap-2 bg-pva-navy hover:bg-pva-teal text-white px-6 py-3 rounded-xl font-bold text-sm transition mt-2"
+            >
+              <Plus size={16} />Buy Your First Pass
+            </Link>
+          }
         />
       ) : (
         <PassesView passes={passes} onRefresh={load} />
@@ -57,4 +74,5 @@ export default function PassesPage() {
     </div>
   );
 }
+
 

@@ -136,10 +136,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     athleteBirthday: string
   ) {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
-    // Send verification email via SendGrid Cloud Function
-    const sendVerificationEmail = httpsCallable(functions, 'sendVerificationEmail');
-    await sendVerificationEmail({ email });
     const uid = credential.user.uid;
+    // Send verification email via SendGrid Cloud Function (non-blocking — user can resend if this fails)
+    try {
+      const sendVerificationEmailFn = httpsCallable(functions, 'sendVerificationEmail');
+      await sendVerificationEmailFn({ email });
+    } catch (emailErr) {
+      console.error('Failed to send verification email:', emailErr);
+      // Don't block signup — user can request resend on the verify-email page
+    }
 
     // Generate name-based doc ID matching iOS convention: firstname_lastname
     const docId = generateUserDocId(firstName, lastName);
@@ -200,7 +205,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function resetPassword(email: string) {
-    await sendPasswordResetEmail(auth, email);
+    await sendPasswordResetEmail(auth, email, {
+      url: 'https://www.polyfacevolleyball.com/login',
+      handleCodeInApp: false,
+    });
   }
 
   return (
