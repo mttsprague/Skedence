@@ -290,8 +290,8 @@ struct ClientCardView: View {
                 isLoading: viewModel.isLoadingPackages
             )
             PurchaseHistorySection(
-                transactions: viewModel.transactions,
-                isLoading: viewModel.isLoadingTransactions
+                packages: viewModel.packages,
+                isLoading: viewModel.isLoadingPackages
             )
         }
         .padding(.horizontal, Spacing.lg)
@@ -380,7 +380,6 @@ class ClientCardViewModel: ObservableObject {
     @Published var displayedLesson: ClientBooking?
     @Published var paymentMethodInfo: String? = nil
     @Published var paymentMethods: [PaymentMethodInfo] = []
-    @Published var transactions: [ClientTransaction] = []
     @Published var isAdmin = false
     @Published var userProfile: UserProfile?
     
@@ -390,7 +389,6 @@ class ClientCardViewModel: ObservableObject {
     @Published var isLoadingDocuments = false
     @Published var isLoadingPaymentMethod = false
     @Published var isLoadingProfile = false
-    @Published var isLoadingTransactions = false
     
     // Computed properties to separate lessons from classes
     var upcomingLessons: [ClientBooking] {
@@ -429,19 +427,10 @@ class ClientCardViewModel: ObservableObject {
                 }
             }
         }()
-        async let transactionsTask: () = {
-            if let orgId = orgId {
-                await loadTransactions(clientId: clientId, orgId: orgId)
-            }
-        }()
-        
         await packagesTask
         await bookingsTask
         await documentsTask
         await profileTask
-        await transactionsTask
-        
-        // Load payment methods if admin
         if isAdmin, let orgId = orgId {
             await loadPaymentMethods(clientId: clientId, orgId: orgId)
         }
@@ -477,16 +466,6 @@ class ClientCardViewModel: ObservableObject {
         }
     }
 
-    private func loadTransactions(clientId: String, orgId: String) async {
-        isLoadingTransactions = true
-        defer { isLoadingTransactions = false }
-
-        do {
-            transactions = try await FirestoreService.shared.fetchClientTransactions(clientId: clientId, orgId: orgId)
-        } catch {
-        }
-    }
-    
     private func aggregatePackages() {
         // Group packages by type
         let grouped = Dictionary(grouping: packages) { $0.packageType }

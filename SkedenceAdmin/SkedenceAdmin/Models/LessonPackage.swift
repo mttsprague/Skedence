@@ -18,6 +18,7 @@ struct LessonPackage: Identifiable, Codable, Hashable {
     var purchaseDate: Date
     var expirationDate: Date?
     var transactionId: String?
+    var amountPaid: Int?  // cents
     
     var lessonsRemaining: Int {
         max(0, totalLessons - lessonsUsed)

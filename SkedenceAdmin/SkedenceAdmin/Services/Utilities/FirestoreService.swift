@@ -675,6 +675,7 @@ final class FirestoreService {
             let packageCategory = data["packageCategory"] as? String
             let packageName = data["packageName"] as? String ?? packageTitleByType[packageType]
             let trainerId = data["trainerId"] as? String
+            let amountPaid = data["amountPaid"] as? Int
             
             return LessonPackage(
                 id: doc.documentID,
@@ -686,7 +687,8 @@ final class FirestoreService {
                 lessonsUsed: lessonsUsed,
                 purchaseDate: purchaseDateTs.dateValue(),
                 expirationDate: expirationDate,
-                transactionId: transactionId
+                transactionId: transactionId,
+                amountPaid: amountPaid
             )
         }
         return packages
