@@ -20,6 +20,8 @@ struct DayScheduleView: View {
     @State private var preloadedParticipants: [ClassParticipant]?
     @State private var classParticipantsShown: Bool = false
     @State private var hasScrolledToCurrentTime = false
+    @State private var showDeleteUnavailableAlert = false
+    @State private var pendingDeleteSlot: TrainerScheduleSlot?
 
     var body: some View {
         NavigationView {
@@ -195,6 +197,23 @@ struct DayScheduleView: View {
                 // Pull to refresh
                 await viewModel.loadWeek()
             }
+            .confirmationDialog(
+                "Delete Unavailability",
+                isPresented: $showDeleteUnavailableAlert,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let slot = pendingDeleteSlot {
+                        deleteUnavailableSlot(slot)
+                    }
+                    pendingDeleteSlot = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    pendingDeleteSlot = nil
+                }
+            } message: {
+                Text("This will remove the unavailability block and restore the slot to empty.")
+            }
         }
         .navigationViewStyle(.stack)
     }
@@ -312,8 +331,28 @@ struct DayScheduleView: View {
                 }
             }
         }
+
+        if slot.status == .unavailable {
+            // Org-wide admin unavailability is read-only for non-creator trainers
+            if slot.isOrgWide == true && slot.createdById != auth.userId && !auth.isAdmin {
+                return
+            }
+            pendingDeleteSlot = slot
+            showDeleteUnavailableAlert = true
+        }
     }
-    
+
+    private func deleteUnavailableSlot(_ slot: TrainerScheduleSlot) {
+        Task {
+            do {
+                try await FirestoreService.shared.deleteTrainerSlot(trainerId: slot.trainerId, startTime: slot.startTime)
+                await viewModel.loadWeek()
+            } catch {
+                // Silently ignore — slot may already be gone
+            }
+        }
+    }
+
     private func fetchParticipants(classId: String) async throws -> [ClassParticipant] {
         guard !classId.isEmpty else {
             return []

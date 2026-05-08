@@ -170,6 +170,9 @@ struct ScheduleView: View {
             sessionDetailContext: $sessionDetailContext,
             showMultipleSlotsSheet: $showMultipleSlotsSheet,
             multipleSlotsContext: $multipleSlotsContext,
+            showDeleteUnavailableAlert: $showDeleteUnavailableAlert,
+            pendingDeleteSlot: $pendingDeleteSlot,
+            deleteUnavailableSlot: deleteUnavailableSlot,
             auth: auth,
             viewModel: viewModel,
             dependencies: dependencies
@@ -1004,23 +1007,6 @@ private struct ViewLifecycleModifiers: ViewModifier {
                     Text("This availability overlaps with:\n\n\(conflictText)\n\nBoth sessions will appear side-by-side on the schedule.")
                 }
             }
-            .confirmationDialog(
-                "Delete Unavailability",
-                isPresented: $showDeleteUnavailableAlert,
-                titleVisibility: .visible
-            ) {
-                Button("Delete", role: .destructive) {
-                    if let slot = pendingDeleteSlot {
-                        deleteUnavailableSlot(slot)
-                    }
-                    pendingDeleteSlot = nil
-                }
-                Button("Cancel", role: .cancel) {
-                    pendingDeleteSlot = nil
-                }
-            } message: {
-                Text("This will remove the unavailability block and restore the slot to empty.")
-            }
     }
 }
 
@@ -1037,6 +1023,9 @@ private struct SheetModifiers: ViewModifier {
     @Binding var sessionDetailContext: SessionDetailContext?
     @Binding var showMultipleSlotsSheet: Bool
     @Binding var multipleSlotsContext: (day: Date, slots: [TrainerScheduleSlot])?
+    @Binding var showDeleteUnavailableAlert: Bool
+    @Binding var pendingDeleteSlot: TrainerScheduleSlot?
+    let deleteUnavailableSlot: (TrainerScheduleSlot) -> Void
     
     let auth: AuthManager
     let viewModel: ScheduleViewModel
@@ -1172,6 +1161,23 @@ private struct SheetModifiers: ViewModifier {
                     )
                     .presentationDetents([.medium, .large])
                 }
+            }
+            .confirmationDialog(
+                "Delete Unavailability",
+                isPresented: $showDeleteUnavailableAlert,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let slot = pendingDeleteSlot {
+                        deleteUnavailableSlot(slot)
+                    }
+                    pendingDeleteSlot = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    pendingDeleteSlot = nil
+                }
+            } message: {
+                Text("This will remove the unavailability block and restore the slot to empty.")
             }
     }
     
