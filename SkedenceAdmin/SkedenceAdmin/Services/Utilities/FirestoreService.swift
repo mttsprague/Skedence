@@ -695,6 +695,36 @@ final class FirestoreService {
         #endif
     }
     
+    func fetchClientTransactions(clientId: String, orgId: String) async throws -> [ClientTransaction] {
+        guard !clientId.isEmpty, !orgId.isEmpty else { return [] }
+
+        #if canImport(FirebaseFirestore)
+        let db = Firestore.firestore()
+        let snapshot = try await db.collection("transactions")
+            .whereField("userId", isEqualTo: clientId)
+            .whereField("orgId", isEqualTo: orgId)
+            .order(by: "createdAt", descending: true)
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            let data = doc.data()
+            guard let ts = data["createdAt"] as? Timestamp else { return nil }
+            return ClientTransaction(
+                id: doc.documentID,
+                description: data["description"] as? String,
+                packageName: data["packageName"] as? String,
+                createdAt: ts.dateValue(),
+                amount: data["amount"] as? Int ?? 0,
+                status: data["status"] as? String ?? "unknown",
+                stripePaymentIntentId: data["stripePaymentIntentId"] as? String,
+                paymentIntentId: data["paymentIntentId"] as? String
+            )
+        }
+        #else
+        return []
+        #endif
+    }
+
     // MARK: - Admin Booking
     func adminBookLesson(trainerId: String, slotId: String, clientId: String, packageId: String, orgId: String) async throws {
         guard !trainerId.isEmpty, !slotId.isEmpty, !clientId.isEmpty, !packageId.isEmpty, !orgId.isEmpty else {
