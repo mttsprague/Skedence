@@ -1003,8 +1003,11 @@ final class FirestoreService {
             }
             return results
         }
-        
-        return bookings
+
+        let sorted = upcoming
+            ? bookings.sorted { $0.startTime < $1.startTime }
+            : bookings.sorted { $0.startTime > $1.startTime }
+        return sorted
         #else
         return []
         #endif
