@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Mail, MessageCircle, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Support - Skedence",
-  description: "Get help with Skedence. Find answers to common questions and contact our support team.",
+  title: "Help & FAQ for Sports Coaching Software",
+  description: "Get help with Skedence. Find answers to common questions about payments, bookings, Stripe setup, lesson passes, and managing clients.",
 };
 
 const faqs = [

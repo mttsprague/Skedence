@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "How To Use Skedence - Getting Started Guide",
+  title: "How to Set Up Sports Coaching Scheduling Software",
   description: "Learn how to set up Skedence for your coaching business in 4 steps: create your account, set up pricing, connect Stripe, and invite your clients.",
 };
 

@@ -20,8 +20,11 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Skedence - Coaching Business Management Software",
-  description: "Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, manage clients, and get paid online. Built for coaches, trainers, and instructors.",
+  title: {
+    default: "Skedence - Sports Coaching Scheduling Software",
+    template: "%s | Skedence",
+  },
+  description: "Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, manage clients, and get paid online. Built for sports coaches, trainers, and instructors.",
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -36,8 +39,8 @@ export const metadata: Metadata = {
     title: 'Skedence',
   },
   openGraph: {
-    title: 'Skedence - Coaching Business Management Software',
-    description: 'Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, manage clients, and get paid online.',
+    title: 'Skedence - Sports Coaching Scheduling Software',
+    description: 'Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, manage clients, and get paid online. Built for sports coaches and trainers.',
     url: 'https://skedence.com',
     siteName: 'Skedence',
     images: [
@@ -53,8 +56,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Skedence - Coaching Business Management Software',
-    description: 'Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, and get paid online.',
+    title: 'Skedence - Sports Coaching Scheduling Software',
+    description: 'Transform your coaching business with Skedence. Schedule sessions, sell lesson packages, and get paid online. Built for sports coaches and trainers.',
     images: ['https://skedence.com/og-image.png'],
   },
 };

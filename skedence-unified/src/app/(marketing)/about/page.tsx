@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Check, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Who It's For - Skedence",
+  title: "Scheduling Software for Sports Coaches, Trainers & Academies",
   description: "Skedence is built for sports coaches, private trainers, and athletic academies who sell lesson packages and manage client schedules. See if it's right for you.",
 };
 

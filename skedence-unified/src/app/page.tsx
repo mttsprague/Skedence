@@ -164,7 +164,7 @@ export default function HomePage() {
             </h1>
             
             <p className="text-xl md:text-2xl text-foreground/70 max-w-2xl leading-relaxed font-light">
-              Skedence handles booking, lesson passes, and payments for sports coaches — so you can stop juggling spreadsheets and focus on coaching.
+              Skedence is scheduling software for sports coaches — booking, lesson passes, and payments in one place, so you can stop juggling spreadsheets and focus on coaching.
             </p>
             
             <div className="flex flex-col sm:flex-row items-start gap-5 pt-4">
