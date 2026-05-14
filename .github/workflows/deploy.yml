@@ -24,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: skedence-unified
-        run: npm ci
+        run: npm install
 
       - name: Build Next.js app
         working-directory: skedence-unified
