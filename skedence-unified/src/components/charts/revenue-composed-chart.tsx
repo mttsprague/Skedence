@@ -33,8 +33,8 @@ export default function RevenueComposedChart({ data }: { data: DailyRevenue[] })
           label={{ value: 'Passes', angle: 90, position: 'insideRight' }}
         />
         <Tooltip
-          formatter={(value: any, name?: string) => {
-            if (name && name.includes('Revenue')) {
+          formatter={(value: any, name: any) => {
+            if (name && String(name).includes('Revenue')) {
               return [`$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name];
             }
             return [value, name || ''];
