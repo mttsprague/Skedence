@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import DOMPurify from 'dompurify';
@@ -12,6 +13,7 @@ import { trackPageView, trackEvent } from '@/lib/analytics';
 import './blog-detail.css';
 
 function BlogPostContent() {
+  const router = useRouter();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,26 +21,26 @@ function BlogPostContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Support both hash-based routing (#slug) and query params (?slug=) for backward compatibility
+    // Redirect all /blog/detail traffic to the canonical /blog/[slug] route for SEO
     let slug: string | null = null;
-    
-    // First try hash (new format)
+
     const hash = window.location.hash;
     if (hash) {
       slug = hash.substring(1); // Remove # prefix
     } else {
-      // Fallback to query params (old format)
       const urlParams = new URLSearchParams(window.location.search);
       slug = urlParams.get('slug');
     }
-    
+
     if (slug) {
-      loadPost(slug);
+      // Redirect to the proper indexable URL — preserves any existing backlinks
+      router.replace(`/blog/${slug}`);
+      return;
     } else {
       setNotFound(true);
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   async function loadPost(slug: string) {
     setLoading(true);
@@ -346,6 +348,7 @@ function BlogPostContent() {
 
           {/* Article Content */}
           <div 
+            className="blog-content"
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(
               // Remove inline style tags since styles are now in CSS file
               post.content.replace(/<style>[\s\S]*?<\/style>/gi, ''),

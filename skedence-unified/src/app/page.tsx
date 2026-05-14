@@ -38,8 +38,37 @@ export default function HomePage() {
     return null;
   }
 
+  const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Skedence',
+    url: 'https://skedence.com',
+    logo: 'https://skedence.com/logo-nav.png',
+    description: 'Coaching business management software for sports coaches, private trainers, and athletic academies.',
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'customer support',
+      email: 'support@skedence.com',
+    },
+  };
+
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      { '@type': 'Question', name: 'How does the free trial work?', acceptedAnswer: { '@type': 'Answer', text: 'Sign up and get full access to every feature for 14 days — no credit card required. On day 15, you will be asked to choose a plan to keep your account active. If you do nothing, your account is paused (not deleted) and you can reactivate anytime.' } },
+      { '@type': 'Question', name: 'Can I cancel anytime?', acceptedAnswer: { '@type': 'Answer', text: 'Yes! Cancel anytime with no penalties or cancellation fees. Your data remains accessible for 30 days.' } },
+      { '@type': 'Question', name: 'How does payment processing work?', acceptedAnswer: { '@type': 'Answer', text: 'We use Stripe for secure payment processing. Stripe charges 2.9% + $0.30 per transaction.' } },
+      { '@type': 'Question', name: 'Do my clients need to download an app?', acceptedAnswer: { '@type': 'Answer', text: 'Yes — clients download the free Skedence app on iPhone (search Skedence on the App Store). They can browse availability, book sessions, and manage their passes entirely from the app.' } },
+      { '@type': 'Question', name: 'Can I import my existing clients?', acceptedAnswer: { '@type': 'Answer', text: 'Absolutely! You can manually add clients or import them via CSV. We offer migration assistance too.' } },
+      { '@type': 'Question', name: 'Is my data secure?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. We use bank-level encryption, secure cloud infrastructure, and comply with GDPR and CCPA regulations.' } },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-xl border-b border-border/50">
         <div className="container mx-auto px-6 lg:px-12">

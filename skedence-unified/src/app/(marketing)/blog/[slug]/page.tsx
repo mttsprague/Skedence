@@ -227,8 +227,28 @@ export default async function BlogPostPage({
   const ctaLink = post.ctaLink ? String(post.ctaLink) : '/register';
   const views = post.views as number | undefined;
 
+  const blogPostingJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: title,
+    description: excerpt,
+    image: (post.featuredImage as string) || 'https://skedence.com/og-image.png',
+    url: `https://skedence.com/blog/${slug}`,
+    datePublished: post.publishedAt ? (post.publishedAt as Date).toISOString() : undefined,
+    dateModified: (post.updatedAt as Date | undefined)?.toISOString() ?? (post.publishedAt ? (post.publishedAt as Date).toISOString() : undefined),
+    author: { '@type': 'Person', name: authorName || 'Skedence' },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Skedence',
+      logo: { '@type': 'ImageObject', url: 'https://skedence.com/logo-nav.png' },
+    },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://skedence.com/blog/${slug}` },
+    keywords: Array.isArray(post.keywords) ? (post.keywords as string[]).join(', ') : (post.keywords as string | undefined),
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingJsonLd) }} />
       {/* View counter (client-side, invisible) */}
       <ViewCounter postId={post.id as string} />
 

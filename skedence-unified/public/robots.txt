@@ -1,6 +1,15 @@
+# Allow all crawlers
 User-agent: *
 Allow: /
 Disallow: /blog-admin
 Disallow: /blog-admin/
+
+# Explicitly allow Facebook bot
+User-agent: facebookexternalhit
+Allow: /
+
+# Explicitly allow Twitter bot
+User-agent: Twitterbot
+Allow: /
 
 Sitemap: https://skedence.com/sitemap.xml
