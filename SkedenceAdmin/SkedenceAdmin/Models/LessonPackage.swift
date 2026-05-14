@@ -91,6 +91,7 @@ struct ClientBooking: Identifiable, Codable {
     var bookedAt: Date?
     var isClassBooking: Bool?
     var classId: String?
+    var className: String? // Fetched class title for class bookings
     var packageId: String?
     var packageType: String?
     var athleteName: String? // Name of athlete for this lesson (legacy)

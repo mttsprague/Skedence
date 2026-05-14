@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, Timestamp, arrayRemove, increment, onSnapshot } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 import { db } from '@/lib/firebase';
-import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye, Download, Search } from 'lucide-react';
+import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye, Download, Search, UserPlus, CheckCircle2, Circle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Location } from '@/types/location';
 import { logClassCreated, logClassUpdated, logClassDeleted } from '@/lib/activity-logger';
@@ -53,6 +55,8 @@ interface Participant {
   athleteName?: string;
   email?: string;
   phoneNumber?: string;
+  checkedIn?: boolean;
+  checkedInAt?: Timestamp;
 }
 
 interface PackageOption {
@@ -76,7 +80,24 @@ export default function ClassesPage() {
   const [viewingParticipants, setViewingParticipants] = useState<GroupClass | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [removingParticipant, setRemovingParticipant] = useState<string | null>(null); // docId of participant being removed
+  const [checkingIn, setCheckingIn] = useState<string | null>(null); // docId being toggled
+  const participantsUnsubRef = useRef<(() => void) | null>(null);
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
+
+  // Register client state
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [registerTab, setRegisterTab] = useState<'existing' | 'manual'>('existing');
+  const [allClients, setAllClients] = useState<Array<{ id: string; firstName: string; lastName: string; email?: string }>>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [registerClientId, setRegisterClientId] = useState('');
+  const [registerClientPasses, setRegisterClientPasses] = useState<Array<{ id: string; label: string }>>([]);
+  const [loadingPasses, setLoadingPasses] = useState(false);
+  const [registerPassId, setRegisterPassId] = useState('');
+  const [registerFirstName, setRegisterFirstName] = useState('');
+  const [registerLastName, setRegisterLastName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registering, setRegistering] = useState(false);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -799,55 +820,108 @@ export default function ClassesPage() {
     }
   };
 
-  const handleViewParticipants = async (cls: GroupClass) => {
+  const handleRemoveParticipant = async (participant: Participant) => {
+    if (!viewingParticipants || !orgId) return;
+    const name = `${participant.firstName} ${participant.lastName}`;
+    if (!confirm(`Remove ${name} from this class and refund their pass?`)) return;
+
+    setRemovingParticipant(participant.id);
+    try {
+      const classRef = doc(db, 'classes', viewingParticipants.id);
+      const participantRef = doc(db, 'classes', viewingParticipants.id, 'participants', participant.id);
+      const registrationRef = doc(db, 'classRegistrations', `${participant.userId}_${viewingParticipants.id}`);
+
+      // Refund the pass if one was used
+      if (participant.classPassPackageId) {
+        // Try standard path first, then legacy
+        const stdPassRef = doc(db, 'organizations', orgId, 'users', participant.userId, 'packages', participant.classPassPackageId);
+        const stdSnap = await getDocs(query(collection(db, 'organizations', orgId, 'users', participant.userId, 'packages'), where('__name__', '==', participant.classPassPackageId)));
+        if (!stdSnap.empty) {
+          await updateDoc(stdPassRef, { lessonsUsed: increment(-1) });
+        } else {
+          const legacyPassRef = doc(db, 'users', participant.userId, 'lessonPackages', participant.classPassPackageId);
+          await updateDoc(legacyPassRef, { lessonsUsed: increment(-1) });
+        }
+      }
+
+      // Remove participant doc, classRegistration, decrement class counters
+      await Promise.all([
+        deleteDoc(participantRef),
+        deleteDoc(registrationRef),
+        updateDoc(classRef, {
+          currentParticipants: increment(-1),
+          participantIds: arrayRemove(participant.userId),
+        }),
+      ]);
+
+      toast.success('Removed', `${name} has been removed from the class`);
+      // onSnapshot listener auto-updates the list — no manual refresh needed
+    } catch (error: any) {
+      console.error('Error removing participant:', error);
+      toast.error('Failed to remove participant', error?.message || 'Please try again');
+    } finally {
+      setRemovingParticipant(null);
+    }
+  };
+
+  const handleViewParticipants = useCallback((cls: GroupClass) => {
+    // Unsubscribe from any previous listener
+    if (participantsUnsubRef.current) {
+      participantsUnsubRef.current();
+      participantsUnsubRef.current = null;
+    }
     setViewingParticipants(cls);
     setLoadingParticipants(true);
-    
-    try {
-      // Query participants subcollection (schema uses auto-generated IDs with userId field)
-      const participantsQuery = query(collection(db, 'classes', cls.id, 'participants'));
-      const participantsSnapshot = await getDocs(participantsQuery);
-      const participantsData = participantsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Participant[];
-      
-      // Fetch full user details for each participant (phone and email)
-      const enrichedParticipants = await Promise.all(
+    setParticipants([]);
+
+    const participantsRef = collection(db, 'classes', cls.id, 'participants');
+    const unsub = onSnapshot(participantsRef, async (snapshot) => {
+      const participantsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Participant[];
+
+      // Enrich with user contact details (phone / email) on first load
+      const enriched = await Promise.all(
         participantsData.map(async (participant) => {
+          if (!participant.userId) return participant;
           try {
-            // Fetch user details from users collection
-            const userDocRef = doc(db, 'users', participant.userId);
-            const userDoc = await getDocs(query(
-              collection(db, 'users'),
-              where('__name__', '==', participant.userId)
-            ));
-            
-            if (!userDoc.empty) {
-              const userData = userDoc.docs[0].data();
-              return {
-                ...participant,
-                email: userData.email || userData.emailAddress,
-                phoneNumber: userData.phoneNumber || userData.phone,
-              };
+            const userSnap = await getDoc(doc(db, 'users', participant.userId));
+            if (userSnap.exists()) {
+              const ud = userSnap.data();
+              return { ...participant, email: ud.email || ud.emailAddress, phoneNumber: ud.phoneNumber || ud.phone };
             }
-            
-            return participant;
-          } catch (error) {
-            console.error('Error fetching user details:', error);
-            return participant;
-          }
+          } catch { /* silent */ }
+          return participant;
         })
       );
-      
-      setParticipants(enrichedParticipants.sort((a, b) => 
-        b.registeredAt.seconds - a.registeredAt.seconds
-      ));
-    } catch (error) {
+
+      setParticipants(enriched.sort((a, b) => {
+        const as_ = (a.registeredAt as any)?.seconds ?? 0;
+        const bs_ = (b.registeredAt as any)?.seconds ?? 0;
+        return as_ - bs_; // oldest registration first (consistent check-in order)
+      }));
+      setLoadingParticipants(false);
+    }, (error) => {
       console.error('Error loading participants:', error);
       setParticipants([]);
-    } finally {
       setLoadingParticipants(false);
+    });
+
+    participantsUnsubRef.current = unsub;
+  }, []);
+
+  const handleCheckIn = async (participant: Participant) => {
+    if (!viewingParticipants || checkingIn === participant.id) return;
+    setCheckingIn(participant.id);
+    try {
+      const ref = doc(db, 'classes', viewingParticipants.id, 'participants', participant.id);
+      if (participant.checkedIn) {
+        await updateDoc(ref, { checkedIn: false, checkedInAt: null });
+      } else {
+        await updateDoc(ref, { checkedIn: true, checkedInAt: Timestamp.now() });
+      }
+    } catch (error) {
+      console.error('Error updating check-in:', error);
+    } finally {
+      setCheckingIn(null);
     }
   };
 
@@ -942,6 +1016,112 @@ export default function ClassesPage() {
   const getTrainerName = (trainerId: string) => {
     const trainer = trainers.find(t => t.id === trainerId);
     return trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unknown';
+  };
+
+  const handleOpenRegister = async () => {
+    setShowRegisterModal(true);
+    setRegisterTab('existing');
+    setRegisterClientId('');
+    setRegisterPassId('');
+    setRegisterFirstName('');
+    setRegisterLastName('');
+    setRegisterEmail('');
+    setRegisterClientPasses([]);
+
+    if (allClients.length === 0) {
+      setLoadingClients(true);
+      try {
+        const clientsSnap = await getDocs(query(
+          collection(db, 'users'),
+          where('orgId', '==', orgId),
+          where('role', '==', 'client')
+        ));
+        setAllClients(clientsSnap.docs.map(d => ({
+          id: d.id,
+          firstName: d.data().firstName || '',
+          lastName: d.data().lastName || '',
+          email: d.data().email || d.data().emailAddress || '',
+        })).sort((a, b) => a.lastName.localeCompare(b.lastName)));
+      } catch (e) {
+        console.error('Error loading clients:', e);
+      } finally {
+        setLoadingClients(false);
+      }
+    }
+  };
+
+  const handleClientSelected = async (clientId: string) => {
+    setRegisterClientId(clientId);
+    setRegisterPassId('');
+    setRegisterClientPasses([]);
+    if (!clientId) return;
+
+    setLoadingPasses(true);
+    try {
+      // Try standard path first
+      // Note: iOS stores packageCategory as "class" (enum rawValue), web stores "classPass"
+      // Use 'in' query to catch both values
+      const newPath = collection(db, 'organizations', orgId!, 'users', clientId, 'packages');
+      const newSnap = await getDocs(query(newPath, where('packageCategory', 'in', ['class', 'classPass'])));
+      let passes = newSnap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter((p: any) => (p.totalLessons - (p.lessonsUsed || 0)) > 0);
+
+      if (passes.length === 0) {
+        // Fallback to legacy path
+        const oldPath = collection(db, 'users', clientId, 'lessonPackages');
+        const oldSnap = await getDocs(query(oldPath, where('packageCategory', 'in', ['class', 'classPass'])));
+        const legacyPasses = oldSnap.docs
+          .map(d => ({ id: d.id, ...d.data() } as any))
+          .filter((p: any) => (p.totalLessons - (p.lessonsUsed || 0)) > 0);
+        passes = [...passes, ...legacyPasses];
+      }
+
+      setRegisterClientPasses(passes.map((p: any) => ({
+        id: p.id,
+        label: `${p.packageName || p.packageType || 'Class Pass'} — ${(p.totalLessons - (p.lessonsUsed || 0))} remaining`,
+      })));
+    } catch (e) {
+      console.error('Error loading passes:', e);
+    } finally {
+      setLoadingPasses(false);
+    }
+  };
+
+  const handleRegisterSubmit = async () => {
+    if (!viewingParticipants) return;
+
+    setRegistering(true);
+    try {
+      const manualRegisterForClass = httpsCallable(functions, 'manualRegisterForClass');
+      let payload: any;
+
+      if (registerTab === 'existing') {
+        if (!registerClientId || !registerPassId) {
+          toast.error('Missing info', 'Please select a client and a class pass');
+          return;
+        }
+        payload = { classId: viewingParticipants.id, userId: registerClientId, classPassPackageId: registerPassId };
+      } else {
+        if (!registerFirstName.trim() || !registerLastName.trim()) {
+          toast.error('Missing info', 'Please enter first and last name');
+          return;
+        }
+        payload = { classId: viewingParticipants.id, firstName: registerFirstName.trim(), lastName: registerLastName.trim(), email: registerEmail.trim() || undefined };
+      }
+
+      await manualRegisterForClass(payload);
+      toast.success('Registered', 'Client has been registered for this class');
+      setShowRegisterModal(false);
+
+      // Refresh participants list
+      await handleViewParticipants(viewingParticipants);
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error('Registration failed', error?.message || 'Please try again');
+    } finally {
+      setRegistering(false);
+    }
   };
 
   // Location is now stored as name string directly in class document
@@ -1775,6 +1955,7 @@ export default function ClassesPage() {
                 </div>
                 <button
                   onClick={() => {
+                    if (participantsUnsubRef.current) { participantsUnsubRef.current(); participantsUnsubRef.current = null; }
                     setViewingParticipants(null);
                     setParticipants([]);
                   }}
@@ -1784,19 +1965,39 @@ export default function ClassesPage() {
                 </button>
               </div>
               
-              {/* Export Button */}
-              {participants.length > 0 && (
+              {/* Action Buttons */}
+              <div className="flex gap-2">
                 <button
-                  onClick={handleExportParticipants}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors w-full justify-center"
+                  onClick={handleOpenRegister}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex-1 justify-center"
                 >
-                  <Download className="h-4 w-4" />
-                  Export Participants to CSV
+                  <UserPlus className="h-4 w-4" />
+                  Register Client
                 </button>
-              )}
+                {participants.length > 0 && (
+                  <button
+                    onClick={handleExportParticipants}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex-1 justify-center"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
+              {/* Attendance summary */}
+              {participants.length > 0 && (() => {
+                const checkedInCount = participants.filter(p => p.checkedIn).length;
+                return (
+                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+                    <span className="text-sm font-medium text-green-800">Checked In</span>
+                    <span className="text-lg font-bold text-green-700">{checkedInCount} / {participants.length}</span>
+                  </div>
+                );
+              })()}
+
               {loadingParticipants ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
@@ -1812,11 +2013,17 @@ export default function ClassesPage() {
                   {participants.map((participant, index) => (
                     <div
                       key={participant.id}
-                      className="p-4 bg-background rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                      className={`p-4 rounded-lg border transition-colors ${
+                        participant.checkedIn
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-background border-gray-200 hover:border-gray-300'
+                      }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3 flex-1">
-                          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold flex-shrink-0">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center font-semibold flex-shrink-0 ${
+                            participant.checkedIn ? 'bg-green-600 text-white' : 'bg-primary text-white'
+                          }`}>
                             {participant.firstName?.charAt(0)}{participant.lastName?.charAt(0)}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1824,27 +2031,51 @@ export default function ClassesPage() {
                               {participant.firstName} {participant.lastName}
                             </p>
                             {participant.email && (
-                              <p className="text-sm text-muted-foreground">
-                                📧 {participant.email}
-                              </p>
+                              <p className="text-sm text-muted-foreground">📧 {participant.email}</p>
                             )}
                             {participant.phoneNumber && (
-                              <p className="text-sm text-muted-foreground">
-                                📱 {participant.phoneNumber}
-                              </p>
+                              <p className="text-sm text-muted-foreground">📱 {participant.phoneNumber}</p>
                             )}
-                            {participant.athleteName && (
-                              <p className="text-sm text-blue-600 font-medium">
-                                🏃 Athlete: {participant.athleteName}
-                              </p>
+                            {participant.athleteName && participant.athleteName !== `${participant.firstName} ${participant.lastName}` && (
+                              <p className="text-sm text-blue-600 font-medium">🏃 Athlete: {participant.athleteName}</p>
                             )}
                             <p className="text-xs text-muted-foreground mt-1">
                               Registered {format(participant.registeredAt.toDate(), 'MMM d, yyyy • h:mm a')}
                             </p>
+                            {participant.checkedIn && participant.checkedInAt && (
+                              <p className="text-xs text-green-600 font-medium mt-0.5">
+                                ✓ Checked in {format((participant.checkedInAt as Timestamp).toDate(), 'h:mm a')}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <div className="text-sm text-muted-foreground flex-shrink-0 ml-2">
-                          #{index + 1}
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-2">
+                          <span className="text-sm text-muted-foreground">#{index + 1}</span>
+                          <button
+                            onClick={() => handleCheckIn(participant)}
+                            disabled={checkingIn === participant.id}
+                            title={participant.checkedIn ? 'Undo check-in' : 'Check in'}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                              participant.checkedIn
+                                ? 'text-green-700 border-green-300 bg-green-100 hover:bg-green-200'
+                                : 'text-gray-600 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {checkingIn === participant.id ? (
+                              <span className="animate-spin h-3 w-3 border border-current border-t-transparent rounded-full" />
+                            ) : participant.checkedIn ? (
+                              <><CheckCircle2 className="h-3 w-3" /> In</>
+                            ) : (
+                              <><Circle className="h-3 w-3" /> Check In</>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleRemoveParticipant(participant)}
+                            disabled={removingParticipant === participant.id}
+                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {removingParticipant === participant.id ? 'Removing…' : 'Remove'}
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1860,6 +2091,141 @@ export default function ClassesPage() {
                   </span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Register Client Modal */}
+      {showRegisterModal && viewingParticipants && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Register Client</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">{viewingParticipants.title}</p>
+              </div>
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setRegisterTab('existing')}
+                className={`flex-1 py-3 text-sm font-medium transition-colors ${registerTab === 'existing' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Existing Client
+              </button>
+              <button
+                onClick={() => setRegisterTab('manual')}
+                className={`flex-1 py-3 text-sm font-medium transition-colors ${registerTab === 'manual' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Manual Entry
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {registerTab === 'existing' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Select Client</label>
+                    {loadingClients ? (
+                      <div className="h-9 bg-gray-100 rounded animate-pulse" />
+                    ) : (
+                      <select
+                        value={registerClientId}
+                        onChange={e => handleClientSelected(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="">— Choose a client —</option>
+                        {allClients.map(c => (
+                          <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {registerClientId && (
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Select Class Pass</label>
+                      {loadingPasses ? (
+                        <div className="h-9 bg-gray-100 rounded animate-pulse" />
+                      ) : registerClientPasses.length === 0 ? (
+                        <p className="text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
+                          This client has no remaining class passes.
+                        </p>
+                      ) : (
+                        <select
+                          value={registerPassId}
+                          onChange={e => setRegisterPassId(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="">— Choose a pass —</option>
+                          {registerClientPasses.map(p => (
+                            <option key={p.id} value={p.id}>{p.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">First Name</label>
+                      <input
+                        type="text"
+                        value={registerFirstName}
+                        onChange={e => setRegisterFirstName(e.target.value)}
+                        placeholder="First"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        value={registerLastName}
+                        onChange={e => setRegisterLastName(e.target.value)}
+                        placeholder="Last"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Email (optional)</label>
+                    <input
+                      type="email"
+                      value={registerEmail}
+                      onChange={e => setRegisterEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-foreground rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRegisterSubmit}
+                disabled={registering || (registerTab === 'existing' && (!registerClientId || !registerPassId))}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {registering ? 'Registering...' : 'Register'}
+              </button>
             </div>
           </div>
         </div>

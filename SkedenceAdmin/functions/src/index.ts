@@ -450,8 +450,9 @@ export const bookLesson = onCall(
         }
 
         // Also check category as secondary validation - accept all athlete categories
+        // Note: iOS stores packageCategory as "class" (enum rawValue), web stores "classPass"
         const validAthleteCategories = ["oneAthlete", "twoAthlete", "threeAthlete", "fourAthlete", "pass"];
-        if (pkgCategory && pkgCategory === "class") {
+        if (pkgCategory && (pkgCategory === "class" || pkgCategory === "classPass")) {
           throw new HttpsError(
             "invalid-argument",
             "Class packages can only be used to register for classes, not book lessons."
@@ -802,7 +803,8 @@ export const registerForClass = onCall(
         const pkgType = classPassData.packageType as string;
 
         // Check packageType first (more reliable), then category as fallback
-        const isClassPackage = pkgType === "class" || pkgType === "class_pass" || pkgCategory === "class";
+        // Note: iOS stores packageCategory as "class" (enum rawValue), web stores "classPass"
+        const isClassPackage = pkgType === "class" || pkgType === "class_pass" || pkgCategory === "class" || pkgCategory === "classPass";
 
         if (!isClassPackage) {
           throw new HttpsError(
@@ -881,7 +883,8 @@ export const registerForClass = onCall(
 
         // Process each class in the series
         const primaryAthleteName = athleteName || `${userData.firstName || "Unknown"} ${userData.lastName || "User"}`.trim();
-        const clientOrgId = userData.orgId || null;
+        // orgId: check orgId first, then legacy organizationId field, then fall back to class's orgId
+        const clientOrgId = userData.orgId || (userData as any).organizationId || classData?.orgId || null;
         
         for (const cls of classesToRegister) {
           // Increment class participants by number of athletes
@@ -969,7 +972,7 @@ export const registerForClass = onCall(
           : `${clientFullName} registered ${athleteNames} for ${className}`;
 
         const activityTimestamp = Math.floor(Date.now() / 1000);
-        const activityId = `${userId}_${ActivityTypes.CLASS_REGISTERED}_${activityTimestamp}`;
+        const activityId = `${userId}_${ActivityTypes.CLASS_REGISTERED}_${classId}_${activityTimestamp}`;
         const activityRef = db.collection("activities").doc(activityId);
         transaction.set(activityRef, {
           type: ActivityTypes.CLASS_REGISTERED,
@@ -2655,7 +2658,7 @@ export const manualRegisterForClass = onCall(
       );
     }
 
-    const {classId, userId, classPassPackageId, firstName, lastName, email} = request.data;
+    const {classId, userId, classPassPackageId, firstName, lastName, email, athleteName: providedAthleteName} = request.data;
 
     if (!classId) {
       throw new HttpsError(
@@ -2795,7 +2798,23 @@ export const manualRegisterForClass = onCall(
 
         const packageData = packageDoc.data()!;
         const totalClassesInSeries = classesToRegister.length;
-        const remainingLessons = packageData.lessonsRemaining || 0;
+        // Use totalLessons - lessonsUsed (lessonsRemaining is NOT stored in Firestore)
+        const totalLessons = packageData.totalLessons || 0;
+        const lessonsUsed = packageData.lessonsUsed || 0;
+        const remainingLessons = totalLessons - lessonsUsed;
+
+        // Validate this is actually a class pass (not a private lesson pass)
+        // iOS stores packageCategory as "class" (enum rawValue), web stores "classPass"
+        const manualPkgType = packageData.packageType as string | undefined;
+        const manualPkgCategory = packageData.packageCategory as string | undefined;
+        const isClassPackage = manualPkgType === "class" || manualPkgType === "class_pass"
+          || manualPkgCategory === "class" || manualPkgCategory === "classPass";
+        if (!isClassPackage) {
+          throw new HttpsError(
+            "invalid-argument",
+            "The selected package is not a class pass. Only class passes can be used to register for classes."
+          );
+        }
         
         // Check if package has at least 1 credit (multi-day series uses 1 pass total)
         if (remainingLessons < 1) {
@@ -2817,9 +2836,9 @@ export const manualRegisterForClass = onCall(
           isPartOfSeries: !!seriesId,
         };
 
-        // Decrement package by 1 (multi-day series uses ONE pass for entire series)
+        // Increment lessonsUsed by 1 (multi-day series uses ONE pass for entire series)
         await packageRef.update({
-          lessonsRemaining: admin.firestore.FieldValue.increment(-1),
+          lessonsUsed: admin.firestore.FieldValue.increment(1),
         });
 
         console.log(`✅ Registered user ${userId} for ${totalClassesInSeries} class(es) in series using 1 package credit: ${classPassPackageId}`);
@@ -2847,6 +2866,25 @@ export const manualRegisterForClass = onCall(
         console.log(`✅ Manually registered ${firstName} ${lastName} for class ${classId}`);
       }
 
+      // Fetch user data for participant name (needed for participants subcollection)
+      let participantFirstName = firstName || "Unknown";
+      let participantLastName = lastName || "User";
+      let participantAuthUserId = "";
+      if (userId) {
+        try {
+          const userDocSnap = await db.collection("users").doc(userId).get();
+          if (userDocSnap.exists) {
+            const ud = userDocSnap.data()!;
+            participantFirstName = ud.firstName || "Unknown";
+            participantLastName = ud.lastName || "User";
+            participantAuthUserId = ud.authUserId || "";
+          }
+        } catch (e) {
+          console.warn("Could not fetch user data for participant name:", e);
+        }
+      }
+      const participantFullName = `${participantFirstName} ${participantLastName}`.trim();
+
       // Create registrations and bookings for all classes in series (or single class)
       for (const cls of classesToRegister) {
         // Create registration for each class
@@ -2854,6 +2892,37 @@ export const manualRegisterForClass = onCall(
           ...registrationData,
           classId: cls.id, // Override with specific class ID
         });
+
+        // Add to classes/{id}/participants subcollection so participant shows in admin view
+        if (userId) {
+          const participantDocId = `${userId}_${participantFullName.replace(/\s+/g, "_")}`;
+          await db.collection("classes").doc(cls.id)
+            .collection("participants").doc(participantDocId).set({
+              userId: userId,
+              authUserId: participantAuthUserId,
+              firstName: participantFirstName,
+              lastName: participantLastName,
+              athleteName: (providedAthleteName && providedAthleteName.trim()) ? providedAthleteName.trim() : participantFullName,
+              registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+              classPassPackageId: classPassPackageId || "",
+              registeredBy: request.auth.uid,
+            });
+        } else {
+          // Manual entry - add with a generated ID
+          const manualParticipantDocId = `manual_${firstName}_${lastName}_${Date.now()}`.replace(/\s+/g, "_");
+          await db.collection("classes").doc(cls.id)
+            .collection("participants").doc(manualParticipantDocId).set({
+              userId: null,
+              authUserId: null,
+              firstName: firstName || "Unknown",
+              lastName: lastName || "User",
+              athleteName: `${firstName || ""} ${lastName || ""}`.trim(),
+              email: email || null,
+              registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+              isManualEntry: true,
+              registeredBy: request.auth.uid,
+            });
+        }
 
         // Create booking document so class appears in client's schedule
         if (userId) {
@@ -2887,31 +2956,69 @@ export const manualRegisterForClass = onCall(
       const adminDoc = await db.collection("trainers").doc(request.auth.uid).get();
       const adminData = adminDoc.exists ? adminDoc.data() : null;
       const adminName = adminData ? `${adminData.firstName || ""} ${adminData.lastName || ""}`.trim() || "Admin" : "Admin";
-      
+
       const className = classData.title || "Unknown Class";
-      const participantName = userId ? "Unknown Client" : `${firstName} ${lastName}`;
       const totalClassesInSeries = classesToRegister.length;
-      const activityDescription = userId 
-        ? seriesId
-          ? `${adminName} registered client for ${totalClassesInSeries}-day ${className} series`
-          : `${adminName} registered client for ${className}`
-        : seriesId
-          ? `${adminName} manually registered ${participantName} for ${totalClassesInSeries}-day ${className} series`
-          : `${adminName} manually registered ${participantName} for ${className}`;
-      
+
+      // Resolve display names for the activity description
+      // participantFullName is the account holder's full name (set earlier from user doc lookup)
+      const resolvedAthleteDisplay = (providedAthleteName && providedAthleteName.trim())
+        ? providedAthleteName.trim()
+        : null;
+
+      let activityDescription: string;
+      let activityActorId: string;
+      let activityActorName: string;
+      let activityActorRole: string;
+      let activityClientName: string;
+      let activityAthleteName: string;
+
+      if (userId) {
+        // Existing client — mirror self-registration format: "Client registered [Athlete] for Class"
+        activityActorId = userId;
+        activityActorName = participantFullName;
+        activityActorRole = "client";
+        activityClientName = participantFullName;
+        activityAthleteName = resolvedAthleteDisplay || participantFullName;
+
+        const athleteLabel = resolvedAthleteDisplay && resolvedAthleteDisplay !== participantFullName
+          ? resolvedAthleteDisplay
+          : participantFullName;
+
+        activityDescription = seriesId
+          ? `${participantFullName} registered ${athleteLabel} for ${totalClassesInSeries}-day ${className} series`
+          : `${participantFullName} registered ${athleteLabel} for ${className}`;
+      } else {
+        // Manual entry — keep admin-centric format since there's no real client account
+        const manualName = `${firstName || ""} ${lastName || ""}`.trim();
+        activityActorId = request.auth.uid;
+        activityActorName = adminName;
+        activityActorRole = "admin";
+        activityClientName = manualName;
+        activityAthleteName = manualName;
+
+        activityDescription = seriesId
+          ? `${adminName} manually registered ${manualName} for ${totalClassesInSeries}-day ${className} series`
+          : `${adminName} manually registered ${manualName} for ${className}`;
+      }
+
       await db.collection("activities").add({
         type: ActivityTypes.CLASS_ENROLLMENT,
-        actorId: request.auth.uid,
-        actorName: adminName,
-        actorRole: "admin",
+        actorId: activityActorId,
+        actorName: activityActorName,
+        actorRole: activityActorRole,
         targetId: classId,
         targetName: className,
         targetType: "class",
         description: activityDescription,
         metadata: {
           classId: classId,
-          participantName: participantName,
+          clientName: activityClientName,
+          athleteName: activityAthleteName,
           isManualEntry: !userId,
+          registeredByAdmin: true,
+          adminId: request.auth.uid,
+          adminName: adminName,
           classPassPackageId: classPassPackageId || null,
           seriesId: seriesId || null,
           totalClassesInSeries: totalClassesInSeries,

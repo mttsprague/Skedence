@@ -5,17 +5,27 @@ import { useRouter } from 'next/navigation';
 import { MailCheck, RefreshCw, ArrowRight, Loader2 } from 'lucide-react';
 import { auth, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
+import { useAuth } from '@/hooks/useAuth';
 import AuthLayout from '@/components/AuthLayout';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [checking, setChecking] = useState(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [error, setError] = useState('');
   const [autoChecking, setAutoChecking] = useState(true);
 
-  const email = auth.currentUser?.email ?? '';
+  // Use auth context so email is always current, even on return visits
+  const email = user?.email ?? '';
+
+  // Redirect unauthenticated visitors away
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, authLoading, router]);
 
   // Auto-detect: Firebase redirects here after clicking the link.
   // Reload auth state immediately — if already verified, skip the button.

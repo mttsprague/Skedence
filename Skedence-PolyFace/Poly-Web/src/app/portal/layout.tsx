@@ -61,7 +61,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   const displayName = profile ? `${profile.firstName} ${profile.lastName}` : user.email || 'Athlete';
   const initials = profile
-    ? `${profile.firstName[0]}${profile.lastName[0]}`
+    ? `${(profile.firstName?.[0] || '?')}${(profile.lastName?.[0] || '?')}`.toUpperCase()
     : (user.email?.[0] || 'A').toUpperCase();
 
   return (

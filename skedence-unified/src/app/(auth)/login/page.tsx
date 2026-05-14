@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   // Redirect authenticated users to activity or their intended destination
   useEffect(() => {
@@ -24,6 +29,24 @@ export default function LoginPage() {
       router.push(redirectTo);
     }
   }, [userData, authLoading, router]);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError("");
+    setForgotLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, forgotEmail);
+      setForgotSent(true);
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found') {
+        setForgotError("No account found with that email.");
+      } else {
+        setForgotError(err.message || "Failed to send reset email.");
+      }
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,10 +87,58 @@ export default function LoginPage() {
       <div className="max-w-md w-full bg-card rounded-xl shadow-2xl shadow-black/50 p-8 border border-border">
         <div className="text-center mb-8">
           <a href="/" className="text-3xl font-bold text-primary">Skedence</a>
-          <h2 className="mt-6 text-3xl font-bold text-foreground">Welcome back</h2>
-          <p className="mt-2 text-foreground/60">Sign in to your account</p>
+          <h2 className="mt-6 text-3xl font-bold text-foreground">{forgotMode ? "Reset Password" : "Welcome back"}</h2>
+          <p className="mt-2 text-foreground/60">{forgotMode ? "Enter your email to receive a reset link" : "Sign in to your account"}</p>
         </div>
 
+        {forgotMode ? (
+          forgotSent ? (
+            <div className="text-center space-y-4">
+              <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg text-sm border border-green-200">
+                Reset email sent! Check your inbox and follow the link to reset your password.
+              </div>
+              <button
+                onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(""); }}
+                className="text-primary hover:text-primary/80 font-medium text-sm hover:underline transition-colors"
+              >
+                ← Back to Sign In
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-5">
+              <div>
+                <label htmlFor="forgot-email" className="block text-sm font-medium text-foreground mb-2">Email</label>
+                <input
+                  id="forgot-email"
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 bg-background border border-input rounded-lg text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                  placeholder="you@example.com"
+                />
+              </div>
+              {forgotError && (
+                <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm border border-destructive/20">
+                  {forgotError}
+                </div>
+              )}
+              <Button type="submit" className="w-full mt-6" disabled={forgotLoading}>
+                {forgotLoading ? "Sending..." : "Send Reset Email"}
+              </Button>
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => { setForgotMode(false); setForgotError(""); }}
+                  className="text-foreground/50 hover:text-foreground text-sm hover:underline transition-colors"
+                >
+                  ← Back to Sign In
+                </button>
+              </div>
+            </form>
+          )
+        ) : (
+          <>
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
@@ -108,6 +179,16 @@ export default function LoginPage() {
           <Button type="submit" className="w-full mt-6" disabled={loading}>
             {loading ? "Signing in..." : "Sign In"}
           </Button>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => { setForgotMode(true); setForgotEmail(email); setForgotError(""); }}
+              className="text-foreground/50 hover:text-foreground text-sm hover:underline transition-colors"
+            >
+              Forgot password?
+            </button>
+          </div>
         </form>
 
         <div className="mt-8 text-center">
@@ -127,6 +208,8 @@ export default function LoginPage() {
             Need to set up your password?
           </a>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

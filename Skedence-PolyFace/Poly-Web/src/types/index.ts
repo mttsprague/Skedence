@@ -233,6 +233,10 @@ export interface Booking {
   startTime: Date;
   endTime: Date;
   status: 'confirmed' | 'cancelled' | 'completed';
+  /** True for class bookings (mirrors iOS isClassBooking) */
+  isClassBooking?: boolean;
+  /** Class document ID — only set when isClassBooking is true */
+  classId?: string;
   location?: string;
   /** Primary athlete name */
   athleteName?: string;

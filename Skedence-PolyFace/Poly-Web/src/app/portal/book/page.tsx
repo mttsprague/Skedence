@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   collection,
   doc,
+  addDoc,
   runTransaction,
   serverTimestamp,
   Timestamp,
@@ -38,7 +39,7 @@ import {
   fetchSignedWaiverAthletes,
   type OrgSettings,
 } from '@/lib/firestore';
-import type { Trainer, TrainerScheduleSlot, LessonPackage, GroupClass } from '@/types';
+import type { Trainer, TrainerScheduleSlot, LessonPackage, GroupClass, UserProfile } from '@/types';
 import {
   canBookLessons,
   canBookClasses,
@@ -58,13 +59,50 @@ import { format } from 'date-fns';
 type PrivateStep = 'trainer' | 'slot' | 'pass' | 'athletes' | 'confirm' | 'done';
 type Mode = 'privates' | 'classes';
 
+type ClassEntry = { cls: GroupClass; seriesDates: Date[] | null };
+
+/** Mirrors iOS ClassesService dedup: one card per series, all sibling dates attached. */
+function deduplicateClasses(all: GroupClass[]): ClassEntry[] {
+  const seen = new Set<string>();
+  const result: ClassEntry[] = [];
+  for (const cls of all) {
+    if (cls.isPartOfSeries && cls.seriesId) {
+      if (seen.has(cls.seriesId)) continue;
+      seen.add(cls.seriesId);
+      const siblings = all
+        .filter((c) => c.seriesId === cls.seriesId)
+        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+      result.push({ cls, seriesDates: siblings.map((c) => c.startTime) });
+    } else {
+      result.push({ cls, seriesDates: null });
+    }
+  }
+  return result;
+}
+
+function formatSeriesDateRange(dates: Date[]): string {
+  if (dates.length === 0) return '';
+  if (dates.length === 1) return format(dates[0], 'MMM d, yyyy');
+  const sorted = [...dates].sort((a, b) => a.getTime() - b.getTime());
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const sameMonth = first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear();
+  if (sameMonth) {
+    return format(first, 'MMM d') + '–' + format(last, 'd, yyyy');
+  }
+  return format(first, 'MMM d') + ' – ' + format(last, 'MMM d, yyyy');
+}
+
 // ─── CLASS REGISTRATION MODAL ─────────────────────────────────────────────────
 
 function ClassModal({
-  cls, passes, athletes, userDocId, onClose, onBooked,
+  cls, passes, athletes, userDocId, profile, orgSettings, signedWaiverAthletes, onClose, onBooked,
 }: {
   cls: GroupClass; passes: LessonPackage[]; athletes: AthleteInfo[];
-  userDocId: string; onClose: () => void; onBooked: () => void;
+  userDocId: string; profile?: UserProfile | null;
+  orgSettings?: OrgSettings | null;
+  signedWaiverAthletes?: Set<string>;
+  onClose: () => void; onBooked: () => void;
 }) {
   const athleteNames = athletes.map(athleteDisplayName);
   const eligiblePasses = passes.filter((p) => {
@@ -86,29 +124,110 @@ function ClassModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [showWaiver, setShowWaiver] = useState(false);
+
+  function needsWaiver(): boolean {
+    if (!orgSettings?.requireWaiver) return false;
+    if (!selectedAthlete) return false;
+    return !(signedWaiverAthletes ?? new Set()).has(selectedAthlete.toLowerCase().trim());
+  }
 
   async function handleRegister() {
     if (!selectedPass) return;
+    // Duplicate check — guard against undefined for legacy class docs without participantIds
+    if ((cls.participantIds ?? []).includes(userDocId)) {
+      setError("You're already registered for this class.");
+      return;
+    }
     setLoading(true); setError('');
     try {
       const classRef = doc(db, 'classes', cls.id);
       const passRef = doc(db, 'organizations', ORG_ID, 'users', userDocId, 'packages', selectedPass.id);
+      const participantRef = doc(db, 'classes', cls.id, 'participants', userDocId);
+      const registrationRef = doc(db, 'classRegistrations', `${userDocId}_${cls.id}`);
       await runTransaction(db, async (tx) => {
         const [classSnap, passSnap] = await Promise.all([tx.get(classRef), tx.get(passRef)]);
         if (!classSnap.exists()) throw new Error('Class no longer available');
         const cd = classSnap.data();
         if (!cd.isOpenForRegistration) throw new Error('Class is no longer open');
         if (cd.currentParticipants >= cd.maxParticipants) throw new Error('Class is now full');
+        // Double-check inside transaction for race-condition safety
+        const existingParticipants: string[] = Array.isArray(cd.participantIds) ? (cd.participantIds as string[]) : [];
+        if (existingParticipants.includes(userDocId)) throw new Error("You're already registered for this class.");
         if (!passSnap.exists()) throw new Error('Pass not found');
         const pd = passSnap.data();
         if ((pd.totalLessons as number) - (pd.lessonsUsed as number) <= 0) throw new Error('No lessons remaining');
+
+        // 1. Update class document
         tx.update(classRef, { currentParticipants: increment(1), participantIds: arrayUnion(userDocId) });
+        // 2. Decrement pass
         tx.update(passRef, { lessonsUsed: (pd.lessonsUsed as number) + 1 });
-        tx.set(doc(collection(db, 'classRegistrations')), {
-          classId: cls.id, clientId: userDocId, orgId: ORG_ID,
-          athleteName: selectedAthlete || null, registeredAt: serverTimestamp(),
+        // 3. Participants subcollection doc (mirrors iOS classes/{classId}/participants/{userId})
+        tx.set(participantRef, {
+          userId: userDocId,
+          firstName: profile?.firstName ?? '',
+          lastName: profile?.lastName ?? '',
+          athleteName: selectedAthlete || null,
+          registeredAt: serverTimestamp(),
+          classPassPackageId: selectedPass.id,
+        });
+        // 4. classRegistrations doc with stable ID (mirrors iOS {userId}_{classId})
+        tx.set(registrationRef, {
+          userId: userDocId,
+          clientId: userDocId,
+          classId: cls.id,
+          orgId: ORG_ID,
+          athleteName: selectedAthlete || null,
+          athleteCount: 1,
+          classPassPackageId: selectedPass.id,
+          isPartOfSeries: false,
+          seriesId: null,
+          registeredAt: serverTimestamp(),
+        });
+        // 5. Booking doc — makes class appear in portal schedule & dashboard
+        tx.set(doc(collection(db, 'bookings')), {
+          clientId: userDocId,
+          clientUID: userDocId,
+          trainerUID: cls.trainerId,
+          trainerId: cls.trainerId,
+          orgId: ORG_ID,
+          lessonPackageId: selectedPass.id,
+          packageId: selectedPass.id,
+          startTime: Timestamp.fromDate(cls.startTime),
+          endTime: Timestamp.fromDate(cls.endTime),
+          status: 'confirmed',
+          isClassBooking: true,
+          classId: cls.id,
+          athleteName: selectedAthlete || null,
+          athleteNames: selectedAthlete ? [selectedAthlete] : [],
+          location: cls.location || null,
+          bookedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
         });
       });
+
+      // 6. Activity log — fire-and-forget (non-blocking)
+      const actorName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : userDocId;
+      addDoc(collection(db, 'activities'), {
+        type: 'CLASS_REGISTERED',
+        actorId: userDocId,
+        actorName,
+        actorRole: 'client',
+        targetId: cls.id,
+        targetName: cls.title,
+        targetType: 'class',
+        description: `${actorName} registered for ${cls.title}`,
+        metadata: {
+          classId: cls.id,
+          classPassPackageId: selectedPass.id,
+          athleteName: selectedAthlete || null,
+          startTime: Timestamp.fromDate(cls.startTime),
+          location: cls.location || null,
+        },
+        orgId: ORG_ID,
+        timestamp: serverTimestamp(),
+      }).catch(() => { /* non-fatal */ });
+
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed.');
@@ -142,6 +261,21 @@ function ClassModal({
             </div>
             {cls.description && <p className="text-sm text-gray-500 bg-gray-50 rounded-xl p-3">{cls.description}</p>}
             {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">{error}</div>}
+            {showWaiver && orgSettings && (
+              <WaiverModal
+                waiverText={orgSettings.waiverText}
+                userProfile={profile ?? null}
+                userDocId={userDocId}
+                specificAthlete={selectedAthlete}
+                confirmLabel="Agree & Register"
+                onSigned={() => {
+                  signedWaiverAthletes?.add(selectedAthlete.toLowerCase().trim());
+                  setShowWaiver(false);
+                  handleRegister();
+                }}
+                onClose={() => setShowWaiver(false)}
+              />
+            )}
             {uniquePasses.length === 0 ? (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
                 <p className="font-bold mb-1">No eligible class passes</p>
@@ -178,7 +312,7 @@ function ClassModal({
                     </select>
                   </div>
                 )}
-                <button onClick={handleRegister} disabled={loading || !selectedPass}
+                <button onClick={() => { if (needsWaiver()) { setShowWaiver(true); } else { handleRegister(); } }} disabled={loading || !selectedPass}
                   className="w-full bg-pva-navy text-white py-4 rounded-xl font-black hover:bg-pva-teal transition disabled:opacity-50 flex items-center justify-center gap-2">
                   {loading ? <Spinner size="sm" className="border-white" /> : 'Confirm Registration'}
                 </button>
@@ -514,7 +648,7 @@ export default function BookPage() {
   const [passes, setPasses] = useState<LessonPackage[]>([]);
   const [athletes, setAthletes] = useState<AthleteInfo[]>([]);
   const [showAddAthlete, setShowAddAthlete] = useState(false);
-  const [classes, setClasses] = useState<GroupClass[]>([]);
+  const [classes, setClasses] = useState<ClassEntry[]>([]);
   const [classSearch, setClassSearch] = useState('');
   const [selectedClass, setSelectedClass] = useState<GroupClass | null>(null);
 
@@ -603,7 +737,7 @@ export default function BookPage() {
     // ensure passes are loaded for class modal
     loadPasses();
     setLoading(true);
-    fetchGroupClasses().then(setClasses).catch(console.error).finally(() => setLoading(false));
+    fetchGroupClasses().then((all) => setClasses(deduplicateClasses(all))).catch(console.error).finally(() => setLoading(false));
   }, [mode, classes.length, loadPasses]);
 
   // Passes valid for selected trainer (tier + usability + canBookLessons)
@@ -632,7 +766,7 @@ export default function BookPage() {
   const allAthletesSelected = selectedAthletes.length === requiredAthletes && selectedAthletes.every(Boolean);
 
   // Filtered classes
-  const filteredClasses = classes.filter((c) => {
+  const filteredClasses = classes.filter(({ cls: c }) => {
     if (!classSearch) return true;
     const q = classSearch.toLowerCase();
     return c.title.toLowerCase().includes(q) || c.description.toLowerCase().includes(q) || c.trainerName.toLowerCase().includes(q);
@@ -734,13 +868,15 @@ export default function BookPage() {
           specificAthlete={pendingWaiverAthlete}
           onSigned={() => {
             // Mark this athlete as signed and continue checking remaining athletes
-            setSignedWaiverAthletes(prev => new Set(Array.from(prev).concat(pendingWaiverAthlete.toLowerCase().trim())));
+            const justSigned = pendingWaiverAthlete.toLowerCase().trim();
+            const updatedSigned = new Set(Array.from(signedWaiverAthletes).concat(justSigned));
+            setSignedWaiverAthletes(updatedSigned);
             setShowWaiver(false);
             setPendingWaiverAthlete('');
             // Check if there are more unsigned athletes; advance when all are done
             const stillUnsigned = selectedAthletes.filter(
-              n => n && n !== pendingWaiverAthlete
-                && !signedWaiverAthletes.has(n.toLowerCase().trim())
+              n => n && n.toLowerCase().trim() !== justSigned
+                && !updatedSigned.has(n.toLowerCase().trim())
             );
             if (stillUnsigned.length > 0) {
               setPendingWaiverAthlete(stillUnsigned[0]);
@@ -1098,34 +1234,44 @@ export default function BookPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredClasses.map((cls) => {
+              {filteredClasses.map(({ cls, seriesDates }) => {
+                const isSeries = seriesDates && seriesDates.length > 1;
                 const spotsLeft = cls.maxParticipants - cls.currentParticipants;
                 const isFull = spotsLeft <= 0;
+                const isRegistered = !!userDocId && (cls.participantIds ?? []).includes(userDocId);
                 return (
-                  <button key={cls.id} onClick={() => !isFull && setSelectedClass(cls)} disabled={isFull}
-                    className={`w-full text-left bg-white rounded-2xl border-2 overflow-hidden transition group ${isFull ? 'border-gray-100 opacity-60 cursor-not-allowed' : 'border-gray-100 hover:border-pva-teal'}`}>
+                  <button key={cls.id} onClick={() => !isFull && !isRegistered && setSelectedClass(cls)} disabled={isFull || isRegistered}
+                    className={`w-full text-left bg-white rounded-2xl border-2 overflow-hidden transition group ${isFull ? 'border-gray-100 opacity-60 cursor-not-allowed' : isRegistered ? 'border-green-200 bg-green-50/30 cursor-default' : 'border-gray-100 hover:border-pva-teal'}`}>
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-black text-pva-navy text-base leading-tight">{cls.title}</h3>
                           <p className="text-sm text-gray-500 mt-0.5">{cls.trainerName}</p>
                         </div>
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${isFull ? 'bg-gray-100 text-gray-400' : spotsLeft <= 3 ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
-                          {isFull ? 'Full' : `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`}
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${isRegistered ? 'bg-green-100 text-green-600' : isFull ? 'bg-gray-100 text-gray-400' : spotsLeft <= 3 ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                          {isRegistered ? '✓ Registered' : isSeries ? `${seriesDates!.length}-Day Camp` : isFull ? 'Full' : `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                        <div className="flex items-center gap-1.5"><Calendar size={12} className="text-pva-teal" />{format(cls.startTime, 'MMM d, yyyy')}</div>
+                        <div className="flex items-center gap-1.5 col-span-2"><Calendar size={12} className="text-pva-teal" />
+                          {isSeries ? formatSeriesDateRange(seriesDates!) : format(cls.startTime, 'MMM d, yyyy')}
+                        </div>
                         <div className="flex items-center gap-1.5"><Clock size={12} className="text-pva-teal" />{format(cls.startTime, 'h:mm a')} – {format(cls.endTime, 'h:mm a')}</div>
                         {cls.location && <div className="flex items-center gap-1.5"><MapPin size={12} className="text-pva-teal" />{cls.location}</div>}
                         <div className="flex items-center gap-1.5"><Users size={12} className="text-pva-teal" />{cls.currentParticipants}/{cls.maxParticipants}</div>
                       </div>
                       {cls.description && <p className="text-xs text-gray-400 mt-3 line-clamp-2">{cls.description}</p>}
                     </div>
-                    {!isFull && (
+                    {!isFull && !isRegistered && (
                       <div className="border-t border-gray-50 px-5 py-3 flex items-center justify-between">
                         <span className="text-xs font-bold text-pva-teal">Register with a class pass</span>
                         <ChevronRight size={16} className="text-gray-300 group-hover:text-pva-teal transition" />
+                      </div>
+                    )}
+                    {isRegistered && (
+                      <div className="border-t border-green-100 px-5 py-3 flex items-center gap-2">
+                        <Check size={14} className="text-green-500" />
+                        <span className="text-xs font-bold text-green-600">You&apos;re registered for this class</span>
                       </div>
                     )}
                   </button>
@@ -1138,9 +1284,11 @@ export default function BookPage() {
 
       {/* Class registration modal */}
       {selectedClass && userDocId && (
-        <ClassModal cls={selectedClass} passes={passes} athletes={athletes} userDocId={userDocId}
+        <ClassModal cls={selectedClass} passes={passes} athletes={athletes} userDocId={userDocId} profile={profile}
+          orgSettings={orgSettings}
+          signedWaiverAthletes={signedWaiverAthletes}
           onClose={() => setSelectedClass(null)}
-          onBooked={() => { setSelectedClass(null); fetchGroupClasses().then(setClasses).catch(console.error); }} />
+          onBooked={() => { setSelectedClass(null); fetchGroupClasses().then((all) => setClasses(deduplicateClasses(all))).catch(console.error); }} />
       )}
     </div>
   );

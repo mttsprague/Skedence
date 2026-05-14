@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { collection, query, where, getDocs, getDoc, doc, limit, orderBy, Timestamp, documentId } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, limit, orderBy, Timestamp, documentId, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trackPageView } from '@/lib/analytics';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -85,6 +85,8 @@ interface Participant {
   athleteName?: string;
   email?: string;
   phoneNumber?: string;
+  checkedIn?: boolean;
+  checkedInAt?: Timestamp;
 }
 
 interface BookingSnapshot {
@@ -126,7 +128,7 @@ export default function ActivityPage() {
   const [isSearching, setIsSearching] = useState(false);
   
   // Date range filtering
-  const [dateRangeMode, setDateRangeMode] = useState<'today' | 'yesterday' | 'week' | 'last-week' | 'month' | 'last-month' | 'all' | 'custom'>('today');
+  const [dateRangeMode, setDateRangeMode] = useState<'today' | 'yesterday' | 'week' | 'last-week' | 'month' | 'last-month' | 'all' | 'custom'>('week');
   const [customStartDate, setCustomStartDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [fieldLabels, setFieldLabels] = useState({ birthday: 'Birthday', schoolClubTeam: 'School / Club Team', experienceLevel: 'Experience Level', position: 'Position' });
@@ -228,6 +230,8 @@ export default function ActivityPage() {
   const [viewingParticipants, setViewingParticipants] = useState<ClassSnapshot | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  const participantsUnsubRef = useRef<(() => void) | null>(null);
   
   // Compare time frames
   const [compareMode, setCompareMode] = useState<'week' | 'month' | 'custom'>('week');
@@ -564,40 +568,30 @@ export default function ActivityPage() {
         const dayStart = Timestamp.fromDate(startOfDay(happeningDate));
         const dayEnd = Timestamp.fromDate(endOfDay(happeningDate));
         
-        // Fetch classes and all registrations in parallel
-        const [classesSnap, registrationsSnap] = await Promise.all([
-          getDocs(query(
-            collection(db, 'classes'),
-            where('orgId', '==', orgId),
-            where('startTime', '>=', dayStart),
-            where('startTime', '<=', dayEnd),
-            orderBy('startTime', 'asc')
-          )),
-          getDocs(query(
-            collection(db, 'classRegistrations'),
-            where('orgId', '==', orgId)
-          ))
-        ]);
-        
-        // Group registrations by classId
-        const registrationsByClass = new Map<string, number>();
-        registrationsSnap.docs.forEach(doc => {
-          const classId = doc.data().classId;
-          registrationsByClass.set(classId, (registrationsByClass.get(classId) || 0) + 1);
-        });
-        
-        const classes: ClassSnapshot[] = classesSnap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            title: data.title || 'Untitled Class',
-            startTime: data.startTime?.toDate() || new Date(),
-            endTime: data.endTime?.toDate() || new Date(),
-            capacity: data.capacity || 10,
-            enrolled: registrationsByClass.get(doc.id) || 0,
-            location: data.location || 'TBD',
-          };
-        });
+        const classesSnap = await getDocs(query(
+          collection(db, 'classes'),
+          where('orgId', '==', orgId),
+          where('startTime', '>=', dayStart),
+          where('startTime', '<=', dayEnd),
+          orderBy('startTime', 'asc')
+        ));
+
+        // Count participants from the authoritative subcollection (same source as the participants modal)
+        const classes: ClassSnapshot[] = await Promise.all(
+          classesSnap.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+            const participantsSnap = await getDocs(collection(db, 'classes', docSnap.id, 'participants'));
+            return {
+              id: docSnap.id,
+              title: data.title || 'Untitled Class',
+              startTime: data.startTime?.toDate() || new Date(),
+              endTime: data.endTime?.toDate() || new Date(),
+              capacity: data.maxParticipants || data.capacity || 10,
+              enrolled: participantsSnap.docs.length,
+              location: data.location || 'TBD',
+            };
+          })
+        );
         
         setUpcomingClasses(classes);
       } catch (error) {
@@ -748,55 +742,52 @@ export default function ActivityPage() {
   }, [orgId]);
 
   // Handle viewing participants (similar to classes page)
-  const handleViewParticipants = async (cls: ClassSnapshot) => {
+  const handleViewParticipants = useCallback((cls: ClassSnapshot) => {
+    if (participantsUnsubRef.current) { participantsUnsubRef.current(); participantsUnsubRef.current = null; }
     setViewingParticipants(cls);
     setLoadingParticipants(true);
-    
-    try {
-      // Query participants subcollection
-      const participantsQuery = query(collection(db, 'classes', cls.id, 'participants'));
-      const participantsSnapshot = await getDocs(participantsQuery);
-      const participantsData = participantsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Participant[];
-      
-      // Fetch full user details for each participant (phone and email)
-      const enrichedParticipants = await Promise.all(
+    setParticipants([]);
+
+    const participantsRef = collection(db, 'classes', cls.id, 'participants');
+    const unsub = onSnapshot(participantsRef, async (snapshot) => {
+      const participantsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Participant[];
+      const enriched = await Promise.all(
         participantsData.map(async (participant) => {
           try {
-            // Fetch user details from users collection
-            const userQuery = query(
-              collection(db, 'users'),
-              where('__name__', '==', participant.userId)
-            );
+            const userQuery = query(collection(db, 'users'), where('__name__', '==', participant.userId));
             const userDoc = await getDocs(userQuery);
-            
             if (!userDoc.empty) {
-              const userData = userDoc.docs[0].data();
-              return {
-                ...participant,
-                email: userData.email || userData.emailAddress,
-                phoneNumber: userData.phoneNumber || userData.phone,
-              };
+              const ud = userDoc.docs[0].data();
+              return { ...participant, email: ud.email || ud.emailAddress, phoneNumber: ud.phoneNumber || ud.phone };
             }
-            
-            return participant;
-          } catch (error) {
-            // Silent fail - use registration data only
-            return participant;
-          }
+          } catch { /* silent */ }
+          return participant;
         })
       );
-      
-      setParticipants(enrichedParticipants.sort((a, b) => 
-        b.registeredAt.seconds - a.registeredAt.seconds
-      ));
-    } catch (error) {
-      // Silent fail - show empty participants
-      setParticipants([]);
-    } finally {
+      setParticipants(enriched.sort((a, b) => {
+        const as_ = (a.registeredAt as any)?.seconds ?? 0;
+        const bs_ = (b.registeredAt as any)?.seconds ?? 0;
+        return as_ - bs_;
+      }));
       setLoadingParticipants(false);
+    }, () => { setParticipants([]); setLoadingParticipants(false); });
+    participantsUnsubRef.current = unsub;
+  }, []);
+
+  const handleCheckIn = async (participant: Participant) => {
+    if (!viewingParticipants || checkingIn === participant.id) return;
+    setCheckingIn(participant.id);
+    try {
+      const ref = doc(db, 'classes', viewingParticipants.id, 'participants', participant.id);
+      if (participant.checkedIn) {
+        await updateDoc(ref, { checkedIn: false, checkedInAt: null });
+      } else {
+        await updateDoc(ref, { checkedIn: true, checkedInAt: Timestamp.now() });
+      }
+    } catch (error) {
+      console.error('Error updating check-in:', error);
+    } finally {
+      setCheckingIn(null);
     }
   };
 
@@ -1108,6 +1099,9 @@ export default function ActivityPage() {
   // Memoized helper functions
   const getActivityIcon = useCallback((type: ActivityType) => {
     switch (type) {
+      case 'class_registered':
+      case 'class_enrollment':
+        return <GraduationCap className="h-5 w-5 text-teal-600" />;
       case 'lesson_booked':
       case 'booking_created':
         return <Calendar className="h-5 w-5 text-green-600" />;
@@ -2271,6 +2265,7 @@ export default function ActivityPage() {
                 </div>
                 <button
                   onClick={() => {
+                    if (participantsUnsubRef.current) { participantsUnsubRef.current(); participantsUnsubRef.current = null; }
                     setViewingParticipants(null);
                     setParticipants([]);
                   }}
@@ -2282,6 +2277,17 @@ export default function ActivityPage() {
             </div>
 
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
+              {/* Attendance summary */}
+              {participants.length > 0 && (() => {
+                const checkedInCount = participants.filter(p => p.checkedIn).length;
+                return (
+                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+                    <span className="text-sm font-medium text-green-800">Checked In</span>
+                    <span className="text-lg font-bold text-green-700">{checkedInCount} / {participants.length}</span>
+                  </div>
+                );
+              })()}
+
               {loadingParticipants ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
@@ -2297,11 +2303,17 @@ export default function ActivityPage() {
                   {participants.map((participant, index) => (
                     <div
                       key={participant.id}
-                      className="p-4 bg-background rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                      className={`p-4 rounded-lg border transition-colors ${
+                        participant.checkedIn
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-background border-gray-200 hover:border-gray-300'
+                      }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3 flex-1">
-                          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold flex-shrink-0">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center font-semibold flex-shrink-0 ${
+                            participant.checkedIn ? 'bg-green-600 text-white' : 'bg-primary text-white'
+                          }`}>
                             {participant.firstName?.charAt(0)}{participant.lastName?.charAt(0)}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -2309,27 +2321,44 @@ export default function ActivityPage() {
                               {participant.firstName} {participant.lastName}
                             </p>
                             {participant.email && (
-                              <p className="text-sm text-muted-foreground">
-                                📧 {participant.email}
-                              </p>
+                              <p className="text-sm text-muted-foreground">📧 {participant.email}</p>
                             )}
                             {participant.phoneNumber && (
-                              <p className="text-sm text-muted-foreground">
-                                📱 {participant.phoneNumber}
-                              </p>
+                              <p className="text-sm text-muted-foreground">📱 {participant.phoneNumber}</p>
                             )}
-                            {participant.athleteName && (
-                              <p className="text-sm text-blue-600 font-medium">
-                                🏃 Athlete: {participant.athleteName}
-                              </p>
+                            {participant.athleteName && participant.athleteName.trim() !== `${participant.firstName} ${participant.lastName}`.trim() && (
+                              <p className="text-sm text-blue-600 font-medium">🏃 Athlete: {participant.athleteName}</p>
                             )}
                             <p className="text-xs text-muted-foreground mt-1">
                               Registered {format(participant.registeredAt.toDate(), 'MMM d, yyyy • h:mm a')}
                             </p>
+                            {participant.checkedIn && participant.checkedInAt && (
+                              <p className="text-xs text-green-600 font-medium mt-0.5">
+                                ✓ Checked in {format((participant.checkedInAt as Timestamp).toDate(), 'h:mm a')}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <div className="text-sm text-muted-foreground flex-shrink-0 ml-2">
-                          #{index + 1}
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-2">
+                          <span className="text-sm text-muted-foreground">#{index + 1}</span>
+                          <button
+                            onClick={() => handleCheckIn(participant)}
+                            disabled={checkingIn === participant.id}
+                            title={participant.checkedIn ? 'Undo check-in' : 'Check in'}
+                            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                              participant.checkedIn
+                                ? 'text-green-700 border-green-300 bg-green-100 hover:bg-green-200'
+                                : 'text-gray-600 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {checkingIn === participant.id ? (
+                              <span className="animate-spin h-3 w-3 border border-current border-t-transparent rounded-full" />
+                            ) : participant.checkedIn ? (
+                              <>✓ In</>
+                            ) : (
+                              <>Check In</>
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>

@@ -17,7 +17,7 @@ struct NextLessonSection: View {
                 CardView {
                     VStack(alignment: .leading, spacing: Spacing.md) {
                         HStack {
-                            Text(isSelectedBooking ? "Selected Lesson" : "Next Lesson")
+                            Text(isSelectedBooking ? "Selected Event" : "Next Event")
                                 .font(.headingSmall)
                                 .foregroundStyle(AppTheme.textPrimary)
                             

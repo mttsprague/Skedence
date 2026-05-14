@@ -222,7 +222,8 @@ struct TrainerWeekView: View {
                         showMultipleSlotsSheet = false
                         let slotHour = Calendar.current.component(.hour, from: slot.startTime)
                         handleSlotTap(slot, defaultDay: context.day, defaultHour: slotHour)
-                    }
+                    },
+                    viewModel: viewModel
                 )
             }
         }
@@ -553,7 +554,9 @@ struct TrainerWeekView: View {
                 firstName: firstName,
                 lastName: lastName,
                 athleteName: athleteName,
-                registeredAt: timestamp.dateValue()
+                registeredAt: timestamp.dateValue(),
+                checkedIn: data["checkedIn"] as? Bool ?? false,
+                checkedInAt: (data["checkedInAt"] as? Timestamp)?.dateValue()
             )
         }
     }
@@ -923,6 +926,7 @@ struct MultipleSlotsView: View {
     let slots: [TrainerScheduleSlot]
     let viewingTrainerId: String?
     let onSlotTap: (TrainerScheduleSlot) -> Void
+    var viewModel: ScheduleViewModel? = nil
     
     @Environment(\.dismiss) private var dismiss
     
@@ -934,7 +938,7 @@ struct MultipleSlotsView: View {
                 Button(action: {
                     onSlotTap(slot)
                 }) {
-                    MultipleSlotsRowView(slot: slot, viewingTrainerId: viewingTrainerId)
+                    MultipleSlotsRowView(slot: slot, viewingTrainerId: viewingTrainerId, viewModel: viewModel)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -959,6 +963,7 @@ struct MultipleSlotsView: View {
 struct MultipleSlotsRowView: View {
     let slot: TrainerScheduleSlot
     let viewingTrainerId: String?
+    var viewModel: ScheduleViewModel? = nil
     
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.md) {
@@ -974,7 +979,7 @@ struct MultipleSlotsRowView: View {
                 }
                 
                 // Title
-                Text(slot.isClass ? (slot.clientName ?? "Group Class") : (slot.clientName ?? "Booked"))
+                Text(slot.isClass ? (slot.classTitle(from: viewModel) ?? slot.clientName ?? "Group Class") : (slot.clientName ?? "Booked"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                 

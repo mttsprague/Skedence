@@ -960,6 +960,13 @@ final class FirestoreService {
                     let athleteNames = data["athleteNames"] as? [String]
                     let lessonNotes = data["lessonNotes"] as? String
                     
+                    // Fetch class title if this is a class booking
+                    var className: String? = nil
+                    if isClassBooking == true, let cid = classId, !cid.isEmpty {
+                        let classDoc = try? await db.collection("classes").document(cid).getDocument()
+                        className = classDoc?.data()?["title"] as? String
+                    }
+
                     // Fetch package type if packageId exists
                     var packageType: String? = nil
                     if let pkgId = packageId, !pkgId.isEmpty, !clientId.isEmpty {
@@ -987,6 +994,7 @@ final class FirestoreService {
                         bookedAt: bookedAt,
                         isClassBooking: isClassBooking,
                         classId: classId,
+                        className: className,
                         packageId: packageId,
                         packageType: packageType,
                         athleteName: athleteName,

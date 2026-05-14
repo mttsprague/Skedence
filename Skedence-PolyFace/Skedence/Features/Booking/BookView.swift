@@ -59,6 +59,7 @@ struct BookView: View {
     @State private var showSubscriptionSheet = false
     @State private var showBookingInstructions = false
     @State private var showWaiverAgreement = false
+    @State private var isHandlingWaiver = false
     @State private var showBookingConfirmation = false
     @State private var pendingBookingSuccess = false
     @State private var currentWaiverAthleteIndex: Int? = nil  // Track which athlete is signing waiver
@@ -1993,6 +1994,9 @@ struct BookView: View {
     }
     
     private func handleWaiverAgreement() async {
+        guard !isHandlingWaiver else { return }
+        isHandlingWaiver = true
+        defer { isHandlingWaiver = false }
         guard let userId = auth.currentUserDocId,
               let profile = usersService.currentUser else {
             showWaiverAgreement = false

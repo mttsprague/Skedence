@@ -45,6 +45,8 @@ struct ClassRegistrationSheet: View {
     @State private var isCheckingWaivers = false
     @State private var waiverCheckComplete = false
     
+    @State private var isHandlingWaiver = false
+    
     // UI state for collapsible sections
     @State private var primaryAthleteInfoExpanded = true
     @State private var newAthleteInfoExpanded = true
@@ -246,6 +248,12 @@ struct ClassRegistrationSheet: View {
                         return true
                     }
                 }
+                // Fallback: legacy waivers may store athlete name in signedBy
+                if let signedBy = doc.signedBy?.lowercased().trimmingCharacters(in: .whitespaces) {
+                    if signedBy == normalizedAthleteName {
+                        return true
+                    }
+                }
             }
         }
         
@@ -280,6 +288,9 @@ struct ClassRegistrationSheet: View {
     
     // Handle waiver agreement (matches BookView flow - saves to documents subcollection with PDF)
     private func handleWaiverAgreement() async {
+        guard !isHandlingWaiver else { return }
+        isHandlingWaiver = true
+        defer { isHandlingWaiver = false }
         guard let userId = auth.currentUserDocId,
               let profile = usersService.currentUser else {
             showWaiverAgreement = false

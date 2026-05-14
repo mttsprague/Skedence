@@ -37,6 +37,12 @@ struct TrainerScheduleSlot: Identifiable, Codable, Hashable {
     // Check if this is a class
     var isClass: Bool { isClassBooking == true }
 
+    /// Returns the cached class title from the ScheduleViewModel if available.
+    func classTitle(from viewModel: ScheduleViewModel?) -> String? {
+        guard let classId = classId, !classId.isEmpty, let vm = viewModel else { return nil }
+        return vm.classTitlesByClassId[classId]
+    }
+
     var displayTitle: String {
         if isClass {
             return clientName ?? "Group Class"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
@@ -9,7 +9,7 @@ import AuthLayout from '@/components/AuthLayout';
 import Spinner from '@/components/Spinner';
 
 export default function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -18,13 +18,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Redirect once auth state resolves — avoids race where router.push('/portal')
+  // fires before onAuthStateChanged has updated React state.
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(user.emailVerified ? '/portal' : '/verify-email');
+    }
+  }, [user, authLoading, router]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       await signIn(email, password);
-      router.push('/portal');
+      // Navigation handled by the effect above once onAuthStateChanged fires
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to sign in';
       setError(

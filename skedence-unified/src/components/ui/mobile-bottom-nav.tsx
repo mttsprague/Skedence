@@ -22,6 +22,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { LogOut } from 'lucide-react';
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -100,6 +102,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { signOut } = useAuth();
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -204,6 +207,17 @@ export function MobileBottomNav() {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Sign Out */}
+            <div className="border-t pt-4 pb-2">
+              <button
+                onClick={() => { setSheetOpen(false); signOut(); }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors touch-manipulation font-medium"
+              >
+                <LogOut className="w-5 h-5" />
+                Sign Out
+              </button>
             </div>
           </SheetContent>
         </Sheet>

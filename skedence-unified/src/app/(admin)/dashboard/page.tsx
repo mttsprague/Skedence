@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { collection, query, where, getDocs, getDoc, doc, orderBy, Timestamp, collectionGroup, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, documentId, orderBy, Timestamp, collectionGroup, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { StatCardSkeleton } from '@/components/ui/skeleton';
 import { Users, Calendar, DollarSign, TrendingUp, Clock, MapPin, Activity, ChevronRight } from 'lucide-react';
@@ -52,13 +52,52 @@ export default function DashboardPage() {
     // Load stats
     async function loadStats() {
       try {
-        const [clientsSnap, todaySnap, monthPassesSnap, activeSnap] = await Promise.all([
-          getDocs(query(collection(db, 'orgMembers'), where('orgId', '==', orgId), where('role', '==', 'client'), where('isActive', '==', true))),
-          getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId), where('startTime', '>=', dayStart), where('startTime', '<=', dayEnd), where('status', '==', 'confirmed'))),
-          getDocs(query(collectionGroup(db, 'packages'), where('orgId', '==', orgId), where('purchaseDate', '>=', Timestamp.fromDate(startOfMonth)))),
-          getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId), where('status', '==', 'confirmed'))),
+        // NOTE: Booking queries deliberately use single-field where('orgId') only, then filter
+        // date ranges and status in JS. Multi-field Firestore queries with 'in' + range filters
+        // silently fail (caught by catch block → zeroed stats) even when composite indexes exist.
+        // DO NOT switch these back to multi-condition Firestore queries.
+        const [membersSnap, allBookingsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'orgMembers'), where('orgId', '==', orgId), where('isActive', '==', true))),
+          getDocs(query(collection(db, 'bookings'), where('orgId', '==', orgId))),
         ]);
-        setStats({ totalClients: clientsSnap.size, todaySessions: todaySnap.size, monthlyPasses: monthPassesSnap.size, activeBookings: activeSnap.size });
+
+        // Active client count: same logic as /activity — cross-check orgMembers against users docs
+        const clientUserIds = membersSnap.docs
+          .map(d => d.data())
+          .filter((m: any) => m.role === 'client' && !!m.userId)
+          .map((m: any) => m.userId as string);
+        let activeClientCount = 0;
+        if (clientUserIds.length > 0) {
+          const BATCH = 30;
+          for (let i = 0; i < clientUserIds.length; i += BATCH) {
+            const batch = clientUserIds.slice(i, i + BATCH);
+            const usersSnap = await getDocs(query(collection(db, 'users'), where(documentId(), 'in', batch)));
+            usersSnap.docs.forEach(d => { if (d.data().isActive !== false) activeClientCount++; });
+          }
+        }
+
+        const dayStartMs = dayStart.toMillis();
+        const dayEndMs = dayEnd.toMillis();
+        const activeStatuses = new Set(['confirmed', 'scheduled']);
+
+        const todayCount = allBookingsSnap.docs.filter(d => {
+          const st = d.data().startTime?.toMillis() ?? 0;
+          return activeStatuses.has(d.data().status) && st >= dayStartMs && st <= dayEndMs;
+        }).length;
+
+        const upcomingCount = allBookingsSnap.docs.filter(d => {
+          const st = d.data().startTime?.toMillis() ?? 0;
+          return activeStatuses.has(d.data().status) && st >= dayStartMs;
+        }).length;
+
+        // Monthly passes query may fail if no collection-group index — isolate it
+        let monthlyPassesCount = 0;
+        try {
+          const monthPassesSnap = await getDocs(query(collectionGroup(db, 'packages'), where('orgId', '==', orgId), where('purchaseDate', '>=', Timestamp.fromDate(startOfMonth))));
+          monthlyPassesCount = monthPassesSnap.size;
+        } catch { /* no index or no permission — skip */ }
+
+        setStats({ totalClients: activeClientCount, todaySessions: todayCount, monthlyPasses: monthlyPassesCount, activeBookings: upcomingCount });
       } catch {
         setStats({ totalClients: 0, todaySessions: 0, monthlyPasses: 0, activeBookings: 0 });
       } finally {
@@ -69,14 +108,20 @@ export default function DashboardPage() {
     // Load today's bookings
     async function loadTodayBookings() {
       try {
+        // Single-field orgId query, filter + sort in JS — no composite index needed
         const snap = await getDocs(query(
           collection(db, 'bookings'),
-          where('orgId', '==', orgId),
-          where('startTime', '>=', dayStart),
-          where('startTime', '<=', dayEnd),
-          orderBy('startTime', 'asc')
+          where('orgId', '==', orgId)
         ));
-        const confirmed = snap.docs.filter(d => d.data().status === 'confirmed');
+        const dayStartMs = dayStart.toMillis();
+        const dayEndMs = dayEnd.toMillis();
+        const activeStatuses = new Set(['confirmed', 'scheduled']);
+        const confirmed = snap.docs
+          .filter(d => {
+            const st = d.data().startTime?.toMillis() ?? 0;
+            return activeStatuses.has(d.data().status) && st >= dayStartMs && st <= dayEndMs;
+          })
+          .sort((a, b) => (a.data().startTime?.toMillis() ?? 0) - (b.data().startTime?.toMillis() ?? 0));
         const bookings: TodayBooking[] = await Promise.all(
           confirmed.map(async (docSnap) => {
             const data = docSnap.data();
@@ -135,7 +180,7 @@ export default function DashboardPage() {
   const statCards = [
     { label: 'Clients', value: stats?.totalClients ?? 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: "Today", value: stats?.todaySessions ?? 0, icon: Calendar, color: 'text-green-600', bg: 'bg-green-50' },
-    { label: 'Bookings', value: stats?.activeBookings ?? 0, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: 'Upcoming', value: stats?.activeBookings ?? 0, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
     { label: 'Passes', value: stats?.monthlyPasses ?? 0, icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50' },
   ];
 

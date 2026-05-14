@@ -270,7 +270,12 @@ struct ScheduleView: View {
 
     @ViewBuilder
     private var avatarView: some View {
-        if let urlString = auth.trainerPhotoURLString, let url = URL(string: urlString) {
+        // For the header avatar: show the selected trainer's photo when admin is viewing
+        // a specific trainer, otherwise show the logged-in user's own photo.
+        let activeId = viewModel.editingTrainerId ?? auth.trainerId ?? auth.userId
+        let urlString = viewModel.allTrainers.first(where: { $0.id == activeId })?.anyPhotoURLString
+                        ?? auth.trainerPhotoURLString
+        if let urlString, let url = URL(string: urlString), !urlString.isEmpty {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .empty:
@@ -507,7 +512,9 @@ struct ScheduleView: View {
                 firstName: firstName,
                 lastName: lastName,
                 athleteName: data["athleteName"] as? String,
-                registeredAt: registeredAtTimestamp.dateValue()
+                registeredAt: registeredAtTimestamp.dateValue(),
+                checkedIn: data["checkedIn"] as? Bool ?? false,
+                checkedInAt: (data["checkedInAt"] as? Timestamp)?.dateValue()
             )
         }
     }
@@ -1157,7 +1164,8 @@ private struct SheetModifiers: ViewModifier {
                         onSlotTap: { slot in
                             showMultipleSlotsSheet = false
                             handleSlotTap(slot, defaultDay: context.day, defaultHour: Calendar.current.component(.hour, from: slot.startTime))
-                        }
+                        },
+                        viewModel: viewModel
                     )
                     .presentationDetents([.medium, .large])
                 }
@@ -1338,7 +1346,9 @@ private struct SheetModifiers: ViewModifier {
                 firstName: firstName,
                 lastName: lastName,
                 athleteName: data["athleteName"] as? String,
-                registeredAt: registeredAtTimestamp.dateValue()
+                registeredAt: registeredAtTimestamp.dateValue(),
+                checkedIn: data["checkedIn"] as? Bool ?? false,
+                checkedInAt: (data["checkedInAt"] as? Timestamp)?.dateValue()
             )
         }
     }
@@ -1351,6 +1361,7 @@ struct ScheduleMultipleSlotsView: View {
     let slots: [TrainerScheduleSlot]
     let viewingTrainerId: String?
     let onSlotTap: (TrainerScheduleSlot) -> Void
+    var viewModel: ScheduleViewModel? = nil
     
     @Environment(\.dismiss) private var dismiss
     
@@ -1374,7 +1385,7 @@ struct ScheduleMultipleSlotsView: View {
                                         .background(RoundedRectangle(cornerRadius: 4).fill(Color.orange))
                                 }
                                 
-                                Text(slot.isClass ? (slot.clientName ?? "Group Class") : (slot.clientName ?? "Booked"))
+                Text(slot.isClass ? (slot.classTitle(from: viewModel) ?? slot.clientName ?? "Group Class") : (slot.clientName ?? "Booked"))
                                     .font(.bodyMedium.weight(.semibold))
                                     .foregroundStyle(AppTheme.textPrimary)
                                 

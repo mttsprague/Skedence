@@ -250,6 +250,9 @@ final class ScheduleViewModel: ObservableObject {
             // Prefetch clients for all booked slots in this week
             await prefetchClientsForVisibleWeek()
             
+            // Prefetch class titles for all class bookings in this week
+            await prefetchClassTitlesForVisibleWeek()
+            
             // Prefetch class participants for all class bookings in this week
             await prefetchClassParticipantsForVisibleWeek()
         } catch {
@@ -289,6 +292,39 @@ final class ScheduleViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Prefetch class titles for instant cell display
+    func prefetchClassTitlesForVisibleWeek() async {
+        // Collect unique class IDs from class slots
+        let allClassIds: Set<String> = Set(slotsByDay.values.flatMap { daySlots in
+            daySlots.compactMap { slot in
+                guard slot.isClass, let classId = slot.classId, !classId.isEmpty else { return nil }
+                return classId
+            }
+        })
+        // Skip already cached
+        let missing = allClassIds.subtracting(classTitlesByClassId.keys)
+        guard !missing.isEmpty else { return }
+
+        var fetched: [String: String] = [:]
+        await withTaskGroup(of: (String, String?).self) { group in
+            for classId in missing {
+                group.addTask {
+                    let title = await self.fetchClassTitle(classId: classId)
+                    return (classId, title)
+                }
+            }
+            for await (classId, title) in group {
+                if let title {
+                    fetched[classId] = title
+                }
+            }
+        }
+
+        for (classId, title) in fetched {
+            classTitlesByClassId[classId] = title
+        }
+    }
+
     // MARK: - Prefetch class participants for instant sheet presentation
     func prefetchClassParticipantsForVisibleWeek() async {
         // Collect unique class IDs from class bookings
@@ -356,7 +392,9 @@ final class ScheduleViewModel: ObservableObject {
                 firstName: firstName,
                 lastName: lastName,
                 athleteName: athleteName,
-                registeredAt: registeredAtTimestamp.dateValue()
+                registeredAt: registeredAtTimestamp.dateValue(),
+                checkedIn: data["checkedIn"] as? Bool ?? false,
+                checkedInAt: (data["checkedInAt"] as? Timestamp)?.dateValue()
             )
         }
         

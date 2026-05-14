@@ -14,7 +14,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -30,7 +29,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, functions, ORG_ID } from '@/lib/firebase';
 import { UserProfile } from '@/types';
-import { generateUserDocId } from '@/lib/utils';
+import { generateUserDocId, generateReferenceCode } from '@/lib/utils';
 
 interface AuthContextValue {
   user: User | null;
@@ -61,16 +60,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userDocId, setUserDocId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const validatedUid = useRef<string | null>(null);
+  const validatedEmailVerified = useRef<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      // Anti-glitch: skip if already validated this user
-      if (firebaseUser && validatedUid.current === firebaseUser.uid) {
+      // Anti-glitch: skip if already validated this user with the same emailVerified state.
+      // Must re-process when emailVerified changes (i.e. user clicks the verification link).
+      if (
+        firebaseUser &&
+        validatedUid.current === firebaseUser.uid &&
+        validatedEmailVerified.current === firebaseUser.emailVerified
+      ) {
         return;
       }
 
       if (firebaseUser) {
         validatedUid.current = firebaseUser.uid;
+        validatedEmailVerified.current = firebaseUser.emailVerified;
         setUser(firebaseUser);
 
         // Resolve name-based doc ID by querying users by authUserId field
@@ -111,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         validatedUid.current = null;
+        validatedEmailVerified.current = false;
         setUser(null);
         setProfile(null);
         setUserDocId(null);
@@ -147,12 +154,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Generate name-based doc ID matching iOS convention: firstname_lastname
-    const docId = generateUserDocId(firstName, lastName);
+    // Append a 4-char UID suffix if a different user already has this docId (name collision guard)
+    const baseDocId = generateUserDocId(firstName, lastName);
+    const existingDoc = await getDoc(doc(db, 'users', baseDocId));
+    const docId =
+      existingDoc.exists() && existingDoc.data().authUserId !== uid
+        ? `${baseDocId}_${uid.slice(0, 4)}`
+        : baseDocId;
+
+    // Generate reference code matching iOS ReferenceCodeGenerator (e.g. SMITH-J-001)
+    // Non-fatal — fall back to a timestamp-based code if Firestore throws
+    let referenceCode: string;
+    try {
+      referenceCode = await generateReferenceCode(firstName, lastName, db);
+    } catch {
+      referenceCode = `${lastName.slice(0, 5).toUpperCase().replace(/[ '-]/g, '')}-${firstName.slice(0, 1).toUpperCase()}-${Date.now().toString().slice(-3)}`;
+    }
 
     // Write to users/{firstName_lastName} — mirrors iOS AuthManager.register()
     await setDoc(doc(db, 'users', docId), {
       authUserId: uid,
       emailAddress: email,        // iOS uses emailAddress, not email
+      referenceCode,
+      photoURL: null,
       firstName,
       lastName,
       phoneNumber,
@@ -166,7 +190,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }] : [],
       role: 'client',
       orgId: ORG_ID,
-      active: true,
+      isActive: true,
+      active: true,   // legacy compat
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -205,10 +230,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function resetPassword(email: string) {
-    await sendPasswordResetEmail(auth, email, {
-      url: 'https://www.polyfacevolleyball.com/login',
-      handleCodeInApp: false,
-    });
+    const resetFn = httpsCallable(functions, 'sendPasswordResetEmail');
+    await resetFn({ email });
   }
 
   return (

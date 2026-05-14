@@ -380,7 +380,9 @@ struct DayScheduleView: View {
                 firstName: firstName,
                 lastName: lastName,
                 athleteName: data["athleteName"] as? String,
-                registeredAt: timestamp.dateValue()
+                registeredAt: timestamp.dateValue(),
+                checkedIn: data["checkedIn"] as? Bool ?? false,
+                checkedInAt: (data["checkedInAt"] as? Timestamp)?.dateValue()
             )
         }
     }

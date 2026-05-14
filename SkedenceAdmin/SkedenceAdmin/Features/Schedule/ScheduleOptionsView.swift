@@ -26,7 +26,10 @@ struct ScheduleOptionsView: View {
                     // Current user row
                     if auth.isAuthenticated {
                         HStack(spacing: 12) {
-                            avatar(urlString: auth.trainerPhotoURLString)
+                            // Look up current user's photo from the loaded trainers list;
+                            // falls back to auth.trainerPhotoURLString for trainer-role users.
+                            avatar(urlString: trainers.first(where: { $0.id == auth.trainerId })?.anyPhotoURLString
+                                            ?? auth.trainerPhotoURLString)
                                 .frame(width: 44, height: 44)
 
                             VStack(alignment: .leading, spacing: 2) {

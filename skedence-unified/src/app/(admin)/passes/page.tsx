@@ -300,9 +300,19 @@ export default function PassesPage() {
         );
         const membersSnap = await getDocs(membersQuery);
         
+        // Deduplicate by userId — a user can have multiple orgMembers docs
+        // (e.g. old doc from before deletion + new doc after re-registration)
+        const seenUserIds = new Set<string>();
+        const uniqueMembers = membersSnap.docs.filter((memberDoc) => {
+          const uid = memberDoc.data().userId;
+          if (!uid || seenUserIds.has(uid)) return false;
+          seenUserIds.add(uid);
+          return true;
+        });
+
         // Load full user data for each member
         const clientsData: Client[] = [];
-        for (const memberDoc of membersSnap.docs) {
+        for (const memberDoc of uniqueMembers) {
           const memberData = memberDoc.data();
           const userId = memberData.userId;
           
@@ -311,12 +321,14 @@ export default function PassesPage() {
               const userDoc = await getDoc(doc(db, 'users', userId));
               if (userDoc.exists()) {
                 const userData = userDoc.data();
+                // Skip soft-deleted users
+                if (userData.isActive === false) continue;
                 clientsData.push({
                   id: memberDoc.id,
                   userId: userId,
                   firstName: userData.firstName || '',
                   lastName: userData.lastName || '',
-                  email: userData.email || '',
+                  email: userData.emailAddress || userData.email || '',
                   phoneNumber: userData.phoneNumber || ''
                 });
               }
@@ -337,17 +349,8 @@ export default function PassesPage() {
           if (pricingData && pricingData.tiers && Array.isArray(pricingData.tiers)) {
             const allPackages: PackageOption[] = [];
             pricingData.tiers.forEach((tier: any) => {
-              // Skip tiers that are class-only
-              const isClassOnly = Array.isArray(tier.packages) && tier.packages.length > 0 &&
-                tier.packages.every((p: any) =>
-                  p.packageCategory === 'classPass' || p.packageCategory === 'class' ||
-                  (p.packageType || '').includes('class')
-                );
-              if (isClassOnly) return;
               if (tier.packages && Array.isArray(tier.packages)) {
                 tier.packages.forEach((pkg: any) => {
-                  if (pkg.packageCategory === 'classPass' || pkg.packageCategory === 'class' ||
-                      (pkg.packageType || '').includes('class')) return;
                   allPackages.push({
                     id: pkg.id || `${tier.id}-${pkg.packageType}`,
                     title: pkg.title || pkg.packageType,
@@ -870,7 +873,7 @@ export default function PassesPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Manage Passes</h1>
             <p className="text-foreground/80 mt-1">
-              Add or remove lesson passes for clients
+              Add or remove lesson and class passes for clients
             </p>
           </div>
 

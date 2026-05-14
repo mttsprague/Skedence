@@ -21,7 +21,10 @@ export default function PortalDashboard() {
   const firstName = profile?.firstName || 'Athlete';
 
   useEffect(() => {
-    if (!user || !userDocId) return;
+    if (!user || !userDocId) {
+      setLoadingData(false);
+      return;
+    }
 
     async function fetchData() {
       try {

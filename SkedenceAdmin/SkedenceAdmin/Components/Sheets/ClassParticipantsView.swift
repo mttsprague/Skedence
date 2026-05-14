@@ -18,6 +18,9 @@ struct ClassParticipantsView: View {
     @StateObject private var participantsLoader: ParticipantsLoader
     @Environment(\.dismiss) private var dismiss
     @State private var selectedParticipant: ClassParticipant?
+    @State private var participantToRemove: ClassParticipant?
+    @State private var isRemoving = false
+    @State private var removeError: String?
     @State private var showingManualRegistration = false
     @EnvironmentObject private var dependencies: AdminAppDependencies
     
@@ -43,18 +46,36 @@ struct ClassParticipantsView: View {
                 } else {
                     List {
                         Section {
-                            Text("\(participantsLoader.participants.count) registered")
-                                .font(.labelMedium)
-                                .foregroundStyle(AppTheme.textSecondary)
+                            let checkedIn = participantsLoader.checkedInCount
+                            let total = participantsLoader.participants.count
+                            HStack {
+                                Text("\(total) registered")
+                                    .font(.labelMedium)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                Spacer()
+                                if total > 0 {
+                                    Label("\(checkedIn) / \(total) checked in", systemImage: "checkmark.circle.fill")
+                                        .font(.labelMedium)
+                                        .foregroundStyle(checkedIn == total ? AppTheme.primary : AppTheme.textSecondary)
+                                }
+                            }
                         }
                         
                         Section(header: Text("Participants")) {
                             ForEach(participantsLoader.participants) { participant in
-                                ParticipantRow(participant: participant)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        selectedParticipant = participant
+                                ParticipantRow(
+                                    participant: participant,
+                                    onCheckIn: {
+                                        Task { await participantsLoader.toggleCheckIn(participant: participant) }
+                                    },
+                                    onRemove: {
+                                        participantToRemove = participant
                                     }
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedParticipant = participant
+                                }
                             }
                         }
                     }
@@ -92,6 +113,46 @@ struct ClassParticipantsView: View {
             }
         }
         .navigationViewStyle(.stack)
+        .alert("Remove Participant?", isPresented: Binding(
+            get: { participantToRemove != nil },
+            set: { if !$0 { participantToRemove = nil } }
+        )) {
+            Button("Remove", role: .destructive) {
+                guard let participant = participantToRemove,
+                      let orgId = dependencies.auth.currentOrgId else { return }
+                participantToRemove = nil
+                isRemoving = true
+                Task {
+                    do {
+                        try await participantsLoader.removeParticipant(participant: participant, orgId: orgId)
+                    } catch {
+                        removeError = error.localizedDescription
+                    }
+                    isRemoving = false
+                }
+            }
+            Button("Cancel", role: .cancel) { participantToRemove = nil }
+        } message: {
+            if let p = participantToRemove {
+                Text("Remove \(p.fullName) from this class?\(p.classPassPackageId != nil ? " Their pass will be refunded." : "")")
+            }
+        }
+        .alert("Remove Failed", isPresented: Binding(
+            get: { removeError != nil },
+            set: { if !$0 { removeError = nil } }
+        )) {
+            Button("OK", role: .cancel) { removeError = nil }
+        } message: {
+            Text(removeError ?? "")
+        }
+        .overlay {
+            if isRemoving {
+                Color.black.opacity(0.2).ignoresSafeArea()
+                ProgressView("Removing...")
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+        }
     }
 }
 
@@ -125,6 +186,8 @@ private struct ParticipantClientCardSheet: View {
 
 struct ParticipantRow: View {
     let participant: ClassParticipant
+    let onCheckIn: () -> Void
+    let onRemove: () -> Void
     
     var body: some View {
         HStack(spacing: Spacing.md) {
@@ -133,7 +196,9 @@ struct ParticipantRow: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [AppTheme.primary, AppTheme.primaryLight],
+                            colors: participant.checkedIn
+                                ? [Color.green.opacity(0.8), Color.green]
+                                : [AppTheme.primary, AppTheme.primaryLight],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -151,14 +216,37 @@ struct ParticipantRow: View {
                     .font(.bodyMedium)
                     .foregroundStyle(AppTheme.textPrimary)
                 
-                Text("Registered \(participant.registeredAt.formatted(.relative(presentation: .named)))")
-                    .font(.labelSmall)
-                    .foregroundStyle(AppTheme.textSecondary)
+                if participant.checkedIn, let at = participant.checkedInAt {
+                    Label("Checked in \(at.formatted(date: .omitted, time: .shortened))", systemImage: "checkmark.circle.fill")
+                        .font(.labelSmall)
+                        .foregroundStyle(.green)
+                } else {
+                    Text("Registered \(participant.registeredAt.formatted(.relative(presentation: .named)))")
+                        .font(.labelSmall)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
             }
             
             Spacer()
+            
+            // Check-in toggle button
+            Button(action: onCheckIn) {
+                Image(systemName: participant.checkedIn ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 24))
+                    .foregroundStyle(participant.checkedIn ? Color.green : Color(.systemGray3))
+            }
+            .buttonStyle(.plain)
+
+            // Remove button
+            Button(action: onRemove) {
+                Image(systemName: "trash")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.red.opacity(0.7))
+            }
+            .buttonStyle(.plain)
         }
         .padding(.vertical, Spacing.xs)
+        .contentShape(Rectangle())
     }
 }
 
@@ -171,6 +259,9 @@ struct ClassParticipant: Identifiable, Codable {
     let lastName: String
     let athleteName: String?  // The specific athlete's name
     let registeredAt: Date
+    var checkedIn: Bool
+    var checkedInAt: Date?
+    var classPassPackageId: String?  // Used to refund pass on removal
     
     var fullName: String {
         // Use athlete name if available, otherwise fall back to parent name
@@ -203,60 +294,114 @@ class ParticipantsLoader: ObservableObject {
     
     private let db = Firestore.firestore()
     private let classId: String
+    private var listenerRegistration: ListenerRegistration?
+    
+    var checkedInCount: Int { participants.filter { $0.checkedIn }.count }
     
     init(classId: String, preloadedParticipants: [ClassParticipant]? = nil) {
         self.classId = classId
         
         if let preloaded = preloadedParticipants {
-            // Use preloaded data immediately
             self.participants = preloaded
             self.isLoading = false
-        } else {
-            // Load data
-            Task {
-                await loadParticipants()
-            }
         }
+        // Always attach live listener so check-ins from web show up immediately
+        startListening()
     }
     
-    func loadParticipants() async {
-        guard !classId.isEmpty else {
-            isLoading = false
-            return
-        }
+    deinit {
+        listenerRegistration?.remove()
+    }
+    
+    private func startListening() {
+        guard !classId.isEmpty else { isLoading = false; return }
+        isLoading = participants.isEmpty
         
-        isLoading = true
+        let ref = db.collection("classes").document(classId).collection("participants")
+            .order(by: "registeredAt", descending: false)
         
-        do {
-            let snapshot = try await db.collection("classes")
-                .document(classId)
-                .collection("participants")
-                .order(by: "registeredAt", descending: false)
-                .getDocuments()
-            
-            participants = snapshot.documents.compactMap { doc in
+        listenerRegistration = ref.addSnapshotListener { [weak self] snapshot, error in
+            guard let self = self else { return }
+            guard let snapshot = snapshot, error == nil else {
+                self.isLoading = false
+                return
+            }
+            self.participants = snapshot.documents.compactMap { doc in
                 let data = doc.data()
                 guard let userId = data["userId"] as? String,
                       let firstName = data["firstName"] as? String,
                       let lastName = data["lastName"] as? String,
-                      let timestamp = data["registeredAt"] as? Timestamp else {
-                    return nil
-                }
+                      let timestamp = data["registeredAt"] as? Timestamp else { return nil }
                 
+                let checkedInAt = (data["checkedInAt"] as? Timestamp)?.dateValue()
                 return ClassParticipant(
                     id: doc.documentID,
                     userId: userId,
                     firstName: firstName,
                     lastName: lastName,
                     athleteName: data["athleteName"] as? String,
-                    registeredAt: timestamp.dateValue()
+                    registeredAt: timestamp.dateValue(),
+                    checkedIn: data["checkedIn"] as? Bool ?? false,
+                    checkedInAt: checkedInAt,
+                    classPassPackageId: data["classPassPackageId"] as? String
                 )
             }
-        } catch {
-            participants = []
+            self.isLoading = false
         }
-        
-        isLoading = false
+    }
+    
+    func loadParticipants() async {
+        // No-op: snapshot listener keeps participants up to date
+    }
+    
+    func toggleCheckIn(participant: ClassParticipant) async {
+        let ref = db.collection("classes").document(classId)
+            .collection("participants").document(participant.id)
+        do {
+            if participant.checkedIn {
+                try await ref.updateData(["checkedIn": false, "checkedInAt": FieldValue.delete()])
+            } else {
+                try await ref.updateData(["checkedIn": true, "checkedInAt": Timestamp(date: Date())])
+            }
+        } catch {
+            print("Error toggling check-in: \(error)")
+        }
+    }
+
+    func removeParticipant(participant: ClassParticipant, orgId: String) async throws {
+        let classRef = db.collection("classes").document(classId)
+        let participantRef = classRef.collection("participants").document(participant.id)
+        let registrationRef = db.collection("classRegistrations").document("\(participant.userId)_\(classId)")
+
+        // Refund the pass if one was used
+        if let packageId = participant.classPassPackageId {
+            let stdPassRef = db.collection("organizations").document(orgId)
+                .collection("users").document(participant.userId)
+                .collection("packages").document(packageId)
+            let stdSnap = try? await stdPassRef.getDocument()
+            if stdSnap?.exists == true {
+                try await stdPassRef.updateData(["lessonsUsed": FieldValue.increment(Int64(-1))])
+            } else {
+                // Legacy path
+                let legacyRef = db.collection("users").document(participant.userId)
+                    .collection("lessonPackages").document(packageId)
+                try await legacyRef.updateData(["lessonsUsed": FieldValue.increment(Int64(-1))])
+            }
+        }
+
+        // Remove participant, registration doc, and decrement counters
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { try await participantRef.delete() }
+            group.addTask { try await registrationRef.delete() }
+            group.addTask {
+                try await classRef.updateData([
+                    "currentParticipants": FieldValue.increment(Int64(-1)),
+                    "participantIds": FieldValue.arrayRemove([participant.userId])
+                ])
+            }
+            try await group.waitForAll()
+        }
+        // onSnapshot handles the UI update automatically
     }
 }
 

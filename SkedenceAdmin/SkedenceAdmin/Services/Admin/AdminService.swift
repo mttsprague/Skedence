@@ -397,10 +397,11 @@ final class AdminService: ObservableObject {
         
         // Create new booking on the assigned trainer's schedule with updated times
         let bookingData: [String: Any] = [
-            "clientId": "",
+            "clientId": "CLASS",
+            "clientName": title,
             "startTime": Timestamp(date: startTime),
             "endTime": Timestamp(date: endTime),
-            "packageType": "class",
+            "status": "booked",
             "classId": classId,
             "isClassBooking": true,
             "bookedAt": Timestamp(date: Date()),

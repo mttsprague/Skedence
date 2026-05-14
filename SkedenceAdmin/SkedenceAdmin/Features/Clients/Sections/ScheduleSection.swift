@@ -162,7 +162,7 @@ struct ScheduleSection: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         // Title
-                        Text(booking.isClassBooking == true ? "Class" : "Private Lesson")
+                        Text(booking.isClassBooking == true ? (booking.className ?? "Class") : "Private Lesson")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(AppTheme.textPrimary)
                         
@@ -222,7 +222,7 @@ struct ScheduleSection: View {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
                             // Title (Lesson type or class name)
-                            Text(booking.isClassBooking == true ? "Class" : "Private Lesson")
+                            Text(booking.isClassBooking == true ? (booking.className ?? "Class") : "Private Lesson")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundStyle(AppTheme.textPrimary)
                             

@@ -176,6 +176,8 @@ export default function AppointmentsReportPage() {
       
       for (const docSnap of bookingsSnapshot.docs) {
         const data = docSnap.data();
+        // Skip class bookings — they are managed separately via classRegistrations
+        if (data.isClassBooking === true) continue;
         const startTime = data.startTime.toDate();
         const endTime = data.endTime.toDate();
         const duration = differenceInMinutes(endTime, startTime);
@@ -300,7 +302,17 @@ export default function AppointmentsReportPage() {
         let trainerName = 'Unknown Trainer';
         if (classData.trainerId) {
           const t = trainers.find(tr => tr.id === classData.trainerId);
-          if (t) trainerName = t.name;
+          if (t) {
+            trainerName = t.name;
+          } else {
+            try {
+              const trainerDoc = await getDoc(doc(db, 'trainers', classData.trainerId));
+              if (trainerDoc.exists()) {
+                const td = trainerDoc.data();
+                trainerName = `${td.firstName || ''} ${td.lastName || ''}`.trim() || trainerName;
+              }
+            } catch { /* silent */ }
+          }
         }
         
         // Each participant is a separate appointment entry
@@ -987,7 +999,9 @@ export default function AppointmentsReportPage() {
                     </td>
                     <td className="p-3">{apt.trainerName}</td>
                     <td className="p-3">
-                      <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                        apt.typeCategory === 'class' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                      }`}>
                         {apt.type}
                       </span>
                     </td>

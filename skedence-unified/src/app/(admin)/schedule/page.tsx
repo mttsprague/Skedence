@@ -96,6 +96,8 @@ export default function SchedulePage() {
   // Booking/class detail dialogs
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedClass, setSelectedClass] = useState<GroupClass | null>(null);
+  const [classParticipants, setClassParticipants] = useState<{id: string; firstName?: string; lastName?: string; athleteName?: string; userId?: string; parentFirstName?: string; parentLastName?: string}[]>([]);
+  const [loadingClassParticipants, setLoadingClassParticipants] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState<'early' | 'late' | null>(null);
   const [showReschedule, setShowReschedule] = useState(false);
@@ -113,6 +115,36 @@ export default function SchedulePage() {
       setSelectedTrainerId(user.uid);
     }
   }, [user]);
+
+  // Load participants when a class is selected in the schedule dialog
+  // Enriches each participant with parent name from users collection (same as /scheduling page)
+  useEffect(() => {
+    if (!selectedClass) { setClassParticipants([]); return; }
+    setLoadingClassParticipants(true);
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, 'classes', selectedClass.id, 'participants'));
+        const base = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+        // Fetch parent name from users collection for each participant that has a userId
+        await Promise.all(base.map(async (p: any) => {
+          if (p.userId) {
+            try {
+              const userSnap = await getDoc(doc(db, 'users', p.userId));
+              if (userSnap.exists()) {
+                p.parentFirstName = userSnap.data().firstName || '';
+                p.parentLastName = userSnap.data().lastName || '';
+              }
+            } catch { /* non-fatal */ }
+          }
+        }));
+        setClassParticipants(base);
+      } catch {
+        setClassParticipants([]);
+      } finally {
+        setLoadingClassParticipants(false);
+      }
+    })();
+  }, [selectedClass?.id]);
 
   // Load required fields from org settings
   useEffect(() => {
@@ -255,7 +287,8 @@ export default function SchedulePage() {
         } as Booking;
       });
 
-      setBookings(bookingsData);
+      // Filter out class-booking docs — they show as lesson blocks if not excluded
+      setBookings(bookingsData.filter(b => !b.isClassBooking));
       setLoading(false);
     });
 
@@ -1099,7 +1132,7 @@ export default function SchedulePage() {
       </Dialog>
 
       {/* Class Detail Dialog */}
-      <Dialog open={!!selectedClass} onOpenChange={() => setSelectedClass(null)}>
+      <Dialog open={!!selectedClass} onOpenChange={() => { setSelectedClass(null); setClassParticipants([]); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{selectedClass?.title}</DialogTitle>
@@ -1107,14 +1140,34 @@ export default function SchedulePage() {
           {selectedClass && (
             <div className="space-y-4 py-4">
               <div>
-                <div className="text-sm text-foreground/80">Participants</div>
-                <div className="text-2xl font-bold">
-                  {selectedClass.currentParticipants} / {selectedClass.maxParticipants}
-                </div>
-              </div>
-              <div>
                 <div className="text-sm text-foreground/80">Time</div>
                 <div>{new Date(selectedClass.startTime).toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-sm text-foreground/80 mb-2">Participants ({classParticipants.length} / {selectedClass.maxParticipants})</div>
+                {loadingClassParticipants ? (
+                  <div className="text-sm text-muted-foreground">Loading...</div>
+                ) : classParticipants.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No participants yet</div>
+                ) : (
+                  <div className="space-y-2">
+                    {classParticipants.map((p) => {
+                      const displayName = p.parentFirstName
+                        ? `${p.parentFirstName} ${p.parentLastName}`
+                        : (p.firstName && p.lastName ? `${p.firstName} ${p.lastName}` : p.userId || p.id);
+                      const athleteDisplay = p.athleteName || `${p.firstName} ${p.lastName}`;
+                      const showAthlete = p.parentFirstName && athleteDisplay !== displayName;
+                      return (
+                        <div key={p.id} className="text-sm bg-muted px-3 py-2 rounded">
+                          <span className="font-medium">{displayName}</span>
+                          {showAthlete && (
+                            <span className="text-muted-foreground ml-1">(Athlete: {athleteDisplay})</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

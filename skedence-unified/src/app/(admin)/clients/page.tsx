@@ -261,7 +261,8 @@ export default function ClientsPage() {
 
     async function loadClients() {
       setLoading(true);
-      setClients([]);
+      // Don't clear clients during reload — keeps existing list visible while fetching,
+      // prevents the flash of empty state and avoids race conditions with concurrent calls.
       try {
         const membersQuery = query(
           collection(db, 'orgMembers'),
@@ -271,10 +272,17 @@ export default function ClientsPage() {
         );
         const membersSnapshot = await getDocs(membersQuery);
 
-        // Filter to client members only (userId must be present)
+        // Filter to client members only (userId must be present), deduplicate by userId
+        // (a user can have multiple orgMembers docs, e.g. one from onboarding and one from re-invite)
+        const seenUserIds = new Set<string>();
         const clientMembers = membersSnapshot.docs
           .map(d => d.data())
-          .filter(m => !!m.userId);
+          .filter(m => {
+            if (!m.userId) return false;
+            if (seenUserIds.has(m.userId)) return false;
+            seenUserIds.add(m.userId);
+            return true;
+          });
 
         // Batch-fetch all user docs in groups of 30 (Firestore 'in' query limit)
         const userIds = clientMembers.map(m => m.userId as string);
@@ -428,28 +436,60 @@ export default function ClientsPage() {
         // Use the selected client's ID for most queries
         const clientId = selectedClient.id;
 
-        // Load bookings (use client ID)
+        // Load bookings — query both clientUID and clientId fields, plus classRegistrations fallback
         const now = new Date();
-        const bookingsQuery = query(
-          collection(db, 'bookings'),
-          where('clientUID', '==', clientId),
-          where('orgId', '==', orgId)
-        );
-        const bookingsSnap = await getDocs(bookingsQuery);
-        // Filter cancelled bookings client-side (Firestore can't combine != with range filters)
+        const [bookingsSnap1, bookingsSnap2, classRegsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'bookings'), where('clientUID', '==', clientId), where('orgId', '==', orgId))),
+          getDocs(query(collection(db, 'bookings'), where('clientId', '==', clientId), where('orgId', '==', orgId))),
+          getDocs(query(collection(db, 'classRegistrations'), where('clientId', '==', clientId), where('orgId', '==', orgId))),
+        ]);
+        // Merge bookings and deduplicate by doc ID
+        const bookingsById = new Map<string, any>();
+        [...bookingsSnap1.docs, ...bookingsSnap2.docs].forEach(d => bookingsById.set(d.id, { id: d.id, ...d.data() }));
+
+        // For any classRegistration that has no corresponding booking, synthesize one from the class doc
+        const coveredClassIds = new Set(Array.from(bookingsById.values()).filter(b => b.classId).map(b => b.classId));
+        const missingClassIds = classRegsSnap.docs
+          .map(d => d.data().classId as string)
+          .filter(cid => cid && !coveredClassIds.has(cid));
+
+        if (missingClassIds.length > 0) {
+          const classSnaps = await Promise.all(missingClassIds.map(cid => getDoc(doc(db, 'classes', cid))));
+          classSnaps.forEach(classDoc => {
+            if (!classDoc.exists()) return;
+            const cd = classDoc.data()!;
+            const syntheticId = `classreg_${clientId}_${classDoc.id}`;
+            bookingsById.set(syntheticId, {
+              id: syntheticId,
+              clientUID: clientId,
+              classId: classDoc.id,
+              isClassBooking: true,
+              status: 'booked',
+              startTime: cd.startTime,
+              endTime: cd.endTime,
+              trainerId: cd.trainerId || '',
+              trainerName: cd.trainerName || '',
+              location: cd.location || '',
+              orgId: orgId,
+            });
+          });
+        }
+
+        const bookingsSnap = { docs: Array.from(bookingsById.values()) };
+        // Filter cancelled bookings client-side
         const bookingsData = bookingsSnap.docs
-          .filter(doc => doc.data().status !== 'cancelled' || doc.data().startTime?.toDate() < now)
-          .map(doc => ({ id: doc.id, ...doc.data() })) as Booking[];
+          .filter(doc => (doc as any).status !== 'cancelled' || (doc as any).startTime?.toDate() < now)
+          .map(doc => doc as unknown as Booking);
 
         setUpcomingBookings(
           bookingsData
-            .filter(b => b.startTime.toDate() >= now && b.status !== 'cancelled')
+            .filter(b => b.startTime?.toDate() >= now && b.status !== 'cancelled')
             .sort((a, b) => a.startTime.seconds - b.startTime.seconds)
         );
 
         setPastBookings(
           bookingsData
-            .filter(b => b.startTime.toDate() < now || b.status === 'cancelled')
+            .filter(b => !b.startTime || b.startTime.toDate() < now || b.status === 'cancelled')
             .sort((a, b) => b.startTime.seconds - a.startTime.seconds)
         );
 
@@ -581,14 +621,33 @@ export default function ClientsPage() {
       return isNaN(t) ? NaN : t;
     };
 
-    return clients.filter(client => {
+    // Deduplicate by id as safety net (guards against multiple orgMembers docs for same user)
+    const seenIds = new Set<string>();
+    const uniqueClients = clients.filter(c => {
+      if (seenIds.has(c.id)) return false;
+      seenIds.add(c.id);
+      return true;
+    });
+
+    return uniqueClients.filter(client => {
       if (!client.isActive) return false;
 
       if (searchQuery) {
         const search = searchQuery.toLowerCase();
         const fullName = `${client.firstName || ''} ${client.lastName || ''}`.toLowerCase();
         const email = (client.email || client.emailAddress || '').toLowerCase();
-        if (!fullName.includes(search) && !email.includes(search)) return false;
+        const athleteNames = [
+          ...(client.athletes || []).map(a => `${a.firstName || ''} ${a.lastName || ''}`.trim()),
+          `${client.athleteFirstName || ''} ${client.athleteLastName || ''}`.trim(),
+          `${client.athlete2FirstName || ''} ${client.athlete2LastName || ''}`.trim(),
+          `${client.athlete3FirstName || ''} ${client.athlete3LastName || ''}`.trim(),
+        ].filter(Boolean).map(n => n.toLowerCase());
+        const schools = [
+          ...(client.athletes || []).map(a => a.schoolClubTeam || ''),
+        ].filter(Boolean).map(s => s.toLowerCase());
+        const matchesAthlete = athleteNames.some(n => n.includes(search));
+        const matchesSchool = schools.some(s => s.includes(search));
+        if (!fullName.includes(search) && !email.includes(search) && !matchesAthlete && !matchesSchool) return false;
       }
 
       if (positionFilter !== 'all') {
@@ -618,8 +677,13 @@ export default function ClientsPage() {
         case 'joined-newest':
         case 'joined':
           return toMs(b.createdAt) - toMs(a.createdAt);
-        case 'joined-oldest':
-          return toMs(a.createdAt) - toMs(b.createdAt);
+        case 'joined-oldest': {
+          const ta = toMs(a.createdAt); const tb = toMs(b.createdAt);
+          if (ta === 0 && tb === 0) return 0;
+          if (ta === 0) return 1;  // no join date → push to end
+          if (tb === 0) return -1;
+          return ta - tb;
+        }
         case 'age-youngest': {
           const ba = primaryBirthday(a); const bb = primaryBirthday(b);
           if (isNaN(ba) && isNaN(bb)) return 0;

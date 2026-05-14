@@ -1,19 +1,20 @@
 /* eslint-disable quotes */
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import sgMail from "@sendgrid/mail";
 
 /**
  * Send password reset email via SendGrid
  * This replaces Firebase Auth's default password reset email
  */
 export const sendPasswordResetEmail = onCall(
-  { enforceAppCheck: true },
+  {region: "us-central1"},
   async (request) => {
     try {
       // Log received data safely
       console.log("Received password reset request");
 
-      // Extract email - Firebase Functions v2 might nest data in data.data
+      // Extract email
       let email: string | undefined;
       const data = request.data;
       if (typeof data === "string") {
@@ -34,35 +35,46 @@ export const sendPasswordResetEmail = onCall(
 
       console.log("Processing password reset for:", email);
 
+      const apiKey = process.env.SENDGRID_API_KEY;
+      if (!apiKey) {
+        console.error("SENDGRID_API_KEY is not set.");
+        throw new HttpsError("internal", "Email service not configured.");
+      }
+
+      const continueUrl =
+        process.env.RESET_CONTINUE_URL ||
+        process.env.VERIFICATION_CONTINUE_URL ||
+        "https://www.polyfacevolleyball.com/login";
+
+      const fromEmail = process.env.FROM_EMAIL || "noreply@skedence.com";
+      const fromName = process.env.FROM_NAME || "PolyFace Volleyball Academy";
+
       // Verify user exists
       try {
         await admin.auth().getUserByEmail(email);
       } catch (error) {
         // Don't reveal if user exists or not for security
         console.log(`Password reset requested for non-existent email: ${email}`);
-        return {success: true}; // Return success anyway for security
+        return {success: true};
       }
 
-      // Generate password reset link with redirect to custom page
-      // handleCodeInApp: true causes Firebase's action handler to redirect to our
-      // custom /setup-password page with the oobCode as a query param
-      const actionCodeSettings: admin.auth.ActionCodeSettings = {
-        url: "https://skedence.com/login",
-        handleCodeInApp: true,
-      };
-      const resetLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
-
-      // Send email via SendGrid extension (mail collection)
-      // Using default FROM and REPLY-TO from extension configuration
-      await admin.firestore().collection("mail").add({
-        to: email,
-        message: {
-          subject: "Reset Your Skedence Password",
-          html: generatePasswordResetEmailHTML(resetLink, email),
-        },
+      // Generate password reset link
+      const resetLink = await admin.auth().generatePasswordResetLink(email, {
+        url: continueUrl,
+        handleCodeInApp: false,
       });
 
-      console.log(`✅ Password reset email sent to ${email}`);
+      // Send via SendGrid directly
+      sgMail.setApiKey(apiKey);
+      await sgMail.send({
+        to: email,
+        from: {email: fromEmail, name: fromName},
+        subject: "Reset your PolyFace password",
+        html: generatePasswordResetEmailHTML(resetLink, email),
+        text: `Reset your password by visiting this link: ${resetLink}`,
+      });
+
+      console.log(`✅ Password reset email sent to ${email} via SendGrid`);
 
       return {success: true};
     } catch (error) {
@@ -76,18 +88,80 @@ export const sendPasswordResetEmail = onCall(
 );
 
 /**
- * Generate beautiful HTML email for password reset
- * @param {string} resetLink - The password reset link
- * @param {string} email - The user's email address
- * @return {string} HTML email content
+ * Generate PolyFace-branded HTML email for password reset
  */
 function generatePasswordResetEmailHTML(resetLink: string, email: string): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset your PolyFace password</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:560px;">
+        <tr>
+          <td align="center" style="padding-bottom:20px;">
+            <span style="font-size:13px;font-weight:700;color:#6b7280;letter-spacing:1.5px;text-transform:uppercase;">
+              PolyFace Volleyball Academy
+            </span>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.10);">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background:linear-gradient(135deg,#1a2d5a 0%,#14b8a6 100%);padding:44px 40px 36px;text-align:center;">
+                  <div style="width:64px;height:64px;background:rgba(255,255,255,0.15);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;border:2px solid rgba(255,255,255,0.3);">
+                    <span style="font-size:28px;line-height:1;">🔐</span>
+                  </div><br>
+                  <h1 style="margin:0 0 8px;color:#ffffff;font-size:26px;font-weight:800;letter-spacing:-0.5px;line-height:1.2;">Reset your password</h1>
+                  <p style="margin:0;color:rgba(255,255,255,0.75);font-size:15px;line-height:1.5;">We received a request to reset your account password</p>
+                </td>
+              </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding:36px 40px;">
+                  <p style="margin:0 0 20px;color:#374151;font-size:16px;line-height:1.6;">
+                    Click the button below to choose a new password. This link expires in 1 hour.
+                  </p>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                    <tr>
+                      <td align="center">
+                        <a href="${resetLink}" style="display:inline-block;background:linear-gradient(135deg,#1a2d5a,#14b8a6);color:#ffffff;text-decoration:none;font-weight:800;font-size:16px;padding:16px 44px;border-radius:12px;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(20,184,166,0.4);">
+                          Reset Password &rarr;
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:0 0 8px;color:#9ca3af;font-size:12px;text-align:center;line-height:1.6;">Button not working? Copy and paste this link:</p>
+                  <p style="margin:0;font-size:11px;text-align:center;">
+                    <a href="${resetLink}" style="color:#14b8a6;word-break:break-all;">${resetLink}</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;">
+                  <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">If you didn't request a password reset, you can safely ignore this email.</p>
+                  <p style="margin:0;color:#d1d5db;font-size:11px;">PolyFace Volleyball Academy &bull; Powered by Skedence</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>\`\`;
+}
+
     <title>Reset Your Password</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8fafc;">

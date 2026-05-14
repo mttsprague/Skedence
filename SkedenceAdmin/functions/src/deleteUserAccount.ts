@@ -62,8 +62,23 @@ export const deleteUserAccount = onCall(
     try {
       console.log(`Starting account deletion for user: ${userId}`);
 
+      // Resolve name-based Firestore document ID from Firebase Auth UID.
+      // The users collection uses name-based IDs (e.g. "jeffrey_schmitz"), NOT auth UIDs.
+      let userDocId: string = userId; // fallback — used only if lookup below fails
+      const userByAuthUid = await db
+        .collection("users")
+        .where("authUserId", "==", userId)
+        .limit(1)
+        .get();
+      if (!userByAuthUid.empty) {
+        userDocId = userByAuthUid.docs[0].id;
+        console.log(`Resolved userDocId: ${userDocId} for authUserId: ${userId}`);
+      } else {
+        console.warn(`No users doc found with authUserId=${userId}, falling back to userId as docId`);
+      }
+
       // 1. Delete user document and subcollections
-      const userRef = db.collection("users").doc(userId);
+      const userRef = db.collection("users").doc(userDocId);
       const userDoc = await userRef.get();
 
       if (userDoc.exists) {
@@ -74,10 +89,10 @@ export const deleteUserAccount = onCall(
       // 2. Delete orgMember documents (and org-scoped user packages)
       const orgMembersSnapshot = await db
         .collection("orgMembers")
-        .where("userId", "==", userId)
+        .where("userId", "==", userDocId)
         .get();
       console.log(
-        `Deleting ${orgMembersSnapshot.size} org memberships for user ${userId}`
+        `Deleting ${orgMembersSnapshot.size} org memberships for user ${userDocId}`
       );
       for (const doc of orgMembersSnapshot.docs) {
         const orgId = doc.data().orgId as string | undefined;
@@ -86,7 +101,7 @@ export const deleteUserAccount = onCall(
             .collection("organizations")
             .doc(orgId)
             .collection("users")
-            .doc(userId);
+            .doc(userDocId);
           await recursiveDelete(orgUserRef);
         }
         await doc.ref.delete();
@@ -95,20 +110,20 @@ export const deleteUserAccount = onCall(
       // 3. Delete bookings where user is the client
       const bookingsSnapshot = await db
         .collection("bookings")
-        .where("clientId", "==", userId)
+        .where("clientId", "==", userDocId)
         .get();
       console.log(
-        `Deleting ${bookingsSnapshot.size} bookings for user ${userId}`
+        `Deleting ${bookingsSnapshot.size} bookings for user ${userDocId}`
       );
       await deleteQueryDocs(bookingsSnapshot);
 
       const bookingsByUidSnapshot = await db
         .collection("bookings")
-        .where("clientUID", "==", userId)
+        .where("clientUID", "==", userDocId)
         .get();
       if (!bookingsByUidSnapshot.empty) {
         console.log(
-          `Deleting ${bookingsByUidSnapshot.size} bookings (clientUID) for user ${userId}`
+          `Deleting ${bookingsByUidSnapshot.size} bookings (clientUID) for user ${userDocId}`
         );
         await deleteQueryDocs(bookingsByUidSnapshot);
       }
@@ -116,7 +131,7 @@ export const deleteUserAccount = onCall(
       // 4. Remove user from class participants
       const classesSnapshot = await db
         .collection("classes")
-        .where("participantIds", "array-contains", userId)
+        .where("participantIds", "array-contains", userDocId)
         .get();
       console.log(
         `Removing user from ${classesSnapshot.size} classes`
@@ -124,7 +139,7 @@ export const deleteUserAccount = onCall(
       for (const doc of classesSnapshot.docs) {
         const participants = doc.data().participantIds || [];
         const updatedParticipants = participants.filter(
-          (id: string) => id !== userId
+          (id: string) => id !== userDocId
         );
         await doc.ref.update({
           participantIds: updatedParticipants,
@@ -135,11 +150,11 @@ export const deleteUserAccount = onCall(
       // 5. Handle organizations owned by this user (owner/admin)
       const ownedOrgsByOwnerId = await db
         .collection("organizations")
-        .where("ownerId", "==", userId)
+        .where("ownerId", "==", userDocId)
         .get();
       const ownedOrgsByOwnerUserId = await db
         .collection("organizations")
-        .where("ownerUserId", "==", userId)
+        .where("ownerUserId", "==", userDocId)
         .get();
 
       const ownedOrgIds = new Set<string>();

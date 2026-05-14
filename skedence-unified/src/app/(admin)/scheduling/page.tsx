@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc, deleteDoc, arrayRemove, increment, onSnapshot, Timestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 import { db } from '@/lib/firebase';
 import { format, startOfWeek, endOfWeek, addDays, isSameDay } from 'date-fns';
-import { Users, Clock, GraduationCap, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Clock, GraduationCap, Plus, X, ChevronLeft, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BookLessonModal, CreateAvailabilityModal } from '@/components/admin/scheduling-modals';
 import { startOfDay, endOfDay, addWeeks } from 'date-fns';
@@ -107,7 +109,32 @@ export default function SchedulingPage() {
   const [rescheduling, setRescheduling] = useState(false);
   const [fieldLabels, setFieldLabels] = useState({ birthday: 'Birthday', schoolClubTeam: 'School / Club Team', experienceLevel: 'Experience Level', position: 'Position' });
 
+  // Live class participants (loaded when class is selected)
+  const [liveParticipants, setLiveParticipants] = useState<Array<{ id: string; firstName: string; lastName: string; athleteName?: string; userId?: string; classPassPackageId?: string | null; parentFirstName?: string; parentLastName?: string; checkedIn?: boolean; checkedInAt?: Date }>>([]);
+  const [loadingLiveParticipants, setLoadingLiveParticipants] = useState(false);
+  const [removingLiveParticipant, setRemovingLiveParticipant] = useState<string | null>(null);
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  const participantsUnsubRef = useRef<(() => void) | null>(null);
+  // Register client for class state
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [registerTab, setRegisterTab] = useState<'existing' | 'manual'>('existing');
+  const [allClients, setAllClients] = useState<Array<{ id: string; firstName: string; lastName: string; email?: string }>>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [registerClientId, setRegisterClientId] = useState('');
+  const [registerClientPasses, setRegisterClientPasses] = useState<Array<{ id: string; label: string }>>([]);
+  const [loadingPasses, setLoadingPasses] = useState(false);
+  const [registerPassId, setRegisterPassId] = useState('');
+  const [registerAthleteNameExisting, setRegisterAthleteNameExisting] = useState('');
+  const [registerClientAthletes, setRegisterClientAthletes] = useState<string[]>([]);
+  const [registerFirstName, setRegisterFirstName] = useState('');
+  const [registerLastName, setRegisterLastName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registering, setRegistering] = useState(false);
 
+  // Touch swipe state for calendar navigation
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Set mounted state and initialize current time on client
   useEffect(() => {
@@ -179,6 +206,75 @@ export default function SchedulingPage() {
       setWeekStart(startOfWeek(selectedDate, { weekStartsOn: 0 }));
     }
   }, [selectedDate]);
+
+  // Helper: load participants subcollection and enrich with parent name from users collection
+  const startParticipantsListener = useCallback((classId: string) => {
+    participantsUnsubRef.current?.();
+    setLoadingLiveParticipants(true);
+
+    const unsub = onSnapshot(
+      collection(db, 'classes', classId, 'participants'),
+      async (snap) => {
+        const base = snap.docs.map(d => ({
+          id: d.id,
+          firstName: d.data().firstName || '',
+          lastName: d.data().lastName || '',
+          athleteName: d.data().athleteName as string | undefined,
+          userId: d.data().userId as string | undefined,
+          classPassPackageId: d.data().classPassPackageId as string | null | undefined,
+          parentFirstName: undefined as string | undefined,
+          parentLastName: undefined as string | undefined,
+          checkedIn: d.data().checkedIn as boolean | undefined,
+          checkedInAt: (d.data().checkedInAt as Timestamp | undefined)?.toDate(),
+        }));
+        // Fetch parent name for each participant that has a userId
+        await Promise.all(base.map(async (p) => {
+          if (p.userId) {
+            try {
+              const userSnap = await getDoc(doc(db, 'users', p.userId));
+              if (userSnap.exists()) {
+                p.parentFirstName = userSnap.data().firstName || '';
+                p.parentLastName = userSnap.data().lastName || '';
+              }
+            } catch { /* non-fatal */ }
+          }
+        }));
+        setLiveParticipants(base);
+        setLoadingLiveParticipants(false);
+      },
+      () => { setLiveParticipants([]); setLoadingLiveParticipants(false); }
+    );
+    participantsUnsubRef.current = unsub;
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load live participants when a class is selected
+  useEffect(() => {
+    if (!selectedItem || selectedItem.type !== 'class') {
+      participantsUnsubRef.current?.();
+      participantsUnsubRef.current = null;
+      setLiveParticipants([]);
+      return;
+    }
+    startParticipantsListener(selectedItem.id);
+    return () => { participantsUnsubRef.current?.(); participantsUnsubRef.current = null; };
+  }, [selectedItem, startParticipantsListener]);
+
+  const handleCheckIn = async (participant: typeof liveParticipants[0], classId: string) => {
+    if (checkingIn) return;
+    setCheckingIn(participant.id);
+    try {
+      const ref = doc(db, 'classes', classId, 'participants', participant.id);
+      if (participant.checkedIn) {
+        await updateDoc(ref, { checkedIn: false, checkedInAt: null });
+      } else {
+        await updateDoc(ref, { checkedIn: true, checkedInAt: Timestamp.now() });
+      }
+    } catch (e) {
+      console.error('Check-in error:', e);
+    } finally {
+      setCheckingIn(null);
+    }
+  };
 
   // Load trainers
   useEffect(() => {
@@ -270,6 +366,8 @@ export default function SchedulingPage() {
         
         for (const docSnap of bookingsSnapshot.docs) {
           const data = docSnap.data();
+          // Skip class-registration bookings — shown as class items separately
+          if (data.isClassBooking === true) continue;
           
           // Get client name and details
           let clientName = 'Unknown Client';
@@ -398,22 +496,17 @@ export default function SchedulingPage() {
             }
           }
           
-          // Get participant names
+          // Load participants from subcollection
           const participants: string[] = [];
-          const registeredStudents = data.registeredStudents || [];
-          for (const studentId of registeredStudents) {
-            try {
-              const studentDoc = await getDoc(doc(db, 'users', studentId));
-              if (studentDoc.exists()) {
-                const studentData = studentDoc.data();
-                const fullName = `${studentData.firstName || ''} ${studentData.lastName || ''}`.trim();
-                if (fullName) {
-                  participants.push(fullName);
-                }
-              }
-            } catch (err) {
-              console.error('Error fetching student:', err);
+          try {
+            const participantsSnap = await getDocs(collection(db, 'classes', docSnap.id, 'participants'));
+            for (const pDoc of participantsSnap.docs) {
+              const pData = pDoc.data();
+              const athleteName = pData.athleteName || `${pData.firstName || ''} ${pData.lastName || ''}`.trim();
+              if (athleteName) participants.push(athleteName);
             }
+          } catch (err) {
+            console.error('Error fetching class participants:', err);
           }
           
           items.push({
@@ -423,7 +516,7 @@ export default function SchedulingPage() {
             endTime: data.endTime.toDate(),
             trainerName,
             className: data.title || data.name || 'Untitled Class',
-            studentsCount: registeredStudents.length || 0,
+            studentsCount: participants.length,
             participants,
           });
         }
@@ -515,6 +608,8 @@ export default function SchedulingPage() {
           
           for (const docSnap of bookingsSnapshot.docs) {
             const data = docSnap.data();
+            // Skip class-registration bookings — shown as class items separately
+            if (data.isClassBooking === true) continue;
             
             // Get client name
             let clientName = 'Unknown Client';
@@ -589,6 +684,19 @@ export default function SchedulingPage() {
           for (const docSnap of classesSnapshot.docs) {
             const data = docSnap.data();
             
+            // Load participants from subcollection
+            const participants2: string[] = [];
+            try {
+              const participantsSnap2 = await getDocs(collection(db, 'classes', docSnap.id, 'participants'));
+              for (const pDoc of participantsSnap2.docs) {
+                const pData = pDoc.data();
+                const athleteName = pData.athleteName || `${pData.firstName || ''} ${pData.lastName || ''}`.trim();
+                if (athleteName) participants2.push(athleteName);
+              }
+            } catch (err) {
+              console.error('Error fetching class participants:', err);
+            }
+            
             items.push({
               id: docSnap.id,
               type: 'class',
@@ -597,7 +705,8 @@ export default function SchedulingPage() {
               trainerName,
               trainerId,
               className: data.title || data.name || 'Untitled Class',
-              studentsCount: (data.registeredStudents || []).length,
+              studentsCount: participants2.length,
+              participants: participants2,
             });
           }
 
@@ -690,7 +799,50 @@ export default function SchedulingPage() {
     setWeekStart(startOfWeek(today, { weekStartsOn: 0 }));
   };
 
+  // Touch swipe handlers for calendar navigation.
+  // NOTE: These functions exist but are intentionally NOT attached to the calendar grid divs.
+  // When they were attached, horizontal swipe on mobile navigated weeks instead of scrolling
+  // the wide calendar grid sideways. Native browser horizontal scroll handles this correctly.
+  // DO NOT add onTouchStart/onTouchMove/onTouchEnd to the min-w-[900px] or style={{minWidth}}
+  // inner grid divs — it breaks mobile scroll.
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
 
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || touchStartY === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // Only trigger swipe if horizontal movement is greater than vertical
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      const container = scrollContainerRef.current;
+      if (container) {
+        const atLeftEdge = container.scrollLeft <= 0;
+        const atRightEdge = container.scrollLeft + container.clientWidth >= container.scrollWidth - 1;
+
+        // Only change week/day when scrolled to the edge in that direction
+        if (deltaX > 0 && atLeftEdge) {
+          if (viewMode === 'individual') goToPreviousWeek();
+          else goToPreviousAllTrainersDay();
+        } else if (deltaX < 0 && atRightEdge) {
+          if (viewMode === 'individual') goToNextWeek();
+          else goToNextAllTrainersDay();
+        }
+      }
+    }
+
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // Optional: can add visual feedback during swipe here
+  };
 
   // Reload schedule after modal actions - just re-trigger the useEffect
   const reloadSchedule = () => {
@@ -744,6 +896,202 @@ export default function SchedulingPage() {
     const d = String(date.getDate()).padStart(2, '0');
     const h = String(date.getHours()).padStart(2, '0');
     return `${y}-${m}-${d}T${h}`;
+  };
+
+  // Remove a participant from the selected class
+  const handleRemoveLiveParticipant = async (participant: { id: string; firstName: string; lastName: string; userId?: string; classPassPackageId?: string | null }) => {
+    if (!selectedItem || selectedItem.type !== 'class' || !orgId) return;
+    const name = `${participant.firstName} ${participant.lastName}`;
+    if (!confirm(`Remove ${name} from this class and refund their pass?`)) return;
+
+    setRemovingLiveParticipant(participant.id);
+    try {
+      const classRef = doc(db, 'classes', selectedItem.id);
+      const participantRef = doc(db, 'classes', selectedItem.id, 'participants', participant.id);
+
+      // Refund the pass if one was used
+      if (participant.classPassPackageId && participant.userId) {
+        const stdPassRef = doc(db, 'organizations', orgId, 'users', participant.userId, 'packages', participant.classPassPackageId);
+        const stdSnap = await getDocs(query(collection(db, 'organizations', orgId, 'users', participant.userId, 'packages'), where('__name__', '==', participant.classPassPackageId)));
+        if (!stdSnap.empty) {
+          await updateDoc(stdPassRef, { lessonsUsed: increment(-1) });
+        } else {
+          const legacyPassRef = doc(db, 'users', participant.userId, 'lessonPackages', participant.classPassPackageId);
+          await updateDoc(legacyPassRef, { lessonsUsed: increment(-1) });
+        }
+      }
+
+      const ops: Promise<any>[] = [deleteDoc(participantRef)];
+      if (participant.userId) {
+        const registrationRef = doc(db, 'classRegistrations', `${participant.userId}_${selectedItem.id}`);
+        ops.push(deleteDoc(registrationRef));
+        ops.push(updateDoc(classRef, {
+          currentParticipants: increment(-1),
+          participantIds: arrayRemove(participant.userId),
+        }));
+      } else {
+        ops.push(updateDoc(classRef, { currentParticipants: increment(-1) }));
+      }
+      await Promise.all(ops);
+
+      toast.success('Removed', `${name} has been removed from the class`);
+
+      // onSnapshot handles the live participants update automatically
+    } catch (error: any) {
+      console.error('Error removing participant:', error);
+      toast.error('Failed to remove participant', error?.message || 'Please try again');
+    } finally {
+      setRemovingLiveParticipant(null);
+    }
+  };
+
+  // Register client for a class
+  const handleOpenRegister = async () => {
+    setShowRegisterModal(true);
+    setRegisterTab('existing');
+    setRegisterClientId('');
+    setRegisterPassId('');
+    setRegisterAthleteNameExisting('');
+    setRegisterClientAthletes([]);
+    setRegisterFirstName('');
+    setRegisterLastName('');
+    setRegisterEmail('');
+    setRegisterClientPasses([]);
+
+    setLoadingClients(true);
+    try {
+      // Query by orgId — no role filter since many clients don't have role field set.
+      // All records in the users collection are clients (trainers are in the trainers collection).
+      // Also query organizationId (legacy field) for older records.
+      const [snap1, snap2] = await Promise.all([
+        getDocs(query(collection(db, 'users'), where('orgId', '==', orgId))),
+        getDocs(query(collection(db, 'users'), where('organizationId', '==', orgId))),
+      ]);
+      const seen = new Set<string>();
+      const merged: Array<{ id: string; firstName: string; lastName: string; email?: string }> = [];
+      for (const snap of [snap1, snap2]) {
+        for (const d of snap.docs) {
+          // Skip trainers/admins that may appear in users collection
+          const role = d.data().role;
+          if (role === 'trainer' || role === 'admin' || role === 'owner') continue;
+          if (!seen.has(d.id)) {
+            seen.add(d.id);
+            merged.push({
+              id: d.id,
+              firstName: d.data().firstName || '',
+              lastName: d.data().lastName || '',
+              email: d.data().email || d.data().emailAddress || '',
+            });
+          }
+        }
+      }
+      merged.sort((a, b) => a.lastName.localeCompare(b.lastName));
+      setAllClients(merged);
+    } catch (e) {
+      console.error('Error loading clients:', e);
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  const handleClientSelected = async (clientId: string) => {
+    setRegisterClientId(clientId);
+    setRegisterPassId('');
+    setRegisterClientPasses([]);
+    setRegisterAthleteNameExisting('');
+    setRegisterClientAthletes([]);
+    if (!clientId || !orgId) return;
+
+    // Fetch athletes from the client's user document
+    try {
+      const userSnap = await getDoc(doc(db, 'users', clientId));
+      if (userSnap.exists()) {
+        const d = userSnap.data();
+        const names: string[] = [];
+        if (Array.isArray(d.athletes)) {
+          for (const a of d.athletes) {
+            const name = `${a.firstName || ''} ${a.lastName || ''}`.trim();
+            if (name) names.push(name);
+          }
+        }
+        // Legacy flat fields
+        const legacyPairs: [string | undefined, string | undefined][] = [
+          [d.athleteFirstName, d.athleteLastName],
+          [d.athlete2FirstName, d.athlete2LastName],
+          [d.athlete3FirstName, d.athlete3LastName],
+          [d.athlete4FirstName, d.athlete4LastName],
+        ];
+        for (const [f, l] of legacyPairs) {
+          const name = `${f || ''} ${l || ''}`.trim();
+          if (name && !names.includes(name)) names.push(name);
+        }
+        setRegisterClientAthletes(names);
+      }
+    } catch (e) {
+      console.error('Error loading client athletes:', e);
+    }
+
+    setLoadingPasses(true);
+    try {
+      const newPath = collection(db, 'organizations', orgId, 'users', clientId, 'packages');
+      const newSnap = await getDocs(query(newPath, where('packageCategory', 'in', ['class', 'classPass'])));
+      let passes = newSnap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter((p: any) => (p.totalLessons - (p.lessonsUsed || 0)) > 0);
+
+      if (passes.length === 0) {
+        const oldPath = collection(db, 'users', clientId, 'lessonPackages');
+        const oldSnap = await getDocs(query(oldPath, where('packageCategory', 'in', ['class', 'classPass'])));
+        const legacyPasses = oldSnap.docs
+          .map(d => ({ id: d.id, ...d.data() } as any))
+          .filter((p: any) => (p.totalLessons - (p.lessonsUsed || 0)) > 0);
+        passes = [...passes, ...legacyPasses];
+      }
+
+      setRegisterClientPasses(passes.map((p: any) => ({
+        id: p.id,
+        label: `${p.packageName || p.packageType || 'Class Pass'} — ${(p.totalLessons - (p.lessonsUsed || 0))} remaining`,
+      })));
+    } catch (e) {
+      console.error('Error loading passes:', e);
+    } finally {
+      setLoadingPasses(false);
+    }
+  };
+
+  const handleRegisterSubmit = async () => {
+    if (!selectedItem || selectedItem.type !== 'class') return;
+
+    setRegistering(true);
+    try {
+      const manualRegisterForClass = httpsCallable(functions, 'manualRegisterForClass');
+      let payload: any;
+
+      if (registerTab === 'existing') {
+        if (!registerClientId || !registerPassId) {
+          toast.error('Missing info', 'Please select a client and a class pass');
+          return;
+        }
+        payload = { classId: selectedItem.id, userId: registerClientId, classPassPackageId: registerPassId, athleteName: registerAthleteNameExisting.trim() || undefined };
+      } else {
+        if (!registerFirstName.trim() || !registerLastName.trim()) {
+          toast.error('Missing info', 'Please enter first and last name');
+          return;
+        }
+        payload = { classId: selectedItem.id, firstName: registerFirstName.trim(), lastName: registerLastName.trim(), email: registerEmail.trim() || undefined };
+      }
+
+      await manualRegisterForClass(payload);
+      toast.success('Registered', 'Client has been registered for this class');
+      setShowRegisterModal(false);
+
+      // onSnapshot handles the live participants update automatically
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error('Registration failed', error?.message || 'Please try again');
+    } finally {
+      setRegistering(false);
+    }
   };
 
   // Mark slot as unavailable
@@ -1054,7 +1402,7 @@ export default function SchedulingPage() {
     <SchedulingSubmenu selectedDate={selectedDate} onDateSelect={setSelectedDate}>
       <div className="h-full bg-white flex relative">
         {/* Main Schedule Content */}
-        <div className={cn("flex-1 flex flex-col transition-all duration-300", selectedItem ? "mr-[600px]" : "")}>
+        <div className={cn("flex-1 flex flex-col transition-all duration-300", selectedItem ? "sm:mr-[600px]" : "")}>
           {/* Header */}
           <div className="border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
@@ -1152,7 +1500,7 @@ export default function SchedulingPage() {
           </div>
 
           {/* Calendar Grid */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto" ref={scrollContainerRef}>
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -1162,6 +1510,7 @@ export default function SchedulingPage() {
               <div 
                 className="min-w-[900px]"
               >
+                {/* NOTE: No onTouchStart/onTouchMove/onTouchEnd on this div intentionally — native scroll handles mobile swipe. Attaching them broke horizontal scroll on mobile. See handleTouchStart comment. */}
                 {/* Week Days Header */}
                 <div className="grid grid-cols-8 border-b border-gray-200 bg-white sticky top-0" style={{ zIndex: 10 }}>
                   <div className="p-3 text-xs font-medium text-gray-600">Time</div>
@@ -1294,6 +1643,7 @@ export default function SchedulingPage() {
               <div 
                 style={{ minWidth: `${200 + trainers.length * 240}px` }}
               >
+                {/* NOTE: No onTouchStart/onTouchMove/onTouchEnd on this div intentionally — native scroll handles mobile swipe. Attaching them broke horizontal scroll on mobile. See handleTouchStart comment. */}
                 {/* Trainers Header */}
                 <div className="flex border-b border-gray-200 bg-white sticky top-0" style={{ zIndex: 10 }}>
                   <div className="w-[200px] flex-shrink-0 p-3 text-xs font-medium text-gray-600 border-r border-gray-200">Time</div>
@@ -1420,9 +1770,9 @@ export default function SchedulingPage() {
 
         {/* Right Side Detail Panel */}
         {selectedItem && (
-          <div className="fixed right-0 top-0 bottom-0 w-[600px] bg-card border-l border-border shadow-2xl overflow-y-auto z-50 animate-slide-in-right">
+          <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[600px] bg-white border-l border-border shadow-2xl overflow-y-auto z-50 animate-slide-in-right">
             {/* Header */}
-            <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-white border-b border-border px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-foreground">
                 {selectedItem.type === 'class' ? 'Class Details' : 'Session Details'}
               </h2>
@@ -1811,12 +2161,82 @@ export default function SchedulingPage() {
                     </div>
 
                     <div>
-                      <h3 className="font-semibold text-foreground mb-2">Participants ({selectedItem.studentsCount || 0})</h3>
-                      {selectedItem.participants && selectedItem.participants.length > 0 ? (
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold text-foreground">
+                          Participants ({loadingLiveParticipants ? '…' : liveParticipants.length})
+                        </h3>
+                        <button
+                          onClick={handleOpenRegister}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Register Client
+                        </button>
+                      </div>
+                      {/* Attendance summary */}
+                      {!loadingLiveParticipants && liveParticipants.length > 0 && (
+                        <div className={`flex items-center gap-1.5 text-xs font-medium mb-2 px-2 py-1 rounded-md w-fit ${
+                          liveParticipants.filter(p => p.checkedIn).length === liveParticipants.length
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {liveParticipants.filter(p => p.checkedIn).length} / {liveParticipants.length} checked in
+                        </div>
+                      )}
+                      {loadingLiveParticipants ? (
                         <div className="space-y-2">
-                          {selectedItem.participants.map((participant, idx) => (
-                            <div key={idx} className="bg-background p-3 rounded-lg">
-                              <div className="font-medium text-foreground">{participant}</div>
+                          <div className="h-10 bg-gray-100 rounded animate-pulse" />
+                          <div className="h-10 bg-gray-100 rounded animate-pulse" />
+                        </div>
+                      ) : liveParticipants.length > 0 ? (
+                        <div className="space-y-2">
+                          {liveParticipants.map((participant, idx) => (
+                            <div key={idx} className={`p-3 rounded-lg flex items-center justify-between gap-2 ${participant.checkedIn ? 'bg-green-50 border border-green-200' : 'bg-background'}`}>
+                              <div className="min-w-0">
+                                <div className="font-medium text-foreground">
+                                  {participant.parentFirstName
+                                    ? `${participant.parentFirstName} ${participant.parentLastName}`
+                                    : `${participant.firstName} ${participant.lastName}`}
+                                </div>
+                                {/* Show athlete name if it differs from the account holder */}
+                                {(() => {
+                                  const athleteDisplay = participant.athleteName || `${participant.firstName} ${participant.lastName}`;
+                                  const parentDisplay = participant.parentFirstName ? `${participant.parentFirstName} ${participant.parentLastName}` : null;
+                                  if (parentDisplay && athleteDisplay !== parentDisplay) {
+                                    return <div className="text-xs text-muted-foreground mt-0.5">🏃 Athlete: {athleteDisplay}</div>;
+                                  }
+                                  return null;
+                                })()}
+                                {participant.checkedIn && participant.checkedInAt && (
+                                  <div className="text-xs text-green-600 mt-0.5">
+                                    ✓ Checked in {participant.checkedInAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  onClick={() => handleCheckIn(participant, selectedItem.id)}
+                                  disabled={checkingIn === participant.id}
+                                  title={participant.checkedIn ? 'Mark as not checked in' : 'Check in'}
+                                  className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-colors disabled:opacity-50 ${
+                                    participant.checkedIn
+                                      ? 'text-green-700 border border-green-300 bg-green-50 hover:bg-green-100'
+                                      : 'text-gray-500 border border-gray-200 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {participant.checkedIn
+                                    ? <><CheckCircle2 className="h-3.5 w-3.5" /> In</>
+                                    : <><Circle className="h-3.5 w-3.5" /> Check In</>}
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveLiveParticipant(participant)}
+                                  disabled={removingLiveParticipant === participant.id}
+                                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
+                                >
+                                  {removingLiveParticipant === participant.id ? 'Removing…' : 'Remove'}
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1963,6 +2383,157 @@ export default function SchedulingPage() {
           allTrainers={trainers}
           currentUserId={user?.uid || ''}
         />
+      )}
+
+      {/* Register Client for Class Modal */}
+      {showRegisterModal && selectedItem && selectedItem.type === 'class' && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Register Client</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">{selectedItem.className}</p>
+              </div>
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setRegisterTab('existing')}
+                className={`flex-1 py-3 text-sm font-medium transition-colors ${registerTab === 'existing' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Existing Client
+              </button>
+              <button
+                onClick={() => setRegisterTab('manual')}
+                className={`flex-1 py-3 text-sm font-medium transition-colors ${registerTab === 'manual' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Manual Entry
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {registerTab === 'existing' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Select Client</label>
+                    {loadingClients ? (
+                      <div className="h-9 bg-gray-100 rounded animate-pulse" />
+                    ) : (
+                      <select
+                        value={registerClientId}
+                        onChange={e => handleClientSelected(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="">— Choose a client —</option>
+                        {allClients.map(c => (
+                          <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {registerClientId && (
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Select Class Pass</label>
+                      {loadingPasses ? (
+                        <div className="h-9 bg-gray-100 rounded animate-pulse" />
+                      ) : registerClientPasses.length === 0 ? (
+                        <p className="text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
+                          This client has no remaining class passes.
+                        </p>
+                      ) : (
+                        <select
+                          value={registerPassId}
+                          onChange={e => setRegisterPassId(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="">— Choose a pass —</option>
+                          {registerClientPasses.map(p => (
+                            <option key={p.id} value={p.id}>{p.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+
+                  {registerClientId && registerClientAthletes.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Athlete</label>
+                      <select
+                        value={registerAthleteNameExisting}
+                        onChange={e => setRegisterAthleteNameExisting(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="">— Same as account holder —</option>
+                        {registerClientAthletes.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">First Name</label>
+                      <input
+                        type="text"
+                        value={registerFirstName}
+                        onChange={e => setRegisterFirstName(e.target.value)}
+                        placeholder="First"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        value={registerLastName}
+                        onChange={e => setRegisterLastName(e.target.value)}
+                        placeholder="Last"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Email (optional)</label>
+                    <input
+                      type="email"
+                      value={registerEmail}
+                      onChange={e => setRegisterEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-foreground rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRegisterSubmit}
+                disabled={registering || (registerTab === 'existing' && (!registerClientId || !registerPassId))}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {registering ? 'Registering...' : 'Register'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </SchedulingSubmenu>
   );
