@@ -6,6 +6,7 @@ import { Clock, ArrowLeft, ArrowRight, Eye, Tag } from 'lucide-react';
 import { BLOG_CATEGORIES, BlogCategory } from '@/types/blog';
 import BlogNav from './blog-nav';
 import ViewCounter from './view-counter';
+import AuthorAvatar from './author-avatar';
 import '../detail/blog-detail.css';
 
 const PROJECT_ID = 'polyface-ae6d3';
@@ -323,18 +324,15 @@ export default async function BlogPostPage({
           {/* Author */}
           <div className="flex items-center gap-4 pb-8 mb-8 border-b border-border/50">
             {authorImage ? (
-              <Image
+              <AuthorAvatar
                 src={authorImage}
                 alt={authorName}
-                width={48}
-                height={48}
-                className="w-12 h-12 rounded-full object-cover"
-                unoptimized
+                initial={authorName.charAt(0).toUpperCase() || 'S'}
               />
             ) : (
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="text-xl font-bold text-primary">
-                  {authorName.charAt(0).toUpperCase()}
+                  {authorName.charAt(0).toUpperCase() || 'S'}
                 </span>
               </div>
             )}

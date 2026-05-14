@@ -160,7 +160,7 @@ function BlogEditorContent() {
         authorId: user?.uid || '',
         authorName: user?.displayName || user?.email?.split('@')[0] || 'Admin',
         authorBio: 'Skedence Team',
-        authorImage: user?.photoURL || undefined,
+        authorImage: undefined,
       };
 
       if (mode === 'edit' && postId) {
