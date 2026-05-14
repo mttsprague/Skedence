@@ -53,7 +53,7 @@ struct ClassPreviewRow: View {
                         )
                         .frame(width: 50, height: 50)
                     
-                    Image(systemName: "person.fill")
+                    Image(systemName: "book.closed.fill")
                         .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(.white)
                 }

@@ -37,7 +37,7 @@ struct UpcomingClassesSection: View {
                     // Custom empty state for classes
                     CardView(padding: Spacing.lg) {
                         VStack(spacing: Spacing.sm) {
-                            Image(systemName: "calendar.badge.clock")
+                            Image(systemName: "book.closed.fill")
                                 .font(.system(size: 40))
                                 .foregroundStyle(AppTheme.textTertiary)
                             Text("No upcoming classes")

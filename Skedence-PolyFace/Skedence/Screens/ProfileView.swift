@@ -1036,7 +1036,7 @@ private struct SignedInProfileScreen: View {
         case "3_athlete":
             return "person.3.fill"
         case "class_pass", "class":
-            return "calendar.badge.clock"
+            return "book.closed.fill"
         default:
             return "ticket.fill"
         }

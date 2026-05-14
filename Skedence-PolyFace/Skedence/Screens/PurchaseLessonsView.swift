@@ -441,7 +441,7 @@ struct PurchaseLessonsView: View {
         case .fourAthlete:
             icon = "person.fill.badge.plus"
         case .classPass:
-            icon = "calendar.badge.clock"
+            icon = "book.closed.fill"
         }
         
         return VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -691,7 +691,7 @@ struct PurchaseLessonsView: View {
         case "3_athlete":
             return "person.3.fill"
         case "class_pass", "class":
-            return "calendar.badge.clock"
+            return "book.closed.fill"
         default:
             return "ticket.fill"
         }
