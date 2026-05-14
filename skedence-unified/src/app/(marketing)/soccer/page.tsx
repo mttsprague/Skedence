@@ -20,6 +20,13 @@ export const metadata: Metadata = {
     url: 'https://skedence.com/soccer',
     siteName: 'Skedence',
     type: 'website',
+    images: [{ url: 'https://skedence.com/og-soccer.png', width: 1200, height: 630, alt: 'Soccer Scheduling Software - Skedence' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Soccer Scheduling Software | Skedence',
+    description: 'Sell training packages, automate bookings, and get paid online with Skedence for soccer trainers.',
+    images: ['https://skedence.com/og-soccer.png'],
   },
 };
 
@@ -64,7 +71,7 @@ export default function SoccerPage() {
       />
       <VerticalLanding
         sportName="Soccer"
-        headline="Scheduling built for soccer training"
+        headline="Soccer Scheduling Software for Coaches & Clubs"
         subheadline="Sell packages, automate bookings, and get paid without the chaos. Built for soccer trainers and clubs."
         primaryKeyword="soccer scheduling software"
         secondaryKeyword="soccer booking system"

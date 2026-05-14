@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - Skedence",
-  description: "Skedence privacy policy and data protection information.",
+  description: "Read Skedence's privacy policy. Learn how we collect, use, and protect your personal data across our sports coaching scheduling platform.",
+  alternates: {
+    canonical: 'https://skedence.com/privacy',
+  },
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default function PrivacyPage() {

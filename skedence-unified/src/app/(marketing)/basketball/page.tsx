@@ -20,6 +20,13 @@ export const metadata: Metadata = {
     url: 'https://skedence.com/basketball',
     siteName: 'Skedence',
     type: 'website',
+    images: [{ url: 'https://skedence.com/og-basketball.png', width: 1200, height: 630, alt: 'Basketball Scheduling Software - Skedence' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Basketball Scheduling Software | Skedence',
+    description: 'Sell training packages, automate bookings, and get paid online with Skedence for basketball trainers.',
+    images: ['https://skedence.com/og-basketball.png'],
   },
 };
 
@@ -64,7 +71,7 @@ export default function BasketballPage() {
       />
       <VerticalLanding
         sportName="Basketball"
-        headline="Built for basketball trainers"
+        headline="Basketball Scheduling Software for Trainers"
         subheadline="Sell packages, fill your calendar, and get paid without the admin work. Designed for private basketball training."
         primaryKeyword="basketball scheduling software"
         secondaryKeyword="basketball booking system"

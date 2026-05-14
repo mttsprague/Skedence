@@ -5,6 +5,23 @@ import { Check, ArrowRight } from "lucide-react";
 export const metadata: Metadata = {
   title: "Scheduling Software for Sports Coaches, Trainers & Academies",
   description: "Skedence is built for sports coaches, private trainers, and athletic academies who sell lesson packages and manage client schedules. See if it's right for you.",
+  alternates: {
+    canonical: 'https://skedence.com/about',
+  },
+  openGraph: {
+    title: 'Scheduling Software for Sports Coaches, Trainers & Academies | Skedence',
+    description: "Skedence is built for sports coaches, private trainers, and athletic academies who sell lesson packages and manage client schedules. See if it's right for you.",
+    url: 'https://skedence.com/about',
+    siteName: 'Skedence',
+    type: 'website',
+    images: [{ url: 'https://skedence.com/og-image.png', width: 1200, height: 630, alt: 'Skedence - Sports Coaching Scheduling Software' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Scheduling Software for Sports Coaches, Trainers & Academies | Skedence',
+    description: "Skedence is built for sports coaches, private trainers, and athletic academies who sell lesson packages and manage client schedules.",
+    images: ['https://skedence.com/og-image.png'],
+  },
 };
 
 const fits = [

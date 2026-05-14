@@ -5,6 +5,23 @@ import { ArrowRight, Check } from "lucide-react";
 export const metadata: Metadata = {
   title: "How to Set Up Sports Coaching Scheduling Software",
   description: "Learn how to set up Skedence for your coaching business in 4 steps: create your account, set up pricing, connect Stripe, and invite your clients.",
+  alternates: {
+    canonical: 'https://skedence.com/how-to-use',
+  },
+  openGraph: {
+    title: 'How to Set Up Skedence — Sports Coaching Scheduling Software',
+    description: 'Learn how to set up Skedence for your coaching business in 4 steps: create your account, set up pricing, connect Stripe, and invite your clients.',
+    url: 'https://skedence.com/how-to-use',
+    siteName: 'Skedence',
+    type: 'website',
+    images: [{ url: 'https://skedence.com/og-image.png', width: 1200, height: 630, alt: 'How to Set Up Skedence' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'How to Set Up Skedence — Sports Coaching Scheduling Software',
+    description: 'Learn how to set up Skedence for your coaching business in 4 steps: create your account, set up pricing, connect Stripe, and invite your clients.',
+    images: ['https://skedence.com/og-image.png'],
+  },
 };
 
 const steps = [

@@ -46,8 +46,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: 'https://skedence.com/og-image.png',
-        width: 1024,
-        height: 1024,
+        width: 1200,
+        height: 630,
         alt: 'Skedence - Coaching Business Management',
       },
     ],

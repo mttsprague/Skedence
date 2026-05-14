@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service - Skedence",
-  description: "Skedence terms of service and user agreement.",
+  description: "Read Skedence's terms of service. Understand your rights and responsibilities when using our sports coaching scheduling and payment platform.",
+  alternates: {
+    canonical: 'https://skedence.com/terms',
+  },
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default function TermsPage() {

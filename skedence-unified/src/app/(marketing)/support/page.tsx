@@ -5,6 +5,23 @@ import { Mail, MessageCircle, ArrowRight } from "lucide-react";
 export const metadata: Metadata = {
   title: "Help & FAQ for Sports Coaching Software",
   description: "Get help with Skedence. Find answers to common questions about payments, bookings, Stripe setup, lesson passes, and managing clients.",
+  alternates: {
+    canonical: 'https://skedence.com/support',
+  },
+  openGraph: {
+    title: 'Help & FAQ | Skedence Sports Coaching Software',
+    description: 'Get help with Skedence. Find answers to common questions about payments, bookings, Stripe setup, lesson passes, and managing clients.',
+    url: 'https://skedence.com/support',
+    siteName: 'Skedence',
+    type: 'website',
+    images: [{ url: 'https://skedence.com/og-image.png', width: 1200, height: 630, alt: 'Skedence Help & FAQ' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Help & FAQ | Skedence Sports Coaching Software',
+    description: 'Get help with Skedence. Find answers to common questions about payments, bookings, Stripe setup, lesson passes, and managing clients.',
+    images: ['https://skedence.com/og-image.png'],
+  },
 };
 
 const faqs = [

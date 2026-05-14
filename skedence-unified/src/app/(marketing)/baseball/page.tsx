@@ -20,6 +20,13 @@ export const metadata: Metadata = {
     url: 'https://skedence.com/baseball',
     siteName: 'Skedence',
     type: 'website',
+    images: [{ url: 'https://skedence.com/og-baseball.png', width: 1200, height: 630, alt: 'Baseball Scheduling Software - Skedence' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Baseball Scheduling Software | Skedence',
+    description: 'Sell lesson packages, automate booking, and get paid online with Skedence for baseball coaches.',
+    images: ['https://skedence.com/og-baseball.png'],
   },
 };
 
@@ -64,7 +71,7 @@ export default function BaseballPage() {
       />
       <VerticalLanding
         sportName="Baseball"
-        headline="The booking system for baseball coaches"
+        headline="Baseball Scheduling Software for Coaches"
         subheadline="Sell lesson packages, automate scheduling, and stop chasing payments. Built for baseball training businesses."
         primaryKeyword="baseball scheduling software"
         secondaryKeyword="baseball booking system"

@@ -20,6 +20,13 @@ export const metadata: Metadata = {
     url: 'https://skedence.com/volleyball',
     siteName: 'Skedence',
     type: 'website',
+    images: [{ url: 'https://skedence.com/og-volleyball.png', width: 1200, height: 630, alt: 'Volleyball Scheduling Software - Skedence' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Volleyball Scheduling Software | Skedence',
+    description: 'Sell lesson packages, automate bookings, and get paid online with Skedence for volleyball coaches.',
+    images: ['https://skedence.com/og-volleyball.png'],
   },
 };
 
@@ -64,7 +71,7 @@ export default function VolleyballPage() {
       />
       <VerticalLanding
         sportName="Volleyball"
-        headline="The operating system for volleyball lessons"
+        headline="Volleyball Scheduling Software for Coaches & Clubs"
         subheadline="Sell lesson packages, automate scheduling, and stop chasing payments. Built for volleyball coaches, clubs, and academies."
         primaryKeyword="volleyball scheduling software"
         secondaryKeyword="volleyball booking system"
