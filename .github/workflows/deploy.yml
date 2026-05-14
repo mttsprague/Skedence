@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - rebrand-coachflow
   workflow_dispatch: # allows manual trigger from GitHub Actions tab
   schedule:
     - cron: '0 6 * * *' # daily at 6am UTC — picks up any newly published blog posts
