@@ -58,6 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: 'https://skedence.com/', changeFrequency: 'weekly', priority: 1.0 },
     { url: 'https://skedence.com/blog', changeFrequency: 'daily', priority: 0.9 },
+    { url: 'https://skedence.com/pricing-plans', changeFrequency: 'monthly', priority: 0.9 },
     { url: 'https://skedence.com/volleyball', changeFrequency: 'monthly', priority: 0.8 },
     { url: 'https://skedence.com/basketball', changeFrequency: 'monthly', priority: 0.8 },
     { url: 'https://skedence.com/soccer', changeFrequency: 'monthly', priority: 0.8 },
