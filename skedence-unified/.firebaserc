@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "polyface-ae6d3"
+  },
+  "targets": {
+    "polyface-ae6d3": {
+      "hosting": {
+        "skedence-site": [
+          "skedence"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
