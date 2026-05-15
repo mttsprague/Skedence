@@ -33,7 +33,7 @@ struct MyUpcomingLessonsView: View {
     private var upcoming: [Booking] {
         let now = Date()
         return bookingsService.myBookings
-            .filter { ($0.startTime ?? now) >= now }
+            .filter { !$0.isClassBooking && ($0.startTime ?? now) >= now }
             .sorted { ($0.startTime ?? .distantFuture) < ($1.startTime ?? .distantFuture) }
     }
     
@@ -47,7 +47,7 @@ struct MyUpcomingLessonsView: View {
     private var completed: [Booking] {
         let now = Date()
         return bookingsService.myBookings
-            .filter { ($0.endTime ?? now) < now && $0.status != "cancelled" }
+            .filter { !$0.isClassBooking && ($0.endTime ?? now) < now && $0.status != "cancelled" }
             .sorted { ($0.startTime ?? .distantPast) > ($1.startTime ?? .distantPast) }
     }
     

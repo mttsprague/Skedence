@@ -201,7 +201,8 @@ final class BookingsRepository: QueryableRepositoryProtocol {
             athleteName: data["athleteName"] as? String,
             secondAthleteName: data["secondAthleteName"] as? String,
             athleteNames: data["athleteNames"] as? [String],
-            lessonNotes: data["lessonNotes"] as? String
+            lessonNotes: data["lessonNotes"] as? String,
+            isClassBooking: data["isClassBooking"] as? Bool ?? false
         )
     }
     

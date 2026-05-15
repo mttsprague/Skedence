@@ -29,4 +29,7 @@ struct Booking: Identifiable {
     
     // Lesson notes
     let lessonNotes: String?
+    
+    // Class bookings created by registerForClass — should not appear as lesson rows
+    let isClassBooking: Bool
 }

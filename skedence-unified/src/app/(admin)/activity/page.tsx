@@ -29,6 +29,7 @@ import {
   DollarSign,
   CheckCircle2,
   GraduationCap,
+  UserMinus,
   Filter,
   TrendingUp,
   TrendingDown,
@@ -1102,6 +1103,8 @@ export default function ActivityPage() {
       case 'class_registered':
       case 'class_enrollment':
         return <GraduationCap className="h-5 w-5 text-teal-600" />;
+      case 'class_unenrollment':
+        return <UserMinus className="h-5 w-5 text-orange-600" />;
       case 'lesson_booked':
       case 'booking_created':
         return <Calendar className="h-5 w-5 text-green-600" />;
@@ -1575,6 +1578,7 @@ export default function ActivityPage() {
                   <SelectItem value="lesson_booked">Lessons Booked</SelectItem>
                   <SelectItem value="lesson_canceled">Lessons Canceled</SelectItem>
                   <SelectItem value="class_enrollment">Class Registrations</SelectItem>
+                  <SelectItem value="class_unenrollment">Class Removals</SelectItem>
                   <SelectItem value="pass_purchased">Pass Purchases</SelectItem>
                   <SelectItem value="client_registered">New Clients</SelectItem>
                   <SelectItem value="trainer_created">New Trainers</SelectItem>

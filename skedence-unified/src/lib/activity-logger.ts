@@ -26,6 +26,7 @@ export type ActivityType =
   | 'class_cancelled' // British spelling compatibility
   | 'class_enrollment'
   | 'class_registered' // Alternative naming compatibility
+  | 'class_unenrollment' // Admin removed participant from class
   | 'location_created'
   | 'location_updated'
   | 'location_deleted'

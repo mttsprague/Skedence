@@ -12,7 +12,7 @@ import { db } from '@/lib/firebase';
 import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye, Download, Search, UserPlus, CheckCircle2, Circle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Location } from '@/types/location';
-import { logClassCreated, logClassUpdated, logClassDeleted } from '@/lib/activity-logger';
+import { logClassCreated, logClassUpdated, logClassDeleted, logActivity } from '@/lib/activity-logger';
 import { toast } from '@/lib/toast';
 
 interface Trainer {
@@ -855,7 +855,29 @@ export default function ClassesPage() {
       ]);
 
       toast.success('Removed', `${name} has been removed from the class`);
-      // onSnapshot listener auto-updates the list — no manual refresh needed
+
+      // Log to activity feed
+      try {
+        await logActivity({
+          type: 'class_unenrollment',
+          actorId: user?.uid || '',
+          actorName: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || user?.email?.split('@')[0] || 'Admin',
+          actorRole: 'admin',
+          targetId: participant.userId,
+          targetName: name,
+          targetType: 'class',
+          description: `Admin removed ${name} from ${viewingParticipants.title}`,
+          metadata: {
+            classId: viewingParticipants.id,
+            className: viewingParticipants.title,
+            passRefunded: !!participant.classPassPackageId,
+            passId: participant.classPassPackageId || null,
+          },
+          orgId,
+        });
+      } catch (logError) {
+        console.error('❌ Failed to log activity:', logError);
+      }
     } catch (error: any) {
       console.error('Error removing participant:', error);
       toast.error('Failed to remove participant', error?.message || 'Please try again');
