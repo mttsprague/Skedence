@@ -218,8 +218,8 @@ export default async function BlogPostPage({
   // Typed locals to satisfy JSX ReactNode requirements
   const title = String(post.title ?? '');
   const excerpt = String(post.excerpt ?? '');
-  const authorName = String(post.authorName ?? '');
-  const authorBio = post.authorBio ? String(post.authorBio) : null;
+  const authorName = post.authorName ? String(post.authorName) : 'Matt Sprague';
+  const authorBio = post.authorBio ? String(post.authorBio) : 'Founder & Head Coach, Skedence';
   const authorImage = post.authorImage ? String(post.authorImage) : null;
   const featuredImage = post.featuredImage ? String(post.featuredImage) : null;
   const featuredImageAlt = post.featuredImageAlt ? String(post.featuredImageAlt) : title;

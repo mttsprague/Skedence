@@ -110,6 +110,12 @@ export default function SoccerPage() {
           }
         ]}
         faqs={faqs}
+        blogCategoryUrl="/blog/soccer"
+        relatedBlogLinks={[
+          { title: 'Essential Goalkeeper Training for Private Soccer Lessons', slug: 'goalkeeper-training-private-soccer-lessons' },
+          { title: 'How to Structure Private Soccer Training Sessions', slug: 'how-to-structure-private-soccer-training' },
+          { title: 'How to Price Soccer Training Packages', slug: 'how-to-price-soccer-training-packages' },
+        ]}
       />
     </>
   );

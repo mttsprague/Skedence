@@ -19,6 +19,11 @@ interface FaqItem {
   answer: string;
 }
 
+interface RelatedBlogLink {
+  title: string;
+  slug: string;
+}
+
 interface VerticalLandingProps {
   sportName: string;
   headline: string;
@@ -30,6 +35,8 @@ interface VerticalLandingProps {
   faqs: FaqItem[];
   videoUrl?: string;
   videoTitle?: string;
+  relatedBlogLinks?: RelatedBlogLink[];
+  blogCategoryUrl?: string;
 }
 
 export default function VerticalLanding({
@@ -41,6 +48,8 @@ export default function VerticalLanding({
   faqs,
   videoUrl,
   videoTitle,
+  relatedBlogLinks,
+  blogCategoryUrl,
 }: VerticalLandingProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -251,6 +260,38 @@ export default function VerticalLanding({
           <p className="text-sm text-foreground/40 uppercase tracking-wider">14-day free trial · Cancel anytime</p>
         </div>
       </section>
+
+      {/* From the Blog */}
+      {relatedBlogLinks && relatedBlogLinks.length > 0 && (
+        <section className="py-16 px-6 bg-muted/10">
+          <div className="container mx-auto max-w-5xl">
+            <div className="flex items-center justify-between mb-10">
+              <h2 className="text-3xl font-black text-foreground uppercase">From the Blog</h2>
+              {blogCategoryUrl && (
+                <Link href={blogCategoryUrl} className="text-sm font-semibold text-primary hover:underline inline-flex items-center gap-1">
+                  All {sportName} Articles <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {relatedBlogLinks.map((article) => (
+                <Link
+                  key={article.slug}
+                  href={`/blog/${article.slug}`}
+                  className="group premium-card p-6 hover:border-primary/50 transition-all duration-300"
+                >
+                  <h3 className="font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-2">
+                    {article.title}
+                  </h3>
+                  <span className="text-sm text-primary inline-flex items-center gap-1 mt-2">
+                    Read article <ArrowRight className="w-3 h-3" />
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-border/50 py-10 px-6 bg-black text-center">

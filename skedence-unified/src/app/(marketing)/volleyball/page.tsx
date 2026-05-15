@@ -110,6 +110,12 @@ export default function VolleyballPage() {
           }
         ]}
         faqs={faqs}
+        blogCategoryUrl="/blog/volleyball"
+        relatedBlogLinks={[
+          { title: 'The Best Volleyball Serving Drills for Private Lessons', slug: 'volleyball-serving-drills-private-lessons' },
+          { title: 'How to Structure a Volleyball Private Lesson', slug: 'how-to-structure-volleyball-private-lesson' },
+          { title: 'How to Price Volleyball Lesson Packages', slug: 'how-to-price-volleyball-lesson-packages' },
+        ]}
       />
     </>
   );

@@ -110,6 +110,12 @@ export default function BasketballPage() {
           }
         ]}
         faqs={faqs}
+        blogCategoryUrl="/blog/basketball"
+        relatedBlogLinks={[
+          { title: 'The Best Basketball Training Drills for Guards', slug: 'basketball-training-drills-for-guards' },
+          { title: 'How to Fix Shooting Form in Private Basketball Training', slug: 'fix-basketball-shooting-form' },
+          { title: 'How to Price Basketball Training Packages', slug: 'how-to-price-basketball-training-packages' },
+        ]}
       />
     </>
   );

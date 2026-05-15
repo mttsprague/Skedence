@@ -110,6 +110,12 @@ export default function BaseballPage() {
           }
         ]}
         faqs={faqs}
+        blogCategoryUrl="/blog/baseball"
+        relatedBlogLinks={[
+          { title: 'The Best Pitching Drills for Private Baseball Lessons', slug: 'baseball-pitching-drills-private-lessons' },
+          { title: 'Baseball Catching Fundamentals for Private Lessons', slug: 'baseball-catching-fundamentals-private-lessons' },
+          { title: 'How to Price Baseball Lesson Packages', slug: 'how-to-price-baseball-lesson-packages' },
+        ]}
       />
     </>
   );

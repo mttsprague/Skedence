@@ -3,14 +3,14 @@ import Link from "next/link";
 import { Check, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Scheduling Software for Sports Coaches, Trainers & Academies",
-  description: "Skedence is built for sports coaches, private trainers, and athletic academies who sell lesson packages and manage client schedules. See if it's right for you.",
+  title: "About Skedence — Scheduling Software Built for Sports Coaches",
+  description: "Skedence was founded in 2023 by a developer who coaches athletes. Built specifically for sports coaches, private trainers, and athletic academies who sell lesson packages.",
   alternates: {
     canonical: 'https://skedence.com/about',
   },
   openGraph: {
-    title: 'Scheduling Software for Sports Coaches, Trainers & Academies | Skedence',
-    description: "Skedence is built for sports coaches, private trainers, and athletic academies who sell lesson packages and manage client schedules. See if it's right for you.",
+    title: 'About Skedence — Scheduling Software Built for Sports Coaches',
+    description: "Skedence was founded in 2023 by a developer who coaches athletes. Built for sports coaches, private trainers, and athletic academies who sell lesson packages.",
     url: 'https://skedence.com/about',
     siteName: 'Skedence',
     type: 'website',
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Scheduling Software for Sports Coaches, Trainers & Academies | Skedence',
-    description: "Skedence is built for sports coaches, private trainers, and athletic academies who sell lesson packages and manage client schedules.",
+    title: 'About Skedence — Scheduling Software Built for Sports Coaches',
+    description: "Skedence was founded in 2023 by a developer who coaches athletes. Built for sports coaches, private trainers, and athletic academies.",
     images: ['https://skedence.com/og-image.png'],
   },
 };
@@ -40,9 +40,31 @@ const notFits = [
   "Businesses that don't sell lesson packages or time blocks",
 ];
 
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Skedence',
+  url: 'https://skedence.com',
+  logo: 'https://skedence.com/logo-nav.png',
+  foundingDate: '2023',
+  description:
+    'Skedence is scheduling and payment software built specifically for sports coaches, private trainers, and athletic academies. Founded in 2023 by a developer who also coaches athletes.',
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    email: 'support@skedence.com',
+    url: 'https://skedence.com/support',
+  },
+  sameAs: ['https://apps.apple.com/us/app/skedence/id6471890931'],
+};
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-xl border-b border-border/50">
         <div className="container mx-auto px-6 lg:px-12">
@@ -73,7 +95,10 @@ export default function AboutPage() {
             Built For<br />Sports <span className="text-primary">Coaches</span>
           </h1>
           <p className="text-xl text-foreground/70 max-w-2xl leading-relaxed font-light">
-            Skedence was built by a developer who coaches athletes — and got frustrated with the lack of tools built specifically for sports training businesses. It&apos;s not a generic booking app. It&apos;s designed around how coaches actually work: lesson packages, multi-athlete sessions, seasonal availability, and clients who book on their phones.
+            Skedence was founded in 2023 by a developer who coaches athletes — frustrated by the lack of
+            tools built specifically for sports training businesses. It&apos;s not a generic booking app.
+            It&apos;s designed around how coaches actually work: lesson packages, multi-athlete sessions,
+            seasonal availability, and clients who book on their phones.
           </p>
         </div>
       </section>

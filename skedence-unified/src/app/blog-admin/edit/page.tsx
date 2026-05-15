@@ -48,7 +48,7 @@ function BlogEditorContent() {
   const [featuredImage, setFeaturedImage] = useState('');
   const [featuredImageAlt, setFeaturedImageAlt] = useState('');
   const [ctaText, setCtaText] = useState('');
-  const [ctaLink, setCtaLink] = useState('/login');
+  const [ctaLink, setCtaLink] = useState('/register');
 
   useEffect(() => {
     checkAuth();
@@ -114,7 +114,7 @@ function BlogEditorContent() {
         setFeaturedImage(post.featuredImage || '');
         setFeaturedImageAlt(post.featuredImageAlt || '');
         setCtaText(post.ctaText || '');
-        setCtaLink(post.ctaLink || '/login');
+        setCtaLink(post.ctaLink || '/register');
       }
     } catch (error) {
       console.error('Error loading post:', error);
@@ -158,8 +158,8 @@ function BlogEditorContent() {
         ctaText: ctaText.trim() || undefined,
         ctaLink: ctaLink.trim() || undefined,
         authorId: user?.uid || '',
-        authorName: user?.displayName || user?.email?.split('@')[0] || 'Admin',
-        authorBio: 'Skedence Team',
+        authorName: 'Matt Sprague',
+        authorBio: 'Founder & Head Coach, Skedence',
         authorImage: undefined,
       };
 

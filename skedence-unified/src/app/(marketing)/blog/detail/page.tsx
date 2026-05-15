@@ -325,7 +325,7 @@ function BlogPostContent() {
             {post.authorImage ? (
               <Image 
                 src={post.authorImage} 
-                alt={post.authorName}
+                alt={post.authorName || 'Matt Sprague'}
                 width={48}
                 height={48}
                 className="w-12 h-12 rounded-full object-cover"
@@ -334,15 +334,13 @@ function BlogPostContent() {
             ) : (
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="text-xl font-bold text-primary">
-                  {post.authorName.charAt(0).toUpperCase()}
+                  {(post.authorName || 'Matt Sprague').charAt(0).toUpperCase()}
                 </span>
               </div>
             )}
             <div>
-              <p className="font-bold text-foreground">{post.authorName}</p>
-              {post.authorBio && (
-                <p className="text-sm text-foreground/60">{post.authorBio}</p>
-              )}
+              <p className="font-bold text-foreground">{post.authorName || 'Matt Sprague'}</p>
+              <p className="text-sm text-foreground/60">{post.authorBio || 'Founder & Head Coach, Skedence'}</p>
             </div>
           </div>
 
@@ -480,7 +478,7 @@ function BlogPostContent() {
             
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Connect</h4>
-              <p className="text-sm text-orange-500">Matt.Sprague@skedence.com</p>
+              <a href="mailto:support@skedence.com" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">support@skedence.com</a>
             </div>
           </div>
           

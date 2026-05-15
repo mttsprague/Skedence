@@ -501,7 +501,7 @@ export default function BlogPage() {
             
             <div>
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Connect</h4>
-              <p className="text-sm text-orange-500">Matt.Sprague@skedence.com</p>
+              <a href="mailto:support@skedence.com" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">support@skedence.com</a>
             </div>
           </div>
           
