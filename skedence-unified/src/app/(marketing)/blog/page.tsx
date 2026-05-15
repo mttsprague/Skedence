@@ -160,7 +160,7 @@ export default function BlogPage() {
             
             <div className="hidden md:flex items-center gap-10">
               <a href="/#features" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Features</a>
-              <a href="/#pricing" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</a>
+              <Link href="/pricing-plans" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</Link>
               <Link href="/blog" className="text-sm font-medium text-primary transition-colors uppercase tracking-wide">Blog</Link>
               <Link href="/support" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Support</Link>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
@@ -194,13 +194,13 @@ export default function BlogPage() {
             >
               Features
             </a>
-            <a
-              href="/#pricing"
+            <Link
+              href="/pricing-plans"
               onClick={() => setMobileMenuOpen(false)}
               className="block text-base font-medium text-orange-500 hover:text-orange-400 transition-colors uppercase tracking-wide py-3 border-b border-border/30"
             >
               Pricing
-            </a>
+            </Link>
             <Link
               href="/blog"
               onClick={() => setMobileMenuOpen(false)}
@@ -313,6 +313,19 @@ export default function BlogPage() {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Browse by Sport */}
+      <section className="py-10 px-6 border-t border-border/30">
+        <div className="container mx-auto max-w-6xl">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-bold text-foreground/50 uppercase tracking-widest">Browse by Sport:</span>
+            <Link href="/blog/volleyball" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary">🏐 Volleyball</Link>
+            <Link href="/blog/basketball" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary">🏀 Basketball</Link>
+            <Link href="/blog/soccer" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary">⚽ Soccer</Link>
+            <Link href="/blog/baseball" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary">⚾ Baseball</Link>
+          </div>
         </div>
       </section>
 
@@ -477,7 +490,7 @@ export default function BlogPage() {
               <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Product</h4>
               <ul className="space-y-3">
                 <li><a href="/#features" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Features</a></li>
-                <li><a href="/#pricing" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Pricing</a></li>
+                <li><Link href="/pricing-plans" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Pricing</Link></li>
                 <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Support</Link></li>
               </ul>
             </div>
