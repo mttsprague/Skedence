@@ -8,6 +8,7 @@ import DOMPurify from 'dompurify';
 import { Clock, ArrowLeft, ArrowRight, Eye, Tag, Menu, X } from 'lucide-react';
 import { BlogPost, BLOG_CATEGORIES } from '@/types/blog';
 import { getPostBySlug, incrementViews, getRelatedPosts } from '@/lib/blog-service';
+import { optimizeImage } from '@/lib/image-utils';
 import { format } from 'date-fns';
 import { trackPageView, trackEvent } from '@/lib/analytics';
 import './blog-detail.css';
@@ -411,7 +412,7 @@ function BlogPostContent() {
                   {relatedPost.featuredImage && (
                     <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden bg-muted">
                       <Image 
-                        src={relatedPost.featuredImage} 
+                        src={optimizeImage(relatedPost.featuredImage, 400, 75) || relatedPost.featuredImage} 
                         alt={relatedPost.featuredImageAlt || relatedPost.title}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"

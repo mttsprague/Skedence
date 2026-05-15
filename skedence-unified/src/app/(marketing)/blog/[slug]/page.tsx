@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
+import { optimizeImage } from '@/lib/image-utils';
 import { format } from 'date-fns';
 import { Clock, ArrowLeft, ArrowRight, Eye, Tag } from 'lucide-react';
 import { BLOG_CATEGORIES, BlogCategory } from '@/types/blog';
@@ -221,7 +222,7 @@ export default async function BlogPostPage({
   const authorName = post.authorName ? String(post.authorName) : 'Matt Sprague';
   const authorBio = post.authorBio ? String(post.authorBio) : 'Founder & Head Coach, Skedence';
   const authorImage = post.authorImage ? String(post.authorImage) : null;
-  const featuredImage = post.featuredImage ? String(post.featuredImage) : null;
+  const featuredImage = optimizeImage(post.featuredImage ? String(post.featuredImage) : null, 1200, 80);
   const featuredImageAlt = post.featuredImageAlt ? String(post.featuredImageAlt) : title;
   const content = String(post.content ?? '');
   const ctaText = post.ctaText ? String(post.ctaText) : 'Ready to Transform Your Coaching Business?';
@@ -391,7 +392,7 @@ export default async function BlogPostPage({
                   {related.featuredImage ? (
                     <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden bg-muted">
                       <Image
-                        src={String(related.featuredImage)}
+                        src={optimizeImage(String(related.featuredImage), 400, 75) || String(related.featuredImage)}
                         alt={related.featuredImageAlt ? String(related.featuredImageAlt) : String(related.title ?? '')}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
