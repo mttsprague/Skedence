@@ -22,7 +22,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 
 const NAV_ITEMS = [
   { href: '/portal', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
-  { href: '/portal/book', icon: <BookOpen size={20} />, label: 'Book a Lesson' },
+  { href: '/portal/book', icon: <BookOpen size={20} />, label: 'Book Here' },
   { href: '/portal/schedule', icon: <CalendarCheck size={20} />, label: 'My Schedule' },
   { href: '/portal/passes', icon: <Ticket size={20} />, label: 'My Passes' },
   { href: '/portal/documents', icon: <FileText size={20} />, label: 'Documents' },

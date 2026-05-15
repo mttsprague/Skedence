@@ -148,7 +148,8 @@ export default function RevenueReportPage() {
         where('orgId', '==', orgId)
       );
       const orgMembersSnapshot = await getDocs(orgMembersQuery);
-      const userIds = orgMembersSnapshot.docs.map(doc => doc.data().userId);
+      // Deduplicate — duplicate orgMembers entries cause packages to be counted multiple times
+      const userIds = [...new Set(orgMembersSnapshot.docs.map(doc => doc.data().userId).filter(Boolean))];
 
       // Load packages for each user (dual-path)
       for (const userId of userIds) {

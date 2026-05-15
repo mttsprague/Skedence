@@ -244,14 +244,15 @@ export default function AppointmentsReportPage() {
           }
         }
         
-        // Get trainer info
+        // Get trainer info — check both field names (trainerUID is primary, trainerId is legacy alias)
         let trainerName = 'Unknown Trainer';
-        if (data.trainerId) {
-          const t = trainers.find(tr => tr.id === data.trainerId);
+        const trainerDocId = data.trainerUID || data.trainerId;
+        if (trainerDocId) {
+          const t = trainers.find(tr => tr.id === trainerDocId);
           if (t) trainerName = t.name;
           else {
             try {
-              const trainerDoc = await getDoc(doc(db, 'trainers', data.trainerId));
+              const trainerDoc = await getDoc(doc(db, 'trainers', trainerDocId));
               if (trainerDoc.exists()) {
                 const td = trainerDoc.data();
                 trainerName = `${td.firstName || ''} ${td.lastName || ''}`.trim();
@@ -271,7 +272,7 @@ export default function AppointmentsReportPage() {
           endTime,
           status,
           duration,
-          trainerId: data.trainerId,
+          trainerId: trainerDocId,
           trainerName,
           clientId,
           clientName,
@@ -298,15 +299,16 @@ export default function AppointmentsReportPage() {
         const duration = differenceInMinutes(endTime, startTime);
         const now = new Date();
         
-        // Get trainer info
+        // Get trainer info — check both field names
         let trainerName = 'Unknown Trainer';
-        if (classData.trainerId) {
-          const t = trainers.find(tr => tr.id === classData.trainerId);
+        const classTrainerId = classData.trainerUID || classData.trainerId;
+        if (classTrainerId) {
+          const t = trainers.find(tr => tr.id === classTrainerId);
           if (t) {
             trainerName = t.name;
           } else {
             try {
-              const trainerDoc = await getDoc(doc(db, 'trainers', classData.trainerId));
+              const trainerDoc = await getDoc(doc(db, 'trainers', classTrainerId));
               if (trainerDoc.exists()) {
                 const td = trainerDoc.data();
                 trainerName = `${td.firstName || ''} ${td.lastName || ''}`.trim() || trainerName;
@@ -356,7 +358,7 @@ export default function AppointmentsReportPage() {
             endTime,
             status,
             duration,
-            trainerId: classData.trainerId,
+            trainerId: classTrainerId,
             trainerName,
             clientId,
             clientName,

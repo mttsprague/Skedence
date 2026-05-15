@@ -129,7 +129,8 @@ export default function UsersReportPage() {
         where('role', '==', 'client')
       );
       const orgMembersSnapshot = await getDocs(orgMembersQuery);
-      const userIds = orgMembersSnapshot.docs.map(doc => doc.data().userId);
+      // Deduplicate — duplicate orgMembers entries cause users to be counted multiple times
+      const userIds = [...new Set(orgMembersSnapshot.docs.map(doc => doc.data().userId).filter(Boolean))];
 
       // Batch load users (Firestore 'in' query limited to 30)
       const loadedUsers: User[] = [];

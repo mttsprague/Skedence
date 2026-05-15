@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-  User, Users, UserPlus, CalendarClock, Ticket,
+  User, Users, Ticket, Book,
   AlertTriangle, Calendar, Clock, Award, ShieldCheck,
   RefreshCw, ShoppingCart, ChevronUp, ChevronDown,
 } from 'lucide-react';
@@ -68,8 +68,8 @@ function CategoryIcon({ id }: { id: string }) {
     case 'oneAthlete':   return <User {...props} />;
     case 'twoAthlete':
     case 'threeAthlete': return <Users {...props} />;
-    case 'fourAthlete':  return <UserPlus {...props} />;
-    case 'classPass':    return <CalendarClock {...props} />;
+    case 'fourAthlete':  return <Ticket {...props} />;
+    case 'classPass':    return <Book {...props} />;
     default:             return <Ticket {...props} />;
   }
 }
@@ -203,9 +203,9 @@ function CategoryCard({ group }: { group: CategoryGroup }) {
   const expiring = isExpiringSoon(group.nextExpiration);
 
   const iconBg = group.isClass
-    ? 'bg-gradient-to-br from-teal-500 to-teal-700'
+    ? 'bg-gradient-to-br from-pva-orange to-orange-600'
     : 'bg-gradient-to-br from-pva-navy to-blue-900';
-  const accentText = group.isClass ? 'text-teal-500' : 'text-pva-navy';
+  const accentText = group.isClass ? 'text-pva-orange' : 'text-pva-navy';
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3">
@@ -275,8 +275,8 @@ export function PassesView({ passes, onRefresh }: { passes: LessonPackage[]; onR
           <span className="text-xs text-gray-500">Athlete Passes</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-teal-500" />
-          <span className="text-xs text-gray-500">Class</span>
+          <div className="w-3 h-3 rounded-full bg-pva-orange" />
+          <span className="text-xs text-gray-500">Class Passes</span>
         </div>
       </div>
 
@@ -313,7 +313,7 @@ export function DashboardPassesView({ passes }: { passes: LessonPackage[] }) {
     return (
       <div className="p-8 text-center">
         <Ticket size={32} className="text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 text-sm font-medium">No passes yet</p>
+        <p className="text-gray-500 text-sm font-medium">No passes yet, purchase a pass to book an event!</p>
         <Link href="/portal/buy-passes" className="inline-block mt-3 text-pva-orange font-bold text-sm hover:text-pva-navy transition">
           Purchase passes →
         </Link>
@@ -326,9 +326,9 @@ export function DashboardPassesView({ passes }: { passes: LessonPackage[] }) {
       {activeGroups.map(group => {
         const expiring = isExpiringSoon(group.nextExpiration);
         const iconBg = group.isClass
-          ? 'bg-gradient-to-br from-teal-500 to-teal-700'
+          ? 'bg-gradient-to-br from-pva-orange to-orange-600'
           : 'bg-gradient-to-br from-pva-navy to-blue-900';
-        const accentText = group.isClass ? 'text-teal-600' : 'text-pva-navy';
+        const accentText = group.isClass ? 'text-pva-orange' : 'text-pva-navy';
 
         return (
           <div key={group.id} className="flex items-center gap-3 px-4 py-3">

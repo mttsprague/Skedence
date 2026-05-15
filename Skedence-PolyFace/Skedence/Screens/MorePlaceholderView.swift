@@ -235,7 +235,7 @@ struct MorePlaceholderView: View {
                         CardView {
                             VStack(spacing: Spacing.md) {
                                 // Help Center
-                                Link(destination: URL(string: "https://www.skedence.com/help")!) {
+                                Link(destination: URL(string: "https://polyfacevolleyball.com/faq")!) {
                                     HStack(spacing: Spacing.md) {
                                         ZStack {
                                             RoundedRectangle(cornerRadius: CornerRadius.xs, style: .continuous)

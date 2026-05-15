@@ -11,6 +11,7 @@ const MORE_LINKS = [
   { label: 'How To', href: '/how-to' },
   { label: 'Our Trainers', href: '/trainers' },
   { label: 'Blog', href: '/blog' },
+  { label: 'FAQ', href: '/faq' },
   { label: 'Cancellation Policy', href: '/cancellation-policy' },
   { label: 'Sign Waiver', href: '/sign-waiver' },
 ];

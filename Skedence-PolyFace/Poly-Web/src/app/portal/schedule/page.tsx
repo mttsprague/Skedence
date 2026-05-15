@@ -32,8 +32,10 @@ export default function SchedulePage() {
 
   useEffect(() => { loadBookings(); }, [user, userDocId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const upcoming = bookings.filter((b) => b.status === 'confirmed' && isFuture(b.startTime));
-  const past = bookings.filter((b) => b.status !== 'confirmed' || isPast(b.startTime));
+  const upcoming = bookings.filter((b) => b.status === 'confirmed' && isFuture(b.startTime))
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  const past = bookings.filter((b) => b.status !== 'confirmed' || isPast(b.startTime))
+    .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
   const displayed = tab === 'upcoming' ? upcoming : past;
 
   return (

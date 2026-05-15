@@ -28,6 +28,7 @@ struct ClassRegistrationSheet: View {
     @State private var errorMessage: String?
     @State private var selectedClassPass: LessonPackage?
     @State private var registrationCount = 0
+    @State private var showPurchasePasses = false
     
     // Athlete selection state
     @State private var selectedAthleteName: String?
@@ -482,7 +483,7 @@ struct ClassRegistrationSheet: View {
             Divider()
             HStack(spacing: Spacing.xxs) {
                 Image(systemName: "person.2")
-                Text("\(classItem.currentParticipants) / \(classItem.maxParticipants) registered")
+                Text(classItem.isFull ? "Class full" : "\(classItem.spotsRemaining) spot\(classItem.spotsRemaining == 1 ? "" : "s") remaining")
                     .font(.bodyLarge)
             }
         }
@@ -929,17 +930,39 @@ struct ClassRegistrationSheet: View {
     
     private var noClassPassCard: some View {
         CardView {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
+            VStack(spacing: Spacing.md) {
                 HStack(spacing: Spacing.sm) {
-                    Image(systemName: "exclamationmark.circle.fill")
+                    Image(systemName: "ticket.fill")
                         .foregroundStyle(AppTheme.warning)
                     Text("Class Pass Required")
                         .font(.bodyMedium.bold())
                         .foregroundStyle(AppTheme.warning)
+                    Spacer()
                 }
-                Text("You need a class pass to register. Purchase one from the Profile tab to get started.")
+                Text("You need a class pass to register for this class.")
                     .font(.bodySmall)
                     .foregroundStyle(AppTheme.textSecondary)
+                Button {
+                    showPurchasePasses = true
+                } label: {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "cart.fill")
+                        Text("Purchase a Pass")
+                            .font(.bodyMedium.bold())
+                        Spacer()
+                    }
+                    .padding(.vertical, Spacing.sm)
+                    .background(AppTheme.primary)
+                    .foregroundStyle(.white)
+                    .cornerRadius(CornerRadius.sm)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .sheet(isPresented: $showPurchasePasses) {
+            NavigationView {
+                PurchaseLessonsView(packagesService: packagesService)
             }
         }
     }

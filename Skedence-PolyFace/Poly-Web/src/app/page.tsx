@@ -3,7 +3,7 @@
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ChevronRight, Users, Calendar, Star, Phone, Mail, MapPin } from 'lucide-react'
+import { ChevronRight, Users, User, Calendar, Star, Phone, Mail, MapPin } from 'lucide-react'
 
 export default function HomePage() {
   return (
@@ -17,6 +17,19 @@ export default function HomePage() {
         <div className="absolute inset-0 opacity-5 pointer-events-none"
           style={{ backgroundImage: 'repeating-linear-gradient(0deg, #fff, #fff 1px, transparent 1px, transparent 60px), repeating-linear-gradient(90deg, #fff, #fff 1px, transparent 1px, transparent 60px)' }}
         />
+        {/* Polyface logo — top right, below fixed navbar */}
+        <div className="absolute top-20 right-6 z-20 pointer-events-none select-none">
+          <div className="bg-white/15 backdrop-blur-md rounded-2xl p-2 shadow-lg border border-white/20">
+            <Image
+              src="/polyface-logo.png"
+              alt="Polyface Volleyball Academy"
+              width={110}
+              height={110}
+              className="w-20 sm:w-24 h-auto object-contain"
+              priority
+            />
+          </div>
+        </div>
         {/* Left background image — hidden on mobile, visible md+ */}
         <div className="hidden md:block absolute bottom-0 left-0 w-[420px] lg:w-[500px] pointer-events-none select-none opacity-60" style={{ mixBlendMode: 'multiply' }}>
           <Image
@@ -106,88 +119,126 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-5xl font-black text-pva-navy mb-4">TRAINING OPTIONS</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">Individual lessons and group classes designed to elevate your game</p>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">Private lessons, group classes, and camps designed to elevate your game at every level</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Private Lessons */}
-            <div className="group relative bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border-2 border-gray-100 hover:border-pva-teal transition-all hover:shadow-2xl">
-              <div className="absolute -top-6 -left-6 w-16 h-16 bg-pva-navy rounded-xl flex items-center justify-center shadow-lg group-hover:bg-pva-teal transition">
-                <span className="text-3xl font-black text-white">01</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+
+            {/* 01 — Private */}
+            <div className="group relative bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border-2 border-gray-100 hover:border-pva-navy transition-all hover:shadow-2xl">
+              <div className="absolute -top-6 -left-6 w-16 h-16 bg-pva-navy rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <span className="text-2xl font-black text-white">01</span>
               </div>
               <div className="mt-8">
-                <h3 className="text-3xl font-black text-pva-navy mb-4">INDIVIDUAL<br />LESSONS</h3>
+                <div className="inline-flex items-center gap-2 bg-pva-navy/8 rounded-full px-3 py-1 mb-4">
+                  <User size={13} className="text-pva-navy" />
+                  <span className="text-pva-navy text-xs font-bold uppercase tracking-wider">1-on-1</span>
+                </div>
+                <h3 className="text-3xl font-black text-pva-navy mb-3">PRIVATE<br />LESSONS</h3>
                 <p className="text-gray-600 mb-6 leading-relaxed">
-                  Personalized one-on-one sessions focused on your specific goals — serving, passing, attacking, and more.
+                  Focused, personalized sessions built around your specific goals — serving, passing, attacking, setting, or defense. The fastest way to level up.
                 </p>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-black text-pva-orange">$80</span>
-                  <span className="text-gray-500">/session</span>
-                </div>
-                <Link href="/portal/book" className="block w-full text-center bg-pva-navy text-white py-4 rounded-lg font-bold hover:bg-pva-teal transition">
-                  Book Now
+                <ul className="space-y-2 mb-6">
+                  {['All skill levels welcome', 'Flexible scheduling', 'Technique-focused reps'].map(f => (
+                    <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="w-1.5 h-1.5 rounded-full bg-pva-navy flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/portal/book" className="block w-full text-center bg-pva-navy text-white py-3.5 rounded-xl font-bold hover:bg-pva-navy/90 transition">
+                  Book a Private Session
                 </Link>
               </div>
             </div>
 
-            {/* Group Classes */}
-            <div className="group relative bg-gradient-to-br from-pva-navy to-pva-teal p-8 rounded-2xl border-2 border-pva-navy shadow-2xl">
-              <div className="absolute -top-6 -left-6 w-16 h-16 bg-pva-orange rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-3xl font-black text-white">02</span>
+            {/* 02 — Multi-Athlete (hero card) */}
+            <div className="group relative bg-gradient-to-br from-pva-navy via-pva-navy to-blue-900 p-8 rounded-2xl border-2 border-pva-navy shadow-2xl">
+              <div className="absolute -top-6 -left-6 w-16 h-16 bg-pva-orange rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <span className="text-2xl font-black text-white">02</span>
               </div>
               <div className="mt-8">
-                <div className="inline-block bg-pva-orange/20 border border-pva-orange/40 rounded-full px-3 py-1 mb-4">
-                  <span className="text-pva-orange text-xs font-bold uppercase tracking-wider">Most Popular</span>
+                <div className="inline-flex items-center gap-2 bg-pva-orange/25 border border-pva-orange/40 rounded-full px-3 py-1 mb-4">
+                  <span className="text-pva-orange text-xs font-bold uppercase tracking-wider">Best Value</span>
                 </div>
-                <h3 className="text-3xl font-black text-white mb-4">GROUP<br />CLASSES</h3>
-                <p className="text-gray-200 mb-6 leading-relaxed">
-                  Train with other athletes in a dynamic group environment that builds skills and team chemistry.
+                <h3 className="text-3xl font-black text-white mb-3">MULTI-ATHLETE<br />PRIVATE</h3>
+                <p className="text-gray-300 mb-6 leading-relaxed">
+                  Bring 2–4 training partners and split the cost of a private lesson. Same focused coaching, more affordable per athlete.
                 </p>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-black text-white">$40</span>
-                  <span className="text-gray-300">/athlete</span>
-                </div>
-                <Link href="/portal/book" className="block w-full text-center bg-white text-pva-navy py-4 rounded-lg font-bold hover:bg-gray-100 transition">
-                  View Schedule
+                <ul className="space-y-2 mb-6">
+                  {['2, 3, or 4 athletes', 'Lower cost per person', 'Great for friends & teammates'].map(f => (
+                    <li key={f} className="flex items-center gap-2 text-sm text-gray-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-pva-orange flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/portal/book" className="block w-full text-center bg-white text-pva-navy py-3.5 rounded-xl font-bold hover:bg-gray-100 transition">
+                  Book Multi-Athlete
                 </Link>
               </div>
             </div>
 
-            {/* 2-Athlete */}
-            <div className="group bg-white p-8 rounded-2xl border-2 border-gray-100 hover:border-pva-orange transition-all hover:shadow-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <Users size={28} className="text-pva-orange" />
-                <h3 className="text-2xl font-black text-pva-navy">2-ATHLETE<br />PRIVATE</h3>
+            {/* 03 — Small Group Classes */}
+            <div className="group relative bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border-2 border-gray-100 hover:border-pva-orange transition-all hover:shadow-2xl">
+              <div className="absolute -top-6 -left-6 w-16 h-16 bg-pva-orange rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <span className="text-2xl font-black text-white">03</span>
               </div>
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                Bring a training partner and share the cost of a private lesson. Great for partners working on the same skills.
-              </p>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-black text-pva-orange">$140</span>
-                <span className="text-gray-500">/session</span>
+              <div className="mt-8">
+                <div className="inline-flex items-center gap-2 bg-pva-orange/10 rounded-full px-3 py-1 mb-4">
+                  <Users size={13} className="text-pva-orange" />
+                  <span className="text-pva-orange text-xs font-bold uppercase tracking-wider">Group · Mobile</span>
+                </div>
+                <h3 className="text-3xl font-black text-pva-navy mb-3">SMALL GROUP<br />CLASSES</h3>
+                <p className="text-gray-600 mb-4 leading-relaxed">
+                  High-energy group sessions that build skills and court chemistry. Structured by skill level and age so every rep counts.
+                </p>
+                <div className="bg-pva-orange/8 border border-pva-orange/20 rounded-xl px-4 py-3 mb-6">
+                  <p className="text-sm font-bold text-pva-navy">📍 We can come to you!</p>
+                  <p className="text-sm text-gray-600 mt-0.5">Host a class at your facility. Reach out for group rates.</p>
+                </div>
+                <div className="flex gap-3">
+                  <Link href="/classes-and-camps" className="flex-1 text-center bg-pva-orange text-white py-3.5 rounded-xl font-bold hover:bg-pva-orange/90 transition text-sm">
+                    View Classes
+                  </Link>
+                  <Link href="/portal/book" className="flex-1 text-center bg-pva-orange/10 text-pva-orange py-3.5 rounded-xl font-bold hover:bg-pva-orange hover:text-white transition text-sm">
+                    Book Now
+                  </Link>
+                </div>
               </div>
-              <Link href="/portal/book" className="block w-full text-center bg-pva-orange/10 text-pva-orange py-3 rounded-lg font-bold hover:bg-pva-orange hover:text-white transition">
-                Book Now
-              </Link>
             </div>
 
-            {/* 3-Athlete */}
-            <div className="group bg-white p-8 rounded-2xl border-2 border-gray-100 hover:border-pva-green transition-all hover:shadow-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <Users size={28} className="text-pva-green" />
-                <h3 className="text-2xl font-black text-pva-navy">3-ATHLETE<br />PRIVATE</h3>
+            {/* 04 — Camps */}
+            <div className="group relative bg-gradient-to-br from-pva-navy via-blue-900 to-slate-900 p-8 rounded-2xl border-2 border-pva-navy shadow-2xl">
+              <div className="absolute -top-6 -left-6 w-16 h-16 bg-pva-navy rounded-xl flex items-center justify-center shadow-lg border-2 border-pva-orange/60 group-hover:scale-110 transition-transform">
+                <span className="text-2xl font-black text-white">04</span>
               </div>
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                Perfect for a small group wanting focused instruction at a more affordable per-athlete cost.
-              </p>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-black text-pva-green">$180</span>
-                <span className="text-gray-500">/session</span>
+              <div className="mt-8">
+                <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-3 py-1 mb-4">
+                  <span className="text-white text-xs font-bold uppercase tracking-wider">Summer 2026</span>
+                </div>
+                <h3 className="text-3xl font-black text-white mb-3">CAMPS</h3>
+                <p className="text-gray-300 mb-5 leading-relaxed">
+                  Immersive multi-day camps for every age group. High reps, great coaching, and an experience athletes remember.
+                </p>
+                <div className="space-y-2 mb-6">
+                  {[
+                    { label: 'PeeWees Camp', desc: '3rd – 5th grade' },
+                    { label: '14U Camp', desc: 'Middle school athletes' },
+                    { label: 'High School Camp', desc: 'HS prep & competition' },
+                  ].map(({ label, desc }) => (
+                    <div key={label} className="flex items-center justify-between bg-white/8 rounded-lg px-4 py-2.5">
+                      <span className="text-white font-bold text-sm">{label}</span>
+                      <span className="text-gray-400 text-xs">{desc}</span>
+                    </div>
+                  ))}
+                </div>
+                <Link href="/classes-and-camps" className="block w-full text-center bg-pva-orange text-white py-3.5 rounded-xl font-bold hover:bg-pva-orange/90 transition">
+                  See All Camps
+                </Link>
               </div>
-              <Link href="/portal/book" className="block w-full text-center bg-pva-green/10 text-pva-green py-3 rounded-lg font-bold hover:bg-pva-green hover:text-white transition">
-                Book Now
-              </Link>
             </div>
+
           </div>
         </div>
       </section>

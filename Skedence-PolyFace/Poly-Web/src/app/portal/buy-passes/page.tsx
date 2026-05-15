@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, CheckCircle, ArrowLeft, CreditCard, ChevronRight, Star, Users, Info } from 'lucide-react';
+import { ShoppingBag, CheckCircle, ArrowLeft, CreditCard, ChevronRight, Star, Users, User, Ticket, Book, Info } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { CardElement, Elements, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -339,8 +339,8 @@ export default function BuyPassesPage() {
               <span className="text-xs text-gray-500 font-medium">Pass</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-pva-teal inline-block" />
-              <span className="text-xs text-gray-500 font-medium">Class</span>
+              <span className="w-3 h-3 rounded-full bg-pva-orange inline-block" />
+              <span className="text-xs text-gray-500 font-medium">Class Passes</span>
             </div>
           </div>
 
@@ -349,14 +349,16 @@ export default function BuyPassesPage() {
               {grouped.map(({ category, label, isClass, pkgs }) => (
                 <section key={category}>
                   <div className="flex items-center gap-2 mb-3">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isClass ? 'bg-pva-teal/15' : 'bg-pva-navy/10'}`}>
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isClass ? 'bg-pva-orange/15' : 'bg-pva-navy/10'}`}>
                       {isClass
-                        ? <Users size={14} className="text-pva-teal" />
-                        : <span className="text-pva-navy font-black text-xs">
-                            {category === 'twoAthlete' ? 2 : category === 'threeAthlete' ? 3 : category === 'fourAthlete' ? 4 : 1}
-                          </span>}
+                        ? <Book size={14} className="text-pva-orange" />
+                        : category === 'twoAthlete' || category === 'threeAthlete'
+                          ? <Users size={14} className="text-pva-navy" />
+                          : category === 'fourAthlete'
+                            ? <Ticket size={14} className="text-pva-navy" />
+                            : <User size={14} className="text-pva-navy" />}
                     </div>
-                    <h3 className={`text-xs font-black uppercase tracking-widest ${isClass ? 'text-pva-teal' : 'text-pva-navy'}`}>
+                    <h3 className={`text-xs font-black uppercase tracking-widest ${isClass ? 'text-pva-orange' : 'text-pva-navy'}`}>
                       {label} {isClass ? 'Classes' : 'Lessons'}
                     </h3>
                   </div>

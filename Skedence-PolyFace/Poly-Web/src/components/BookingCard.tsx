@@ -60,7 +60,9 @@ export default function BookingCard({ booking, onClick }: Props) {
         {/* Title row */}
         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
           <h3 className="font-black text-pva-navy text-base leading-tight">
-            {booking.trainerName ? `With ${booking.trainerName}` : 'Training Session'}
+            {booking.isClassBooking
+              ? (booking.packageName ?? 'Group Class')
+              : booking.trainerName ? `With ${booking.trainerName}` : 'Training Session'}
           </h3>
           <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${bg} ${text}`}>
             {isCheck ? <CheckCircle size={13} /> : <XCircle size={13} />} {label}

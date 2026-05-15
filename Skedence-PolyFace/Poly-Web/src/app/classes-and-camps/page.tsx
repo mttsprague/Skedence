@@ -62,6 +62,7 @@ function ClassCard({ cls, seriesDates, pricing }: { cls: GroupClass; seriesDates
   const spotsLeft = cls.maxParticipants - cls.currentParticipants;
   const isFull = spotsLeft <= 0;
   const isSeries = seriesDates && seriesDates.length > 1;
+  const [descExpanded, setDescExpanded] = useState(false);
 
   // Find the price of the specific pass required for this class
   const price = (() => {
@@ -124,7 +125,19 @@ function ClassCard({ cls, seriesDates, pricing }: { cls: GroupClass; seriesDates
         <p className="text-sm text-gray-500 mb-4">with {cls.trainerName}</p>
 
         {cls.description && (
-          <p className="text-gray-600 text-sm mb-4 line-clamp-3">{cls.description}</p>
+          <div className="mb-4">
+            <p className={`text-gray-600 text-sm ${descExpanded ? '' : 'line-clamp-3'}`}>
+              {cls.description}
+            </p>
+            {cls.description.length > 120 && (
+              <button
+                onClick={() => setDescExpanded((v) => !v)}
+                className="text-pva-teal text-xs font-semibold mt-1 hover:underline focus:outline-none"
+              >
+                {descExpanded ? 'Show less' : 'Read more'}
+              </button>
+            )}
+          </div>
         )}
 
         <div className="space-y-2 text-sm text-gray-600 mb-5">

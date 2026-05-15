@@ -27,7 +27,8 @@ export default function ImportExportPage() {
         where('role', '==', 'client')
       );
       const orgMembersSnapshot = await getDocs(orgMembersQuery);
-      const userIds = orgMembersSnapshot.docs.map(doc => doc.data().userId);
+      // Deduplicate — duplicate orgMembers entries cause users to be counted multiple times
+      const userIds = [...new Set(orgMembersSnapshot.docs.map(doc => doc.data().userId).filter(Boolean))];
       
       // Load client details in batches
       const clients: any[] = [];

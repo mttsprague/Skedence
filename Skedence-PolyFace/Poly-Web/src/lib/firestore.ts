@@ -187,6 +187,57 @@ function parseBooking(
   } as Booking;
 }
 
+/** Fetch class registrations for a user and convert them to Booking-shaped items. */
+async function fetchClassRegistrationBookings(
+  userDocId: string,
+  trainerMap: Map<string, string>
+): Promise<Booking[]> {
+  const regSnap = await getDocs(
+    query(collection(db, 'classRegistrations'), where('clientId', '==', userDocId))
+  );
+  if (regSnap.empty) return [];
+
+  // Deduplicate classIds (series registers one doc per class)
+  const classIdsRaw = regSnap.docs.map((d) => d.data().classId as string).filter(Boolean);
+  const classIds = classIdsRaw.filter((id, idx) => classIdsRaw.indexOf(id) === idx);
+
+  // Batch-fetch class documents (Firestore 'in' limit = 30)
+  const classMap = new Map<string, Record<string, unknown>>();
+  for (let i = 0; i < classIds.length; i += 30) {
+    const chunk = classIds.slice(i, i + 30);
+    const classSnaps = await Promise.all(chunk.map((id) => getDoc(doc(db, 'classes', id))));
+    classSnaps.forEach((s) => { if (s.exists()) classMap.set(s.id, s.data() as Record<string, unknown>); });
+  }
+
+  // Map each registration to a Booking-shaped object
+  const items: Booking[] = [];
+  const seen = new Set<string>();
+  for (const reg of regSnap.docs) {
+    const rd = reg.data();
+    const classId = rd.classId as string;
+    if (!classId || seen.has(classId)) continue;
+    seen.add(classId);
+    const cd = classMap.get(classId);
+    if (!cd) continue;
+    items.push({
+      id: reg.id,
+      clientId: userDocId,
+      orgId: (cd.orgId ?? ORG_ID) as string,
+      isClassBooking: true,
+      classId,
+      packageName: (cd.title ?? cd.className ?? 'Group Class') as string,
+      trainerName: trainerMap.get(cd.trainerId as string) ?? (cd.trainerName as string | undefined),
+      startTime: toDate(cd.startTime as Parameters<typeof toDate>[0]),
+      endTime: toDate(cd.endTime as Parameters<typeof toDate>[0]),
+      location: (cd.location ?? '') as string,
+      status: 'confirmed',
+      athleteName: rd.athleteName as string | undefined,
+      createdAt: toDate(rd.registeredAt as Parameters<typeof toDate>[0]),
+    });
+  }
+  return items;
+}
+
 /** Fetch all bookings for a user, enriched with trainer and package names. */
 export async function fetchAllBookings(userDocId: string): Promise<Booking[]> {
   const [snap, trainerMap, packageMap] = await Promise.all([
@@ -194,8 +245,11 @@ export async function fetchAllBookings(userDocId: string): Promise<Booking[]> {
     buildTrainerMap(),
     buildPackageMap(userDocId),
   ]);
-  return snap.docs
+  const lessonBookings = snap.docs
     .map((d) => parseBooking(d.id, d.data() as Record<string, unknown>, trainerMap, packageMap))
+    .filter((b) => !b.isClassBooking); // exclude any stale class bookings w/ clientId set
+  const classBookings = await fetchClassRegistrationBookings(userDocId, trainerMap);
+  return [...lessonBookings, ...classBookings]
     .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 }
 

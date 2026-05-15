@@ -1258,7 +1258,7 @@ export default function BookPage() {
                         </div>
                         <div className="flex items-center gap-1.5"><Clock size={12} className="text-pva-teal" />{format(cls.startTime, 'h:mm a')} – {format(cls.endTime, 'h:mm a')}</div>
                         {cls.location && <div className="flex items-center gap-1.5"><MapPin size={12} className="text-pva-teal" />{cls.location}</div>}
-                        <div className="flex items-center gap-1.5"><Users size={12} className="text-pva-teal" />{cls.currentParticipants}/{cls.maxParticipants}</div>
+                        <div className="flex items-center gap-1.5"><Users size={12} className="text-pva-teal" />{isFull ? 'Class full' : `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} remaining`}</div>
                       </div>
                       {cls.description && <p className="text-xs text-gray-400 mt-3 line-clamp-2">{cls.description}</p>}
                     </div>
