@@ -45,6 +45,27 @@ const organizationJsonLd = {
   },
 };
 
+const softwareAppJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Skedence',
+  url: 'https://skedence.com',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'iOS, Web',
+  description: 'Scheduling software for sports coaches — booking, lesson passes, and payments in one place.',
+  offers: [
+    { '@type': 'Offer', price: '29', priceCurrency: 'USD', name: 'Starter Plan' },
+    { '@type': 'Offer', price: '99', priceCurrency: 'USD', name: 'Studio Plan' },
+    { '@type': 'Offer', price: '249', priceCurrency: 'USD', name: 'Academy Plan' },
+  ],
+  author: { '@type': 'Person', name: 'Matt Sprague' },
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: '5',
+    reviewCount: '1',
+  },
+};
+
 const faqJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
@@ -62,6 +83,7 @@ export default function HomePage() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <HomepageClient />
     </>

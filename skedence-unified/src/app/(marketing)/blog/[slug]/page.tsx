@@ -229,6 +229,16 @@ export default async function BlogPostPage({
   const ctaLink = post.ctaLink ? String(post.ctaLink) : '/register';
   const views = post.views as number | undefined;
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://skedence.com' },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://skedence.com/blog' },
+      { '@type': 'ListItem', position: 3, name: title, item: `https://skedence.com/blog/${slug}` },
+    ],
+  };
+
   const blogPostingJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -251,6 +261,7 @@ export default async function BlogPostPage({
   return (
     <div className="min-h-screen bg-background">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       {/* View counter (client-side, invisible) */}
       <ViewCounter postId={post.id as string} />
 
