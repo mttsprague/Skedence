@@ -1222,6 +1222,18 @@ export default function ClientsPage() {
                           {client.athletes.length} {client.athletes.length === 1 ? 'athlete' : 'athletes'}
                         </p>
                       )}
+                      {client.createdAt && (() => {
+                        try {
+                          const d = (client.createdAt as any).toMillis
+                            ? new Date((client.createdAt as any).toMillis())
+                            : new Date(client.createdAt as any);
+                          return (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Joined {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          );
+                        } catch { return null; }
+                      })()}
                     </div>
                   </div>
                 </CardContent>

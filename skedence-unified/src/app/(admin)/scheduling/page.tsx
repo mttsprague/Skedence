@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { SchedulingSubmenu } from '@/components/admin/scheduling-submenu';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc, deleteDoc, arrayRemove, increment, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc, deleteDoc, arrayRemove, increment, onSnapshot, Timestamp, limit } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import { db } from '@/lib/firebase';
@@ -57,6 +57,7 @@ interface ScheduleItem {
   lessonNotes?: string;
   packageId?: string; // Lesson package ID
   packageType?: string; // Package type display (e.g., "1 Athlete Private", "2 Athlete Private")
+  isFirstLesson?: boolean; // True if this is the client's very first lesson in this org
 }
 
 interface AthleteInfo {
@@ -364,6 +365,34 @@ export default function SchedulingPage() {
         
         const bookingsSnapshot = await getDocs(bookingsQuery);
         
+        // Cache: clientId -> id of their earliest booking
+        const firstBookingIdCache = new Map<string, string>();
+        async function getFirstBookingId(clientId: string): Promise<string | null> {
+          if (firstBookingIdCache.has(clientId)) return firstBookingIdCache.get(clientId)!;
+          try {
+            // Web admin bookings use clientId; iOS/cloud-function bookings use clientUID
+            // Query both fields in parallel so we don't miss anything
+            const [snapByUID, snapByClientId] = await Promise.all([
+              getDocs(query(collection(db, 'bookings'), where('clientUID', '==', clientId))),
+              getDocs(query(collection(db, 'bookings'), where('clientId', '==', clientId))),
+            ]);
+            let minTime = Infinity;
+            let firstId: string | null = null;
+            const seen = new Set<string>();
+            for (const d of [...snapByUID.docs, ...snapByClientId.docs]) {
+              if (seen.has(d.id)) continue;
+              seen.add(d.id);
+              if (d.data().isClassBooking) continue;
+              const t: number = (d.data().startTime as any)?.toMillis?.() ?? Infinity;
+              if (t < minTime) { minTime = t; firstId = d.id; }
+            }
+            if (firstId) firstBookingIdCache.set(clientId, firstId);
+            return firstId;
+          } catch (err) {
+            return null;
+          }
+        }
+
         for (const docSnap of bookingsSnapshot.docs) {
           const data = docSnap.data();
           // Skip class-registration bookings — shown as class items separately
@@ -442,6 +471,13 @@ export default function SchedulingPage() {
             }
           }
           
+          // Check first lesson
+          let isFirstLesson = false;
+          if (actualClientId) {
+            const firstId = await getFirstBookingId(actualClientId);
+            isFirstLesson = firstId === docSnap.id;
+          }
+
           items.push({
             id: docSnap.id,
             type: 'lesson',
@@ -464,6 +500,7 @@ export default function SchedulingPage() {
             lessonNotes: data.lessonNotes,
             packageId: data.packageId,
             packageType,
+            isFirstLesson,
           });
         }
 
@@ -606,6 +643,32 @@ export default function SchedulingPage() {
           
           const bookingsSnapshot = await getDocs(bookingsQuery);
           
+          // Per-trainer first-booking cache
+          const firstBookingIdCacheT = new Map<string, string>();
+          async function getFirstBookingIdT(clientId: string): Promise<string | null> {
+            if (firstBookingIdCacheT.has(clientId)) return firstBookingIdCacheT.get(clientId)!;
+            try {
+              const [snapByUID, snapByClientId] = await Promise.all([
+                getDocs(query(collection(db, 'bookings'), where('clientUID', '==', clientId))),
+                getDocs(query(collection(db, 'bookings'), where('clientId', '==', clientId))),
+              ]);
+              let minTime = Infinity;
+              let firstId: string | null = null;
+              const seen = new Set<string>();
+              for (const d of [...snapByUID.docs, ...snapByClientId.docs]) {
+                if (seen.has(d.id)) continue;
+                seen.add(d.id);
+                if (d.data().isClassBooking) continue;
+                const t: number = (d.data().startTime as any)?.toMillis?.() ?? Infinity;
+                if (t < minTime) { minTime = t; firstId = d.id; }
+              }
+              if (firstId) firstBookingIdCacheT.set(clientId, firstId);
+              return firstId;
+            } catch (err) {
+              return null;
+            }
+          }
+
           for (const docSnap of bookingsSnapshot.docs) {
             const data = docSnap.data();
             // Skip class-registration bookings — shown as class items separately
@@ -654,6 +717,13 @@ export default function SchedulingPage() {
               }
             }
             
+            // Check first lesson for all-trainers view
+            let isFirstLessonT = false;
+            if (actualClientId) {
+              const firstId = await getFirstBookingIdT(actualClientId);
+              isFirstLessonT = firstId === docSnap.id;
+            }
+
             items.push({
               id: docSnap.id,
               type: 'lesson',
@@ -666,6 +736,7 @@ export default function SchedulingPage() {
               clientId: data.clientId,
               packageId: data.packageId,
               packageType,
+              isFirstLesson: isFirstLessonT,
             });
           }
 
@@ -1613,6 +1684,11 @@ export default function SchedulingPage() {
                                       zIndex: 1 + position.column
                                     }}
                                   >
+                                    {item.isFirstLesson && (
+                                      <div className="absolute top-0 right-0 bg-red-500 text-white font-bold leading-none px-1 py-px rounded-bl rounded-tr" style={{ fontSize: '8px' }}>
+                                        1st Visit
+                                      </div>
+                                    )}
                                     <div className="font-semibold truncate">
                                       {format(item.startTime, 'h:mm a')}
                                     </div>
@@ -1742,6 +1818,11 @@ export default function SchedulingPage() {
                                         zIndex: 1 + position.column
                                       }}
                                     >
+                                      {item.isFirstLesson && (
+                                        <div className="absolute top-0 right-0 bg-red-500 text-white font-bold leading-none px-1 py-px rounded-bl rounded-tr" style={{ fontSize: '8px' }}>
+                                          1st Visit
+                                        </div>
+                                      )}
                                       <div className="font-semibold truncate">
                                         {format(item.startTime, 'h:mm a')}
                                       </div>
@@ -1794,7 +1875,14 @@ export default function SchedulingPage() {
                       {selectedItem.clientName?.split(' ').map(n => n[0]).join('') || '?'}
                     </div>
                     <div className="flex-1">
-                      <div className="text-xl font-semibold text-foreground">{selectedItem.clientName}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-xl font-semibold text-foreground">{selectedItem.clientName}</div>
+                        {selectedItem.isFirstLesson && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-300">
+                            🎉 First Visit
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-foreground/80 mt-1">
                         {format(selectedItem.startTime, 'EEEE, MMMM d, yyyy')}
                       </div>

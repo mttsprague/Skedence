@@ -83,6 +83,9 @@ export * from "./passwordReset";
 // Export SendGrid email verification
 export * from "./sendVerificationEmail";
 
+// Export new client registration alert
+export * from "./newClientAlert";
+
 // Export calendar sync functions
 export * from "./calendarSync";
 
