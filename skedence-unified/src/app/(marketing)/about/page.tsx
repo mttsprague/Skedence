@@ -182,8 +182,42 @@ export default function AboutPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/50 py-10 px-6 bg-black text-center">
-        <p className="text-sm text-foreground/40 uppercase tracking-wider">&copy; 2026 Skedence. All rights reserved.</p>
+      <footer className="border-t border-border/50 py-16 px-6 bg-black">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            <div>
+              <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Product</h4>
+              <ul className="space-y-3">
+                <li><Link href="/#features" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Features</Link></li>
+                <li><Link href="/pricing-plans" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Pricing</Link></li>
+                <li><Link href="/how-to-use" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Getting Started</Link></li>
+                <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Support</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Company</h4>
+              <ul className="space-y-3">
+                <li><Link href="/about" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Who It&apos;s For</Link></li>
+                <li><Link href="/blog" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Blog</Link></li>
+                <li><Link href="/support" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Contact</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Legal</h4>
+              <ul className="space-y-3">
+                <li><Link href="/privacy" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">Terms of Service</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-foreground mb-6 uppercase tracking-wider text-sm">Connect</h4>
+              <a href="mailto:support@skedence.com" className="text-sm text-orange-500 hover:text-orange-400 transition-colors">support@skedence.com</a>
+            </div>
+          </div>
+          <div className="pt-10 border-t border-border/50 text-center">
+            <p className="text-sm text-foreground/40 uppercase tracking-wider">&copy; 2026 Skedence. All rights reserved.</p>
+          </div>
+        </div>
       </footer>
     </div>
   );

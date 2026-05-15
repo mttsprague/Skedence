@@ -67,7 +67,7 @@ export default function VerticalLanding({
             </Link>
             <div className="hidden md:flex items-center gap-8">
               <Link href="/#features" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Features</Link>
-              <Link href="/#pricing" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</Link>
+              <Link href="/pricing-plans" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Pricing</Link>
               <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-primary transition-colors uppercase tracking-wide">Sign In</Link>
               <Link href="/register" className="btn-premium text-sm">Start Free Trial →</Link>
             </div>
