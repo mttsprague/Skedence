@@ -16,7 +16,6 @@ export default function BlogPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BlogCategory | 'all'>('all');
-  const [selectedSport, setSelectedSport] = useState<string>('all');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -48,12 +47,12 @@ export default function BlogPage() {
 
   useEffect(() => {
     filterPosts();
-  }, [posts, searchQuery, selectedCategory, selectedSport]);
+  }, [posts, searchQuery, selectedCategory]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedSport]);
+  }, [searchQuery, selectedCategory]);
 
   async function loadPosts() {
     setLoading(true);
@@ -69,15 +68,6 @@ export default function BlogPage() {
 
   function filterPosts() {
     let filtered = [...posts];
-
-    // Filter by sport
-    if (selectedSport !== 'all') {
-      filtered = filtered.filter(post => post.sport === selectedSport);
-      trackEvent('blog_filter_sport', {
-        sport: selectedSport,
-        result_count: filtered.length
-      });
-    }
 
     // Filter by category
     if (selectedCategory !== 'all') {
@@ -280,52 +270,25 @@ export default function BlogPage() {
             </div>
           </div>
 
-          {/* Sport Filter */}
+          {/* Sport Links */}
           {availableSports.length > 1 && (
             <div className="flex flex-wrap gap-2 justify-center items-center">
-              <span className="text-sm font-medium text-foreground uppercase tracking-wider">Filter by Sport:</span>
-              <button
-                onClick={() => setSelectedSport('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  selectedSport === 'all'
-                    ? 'bg-primary text-black shadow-md'
-                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 border-gray-300 dark:border-gray-600 hover:border-primary hover:text-primary'
-                }`}
-              >
-                All Sports
-              </button>
+              <span className="text-sm font-medium text-foreground uppercase tracking-wider">Browse by Sport:</span>
               {availableSports.map((sport) => (
-                <button
+                <Link
                   key={sport}
-                  onClick={() => setSelectedSport(sport)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
-                    selectedSport === sport
-                      ? 'bg-primary text-black shadow-md'
-                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 border-gray-300 dark:border-gray-600 hover:border-primary hover:text-primary'
-                  }`}
+                  href={`/blog/${sport}`}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 border-gray-300 dark:border-gray-600 hover:border-primary hover:text-primary"
                 >
                   {sport === 'volleyball' && '🏐'}
                   {sport === 'basketball' && '🏀'}
                   {sport === 'soccer' && '⚽'}
                   {sport === 'baseball' && '⚾'}
                   {' '}{sport.charAt(0).toUpperCase() + sport.slice(1)}
-                </button>
+                </Link>
               ))}
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Browse by Sport */}
-      <section className="py-10 px-6 border-t border-border/30">
-        <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-bold text-foreground/50 uppercase tracking-widest">Browse by Sport:</span>
-            <Link href="/blog/volleyball" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary">🏐 Volleyball</Link>
-            <Link href="/blog/basketball" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary">🏀 Basketball</Link>
-            <Link href="/blog/soccer" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary">⚽ Soccer</Link>
-            <Link href="/blog/baseball" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary">⚾ Baseball</Link>
-          </div>
         </div>
       </section>
 
@@ -340,7 +303,7 @@ export default function BlogPage() {
           ) : filteredPosts.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-xl text-foreground/60">
-                {searchQuery || selectedCategory !== 'all' || selectedSport !== 'all'
+                {searchQuery || selectedCategory !== 'all'
                   ? 'No articles found matching your filters.' 
                   : 'No articles published yet. Check back soon!'}
               </p>
