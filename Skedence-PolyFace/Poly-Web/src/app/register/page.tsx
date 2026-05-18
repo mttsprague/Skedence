@@ -115,7 +115,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signUp(email, password, firstName, lastName, phone, athleteFirst, athleteLast, athleteBirthday);
-      router.push('/verify-email');
+      router.push('/portal');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       setError(

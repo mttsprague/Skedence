@@ -144,14 +144,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = credential.user.uid;
-    // Send verification email via SendGrid Cloud Function (non-blocking — user can resend if this fails)
-    try {
-      const sendVerificationEmailFn = httpsCallable(functions, 'sendVerificationEmail');
-      await sendVerificationEmailFn({ email });
-    } catch (emailErr) {
-      console.error('Failed to send verification email:', emailErr);
-      // Don't block signup — user can request resend on the verify-email page
-    }
 
     // Generate name-based doc ID matching iOS convention: firstname_lastname
     // Append a 4-char UID suffix if a different user already has this docId (name collision guard)
