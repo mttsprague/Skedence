@@ -428,7 +428,6 @@ export const getPaymentMethodsForUser = onCall(
 
 // Confirm admin payment and optionally save payment method
 export const confirmAdminPayment = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(

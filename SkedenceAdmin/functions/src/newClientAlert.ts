@@ -44,6 +44,21 @@ export const onNewClientRegistered = onDocumentCreated(
       const orgData = orgDoc.data()!;
       const orgName = orgData.name || "your organization";
 
+      // Check if this org has disabled new client registration alerts
+      const alertSettingsDoc = await db
+        .collection("organizations")
+        .doc(orgId)
+        .collection("settings")
+        .doc("bookingAlerts")
+        .get();
+      if (
+        alertSettingsDoc.exists &&
+        alertSettingsDoc.data()?.sendNewClientRegistrationNotifications === false
+      ) {
+        console.log(`newClientAlert: org ${orgId} has disabled new client registration notifications, skipping`);
+        return;
+      }
+
       // Load the new client's info (try userId first, then authUserId lookup)
       let clientFirstName = "A new client";
       let clientLastName = "";
@@ -105,11 +120,45 @@ export const onNewClientRegistered = onDocumentCreated(
         let adminEmail: string | null = null;
         let adminName = "Admin";
 
-        const adminDocId = adminUserId || adminAuthUserId;
-        if (adminDocId) {
-          // Try trainers collection
+        if (adminAuthUserId) {
+          // Query users collection by authUserId field (most reliable pattern)
           try {
-            const trainerDoc = await db.collection("trainers").doc(adminDocId).get();
+            const userQuery = await db
+              .collection("users")
+              .where("authUserId", "==", adminAuthUserId)
+              .limit(1)
+              .get();
+            if (!userQuery.empty) {
+              const ud = userQuery.docs[0].data();
+              adminEmail = ud.emailAddress || ud.email || null;
+              adminName = `${ud.firstName || ""}`.trim() || "Admin";
+            }
+          } catch {
+            // ignore
+          }
+
+          // Fallback: query trainers collection by authUserId field
+          if (!adminEmail) {
+            try {
+              const trainerQuery = await db
+                .collection("trainers")
+                .where("authUserId", "==", adminAuthUserId)
+                .where("orgId", "==", orgId)
+                .limit(1)
+                .get();
+              if (!trainerQuery.empty) {
+                const td = trainerQuery.docs[0].data();
+                adminEmail = td.email || td.emailAddress || null;
+                adminName = `${td.firstName || ""}`.trim() || "Admin";
+              }
+            } catch {
+              // ignore
+            }
+          }
+        } else if (adminUserId) {
+          // Fallback for old orgMembers docs without authUserId — direct doc lookup
+          try {
+            const trainerDoc = await db.collection("trainers").doc(adminUserId).get();
             if (trainerDoc.exists) {
               const td = trainerDoc.data()!;
               adminEmail = td.email || td.emailAddress || null;
@@ -118,11 +167,9 @@ export const onNewClientRegistered = onDocumentCreated(
           } catch {
             // ignore
           }
-
-          // Fall back to users collection
           if (!adminEmail) {
             try {
-              const userDoc = await db.collection("users").doc(adminDocId).get();
+              const userDoc = await db.collection("users").doc(adminUserId).get();
               if (userDoc.exists) {
                 const ud = userDoc.data()!;
                 adminEmail = ud.emailAddress || ud.email || null;
@@ -132,6 +179,11 @@ export const onNewClientRegistered = onDocumentCreated(
               // ignore
             }
           }
+        }
+
+        // Final fallback: org-level admin email
+        if (!adminEmail && orgData.adminEmail) {
+          adminEmail = orgData.adminEmail as string;
         }
 
         if (!adminEmail) continue;

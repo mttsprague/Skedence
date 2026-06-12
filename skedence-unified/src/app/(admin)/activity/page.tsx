@@ -874,6 +874,10 @@ export default function ActivityPage() {
         if (selectedActivityType === 'pass_purchased') {
           return activity.type === 'pass_purchased' || activity.type === 'package_created';
         }
+        // Handle pass removals
+        if (selectedActivityType === 'pass_removed') {
+          return activity.type === 'pass_removed';
+        }
         // Handle client registration
         if (selectedActivityType === 'client_registered') {
           return activity.type === 'client_registered' || activity.type === 'client_created';
@@ -1118,6 +1122,8 @@ export default function ActivityPage() {
         return <Users className="h-5 w-5 text-green-600" />;
       case 'pass_purchased':
         return <Package className="h-5 w-5 text-purple-600" />;
+      case 'pass_removed':
+        return <Package className="h-5 w-5 text-orange-600" />;
       case 'availability_opened':
         return <Clock className="h-5 w-5 text-teal-600" />;
       case 'availability_closed':
@@ -1580,6 +1586,7 @@ export default function ActivityPage() {
                   <SelectItem value="class_enrollment">Class Registrations</SelectItem>
                   <SelectItem value="class_unenrollment">Class Removals</SelectItem>
                   <SelectItem value="pass_purchased">Pass Purchases</SelectItem>
+                  <SelectItem value="pass_removed">Pass Removals</SelectItem>
                   <SelectItem value="client_registered">New Clients</SelectItem>
                   <SelectItem value="trainer_created">New Trainers</SelectItem>
                 </SelectContent>

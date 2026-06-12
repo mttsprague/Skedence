@@ -62,22 +62,35 @@ final class ScheduleViewModel: ObservableObject {
     // Class title cache for instant presentation
     @Published var classTitlesByClassId: [String: String] = [:]
 
+    // Real-time listener for schedule subcollection changes
+    #if canImport(FirebaseFirestore)
+    private var scheduleListener: ListenerRegistration?
+    #endif
+    private var activeListenerTrainerId: String?
+    private var activeListenerWeekStart: Date?
+
     private let scheduleRepo = ScheduleRepository()
 
     init() {
         buildCurrentWeek(anchor: Date())
+    }
+    
+    deinit {
+        stopScheduleListener()
     }
 
     // Allow the view to update the trainer id from Auth
     func setTrainerId(_ id: String) {
         myTrainerId = id
         editingTrainerId = id // Default to editing own schedule
+        stopScheduleListener() // Listener will be re-established by loadWeek
         Task { await loadWeek() }
     }
     
     // Allow the view to update the orgId from Auth
     func setOrgId(_ id: String?) {
         orgId = id
+        stopScheduleListener() // Listener will be re-established by loadWeek
         Task { await loadWeek() }
     }
     
@@ -255,8 +268,84 @@ final class ScheduleViewModel: ObservableObject {
             
             // Prefetch class participants for all class bookings in this week
             await prefetchClassParticipantsForVisibleWeek()
+            
+            // Set up real-time listener to catch admin-created org-wide unavailability
+            // and any other remote schedule changes while the view is visible
+            setupScheduleListener(trainerId: trainerId, weekStart: startOfWeek, weekEnd: endOfWeek, orgId: orgId)
         } catch {
             self.slotsByDay = [:]
+        }
+    }
+
+    // MARK: - Real-time schedule listener (for org-wide admin unavailability)
+    
+    private func setupScheduleListener(trainerId: String, weekStart: Date, weekEnd: Date, orgId: String) {
+        // Don't recreate listener if already watching same trainer+week
+        if trainerId == activeListenerTrainerId, let active = activeListenerWeekStart, active == weekStart {
+            return
+        }
+        stopScheduleListener()
+        activeListenerTrainerId = trainerId
+        activeListenerWeekStart = weekStart
+
+        #if canImport(FirebaseFirestore)
+        let db = Firestore.firestore()
+        let startTs = Timestamp(date: weekStart)
+        let endTs = Timestamp(date: weekEnd)
+
+        // Skip the initial snapshot (already fetched via getDocuments above)
+        var skippedInitial = false
+
+        scheduleListener = db.collection("trainers")
+            .document(trainerId)
+            .collection("schedules")
+            .whereField("startTime", isGreaterThanOrEqualTo: startTs)
+            .whereField("startTime", isLessThan: endTs)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self, error == nil else { return }
+                // Skip the initial invocation — data already loaded by getDocuments
+                if !skippedInitial {
+                    skippedInitial = true
+                    return
+                }
+                // Only re-fetch if there are actual document changes
+                guard let snapshot, !snapshot.documentChanges.isEmpty else { return }
+                // Ensure we're still watching this trainer+week (guard against stale closures)
+                guard self.activeListenerTrainerId == trainerId,
+                      self.activeListenerWeekStart == weekStart else { return }
+                Task { await self.refetchWeek(trainerId: trainerId, weekStart: weekStart, weekEnd: weekEnd, orgId: orgId) }
+            }
+        #endif
+    }
+
+    func stopScheduleListener() {
+        #if canImport(FirebaseFirestore)
+        scheduleListener?.remove()
+        scheduleListener = nil
+        #endif
+        activeListenerTrainerId = nil
+        activeListenerWeekStart = nil
+    }
+
+    // Refetch week slots WITHOUT restarting the listener (used by snapshot callback)
+    @MainActor
+    private func refetchWeek(trainerId: String, weekStart: Date, weekEnd: Date, orgId: String) async {
+        do {
+            let slots = try await scheduleRepo.fetchScheduleSlots(trainerId: trainerId, from: weekStart, to: weekEnd, orgId: orgId)
+            var grouped: [DateOnly: [TrainerScheduleSlot]] = [:]
+            for slot in slots {
+                let key = DateOnly(slot.startTime)
+                grouped[key, default: []].append(slot)
+            }
+            for key in grouped.keys {
+                grouped[key]?.sort { $0.startTime < $1.startTime }
+            }
+            self.slotsByDay = grouped
+            await prefetchClientsForVisibleWeek()
+            await prefetchClassTitlesForVisibleWeek()
+            await prefetchClassParticipantsForVisibleWeek()
+        } catch {
+            // Keep existing slotsByDay on error
         }
     }
 

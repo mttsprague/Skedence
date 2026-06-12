@@ -24,13 +24,7 @@
       ],
       "cleanUrls": true,
       "trailingSlash": false,
-      "redirects": [
-        {
-          "source": "/pricing",
-          "destination": "/pricing-plans",
-          "type": 301
-        }
-      ],
+      "redirects": [],
       "headers": [
         {
           "source": "**",

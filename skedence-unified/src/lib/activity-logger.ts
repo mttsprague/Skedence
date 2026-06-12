@@ -27,6 +27,7 @@ export type ActivityType =
   | 'class_enrollment'
   | 'class_registered' // Alternative naming compatibility
   | 'class_unenrollment' // Admin removed participant from class
+  | 'pass_removed' // Admin removed/revoked a pass from a client
   | 'location_created'
   | 'location_updated'
   | 'location_deleted'
@@ -541,6 +542,65 @@ export async function logTrainerDeactivated(params: {
     description: `${params.actorName} deactivated trainer ${params.trainerName}`,
     metadata: {
       trainerId: params.trainerId,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logPassRemoved(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  clientId: string;
+  clientName: string;
+  passType: string;
+  passTitle: string;
+  quantity: number;
+}) {
+  return logActivity({
+    type: 'pass_removed',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.clientId,
+    targetName: params.clientName,
+    targetType: 'client',
+    description: `${params.actorName} removed ${params.quantity} ${params.passTitle}${params.quantity === 1 ? '' : 's'} from ${params.clientName}'s account`,
+    metadata: {
+      clientId: params.clientId,
+      passType: params.passType,
+      passTitle: params.passTitle,
+      quantity: params.quantity,
+    },
+    orgId: params.orgId,
+  });
+}
+
+export async function logClassEnrollmentByAdmin(params: {
+  orgId: string;
+  actorId: string;
+  actorName: string;
+  actorRole: 'owner' | 'admin';
+  clientId: string;
+  clientName: string;
+  classId: string;
+  className: string;
+  passId?: string;
+}) {
+  return logActivity({
+    type: 'class_enrollment',
+    actorId: params.actorId,
+    actorName: params.actorName,
+    actorRole: params.actorRole,
+    targetId: params.classId,
+    targetName: params.className,
+    targetType: 'class',
+    description: `${params.actorName} registered ${params.clientName} for "${params.className}"`,
+    metadata: {
+      classId: params.classId,
+      clientId: params.clientId,
+      passId: params.passId,
     },
     orgId: params.orgId,
   });

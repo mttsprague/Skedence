@@ -563,6 +563,7 @@ export function CreateAvailabilityModal({
           status: 'unavailable',
           isBooked: false,
           orgId,
+          trainerId: targetTrainerId,
           location: location || undefined,
           createdByRole: 'admin',
           createdById: currentUserId || '',

@@ -979,6 +979,15 @@ private struct ViewLifecycleModifiers: ViewModifier {
             .onChange(of: viewModel.selectedDate) { oldValue, newValue in
                 Task { await viewModel.loadWeek() }
             }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                // Refresh schedule when app returns from background so trainers
+                // immediately see any org-wide unavailability set by an admin
+                Task {
+                    if auth.userId != nil && auth.currentOrgId != nil {
+                        await viewModel.loadWeek()
+                    }
+                }
+            }
             .alert(
                 "Subscription Required",
                 isPresented: Binding(

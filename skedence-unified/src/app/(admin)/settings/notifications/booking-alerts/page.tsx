@@ -15,6 +15,7 @@ interface BookingAlertSettings {
   sendPackagePurchaseNotifications: boolean;
   sendClassRegistrationNotifications: boolean;
   sendClassCancellationNotifications: boolean;
+  sendNewClientRegistrationNotifications: boolean;
   sendSummaryEmails: boolean;
   summaryFrequency: 'weekly' | 'daily';
   summaryTime: string; // HH:mm format (24-hour)
@@ -28,6 +29,7 @@ const defaultSettings: BookingAlertSettings = {
   sendPackagePurchaseNotifications: true,
   sendClassRegistrationNotifications: true,
   sendClassCancellationNotifications: true,
+  sendNewClientRegistrationNotifications: true,
   sendSummaryEmails: false,
   summaryFrequency: 'weekly',
   summaryTime: '19:00',
@@ -275,6 +277,32 @@ export default function BookingAlertsPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* New Client Registration Notifications */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  New client registration alerts
+                </h3>
+                <p className="text-sm text-foreground/80">
+                  Receive an email when a new client registers and joins your organization.
+                </p>
+              </div>
+              <button
+                onClick={() => updateSetting('sendNewClientRegistrationNotifications', !settings.sendNewClientRegistrationNotifications)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ml-4 ${
+                  settings.sendNewClientRegistrationNotifications ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.sendNewClientRegistrationNotifications ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Send Summary Emails */}

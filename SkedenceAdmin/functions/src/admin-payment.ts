@@ -18,7 +18,6 @@ interface AdminProcessPaymentData {
  * Allows admins to process payments on behalf of clients using the organization's Stripe account
  */
 export const adminProcessPayment = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -208,7 +207,6 @@ interface AdminChargeWithSavedCardData {
  * Allows admins to charge clients using their saved payment methods
  */
 export const adminChargeWithSavedCard = onCall(
-  { enforceAppCheck: true },
   async (request) => {
     console.log("🔵 adminChargeWithSavedCard called");
     console.log("🔵 request.auth:", request.auth ? "present" : "MISSING");

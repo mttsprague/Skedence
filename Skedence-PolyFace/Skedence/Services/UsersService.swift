@@ -84,10 +84,25 @@ final class UsersService: ObservableObject {
     
     // New method that accepts a UserProfile object directly
     func updateCurrentUser(_ profile: UserProfile) async throws {
-        guard let uid = Auth.auth().currentUser?.uid else {
+        guard Auth.auth().currentUser?.uid != nil else {
             throw NSError(domain: "UsersService", code: 401, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
         }
         
+        // Use the name-based Firestore document ID, not the Auth UID
+        // currentUser is loaded via fetchCurrentUser which queries by authUserId and returns the real doc ID
+        guard let docId = currentUser?.id else {
+            // Profile not yet loaded — try loading it first then retry
+            await loadCurrentUserIfAvailable()
+            guard let docId = currentUser?.id else {
+                throw NSError(domain: "UsersService", code: 404, userInfo: [NSLocalizedDescriptionKey: "User profile not found"])
+            }
+            return try await updateCurrentUserWithDocId(profile, docId: docId)
+        }
+        
+        try await updateCurrentUserWithDocId(profile, docId: docId)
+    }
+    
+    private func updateCurrentUserWithDocId(_ profile: UserProfile, docId: String) async throws {
         var updateData: [String: Any] = [:]
         
         // Always include all fields to properly clear old data when fields are emptied
@@ -119,7 +134,7 @@ final class UsersService: ObservableObject {
             updateData["athletes"] = FieldValue.delete()
         }
         
-        try await repository.updateUserFields(userId: uid, fields: updateData)
+        try await repository.updateUserFields(userId: docId, fields: updateData)
         
         // Reload the profile after update
         await loadCurrentUserIfAvailable()

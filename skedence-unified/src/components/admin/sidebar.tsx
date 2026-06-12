@@ -17,7 +17,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Crown,
-  BookOpen
+  BookOpen,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { trackAuth } from '@/lib/analytics';
@@ -50,6 +51,13 @@ const navigation = [
     icon: Settings, 
     hasSubmenu: true,
     description: 'Configure business and account settings'
+  },
+  { 
+    name: 'Pricing Packages', 
+    href: '/pricing', 
+    icon: DollarSign,
+    hasSubmenu: true,
+    description: 'Set pass and package pricing for your clients'
   },
   { 
     name: 'Subscription', 

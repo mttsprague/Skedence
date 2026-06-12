@@ -12,7 +12,7 @@ import { collection, query, where, getDocs, addDoc, doc, getDoc, updateDoc, dele
 import { db } from '@/lib/firebase';
 import { Plus, Minus, Package, User, Search, Calendar, Clock, Mail, Phone, CheckCircle2, AlertCircle, AlertTriangle, CreditCard, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { logPassIssued } from '@/lib/activity-logger';
+import { logPassIssued, logPassRemoved } from '@/lib/activity-logger';
 import { trackBusiness, trackPageView } from '@/lib/analytics';
 import { Skeleton } from '@/components/ui/skeleton';
 import { loadStripe, Stripe as StripeJS } from '@stripe/stripe-js';
@@ -728,6 +728,25 @@ export default function PassesPage() {
           type: 'success',
           text: `Successfully removed ${quantity} ${selectedPackage.title}${quantity === 1 ? '' : 's'} from ${selectedClient.firstName} ${selectedClient.lastName}'s account.`
         });
+
+        // Log pass removal to activity feed
+        if (orgId && user && userData) {
+          try {
+            await logPassRemoved({
+              orgId,
+              actorId: user.uid,
+              actorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin',
+              actorRole: (userData.role === 'owner' ? 'owner' : 'admin') as 'owner' | 'admin',
+              clientId: selectedClient.userId,
+              clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+              passType: selectedPackage.packageType,
+              passTitle: selectedPackage.title,
+              quantity,
+            });
+          } catch (logError) {
+            // Don't fail if activity logging fails
+          }
+        }
 
         // Refresh client packages
         let updatedPackagesSnap = await getDocs(

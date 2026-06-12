@@ -12,7 +12,7 @@ import { db } from '@/lib/firebase';
 import { Calendar, Clock, User, MapPin, Users, Plus, Edit2, Trash2, X, Eye, Download, Search, UserPlus, CheckCircle2, Circle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Location } from '@/types/location';
-import { logClassCreated, logClassUpdated, logClassDeleted, logActivity } from '@/lib/activity-logger';
+import { logClassCreated, logClassUpdated, logClassDeleted, logActivity, logClassEnrollmentByAdmin } from '@/lib/activity-logger';
 import { toast } from '@/lib/toast';
 
 interface Trainer {
@@ -1135,6 +1135,35 @@ export default function ClassesPage() {
       await manualRegisterForClass(payload);
       toast.success('Registered', 'Client has been registered for this class');
       setShowRegisterModal(false);
+
+      // Log registration to activity feed (admin as actor)
+      if (user && userData && orgId && viewingParticipants) {
+        try {
+          const adminName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Admin';
+          let clientId = '';
+          let clientName = '';
+          if (registerTab === 'existing') {
+            clientId = registerClientId;
+            const found = allClients.find(c => c.id === registerClientId);
+            clientName = found ? `${found.firstName} ${found.lastName}` : registerClientId;
+          } else {
+            clientName = `${registerFirstName.trim()} ${registerLastName.trim()}`;
+          }
+          await logClassEnrollmentByAdmin({
+            orgId,
+            actorId: user.uid,
+            actorName: adminName,
+            actorRole: (userData.role === 'owner' ? 'owner' : 'admin') as 'owner' | 'admin',
+            clientId,
+            clientName,
+            classId: viewingParticipants.id,
+            className: viewingParticipants.title,
+            passId: registerTab === 'existing' ? registerPassId : undefined,
+          });
+        } catch (logError) {
+          console.error('❌ Failed to log class enrollment activity:', logError);
+        }
+      }
 
       // Refresh participants list
       await handleViewParticipants(viewingParticipants);
