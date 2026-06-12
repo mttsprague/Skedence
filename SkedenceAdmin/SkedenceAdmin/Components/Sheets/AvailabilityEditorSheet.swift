@@ -173,9 +173,6 @@ struct AvailabilityEditorSheet: View {
             .onAppear {
                 if isAdmin {
                     loadClients()
-                } else {
-                    // Trainers always create open availability — force status to open
-                    singleStatus = .open
                 }
                 // Load locations
                 if let orgId = orgId {
@@ -199,16 +196,11 @@ struct AvailabilityEditorSheet: View {
     
     private var editAvailabilityContent: some View {
         Form {
-            // Only admins can choose between Availability and Unavailability.
-            // Trainers always create open slots — hiding this picker prevents
-            // the common mistake of accidentally creating "unavailable" blocks.
-            if isAdmin {
-                Picker("Status", selection: $singleStatus) {
-                    Text("Availability").tag(TrainerScheduleSlot.Status.open)
-                    Text("Unavailability").tag(TrainerScheduleSlot.Status.unavailable)
-                }
-                .pickerStyle(.segmented)
+            Picker("Status", selection: $singleStatus) {
+                Text("Availability").tag(TrainerScheduleSlot.Status.open)
+                Text("Unavailability").tag(TrainerScheduleSlot.Status.unavailable)
             }
+            .pickerStyle(.segmented)
             
             // Admin: Apply to all trainers (only for unavailability)
             if isAdmin && singleStatus == .unavailable {
