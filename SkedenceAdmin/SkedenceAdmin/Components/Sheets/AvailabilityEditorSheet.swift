@@ -173,10 +173,22 @@ struct AvailabilityEditorSheet: View {
             .onAppear {
                 if isAdmin {
                     loadClients()
+                } else {
+                    // Trainers always create open availability — force status to open
+                    singleStatus = .open
                 }
                 // Load locations
                 if let orgId = orgId {
                     locationsService.loadLocations(orgId: orgId)
+                }
+            }
+            .onChange(of: locationsService.locations) { _, locations in
+                // Auto-select location when there is exactly one option and nothing is selected yet
+                if selectedLocation == nil, locations.count == 1 {
+                    selectedLocation = locations.first
+                }
+                if recurringLocation == nil, locations.count == 1 {
+                    recurringLocation = locations.first
                 }
             }
         }
@@ -187,12 +199,16 @@ struct AvailabilityEditorSheet: View {
     
     private var editAvailabilityContent: some View {
         Form {
-            // Top choice: Availability vs Unavailability (status for single slot)
-            Picker("Status", selection: $singleStatus) {
-                Text("Availability").tag(TrainerScheduleSlot.Status.open)
-                Text("Unavailability").tag(TrainerScheduleSlot.Status.unavailable)
+            // Only admins can choose between Availability and Unavailability.
+            // Trainers always create open slots — hiding this picker prevents
+            // the common mistake of accidentally creating "unavailable" blocks.
+            if isAdmin {
+                Picker("Status", selection: $singleStatus) {
+                    Text("Availability").tag(TrainerScheduleSlot.Status.open)
+                    Text("Unavailability").tag(TrainerScheduleSlot.Status.unavailable)
+                }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
             
             // Admin: Apply to all trainers (only for unavailability)
             if isAdmin && singleStatus == .unavailable {

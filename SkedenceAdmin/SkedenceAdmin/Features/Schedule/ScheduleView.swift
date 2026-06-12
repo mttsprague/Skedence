@@ -1023,6 +1023,17 @@ private struct ViewLifecycleModifiers: ViewModifier {
                     Text("This availability overlaps with:\n\n\(conflictText)\n\nBoth sessions will appear side-by-side on the schedule.")
                 }
             }
+            .alert(
+                "Could Not Create Availability",
+                isPresented: Binding(
+                    get: { viewModel.recurringError != nil },
+                    set: { if !$0 { viewModel.recurringError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.recurringError ?? "")
+            }
     }
 }
 

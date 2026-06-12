@@ -37,6 +37,7 @@ final class ScheduleViewModel: ObservableObject {
     @Published var showOverlapAlert = false
     @Published var overlapConflicts: [(name: String, type: String, time: String)] = []
     @Published var pendingSlot: (day: Date, startTime: Date, endTime: Date, status: TrainerScheduleSlot.Status, location: String?)? = nil
+    @Published var recurringError: String?
 
     // State used by ScheduleView
     @Published var weekDays: [Date] = []
@@ -758,7 +759,10 @@ final class ScheduleViewModel: ObservableObject {
             
             await loadWeek()
         } catch {
-            // Error is already logged by FunctionsService
+            let msg = (error as NSError).localizedDescription
+            await MainActor.run {
+                self.recurringError = msg.isEmpty ? "Failed to create availability. Please try again." : msg
+            }
         }
     }
     
