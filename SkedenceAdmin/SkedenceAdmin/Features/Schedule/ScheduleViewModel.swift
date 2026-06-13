@@ -319,13 +319,17 @@ final class ScheduleViewModel: ObservableObject {
         #endif
     }
 
-    func stopScheduleListener() {
-        #if canImport(FirebaseFirestore)
-        scheduleListener?.remove()
-        scheduleListener = nil
-        #endif
-        activeListenerTrainerId = nil
-        activeListenerWeekStart = nil
+    // Make this callable from nonisolated contexts like deinit,
+    // but perform the actual work on the main actor.
+    nonisolated func stopScheduleListener() {
+        Task { @MainActor in
+            #if canImport(FirebaseFirestore)
+            self.scheduleListener?.remove()
+            self.scheduleListener = nil
+            #endif
+            self.activeListenerTrainerId = nil
+            self.activeListenerWeekStart = nil
+        }
     }
 
     // Refetch week slots WITHOUT restarting the listener (used by snapshot callback)
