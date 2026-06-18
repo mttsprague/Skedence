@@ -209,7 +209,7 @@ function ClassModal({
       // 6. Activity log — fire-and-forget (non-blocking)
       const actorName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : userDocId;
       addDoc(collection(db, 'activities'), {
-        type: 'CLASS_REGISTERED',
+        type: 'class_registered',
         actorId: userDocId,
         actorName,
         actorRole: 'client',
@@ -823,6 +823,29 @@ export default function BookPage() {
           createdAt: serverTimestamp(),
         });
       });
+      // Activity log — fire-and-forget (non-blocking)
+      const actorName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : userDocId;
+      addDoc(collection(db, 'activities'), {
+        type: 'lesson_booked',
+        actorId: userDocId,
+        actorName,
+        actorRole: 'client',
+        targetId: selectedTrainer?.id ?? null,
+        targetName: trainerName,
+        targetType: 'lesson',
+        description: `${actorName} booked a lesson with ${trainerName}`,
+        metadata: {
+          trainerId: selectedTrainer?.id ?? null,
+          slotId: selectedSlot?.id ?? null,
+          passId: selectedPass?.id ?? null,
+          startTime: selectedSlot ? Timestamp.fromDate(selectedSlot.startTime) : null,
+          location: selectedSlot?.location ?? null,
+          athleteNames: selectedAthletes.filter(Boolean),
+        },
+        orgId: ORG_ID,
+        timestamp: serverTimestamp(),
+      }).catch(() => { /* non-fatal */ });
+
       setStep('done');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
