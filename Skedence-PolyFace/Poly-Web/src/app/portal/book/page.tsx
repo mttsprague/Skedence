@@ -26,7 +26,8 @@ import {
   ShieldCheck,
   Plus,
 } from 'lucide-react';
-import { db, ORG_ID } from '@/lib/firebase';
+import { db, ORG_ID, functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '@/hooks/useAuth';
 import {
   fetchOrgTrainers,
@@ -141,72 +142,19 @@ function ClassModal({
     }
     setLoading(true); setError('');
     try {
-      const classRef = doc(db, 'classes', cls.id);
-      const passRef = doc(db, 'organizations', ORG_ID, 'users', userDocId, 'packages', selectedPass.id);
-      const participantRef = doc(db, 'classes', cls.id, 'participants', userDocId);
-      const registrationRef = doc(db, 'classRegistrations', `${userDocId}_${cls.id}`);
-      await runTransaction(db, async (tx) => {
-        const [classSnap, passSnap] = await Promise.all([tx.get(classRef), tx.get(passRef)]);
-        if (!classSnap.exists()) throw new Error('Class no longer available');
-        const cd = classSnap.data();
-        if (!cd.isOpenForRegistration) throw new Error('Class is no longer open');
-        if (cd.currentParticipants >= cd.maxParticipants) throw new Error('Class is now full');
-        // Double-check inside transaction for race-condition safety
-        const existingParticipants: string[] = Array.isArray(cd.participantIds) ? (cd.participantIds as string[]) : [];
-        if (existingParticipants.includes(userDocId)) throw new Error("You're already registered for this class.");
-        if (!passSnap.exists()) throw new Error('Pass not found');
-        const pd = passSnap.data();
-        if ((pd.totalLessons as number) - (pd.lessonsUsed as number) <= 0) throw new Error('No lessons remaining');
-
-        // 1. Update class document
-        tx.update(classRef, { currentParticipants: increment(1), participantIds: arrayUnion(userDocId) });
-        // 2. Decrement pass
-        tx.update(passRef, { lessonsUsed: (pd.lessonsUsed as number) + 1 });
-        // 3. Participants subcollection doc (mirrors iOS classes/{classId}/participants/{userId})
-        tx.set(participantRef, {
-          userId: userDocId,
-          firstName: profile?.firstName ?? '',
-          lastName: profile?.lastName ?? '',
-          athleteName: selectedAthlete || null,
-          registeredAt: serverTimestamp(),
-          classPassPackageId: selectedPass.id,
-        });
-        // 4. classRegistrations doc with stable ID (mirrors iOS {userId}_{classId})
-        tx.set(registrationRef, {
-          userId: userDocId,
-          clientId: userDocId,
-          classId: cls.id,
-          orgId: ORG_ID,
-          athleteName: selectedAthlete || null,
-          athleteCount: 1,
-          classPassPackageId: selectedPass.id,
-          isPartOfSeries: false,
-          seriesId: null,
-          registeredAt: serverTimestamp(),
-        });
-        // 5. Booking doc — makes class appear in portal schedule & dashboard
-        tx.set(doc(collection(db, 'bookings')), {
-          clientId: userDocId,
-          clientUID: userDocId,
-          trainerUID: cls.trainerId,
-          trainerId: cls.trainerId,
-          orgId: ORG_ID,
-          lessonPackageId: selectedPass.id,
-          packageId: selectedPass.id,
-          startTime: Timestamp.fromDate(cls.startTime),
-          endTime: Timestamp.fromDate(cls.endTime),
-          status: 'confirmed',
-          isClassBooking: true,
-          classId: cls.id,
-          athleteName: selectedAthlete || null,
-          athleteNames: selectedAthlete ? [selectedAthlete] : [],
-          location: cls.location || null,
-          bookedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
-        });
+      // Use the registerForClass Cloud Function — it handles multi-day series correctly
+      // by finding all sibling classes with the same seriesId and registering for all of them.
+      const registerFn = httpsCallable<
+        { classId: string; classPassPackageId: string; athleteName?: string },
+        { success: boolean }
+      >(functions, 'registerForClass');
+      await registerFn({
+        classId: cls.id,
+        classPassPackageId: selectedPass.id,
+        athleteName: selectedAthlete || undefined,
       });
 
-      // 6. Activity log — fire-and-forget (non-blocking)
+      // Activity log — fire-and-forget (non-blocking)
       const actorName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : userDocId;
       addDoc(collection(db, 'activities'), {
         type: 'class_registered',
@@ -223,6 +171,7 @@ function ClassModal({
           athleteName: selectedAthlete || null,
           startTime: Timestamp.fromDate(cls.startTime),
           location: cls.location || null,
+          seriesId: cls.seriesId || null,
         },
         orgId: ORG_ID,
         timestamp: serverTimestamp(),
