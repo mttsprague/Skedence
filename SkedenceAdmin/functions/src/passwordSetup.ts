@@ -14,7 +14,7 @@ interface SetupPasswordData {
  * Uses Admin SDK to create or update Firebase Auth account
  */
 export const setupTrainerPassword = onCall(
-  { enforceAppCheck: true },
+  { enforceAppCheck: false },
   async (request) => {
   const data = request.data as SetupPasswordData;
   const {email, password, token, trainerId} = data;

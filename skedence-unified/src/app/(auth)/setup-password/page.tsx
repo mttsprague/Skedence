@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { confirmPasswordReset } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function SetupPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const oobCode = searchParams.get("oobCode");
+  const token = searchParams.get("token");
+  const email = searchParams.get("email");
+  const trainerId = searchParams.get("trainerId");
   
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,19 +34,31 @@ function SetupPasswordForm() {
       return;
     }
 
-    if (!oobCode) {
-      setError("Invalid password reset link");
+    if (!token || !email || !trainerId) {
+      setError("Invalid or incomplete setup link. Please use the link from your invitation email.");
       return;
     }
 
     setLoading(true);
 
     try {
-      await confirmPasswordReset(auth, oobCode, password);
+      const setupTrainerPassword = httpsCallable(functions, "setupTrainerPassword");
+      await setupTrainerPassword({ token, email, password, trainerId });
+
+      // Sign in with the newly created password
+      await signInWithEmailAndPassword(auth, email, password);
+
       setSuccess(true);
-      setTimeout(() => router.push("/login"), 2000);
+      setTimeout(() => router.push("/dashboard"), 2000);
     } catch (err: any) {
-      setError(err.message || "Failed to set password");
+      const code = err?.code;
+      if (code === "functions/permission-denied") {
+        setError("Invalid or expired setup link. Please contact your administrator for a new invitation.");
+      } else if (code === "functions/not-found") {
+        setError("Trainer account not found. Please contact your administrator.");
+      } else {
+        setError(err.message || "Failed to set password. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -54,12 +69,12 @@ function SetupPasswordForm() {
       <div className="text-center mb-8">
         <a href="/" className="text-3xl font-bold text-blue-600">Skedence</a>
         <h2 className="mt-4 text-2xl font-semibold">Set Your Password</h2>
-        <p className="text-foreground/80">Create a secure password for your account</p>
+        <p className="text-foreground/80">Create a secure password for your trainer account</p>
       </div>
 
       {success ? (
         <div className="bg-green-50 text-green-600 px-4 py-3 rounded-md text-center">
-          Password set successfully! Redirecting to login...
+          Password set successfully! Redirecting to your dashboard...
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
