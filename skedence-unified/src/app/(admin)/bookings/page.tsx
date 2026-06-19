@@ -32,8 +32,11 @@ interface LessonPackage {
   id: string;
   userId: string;
   packageName: string;
+  packageType: string;
   remainingLessons: number;
   totalLessons: number;
+  pricingTierId?: string;
+  pricingTierName?: string;
 }
 
 interface AvailabilitySlot {
@@ -125,7 +128,7 @@ export default function BookingsPage() {
     loadData();
   }, [orgId]);
 
-  // Load packages when client changes
+  // Load packages when client or trainer changes — filter by trainer's pricing tier
   useEffect(() => {
     if (!selectedClient) {
       setPackages([]);
@@ -142,13 +145,12 @@ export default function BookingsPage() {
         return;
       }
       
-      // Type narrowing: TypeScript needs explicit assertion that orgId is string
       const validOrgId: string = orgId;
       const validClientId: string = selectedClient;
+      const trainerData = trainers.find(t => t.id === selectedTrainer);
+      const trainerTierId = trainerData?.pricingTierId || '';
       
       try {
-        // Query STANDARD path: organizations/{orgId}/users/{userId}/packages
-        // This matches the iOS client app implementation
         const packagesQuery = query(
           collection(db, 'organizations', validOrgId, 'users', validClientId, 'packages'),
           orderBy('purchaseDate', 'desc')
@@ -157,29 +159,37 @@ export default function BookingsPage() {
         const packagesSnapshot = await getDocs(packagesQuery);
         
         const packagesData = packagesSnapshot.docs
-          .map(doc => {
-            const data = doc.data();
+          .map(docSnap => {
+            const data = docSnap.data();
             const totalLessons = data.totalLessons || 0;
             const lessonsUsed = data.lessonsUsed || 0;
             const remaining = totalLessons - lessonsUsed;
-            
             return {
-              id: doc.id,
+              id: docSnap.id,
               userId: validClientId,
               packageName: data.packageName || data.packageType || 'Unknown Package',
               packageType: data.packageType || 'unknown',
               remainingLessons: remaining,
               totalLessons: totalLessons,
-              lessonsUsed: lessonsUsed,
-              purchaseDate: data.purchaseDate,
-              expirationDate: data.expirationDate,
+              pricingTierId: data.pricingTierId || '',
+              pricingTierName: data.pricingTierName || '',
             };
           })
-          .filter(pkg => pkg.remainingLessons > 0); // Only show packages with lessons remaining
+          .filter(pkg => {
+            if (pkg.remainingLessons <= 0) return false;
+            // Tier filtering: if pass has a tier, it must match trainer's tier.
+            // Legacy passes (no tier) are shown for any trainer.
+            if (pkg.pricingTierId && trainerTierId) {
+              return pkg.pricingTierId === trainerTierId;
+            }
+            return true;
+          });
         
         setPackages(packagesData);
         if (packagesData.length > 0) {
           setSelectedPackage(packagesData[0].id);
+        } else {
+          setSelectedPackage('');
         }
       } catch (error) {
         console.error('Error loading packages:', error);
@@ -188,7 +198,7 @@ export default function BookingsPage() {
     }
 
     loadPackages();
-  }, [selectedClient, orgId]);
+  }, [selectedClient, selectedTrainer, orgId, trainers]);
 
   // Load slots when trainer or date changes
   useEffect(() => {
@@ -385,7 +395,9 @@ export default function BookingsPage() {
                   </label>
                   {packages.length === 0 ? (
                     <div className="p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                      No active passes available for this client
+                      {selectedTrainer && trainers.find(t => t.id === selectedTrainer)?.pricingTierName
+                        ? `No ${trainers.find(t => t.id === selectedTrainer)!.pricingTierName} passes available for this client. Assign a ${trainers.find(t => t.id === selectedTrainer)!.pricingTierName} pass first.`
+                        : 'No active passes available for this client'}
                     </div>
                   ) : (
                     <select
@@ -395,7 +407,7 @@ export default function BookingsPage() {
                     >
                       {packages.map(pkg => (
                         <option key={pkg.id} value={pkg.id}>
-                          {pkg.packageName} ({pkg.remainingLessons} of {pkg.totalLessons} remaining)
+                          {pkg.packageName}{pkg.pricingTierName ? ` [${pkg.pricingTierName}]` : ''} ({pkg.remainingLessons} of {pkg.totalLessons} remaining)
                         </option>
                       ))}
                     </select>

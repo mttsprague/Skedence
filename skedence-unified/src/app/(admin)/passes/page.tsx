@@ -609,7 +609,9 @@ export default function PassesPage() {
           expirationDate: Timestamp.fromDate(expirationDate),
           transactionId: `ADMIN_ADDED_${Date.now()}`,
           amountPaid: 0, // Admin-added passes are free (stored in cents)
-          orgId: orgId
+          orgId: orgId,
+          pricingTierId: selectedPackage.pricingTierId || null,
+          pricingTierName: selectedPackage.pricingTierName || null,
         };
 
         // Write to STANDARD path: organizations/{orgId}/users/{userId}/packages
