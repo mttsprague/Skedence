@@ -24,8 +24,19 @@ interface Booking {
   endTime: Timestamp;
   status: string;
   athleteNames?: string[];
+  athleteName?: string;
+  secondAthleteName?: string;
   lessonPackageId?: string;
   orgId: string;
+  isClassBooking?: boolean;
+  classId?: string;
+  className?: string;
+  location?: string;
+  packageType?: string;
+  packageName?: string;
+  lessonNotes?: string;
+  seriesId?: string;
+  isPartOfSeries?: boolean;
 }
 
 interface LessonPackage {
@@ -89,6 +100,43 @@ interface Transaction {
 }
 
 type TabType = 'profile' | 'upcoming' | 'history' | 'passes' | 'documents' | 'payments' | 'receipts';
+
+function getBookingEventInfo(booking: Booking): { type: string; barColor: string; badgeBg: string; badgeText: string } {
+  if (booking.isClassBooking) {
+    if (booking.isPartOfSeries) {
+      return { type: 'Camp', barColor: 'bg-purple-400', badgeBg: 'bg-purple-100', badgeText: 'text-purple-700' };
+    }
+    return { type: 'Class', barColor: 'bg-blue-400', badgeBg: 'bg-blue-100', badgeText: 'text-blue-700' };
+  }
+  const athleteCount =
+    booking.athleteNames && booking.athleteNames.length > 0
+      ? booking.athleteNames.length
+      : booking.secondAthleteName
+      ? 2
+      : booking.athleteName
+      ? 1
+      : 1;
+  if (athleteCount >= 3) return { type: `${athleteCount}-Athlete Lesson`, barColor: 'bg-orange-400', badgeBg: 'bg-orange-100', badgeText: 'text-orange-700' };
+  if (athleteCount === 2) return { type: '2-Athlete Lesson', barColor: 'bg-amber-400', badgeBg: 'bg-amber-100', badgeText: 'text-amber-700' };
+  return { type: 'Private Lesson', barColor: 'bg-indigo-400', badgeBg: 'bg-indigo-100', badgeText: 'text-indigo-700' };
+}
+
+function getBookingTitle(booking: Booking): string {
+  if (booking.isClassBooking) {
+    return booking.className || 'Group Class';
+  }
+  if (booking.packageName) return booking.packageName;
+  // Derive a friendly title from packageType
+  const pt = booking.packageType;
+  if (pt) {
+    if (pt.includes('3_athlete') || pt.includes('3athlete')) return '3-Athlete Private Lesson';
+    if (pt.includes('2_athlete') || pt.includes('2athlete')) return '2-Athlete Private Lesson';
+    if (pt.includes('private') || pt.includes('1_athlete') || pt.includes('1athlete')) return 'Private Lesson';
+    // Return a human-readable version of any other type
+    return pt.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+  return 'Private Lesson';
+}
 
 export default function ClientsPage() {
   const { orgId, user, userData, orgData } = useAuth();
@@ -471,11 +519,42 @@ export default function ClientsPage() {
               trainerName: cd.trainerName || '',
               location: cd.location || '',
               orgId: orgId,
+              className: cd.title || '',
+              seriesId: cd.seriesId || null,
+              isPartOfSeries: !!(cd.seriesId),
             });
           });
         }
 
-        const bookingsSnap = { docs: Array.from(bookingsById.values()) };
+        // Batch-fetch class titles for class bookings that don't already have a className
+        const bookingsArr = Array.from(bookingsById.values());
+        const classIdsToFetch = [...new Set(
+          bookingsArr
+            .filter(b => b.isClassBooking && b.classId && !b.className)
+            .map(b => b.classId as string)
+        )];
+        if (classIdsToFetch.length > 0) {
+          const classDocsResult = await Promise.all(classIdsToFetch.map(cid => getDoc(doc(db, 'classes', cid))));
+          const classNameMap = new Map<string, { title: string; seriesId?: string }>();
+          classDocsResult.forEach(cd => {
+            if (cd.exists()) {
+              const d = cd.data()!;
+              classNameMap.set(cd.id, { title: d.title || '', seriesId: d.seriesId });
+            }
+          });
+          bookingsArr.forEach(b => {
+            if (b.isClassBooking && b.classId && classNameMap.has(b.classId)) {
+              const info = classNameMap.get(b.classId)!;
+              b.className = info.title;
+              if (!b.seriesId && info.seriesId) {
+                b.seriesId = info.seriesId;
+                b.isPartOfSeries = true;
+              }
+            }
+          });
+        }
+
+        const bookingsSnap = { docs: bookingsArr };
         // Filter cancelled bookings client-side
         const bookingsData = bookingsSnap.docs
           .filter(doc => (doc as any).status !== 'cancelled' || (doc as any).startTime?.toDate() < now)
@@ -1405,31 +1484,57 @@ export default function ClientsPage() {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {upcomingBookings.map((booking) => (
-                              <Card key={booking.id}>
-                                <CardContent className="pt-6">
-                                  <div className="flex items-start justify-between">
-                                    <div className="space-y-1">
-                                      <p className="font-semibold">{booking.startTime.toDate().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                                      <p className="text-sm text-foreground/80">
-                                        {booking.startTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                      </p>
-                                      <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
-                                      {booking.athleteNames && booking.athleteNames.length > 0 && (
-                                        <p className="text-xs text-muted-foreground">Athletes: {booking.athleteNames.join(', ')}</p>
-                                      )}
+                            {upcomingBookings.map((booking) => {
+                              const eventInfo = getBookingEventInfo(booking);
+                              const eventTitle = getBookingTitle(booking);
+                              const athletes = booking.athleteNames && booking.athleteNames.length > 0
+                                ? booking.athleteNames
+                                : booking.athleteName
+                                  ? [booking.athleteName, ...(booking.secondAthleteName ? [booking.secondAthleteName] : [])]
+                                  : [];
+                              return (
+                                <Card key={booking.id} className="overflow-hidden">
+                                  <div className={`h-1 w-full ${eventInfo.barColor}`} />
+                                  <CardContent className="pt-4 pb-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="space-y-1 min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${eventInfo.badgeBg} ${eventInfo.badgeText}`}>
+                                            {eventInfo.type}
+                                          </span>
+                                          <p className="font-semibold text-foreground truncate">{eventTitle}</p>
+                                        </div>
+                                        <p className="text-sm font-medium text-foreground/90">
+                                          {booking.startTime.toDate().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                        <p className="text-sm text-foreground/70">
+                                          {booking.startTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} – {booking.endTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                        </p>
+                                        {booking.trainerName && (
+                                          <p className="text-sm text-foreground/70">with <span className="font-medium text-foreground/90">{booking.trainerName}</span></p>
+                                        )}
+                                        {booking.location && booking.location !== 'Location TBD' && (
+                                          <p className="text-sm text-foreground/70">📍 {booking.location}</p>
+                                        )}
+                                        {athletes.length > 0 && (
+                                          <p className="text-sm text-foreground/70">🏃 {athletes.join(', ')}</p>
+                                        )}
+                                        {booking.lessonNotes && (
+                                          <p className="text-xs text-muted-foreground mt-1 italic">"{booking.lessonNotes}"</p>
+                                        )}
+                                      </div>
+                                      <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${
+                                        booking.status === 'booked' || booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                        booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                        'bg-gray-100 text-foreground'
+                                      }`}>
+                                        {booking.status === 'confirmed' ? 'Confirmed' : booking.status === 'booked' ? 'Booked' : booking.status}
+                                      </span>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                      booking.status === 'booked' ? 'bg-green-100 text-green-700' :
-                                      booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                      'bg-gray-100 text-foreground'
-                                    }`}>
-                                      {booking.status}
-                                    </span>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -1444,26 +1549,58 @@ export default function ClientsPage() {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {pastBookings.map((booking) => (
-                              <Card key={booking.id}>
-                                <CardContent className="pt-6">
-                                  <div className="flex items-start justify-between">
-                                    <div className="space-y-1">
-                                      <p className="font-semibold">{booking.startTime.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                                      <p className="text-sm text-foreground/80">
-                                        {booking.startTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {booking.endTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                      </p>
-                                      <p className="text-sm text-foreground/80">with {booking.trainerName}</p>
+                            {pastBookings.map((booking) => {
+                              const eventInfo = getBookingEventInfo(booking);
+                              const eventTitle = getBookingTitle(booking);
+                              const athletes = booking.athleteNames && booking.athleteNames.length > 0
+                                ? booking.athleteNames
+                                : booking.athleteName
+                                  ? [booking.athleteName, ...(booking.secondAthleteName ? [booking.secondAthleteName] : [])]
+                                  : [];
+                              const isCancelled = booking.status === 'cancelled';
+                              return (
+                                <Card key={booking.id} className={`overflow-hidden ${isCancelled ? 'opacity-60' : ''}`}>
+                                  <div className={`h-1 w-full ${isCancelled ? 'bg-gray-300' : eventInfo.barColor}`} />
+                                  <CardContent className="pt-4 pb-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="space-y-1 min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {!isCancelled && (
+                                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${eventInfo.badgeBg} ${eventInfo.badgeText}`}>
+                                              {eventInfo.type}
+                                            </span>
+                                          )}
+                                          <p className="font-semibold text-foreground truncate">{eventTitle}</p>
+                                        </div>
+                                        <p className="text-sm font-medium text-foreground/90">
+                                          {booking.startTime.toDate().toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                        <p className="text-sm text-foreground/70">
+                                          {booking.startTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} – {booking.endTime.toDate().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                        </p>
+                                        {booking.trainerName && (
+                                          <p className="text-sm text-foreground/70">with <span className="font-medium text-foreground/90">{booking.trainerName}</span></p>
+                                        )}
+                                        {booking.location && booking.location !== 'Location TBD' && (
+                                          <p className="text-sm text-foreground/70">📍 {booking.location}</p>
+                                        )}
+                                        {athletes.length > 0 && (
+                                          <p className="text-sm text-foreground/70">🏃 {athletes.join(', ')}</p>
+                                        )}
+                                        {booking.lessonNotes && (
+                                          <p className="text-xs text-muted-foreground mt-1 italic">"{booking.lessonNotes}"</p>
+                                        )}
+                                      </div>
+                                      <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${
+                                        isCancelled ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                      }`}>
+                                        {isCancelled ? 'Cancelled' : 'Completed'}
+                                      </span>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                      booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                                    }`}>
-                                      {booking.status === 'cancelled' ? 'Cancelled' : 'Completed'}
-                                    </span>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
