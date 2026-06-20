@@ -171,10 +171,27 @@ export default function ProfilePage() {
   useEffect(() => { load(); }, [load]);
 
   async function handleSave() {
-    if (!userDocId) return;
+    if (!userDocId) {
+      showToast('error', 'Session error — please sign out and sign back in.');
+      return;
+    }
     setSaving(true);
     try {
-      const validAthletes = athletes.filter((a) => a.firstName.trim() || a.lastName.trim());
+      // Strip undefined values from athlete objects — Firestore rejects undefined fields
+      const validAthletes = athletes
+        .filter((a) => a.firstName.trim() || a.lastName.trim())
+        .map((a) => {
+          const clean: Record<string, string> = {
+            firstName: a.firstName,
+            lastName: a.lastName,
+          };
+          if (a.birthday)       clean.birthday       = a.birthday;
+          if (a.schoolClubTeam) clean.schoolClubTeam = a.schoolClubTeam;
+          if (a.experienceLevel) clean.experienceLevel = a.experienceLevel;
+          if (a.position)       clean.position       = a.position;
+          return clean as unknown as typeof a;
+        });
+
       await saveUserProfile(userDocId, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -185,8 +202,11 @@ export default function ProfilePage() {
         referredBy: referredBy.trim(),
         athletes: validAthletes,
       });
+      // Refresh from Firestore so the form reflects what was saved
+      await load();
       showToast('success', 'Profile saved successfully!');
-    } catch {
+    } catch (err) {
+      console.error('Profile save error:', err);
       showToast('error', 'Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
@@ -224,12 +244,14 @@ export default function ProfilePage() {
         <p className="text-sm text-gray-500 mt-0.5">Manage your account information and athletes</p>
       </div>
 
-      {/* Toast */}
+      {/* Fixed bottom toast — visible regardless of scroll position */}
       {toast && (
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium ${
-          toast.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-lg text-sm font-semibold transition-all ${
+          toast.type === 'success'
+            ? 'bg-green-600 text-white'
+            : 'bg-red-600 text-white'
         }`}>
-          {toast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+          {toast.type === 'success' ? <CheckCircle size={17} /> : <AlertCircle size={17} />}
           {toast.msg}
         </div>
       )}
