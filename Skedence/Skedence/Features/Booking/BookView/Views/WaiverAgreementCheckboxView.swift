@@ -16,6 +16,7 @@ struct WaiverAgreementCheckboxView: View {
     let onCancel: () -> Void
     
     @State private var hasAgreed = false
+    @State private var isSaving = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -136,17 +137,23 @@ struct WaiverAgreementCheckboxView: View {
                     }
                     
                     Button {
+                        guard !isSaving else { return }
+                        isSaving = true
                         onAgree()
                         // Don't dismiss here - let the parent view handle dismissal after waiver is saved
                     } label: {
                         HStack(spacing: Spacing.xs) {
-                            Image(systemName: "checkmark.circle.fill")
-                            Text("I Agree")
+                            if isSaving {
+                                ProgressView().tint(.white).scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                            }
+                            Text(isSaving ? "Saving..." : "I Agree")
                         }
                         .font(.headingSmall)
                     }
                     .buttonStyle(PrimaryButtonStyle())
-                    .disabled(!hasAgreed)
+                    .disabled(!hasAgreed || isSaving)
                     .padding(.bottom, Spacing.xl)
                 }
                 .padding(.horizontal, Spacing.lg)

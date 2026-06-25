@@ -16,7 +16,7 @@ struct UpcomingClassesSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            SectionHeaderView(title: "Upcoming Classes")
+            SectionHeaderView(title: "Upcoming Camps & Classes")
             
             // Phase 6.2: Convert service state to LoadingState
             let loadingState: LoadingState<[GroupClass]> = {

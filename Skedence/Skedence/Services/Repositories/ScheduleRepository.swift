@@ -97,7 +97,7 @@ final class ScheduleRepository: QueryableRepositoryProtocol {
         let snapshot = try await db.collection("trainers")
             .document(trainerId)
             .collection("schedules")
-            .whereField("status", isEqualTo: "available")
+            .whereField("status", isEqualTo: "open")
             .order(by: "startTime", descending: false)
             .getDocuments()
         
@@ -122,7 +122,7 @@ final class ScheduleRepository: QueryableRepositoryProtocol {
             let slotsSnapshot = try await db.collection("trainers")
                 .document(trainerId)
                 .collection("schedules")
-                .whereField("status", isEqualTo: "available")
+                .whereField("status", isEqualTo: "open")
                 .whereField("startTime", isGreaterThan: now)
                 .order(by: "startTime", descending: false)
                 .limit(to: limit)

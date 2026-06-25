@@ -28,6 +28,7 @@ struct ClassRegistrationSheet: View {
     @State private var errorMessage: String?
     @State private var selectedClassPass: LessonPackage?
     @State private var registrationCount = 0
+    @State private var showPurchasePasses = false
     
     // Athlete selection state
     @State private var selectedAthleteName: String?
@@ -38,6 +39,7 @@ struct ClassRegistrationSheet: View {
     @State private var showRegistrationConfirmation = false
     @State private var pendingRegistrationSuccess = false
     @State private var pendingNewAthleteWaiver = false
+    @State private var isHandlingWaiver = false
     
     // Waiver status tracking
     @State private var primaryAthleteHasWaiver = false
@@ -236,6 +238,12 @@ struct ClassRegistrationSheet: View {
                         return true
                     }
                 }
+                // Fallback: legacy waivers may store athlete name in signedBy
+                if let signedBy = doc.signedBy?.lowercased().trimmingCharacters(in: .whitespaces) {
+                    if signedBy == normalizedAthleteName {
+                        return true
+                    }
+                }
             }
         }
         
@@ -270,6 +278,9 @@ struct ClassRegistrationSheet: View {
     
     // Handle waiver agreement (matches BookView flow - saves to documents subcollection with PDF)
     private func handleWaiverAgreement() async {
+        guard !isHandlingWaiver else { return }
+        isHandlingWaiver = true
+        defer { isHandlingWaiver = false }
         guard let userId = auth.currentUserDocId,
               let profile = usersService.currentUser else {
             showWaiverAgreement = false
@@ -405,18 +416,20 @@ struct ClassRegistrationSheet: View {
         return package.packageType.replacingOccurrences(of: "_", with: " ").capitalized
     }
     
-    // Computed property to check if there are enough passes for the selected number of athletes
+    // Computed helpers for pass usage
+    private var athleteCountForSelection: Int {
+        (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
+    }
+
     private var hasEnoughPasses: Bool {
-        let athleteCount = (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
-        let availablePasses = (selectedClassPass ?? availableClassPass)?.lessonsRemaining ?? 0
-        return availablePasses >= athleteCount
+        guard let pass = selectedClassPass ?? availableClassPass else { return false }
+        return pass.lessonsRemaining >= athleteCountForSelection
     }
     
     private var registrationButton: some View {
-        let athleteCount = (isOnlyParticipant == false && secondAthleteName != nil) ? 2 : 1
+        let athleteCount = athleteCountForSelection
         let passesNeeded = athleteCount
         let availablePasses = selectedClassPass?.lessonsRemaining ?? 0
-        let hasEnoughPasses = availablePasses >= passesNeeded
         
         return VStack(spacing: Spacing.sm) {
             if selectedClassPass != nil && !hasEnoughPasses {
@@ -469,7 +482,7 @@ struct ClassRegistrationSheet: View {
             Divider()
             HStack(spacing: Spacing.xxs) {
                 Image(systemName: "person.2")
-                Text("\(classItem.currentParticipants) / \(classItem.maxParticipants) registered")
+                Text(classItem.isFull ? "Class full" : "\(classItem.spotsRemaining) spot\(classItem.spotsRemaining == 1 ? "" : "s") remaining")
                     .font(.bodyLarge)
             }
         }
@@ -918,15 +931,37 @@ struct ClassRegistrationSheet: View {
         CardView {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack(spacing: Spacing.sm) {
-                    Image(systemName: "exclamationmark.circle.fill")
+                    Image(systemName: "ticket.fill")
                         .foregroundStyle(AppTheme.warning)
                     Text("Class Pass Required")
                         .font(.bodyMedium.bold())
                         .foregroundStyle(AppTheme.warning)
+                    Spacer()
                 }
-                Text("You need a class pass to register. Purchase one from the Profile tab to get started.")
+                Text("You need a class pass to register for this class.")
                     .font(.bodySmall)
                     .foregroundStyle(AppTheme.textSecondary)
+                Button {
+                    showPurchasePasses = true
+                } label: {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "cart.fill")
+                        Text("Purchase a Pass")
+                            .font(.bodyMedium.bold())
+                        Spacer()
+                    }
+                    .padding(.vertical, Spacing.sm)
+                    .background(AppTheme.primary)
+                    .foregroundStyle(.white)
+                    .cornerRadius(CornerRadius.sm)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .sheet(isPresented: $showPurchasePasses) {
+            NavigationView {
+                PurchaseLessonsView(packagesService: packagesService)
             }
         }
     }

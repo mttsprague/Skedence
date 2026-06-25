@@ -116,10 +116,18 @@ class PricingStructureService: ObservableObject {
     
     // MARK: - Computed Properties
     
-    /// Get all active package options across all tiers (for dropdowns)
+    /// Get all active package options across all tiers, with tier info stamped on each package
     var allPackageOptions: [PackageOption] {
-        let allPackages = pricingStructure?.allPackages ?? []
-        return allPackages.filter { $0.active }
+        guard let structure = pricingStructure else { return [] }
+        var result: [PackageOption] = []
+        for tier in structure.tiers {
+            for var pkg in tier.packages where pkg.active {
+                pkg.pricingTierId = tier.id
+                pkg.pricingTierName = tier.tierName
+                result.append(pkg)
+            }
+        }
+        return result
     }
     
     /// Get package titles for picker (active packages only)

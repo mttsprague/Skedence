@@ -143,7 +143,8 @@ final class BookingManager: ObservableObject {
                 athleteName: athleteName,
                 secondAthleteName: secondAthleteName,
                 athleteNames: athleteNames,
-                lessonNotes: lessonNotes
+                lessonNotes: lessonNotes,
+                isClassBooking: false
             )
         }
 
@@ -290,7 +291,8 @@ final class BookingManager: ObservableObject {
             athleteName: dict["athleteName"] as? String,
             secondAthleteName: dict["secondAthleteName"] as? String,
             athleteNames: dict["athleteNames"] as? [String],
-            lessonNotes: dict["lessonNotes"] as? String
+            lessonNotes: dict["lessonNotes"] as? String,
+            isClassBooking: false
         )
     }
 }

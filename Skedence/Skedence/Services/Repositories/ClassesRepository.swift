@@ -130,16 +130,19 @@ final class ClassesRepository: QueryableRepositoryProtocol {
         }
         
         let classIds = registrationsSnapshot.documents.compactMap { $0.data()["classId"] as? String }
-        print("📝 Class IDs: \(classIds)")
+        // Deduplicate so multiple registrations for the same class (e.g. 2 athletes) only return 1 entry
+        var seen = Set<String>()
+        let uniqueClassIds = classIds.filter { seen.insert($0).inserted }
+        print("📝 Class IDs (unique): \(uniqueClassIds)")
         
-        guard !classIds.isEmpty else {
+        guard !uniqueClassIds.isEmpty else {
             print("⚠️ No class IDs found in registrations")
             return []
         }
         
         // Fetch classes in batches (Firestore 'in' query limit is 10)
         var allClasses: [GroupClass] = []
-        for chunk in classIds.chunked(into: 10) {
+        for chunk in uniqueClassIds.chunked(into: 10) {
             let snapshot = try await db.collection("classes")
                 .whereField(FieldPath.documentID(), in: chunk)
                 .getDocuments()

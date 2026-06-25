@@ -56,6 +56,8 @@ struct BookView: View {
     // NOTE: Athlete profile fields are now managed dynamically via intakeFormData and newAthleteIntakeData
     // These IntakeFormData objects automatically handle form state based on configured intake fields
     
+    @State private var showPurchasePasses = false
+    @State private var isHandlingWaiver = false
     @State private var showSubscriptionSheet = false
     @State private var showBookingInstructions = false
     @State private var showWaiverAgreement = false
@@ -81,7 +83,7 @@ struct BookView: View {
     @State private var hasSearched = false
     @State private var classSearchText = ""
 
-    enum Mode: String, CaseIterable { case lessons = "Privates", classes = "Classes" }
+    enum Mode: String, CaseIterable { case lessons = "Privates", classes = "Camps & Classes" }
     
     // Get available lesson packages (excluding class passes)
     private var availableLessonPackages: [LessonPackage] {
@@ -417,7 +419,7 @@ struct BookView: View {
             .onAppear {
                 setupInitialMode()
             }
-            .onChange(of: auth.currentOrgId) { newOrgId in
+            .onChangeCompat(of: auth.currentOrgId) { _, newOrgId in
                 guard let orgId = newOrgId, pricingService.pricingStructure == nil else { return }
                 Task { await pricingService.loadPricingStructure(for: orgId) }
             }
@@ -1266,21 +1268,85 @@ struct BookView: View {
         Group {
             // Show warning when no passes available in lessons mode
             if mode == .lessons && !packagesService.hasAvailableLessons {
-                Text("Purchase passes in your Profile to book a private")
-                    .font(.bodySmall)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.top, Spacing.xs)
+                CardView(padding: Spacing.md) {
+                    VStack(spacing: Spacing.sm) {
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: "ticket.fill")
+                                .foregroundStyle(AppTheme.warning)
+                            Text("No Passes Available")
+                                .font(.bodyMedium.bold())
+                                .foregroundStyle(AppTheme.warning)
+                            Spacer()
+                        }
+                        Text("You need a lesson pass to book a private session.")
+                            .font(.bodySmall)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        Button {
+                            showPurchasePasses = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Image(systemName: "cart.fill")
+                                Text("Purchase a Pass")
+                                    .font(.bodyMedium.bold())
+                                Spacer()
+                            }
+                            .padding(.vertical, Spacing.sm)
+                            .background(AppTheme.primary)
+                            .foregroundStyle(.white)
+                            .cornerRadius(CornerRadius.sm)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, Spacing.xs)
+                .sheet(isPresented: $showPurchasePasses) {
+                    NavigationView {
+                        PurchaseLessonsView(packagesService: packagesService)
+                    }
+                }
             } else if mode == .lessons && availableLessonPackages.isEmpty && packagesService.hasAvailableLessons {
                 // User has passes but none valid for selected trainer's tier
                 if let trainer = selectedTrainer, let tierName = trainer.pricingTierName {
-                    Text("No passes available for \(tierName) trainers. Purchase a pass for this tier in your Profile.")
-                        .font(.bodySmall)
-                        .foregroundStyle(.orange)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, Spacing.lg)
-                        .padding(.top, Spacing.xs)
+                    CardView(padding: Spacing.md) {
+                        VStack(spacing: Spacing.sm) {
+                            HStack(spacing: Spacing.sm) {
+                                Image(systemName: "ticket.fill")
+                                    .foregroundStyle(.orange)
+                                Text("Wrong Pass Tier")
+                                    .font(.bodyMedium.bold())
+                                    .foregroundStyle(.orange)
+                                Spacer()
+                            }
+                            Text("No passes available for \(tierName) trainers.")
+                                .font(.bodySmall)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Button {
+                                showPurchasePasses = true
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "cart.fill")
+                                    Text("Purchase a \(tierName) Pass")
+                                        .font(.bodyMedium.bold())
+                                    Spacer()
+                                }
+                                .padding(.vertical, Spacing.sm)
+                                .background(AppTheme.primary)
+                                .foregroundStyle(.white)
+                                .cornerRadius(CornerRadius.sm)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.top, Spacing.xs)
+                    .sheet(isPresented: $showPurchasePasses) {
+                        NavigationView {
+                            PurchaseLessonsView(packagesService: packagesService)
+                        }
+                    }
                 }
             }
         }
@@ -1290,7 +1356,7 @@ struct BookView: View {
     
     private var classesContent: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Available Classes")
+            Text("Available Camps & Classes")
                 .font(.headingMedium)
                 .foregroundStyle(AppTheme.textPrimary)
             .padding(.horizontal, Spacing.lg)
@@ -1334,7 +1400,7 @@ struct BookView: View {
             } else if availableClasses.isEmpty {
                 EmptyStateView(
                     icon: "calendar",
-                    title: "No Classes Available",
+                    title: "No Camps or Classes Available",
                     message: "Check back soon for upcoming group classes!"
                 )
                 .padding(.horizontal, Spacing.lg)
@@ -1993,6 +2059,9 @@ struct BookView: View {
     }
     
     private func handleWaiverAgreement() async {
+        guard !isHandlingWaiver else { return }
+        isHandlingWaiver = true
+        defer { isHandlingWaiver = false }
         guard let userId = auth.currentUserDocId,
               let profile = usersService.currentUser else {
             showWaiverAgreement = false

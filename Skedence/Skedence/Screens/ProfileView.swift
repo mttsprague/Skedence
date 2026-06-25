@@ -1450,7 +1450,7 @@ private struct SignedInProfileScreen: View {
         
         // Add upcoming lessons
         let upcomingLessons = bookingsService.myBookings
-            .filter { ($0.startTime ?? now) >= now }
+            .filter { !$0.isClassBooking && ($0.startTime ?? now) >= now }
             .map { booking in
                 let packageName = booking.lessonPackageId.flatMap { packageNames[$0] } ?? "Private Lesson"
                 return UpcomingEvent.lesson(booking, packageName: packageName)
@@ -1478,7 +1478,6 @@ private struct SignedInProfileScreen: View {
     
     private var registeredClassesCount: Int {
         let now = Date()
-        // Count upcoming classes the user is registered for
         return classesService.myRegisteredClasses.filter { $0.startTime >= now }.count
     }
 

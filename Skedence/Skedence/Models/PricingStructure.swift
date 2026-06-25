@@ -59,6 +59,10 @@ struct PackageOption: Codable, Identifiable, Hashable {
     var expirationDays: Int = 365 // Days until pass expires after purchase
     var active: Bool = true // Whether this package is currently available for purchase
     
+    // Transient runtime fields (not persisted to Firestore — stamped by PricingStructureService)
+    var pricingTierId: String? = nil
+    var pricingTierName: String? = nil
+    
     /// Formatted price for display (e.g., "$80.00")
     var formattedPrice: String {
         let dollars = Double(priceInCents) / 100.0
@@ -99,6 +103,8 @@ struct PackageOption: Codable, Identifiable, Hashable {
         self.description = description
         self.expirationDays = expirationDays
         self.active = active
+        self.pricingTierId = nil
+        self.pricingTierName = nil
     }
     
     // Custom decoding to handle missing fields for backward compatibility
